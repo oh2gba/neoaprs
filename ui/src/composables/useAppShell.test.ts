@@ -45,7 +45,7 @@ function several(context: DaemonContext): boolean {
 }
 
 describe("the shell's context with any number of radios", () => {
-  it("names the radios while two FM radios are on and no Mercury radio, and not while one is", async () => {
+  it("names the radios while two Packet radios are on and no Mercury radio, and not while one is", async () => {
     const two = await shellWith([
       radioRow(1, "kenwood-tnc2"),
       radioRow(2, "mercury", { enabled: false, state: "stopped" }),

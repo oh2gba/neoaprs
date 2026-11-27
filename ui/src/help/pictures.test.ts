@@ -53,8 +53,9 @@ describe("the pictures of the (i) notes", () => {
       const words = mount(PICTURES[name])
         .findAll("text")
         .map((text) => text.text());
-      // The one word is what our own station is called, in the page's language.
-      expect(words.filter((word) => word !== t("help.me") && !/^[A-Z0-9][A-Z0-9 .,-]*$/.test(word))).toEqual([]);
+      // The words are what our own station is called, in the page's language, and the tag of a radio of a kind.
+      const own = [t("help.me"), t("channel.fm")];
+      expect(words.filter((word) => !own.includes(word) && !/^[A-Z0-9][A-Z0-9 .,-]*$/.test(word))).toEqual([]);
     }
   });
 

@@ -67,7 +67,7 @@ describe("the page in the pseudo-locale", () => {
       const { wrapper, socket } = await open();
       const fm = fmRow({
         state: "waiting",
-        problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } },
+        problem: { code: "radio.not_connected", params: { name: "Packet", radio: 1 } },
       });
       const hf = hfRow({
         state: "waiting",

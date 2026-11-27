@@ -233,7 +233,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "route.best.send_direct": "{route}; enviar direto",
   "route.best.unknown_send_by": "{route}; repetidor desconhecido, enviar por {path}",
   "route.best.unknown_send_direct": "{route}; repetidor desconhecido, enviar direto",
-  "channel.fm": "FM",
+  "channel.fm": "Packet",
   "channel.hf": "Mercury",
   "channel.lora": "LoRa",
   "channel.gated": "iGate",

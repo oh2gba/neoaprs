@@ -133,10 +133,10 @@ describe("ObjectsPane", () => {
           ["Mercury", "Sent on radio Mercury", "tag-hf"],
         ],
         [
-          ["FM", "Sent on radio FM", "tag-neutral"],
+          ["Packet", "Sent on radio Packet", "tag-neutral"],
           ["Mercury", "Sent on radio Mercury", "tag-hf"],
         ],
-        [["FM", "Sent on radio FM", "tag-neutral"]],
+        [["Packet", "Sent on radio Packet", "tag-neutral"]],
       ]);
     });
 
@@ -170,7 +170,7 @@ describe("ObjectsPane", () => {
         radioRow(4, "dummy", { number: 3, removed: true, enabled: false }),
       );
       expect(tagsOf(radios, rows, { status: status({ unheard_radio: 2 }) })).toEqual([
-        [["FM", "Sent on radio FM", "tag-neutral"]],
+        [["Packet", "Sent on radio Packet", "tag-neutral"]],
         [],
       ]);
       const table = new Map(rows.map((r) => [r.name, r]));
@@ -247,7 +247,12 @@ describe("ObjectsPane", () => {
       const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(daemon) });
       expect(wrapper.findAll(".own-radio")).toHaveLength(0);
       await tell(daemon, { radios: radiosTopic(FM, HF) });
-      expect(wrapper.findAll(".own-radio").map((tag) => tag.text())).toEqual(["Mercury", "FM", "Mercury", "FM"]);
+      expect(wrapper.findAll(".own-radio").map((tag) => tag.text())).toEqual([
+        "Mercury",
+        "Packet",
+        "Mercury",
+        "Packet",
+      ]);
     });
   });
 

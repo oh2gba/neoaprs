@@ -57,19 +57,19 @@ async function sendOf(wrapper: Wrapper) {
 }
 
 describe("the radio of a conversation", () => {
-  it("is Mercury for a station FM heard long ago and Mercury lately, which the daemon messages over Mercury", () => {
+  it("is Mercury for a station Packet heard long ago and Mercury lately, which the daemon messages over Mercury", () => {
     const wrapper = header("OH2LATE", [station("OH2LATE", { heard: heardBy([1, 30], [2, 2, null]), radio_now: 2 })]);
     expect(named(wrapper)).toBe("Mercury");
     expect(tag(wrapper).classes()).toContain("tag-hf");
     expect(tag(wrapper).attributes("title")).toBe("Messages to this station go on radio Mercury");
   });
 
-  it("is FM for a station heard on Mercury alone that the daemon messages over FM", () => {
+  it("is Packet for a station heard on Mercury alone that the daemon messages over Packet", () => {
     const wrapper = header("OH2FAR", [station("OH2FAR", { heard: heardBy([2, 3, null]), radio_now: 1 })]);
-    expect([named(wrapper), tag(wrapper).classes()]).toEqual(["FM", expect.arrayContaining(["tag-neutral"])]);
+    expect([named(wrapper), tag(wrapper).classes()]).toEqual(["Packet", expect.arrayContaining(["tag-neutral"])]);
   });
 
-  it("is the radio of a message on its way that keeps Mercury though the station is now messaged over FM, and the station's once it is done", () => {
+  it("is the radio of a message on its way that keeps Mercury though the station is now messaged over Packet, and the station's once it is done", () => {
     const row = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_now: 1 });
     expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "sending", radio_now: 2 })]))).toBe(
       "Mercury",
@@ -78,14 +78,14 @@ describe("the radio of a conversation", () => {
       "Mercury",
     );
     expect(named(header("OH2RDG", [row], [message(4, { to_call: "OH2RDG", state: "acked", radio_now: null })]))).toBe(
-      "FM",
+      "Packet",
     );
   });
 
   it("follows the operator's choice at once while a message is on its way, which takes the radio chosen from its next attempt", () => {
     const pressedFm = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_choice: 1, radio_now: 1 });
     const sending = message(4, { to_call: "OH2RDG", state: "sending", radio_id: 2, radio_now: 2 });
-    expect(named(header("OH2RDG", [pressedFm], [sending]))).toBe("FM");
+    expect(named(header("OH2RDG", [pressedFm], [sending]))).toBe("Packet");
     expect(
       named(
         header(
@@ -103,7 +103,7 @@ describe("the radio of a conversation", () => {
     await hf.find(".route-button").trigger("click");
     const path = hf.find<HTMLInputElement>(".route-box .pathbox input[type='text']");
     expect([path.element.disabled, path.attributes("title")]).toEqual([true, "Mercury: no path"]);
-    expect(named(header("OH2NEW", [], [], { status: status({ unheard_radio: 1 }) }))).toBe("FM");
+    expect(named(header("OH2NEW", [], [], { status: status({ unheard_radio: 1 }) }))).toBe("Packet");
     expect(
       named(
         header("OH2NET", [station("OH2NET", { can_message: false, radio_now: null })], [], {
@@ -128,12 +128,12 @@ describe("the radio of a conversation", () => {
     expect(await route({ status: status({ unheard_radio: 2 }) })).toEqual([
       true,
       "Automatic: Mercury",
-      ["Automatic: Mercury", "FM", "Mercury"],
+      ["Automatic: Mercury", "Packet", "Mercury"],
     ]);
     expect(await route({ status: status({ unheard_radio: 1 }) })).toEqual([
       true,
-      "Automatic: FM",
-      ["Automatic: FM", "FM", "Mercury"],
+      "Automatic: Packet",
+      ["Automatic: Packet", "Packet", "Mercury"],
     ]);
     expect((await route({ radios: SIX, status: status({ unheard_radio: 6 }) }))?.[1]).toBe("Automatic: 80 m");
     expect(await route({ radios: HF_OFF, status: status({ unheard_radio: 1 }) })).toBeNull();
@@ -162,7 +162,7 @@ describe("the radio of a conversation", () => {
     );
   });
 
-  it("is not named while one radio is on: the header is today's, FM or Mercury alone", () => {
+  it("is not named while one radio is on: the header is today's, Packet or Mercury alone", () => {
     for (const [values, now] of [
       [HF_OFF, 1],
       [FM_OFF, 2],
@@ -185,7 +185,7 @@ describe("the radio of a conversation", () => {
     });
     expect(named(wrapper)).toBe(null);
     await tell(daemon, { radios: BOTH });
-    expect(named(wrapper)).toBe("FM");
+    expect(named(wrapper)).toBe("Packet");
     await tell(daemon, { radios: HF_OFF });
     expect(named(wrapper)).toBe(null);
   });
@@ -205,7 +205,7 @@ describe("the radio of a conversation", () => {
 
   it("keeps the room of the widest name of the radios that are on, whichever it names: the other radios' tags in the same place, hidden, so that a name wider than eight digits moves nothing either", async () => {
     const wide = radiosTopic(
-      radioRow(1, "kenwood-tnc2", { name: "FM" }),
+      radioRow(1, "kenwood-tnc2", { name: "Packet" }),
       radioRow(2, "mercury", { name: "Mercury" }),
       radioRow(3, "kiss", { name: "WWWWWWWW", number: 2 }),
     );
@@ -229,14 +229,14 @@ describe("the radio of a conversation", () => {
         ]);
     expect(room()).toEqual([
       ["Mercury", false, "false", "Messages to this station go on radio Mercury"],
-      ["FM", true, "true", null],
+      ["Packet", true, "true", null],
       ["WWWWWWWW", true, "true", null],
     ]);
     expect(named(wrapper)).toBe("Mercury");
     await tell(daemon, { stations: new Map([["OH2RDG", station("OH2RDG", { radio_now: 3 })]]) });
     expect(room().map(([name, hidden]) => [name, hidden])).toEqual([
       ["WWWWWWWW", false],
-      ["FM", true],
+      ["Packet", true],
       ["Mercury", true],
     ]);
     const sheet = readFileSync(resolve(__dirname, "../styles/tables.css"), "utf8");
@@ -311,14 +311,14 @@ describe("a message that came in", () => {
       global: withDaemon(fakeDaemon({ radios: BOTH, ...given })),
     }).find(".bubble-route");
 
-  it("names the radio it came on before its route words where radios are named, FM as Mercury: none is the unmarked default", () => {
+  it("names the radio it came on before its route words where radios are named, Packet as Mercury: none is the unmarked default", () => {
     const hf = line(incoming(2, "OH2RDG", { radio_id: 2, route: "direct" }));
     expect([hf.text(), hf.find(".tag").classes(), hf.find(".tag").attributes("title")]).toEqual([
       "Mercury direct",
       expect.arrayContaining(["tag-hf"]),
       "Heard on radio Mercury",
     ]);
-    expect(line(incoming(2, "OH2RDG", { radio_id: 1, route: "via OH2RCH-2" })).text()).toBe("FM via OH2RCH-2");
+    expect(line(incoming(2, "OH2RDG", { radio_id: 1, route: "via OH2RCH-2" })).text()).toBe("Packet via OH2RCH-2");
     expect(line(incoming(2, "OH2RDG", { radio_id: 5, route: "direct" }), { radios: SIX }).text()).toBe(
       "Portable direct",
     );
@@ -428,12 +428,12 @@ describe("the radio of email", () => {
       config: stored,
       status: status({ email_radio: 1 }),
     });
-    expect([offered(wrapper), list(wrapper).element.value]).toEqual([["FM", "LoRa"], "1"]);
+    expect([offered(wrapper), list(wrapper).element.value]).toEqual([["Packet", "LoRa"], "1"]);
     await tell(daemon, {
       radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"), radioRow(3, "dummy-lora")),
       status: status({ email_radio: 2 }),
     });
-    expect([offered(wrapper), list(wrapper).element.value]).toEqual([["FM", "Mercury", "LoRa"], "2"]);
+    expect([offered(wrapper), list(wrapper).element.value]).toEqual([["Packet", "Mercury", "LoRa"], "2"]);
     expect(daemon.send).not.toHaveBeenCalled();
   });
 
@@ -484,8 +484,8 @@ describe("the radio of email", () => {
     const wrapper = pane({
       radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury")),
     });
-    expect(check(wrapper)).toEqual([true, "FM: not connected"]);
-    expect(await sendOfMail(wrapper)).toEqual([true, "FM: not connected"]);
+    expect(check(wrapper)).toEqual([true, "Packet: not connected"]);
+    expect(await sendOfMail(wrapper)).toEqual([true, "Packet: not connected"]);
   });
 
   it("has Send on while the radio chosen takes frames, a Mercury radio too, and off while that one is not connected though another is", async () => {
@@ -516,7 +516,7 @@ describe("the radio of email", () => {
       ),
     });
     const retry = wrapper.findAll<HTMLButtonElement>("button").find((b) => b.text() === "Retry");
-    expect([retry?.element.disabled, retry?.attributes("title")]).toEqual([true, "FM: not connected"]);
+    expect([retry?.element.disabled, retry?.attributes("title")]).toEqual([true, "Packet: not connected"]);
   });
 
   it("names the radio a mail that came in came on, before its route, as a bubble does, where radios are named", async () => {
@@ -546,7 +546,7 @@ describe("the radio of email", () => {
       false,
       expect.stringContaining("via OH2RCH-2"),
     ]);
-    expect(wrapper.find(".mail-detail").text()).not.toContain("FM");
+    expect(wrapper.find(".mail-detail").text()).not.toContain("Packet");
   });
 
   it("goes over Mercury where that is the one radio that can send, and is off with the reason of every send while no radio is on", async () => {

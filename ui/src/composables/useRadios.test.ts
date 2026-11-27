@@ -130,9 +130,9 @@ describe("useRadios", () => {
     });
     const { all, enabled, senders, severalSenders, unheard, named } = read(daemon).seen().radios;
     expect(all.value.map((radio) => [radio.id, radio.kind, radio.name])).toEqual([
-      [1, "fm", "FM"],
+      [1, "fm", "Packet"],
       [2, "hf", "Mercury"],
-      [4, "fm", "FM 2"],
+      [4, "fm", "Packet 2"],
       [5, "lora", "LoRa 2"],
       [3, "lora", "LoRa"],
       [6, "lora", "Bike"],
@@ -167,7 +167,7 @@ describe("useRadios", () => {
       forMessage(message(6, { state: "acked", radio_id: 4 }))?.removed,
       forMessage(message(7, { state: "sending", radio_now: 3 }))?.name,
       forMessage(message(8, { state: "acked" })),
-    ]).toEqual([true, "FM 2", null]);
+    ]).toEqual([true, "Packet 2", null]);
   });
 
   it("gives the email radio the status names, else the first radio on that can send and the gateways hear", async () => {

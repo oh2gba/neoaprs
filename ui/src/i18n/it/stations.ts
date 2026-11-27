@@ -233,7 +233,7 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "route.best.send_direct": "{route}; invia in diretta",
   "route.best.unknown_send_by": "{route}; ripetitore sconosciuto, invia con {path}",
   "route.best.unknown_send_direct": "{route}; ripetitore sconosciuto, invia in diretta",
-  "channel.fm": "FM",
+  "channel.fm": "Packet",
   "channel.hf": "Mercury",
   "channel.lora": "LoRa",
   "channel.gated": "iGate",

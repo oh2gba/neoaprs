@@ -332,7 +332,7 @@ describe("App: the first-run guide", () => {
       "RX only",
       "Nothing is sent. Settings → Radio",
     ]);
-    expect(box.find("legend").text()).toBe("FM radio");
+    expect(box.find("legend").text()).toBe("Packet radio");
     expect(["port", "baud"].map((part) => box.find(`#setup-radio-3-${part}`).exists())).toEqual([true, true]);
     expect(
       ["find", "path", "digipeat", "tcp_host"].filter(

@@ -489,12 +489,12 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
   it("is the Radio group's one box as the Settings tab has it: its Enable ticked and greyed, its status line, behind the arrow the type, the port, the speed, Find my radio and the Terminal; then Add radio", async () => {
     const { wrapper, stand } = make({ radios: oneRadio(), ports: ports() });
     await stand(3);
-    expect(legends(wrapper)).toEqual(["FM radio"]);
+    expect(legends(wrapper)).toEqual(["Packet radio"]);
     const enable = wrapper.find<HTMLInputElement>("#setup-radio-1-enabled");
     expect(enable.element.checked).toBe(true);
     expect(enable.element.disabled).toBe(true);
     expect(enable.element.closest(".field")?.getAttribute("title")).toBe(ONLY);
-    expect(boxOf(wrapper, "FM radio").find(".radiostatus .tncstatus").exists()).toBe(true);
+    expect(boxOf(wrapper, "Packet radio").find(".radiostatus .tncstatus").exists()).toBe(true);
     expect(wrapper.find<HTMLSelectElement>("#setup-radio-1-type").element.value).toBe("kenwood-tnc2");
     expect(wrapper.findAll("#setup-radio-1-type option").map((o) => o.attributes("value"))).toEqual(
       typeChoices("fm").map((c) => c.value),
@@ -509,7 +509,7 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     expect(wrapper.find("#setup-radio-1-baud").attributes("placeholder")).toBe("9600");
     expect(wrapper.find("#setup-radio-1-find").text()).toBe("Find my radio");
     expect(wrapper.findAll("summary").map((s) => s.text())).toContain("Terminal");
-    expect(labels(wrapper)).toEqual(["Enable", "Radio type", "Port", "Speed", "Add radio"]);
+    expect(labels(wrapper)).toEqual(["Enable", "Radio type", "Port", "Speed", "On HF", "Add radio"]);
     // named only where the station has several radios
     expect(wrapper.find("#setup-radio-1-name").exists()).toBe(false);
     expect(wrapper.find("#setup-radio-add").exists()).toBe(true);
@@ -683,19 +683,19 @@ describe("SetupGuide: the radio, Find my radio", () => {
   });
 });
 
-describe("SetupGuide: the radio, on a station of an FM and a Mercury radio", () => {
+describe("SetupGuide: the radio, on a station of an Packet and a Mercury radio", () => {
   /** Radio 1 a serial TNC, on; radio 2 the Mercury modem, off unless `hf` says. */
   const two = (hf: Partial<RadioRow> = { enabled: false, state: "stopped" }, fm: Partial<RadioRow> = {}) =>
     radiosTopic(radioRow(1, "kenwood-tnc2", fm), radioRow(2, "mercury", hf));
 
-  it("has a box each with Name and Remove, the FM radio's Enable greyed while it is the only one on, and no RX only", async () => {
+  it("has a box each with Name and Remove, the Packet radio's Enable greyed while it is the only one on, and no RX only", async () => {
     const { wrapper, stand } = make({ radios: two() });
     await stand(3);
-    expect(legends(wrapper)).toEqual(["FM radio", "Mercury radio"]);
+    expect(legends(wrapper)).toEqual(["Packet radio", "Mercury radio"]);
     expect(labels(wrapper).filter((l) => l === "RX only")).toEqual([]);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(true);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-2-enabled").element.checked).toBe(false);
-    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-name").attributes("placeholder")).toBe("FM");
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-name").attributes("placeholder")).toBe("Packet");
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-1-remove").element.disabled).toBe(true);
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-2-remove").element.disabled).toBe(false);
     expect(
@@ -773,7 +773,7 @@ function sixRadios(extra: Partial<Record<number, Partial<RadioRow>>> = {}): Map<
   );
 }
 const SIX = fresh({}, { "radio/2/sound_card": "plughw:1,0" });
-const SIX_LEGENDS = ["FM radio", "Mercury radio", "Mobile", "20 m", "FM radio 3", "WWWWWWWW"];
+const SIX_LEGENDS = ["Packet radio", "Mercury radio", "Mobile", "20 m", "Packet radio 3", "WWWWWWWW"];
 const css = (file: string) => readFileSync(join(STYLES, file), "utf8");
 
 describe("SetupGuide: the radio, on a station of six radios, on a phone (375 px)", () => {
@@ -810,19 +810,19 @@ describe("SetupGuide: the radio, on a station of six radios, on a phone (375 px)
       config: SIX,
       radios: sixRadios({
         3: { enabled: false, state: "stopped" },
-        5: { state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM 3" } } },
+        5: { state: "waiting", problem: { code: "radio.not_connected", params: { name: "Packet 3" } } },
         4: { removed: true, enabled: false, state: "stopped" },
       }),
     });
     await stand(3);
-    expect(legends(wrapper)).toEqual(["FM radio", "Mercury radio", "Mobile", "FM radio 3", "WWWWWWWW"]);
+    expect(legends(wrapper)).toEqual(["Packet radio", "Mercury radio", "Mobile", "Packet radio 3", "WWWWWWWW"]);
     expect(
       boxOf(wrapper, "Mobile")
         .findAll("select, input")
         .map((e) => e.attributes("id")),
     ).toEqual(["setup-radio-3-enabled", "setup-radio-3-name"]);
-    expect(boxOf(wrapper, "FM radio 3").find(".tncstatus").text()).toBe("Not connected");
-    expect(boxOf(wrapper, "FM radio 3").find<HTMLDetailsElement>("details.radiostatus").element.open).toBe(true);
+    expect(boxOf(wrapper, "Packet radio 3").find(".tncstatus").text()).toBe("Not connected");
+    expect(boxOf(wrapper, "Packet radio 3").find<HTMLDetailsElement>("details.radiostatus").element.open).toBe(true);
   });
 
   it("sends a radio's own change by its id, as the Settings tab does", async () => {
@@ -851,8 +851,8 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
       ...addTypeChoices().map((choice) => choice.value),
     ]);
     expect(wrapper.findAll("#setup-radio-add optgroup").map((g) => g.attributes("label"))).toEqual([
-      "FM",
-      "Mercury",
+      "Packet (classic APRS)",
+      "Mercury (DATAC3)",
       "LoRa",
       "Without a radio",
     ]);
@@ -1084,7 +1084,7 @@ describe("SetupGuide: the radio, before the daemon has told its radios", () => {
     expect(sent.filter((c) => c.cmd === "set_config")).toEqual([PLACE]);
     await tell(daemon, { radios: oneRadio() });
     await flushPromises();
-    expect(legends(wrapper)).toEqual(["FM radio"]);
+    expect(legends(wrapper)).toEqual(["Packet radio"]);
     expect(wrapper.find("#setup-radio-1-name").exists()).toBe(false);
     expect(finish().element.disabled).toBe(false);
   });

@@ -134,7 +134,7 @@ describe("what the page keeps of the waterfall", () => {
     expect(told).toEqual(["heard OH2NEW", "heard OH2OLD"]);
   });
 
-  it("lets go of the stations heard longer ago than the time kept, also on a radio whose rows never come (FM, LoRa): the newest two minutes, in order", () => {
+  it("lets go of the stations heard longer ago than the time kept, also on a radio whose rows never come (Packet, LoRa): the newest two minutes, in order", () => {
     const clock = { now: START };
     const kept = new ScopeMemory(() => clock.now);
     for (let i = 0; i < 2000; i++) {

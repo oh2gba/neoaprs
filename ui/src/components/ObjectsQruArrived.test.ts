@@ -141,13 +141,13 @@ describe("the objects that arrived, in the Stations tab", () => {
       ),
     });
 
-  it("carry a Local info tag in the tag column, beside the radio that heard it (FM), with the server's call in its hover; a station that is no answer has none", () => {
+  it("carry a Local info tag in the tag column, beside the radio that heard it (Packet), with the server's call in its hover; a station that is no answer has none", () => {
     const wrapper = make();
     const tags = (call: string) => wrapper.find(`tr[data-call='${call}']`).findAll(".via");
-    expect(tags("TESTOBJ").map((tag) => tag.text())).toEqual(["FM", "Local info"]);
+    expect(tags("TESTOBJ").map((tag) => tag.text())).toEqual(["Packet", "Local info"]);
     expect(tags("TESTOBJ")[1]?.attributes("title")).toBe("Sent to us by OH2DPN when we asked for local info");
     expect(tags("TESTOBJ")[1]?.classes()).toContain("tag-neutral");
-    expect(tags("OH2RF").map((tag) => tag.text())).toEqual(["FM"]);
+    expect(tags("OH2RF").map((tag) => tag.text())).toEqual(["Packet"]);
   });
 
   it("have a row that the link can bring into view: its id is the one lib/stations gives", () => {
@@ -160,6 +160,6 @@ describe("the objects that arrived, in the Stations tab", () => {
         .find("tr[data-call='TESTOBJ']")
         .findAll(".via")
         .map((tag) => tag.text()),
-    ).toEqual(["FM"]);
+    ).toEqual(["Packet"]);
   });
 });

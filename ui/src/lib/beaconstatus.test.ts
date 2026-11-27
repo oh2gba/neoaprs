@@ -227,7 +227,7 @@ describe("beaconBlock with several radios", () => {
   const two = (extra = {}) =>
     status({ beacon_interval_min: 20, beacon_last_sent: ago(240), beacon_next_due: later(16 * 60), ...extra });
   const radios = (hf = beacon(ago(120), later(29 * 60))): BeaconRadio[] => [
-    { name: "FM", beacon: beacon(ago(240), later(16 * 60), 20), smart: true },
+    { name: "Packet", beacon: beacon(ago(240), later(16 * 60), 20), smart: true },
     { name: "Mercury", beacon: hf, smart: false },
   ];
 
@@ -235,7 +235,7 @@ describe("beaconBlock with several radios", () => {
     const block = beaconBlock(two(), gpsOff(), {}, NOW, radios());
     expect(block.line).toBe("Last beacon 2 min ago · next in 16 min (every 20 min)");
     expect(block.radios).toEqual([
-      "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+      "Packet: last beacon 4 min ago · next in 16 min (every 20 min)",
       "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)",
     ]);
     expect(block.hover).toBe(dateTimeText(ago(120)));
@@ -243,7 +243,7 @@ describe("beaconBlock with several radios", () => {
 
   it("says a radio that has sent nothing yet, and one with no timed beacon, in its own line, by the name the radio has", () => {
     expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(null, null, 0))).radios).toEqual([
-      "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+      "Packet: last beacon 4 min ago · next in 16 min (every 20 min)",
       "Mercury: no beacon sent yet · no timed beacon",
     ]);
     expect(beaconBlock(two(), gpsOff(), {}, NOW, radios(beacon(ago(600), null, 30))).radios[1]).toBe(
@@ -256,7 +256,7 @@ describe("beaconBlock with several radios", () => {
   });
 
   it("goes by the radios' timers and not by the status's, for any number of radios", () => {
-    const six = ["FM", "Mercury", "LoRa", "Mobile12", "20 m", "FM 2"].map((name, i) => ({
+    const six = ["Packet", "Mercury", "LoRa", "Mobile12", "20 m", "Packet 2"].map((name, i) => ({
       name,
       beacon: beacon(ago(60 * (i + 3)), later(60 * (i + 10)), 30),
       smart: i !== 1,
@@ -279,7 +279,7 @@ describe("beaconBlock with several radios", () => {
     });
   });
 
-  it("has no lines of radios while one radio is on, and the row as it was: the FM beacon alone, or the Mercury beacon alone", () => {
+  it("has no lines of radios while one radio is on, and the row as it was: the Packet beacon alone, or the Mercury beacon alone", () => {
     const fm = beaconBlock(timed(), gpsOff(), {}, NOW);
     expect([fm.radios, fm.line]).toEqual([[], "Last beacon 4 min ago · next in 56 min (every 60 min)"]);
     const hf = beaconBlock(
@@ -300,12 +300,12 @@ describe("beaconBlock with several radios", () => {
     expect(moving).toMatchObject({ moving: true, label: "GPS" });
     expect(moving.smart).not.toBeNull();
     expect(moving.radios).toEqual([
-      "FM: last beacon 4 min ago · next in 16 min",
+      "Packet: last beacon 4 min ago · next in 16 min",
       "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)",
     ]);
     // A fixed station's FM keeps its interval
     expect(beaconBlock(two(), gpsOff(), {}, NOW, radios()).radios[0]).toBe(
-      "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+      "Packet: last beacon 4 min ago · next in 16 min (every 20 min)",
     );
   });
 
@@ -337,7 +337,7 @@ describe("the radios of the Beacon group", () => {
   it("say which of them is not connected, a line for each, and nothing while one is", () => {
     const waiting = fm(1, { state: "waiting" });
     expect(notConnectedWhy([waiting, hf(2, { state: "connecting", name: "20 m" })])).toBe(
-      "FM: not connected\n20 m: not connected",
+      "Packet: not connected\n20 m: not connected",
     );
     expect(notConnectedWhy([waiting, hf(2)])).toBeUndefined();
     expect(notConnectedWhy([])).toBeUndefined();
@@ -347,7 +347,7 @@ describe("the radios of the Beacon group", () => {
     const radios = [fm(1), hf(2), fm(3, { name: "Mobile12" })];
     const on = new Set(["radio/1/beacon", "radio/3/beacon"]);
     expect(sendOnTicks(radios, (key) => on.has(key))).toEqual([
-      { id: 1, key: "radio/1/beacon", name: "FM", on: true, last: false },
+      { id: 1, key: "radio/1/beacon", name: "Packet", on: true, last: false },
       { id: 2, key: "radio/2/beacon", name: "Mercury", on: false, last: false },
       { id: 3, key: "radio/3/beacon", name: "Mobile12", on: true, last: false },
     ]);
@@ -383,7 +383,7 @@ describe("the radios of the Beacon group", () => {
   it("have the status's ticks of its own field, in the beacon's pattern, unticked by default", () => {
     const radios = [fm(1), hf(2)];
     expect(sendOnTicks(radios, (_key, radio) => radio.row.choices.status, "status")).toEqual([
-      { id: 1, key: "radio/1/status", name: "FM", on: false, last: false },
+      { id: 1, key: "radio/1/status", name: "Packet", on: false, last: false },
       { id: 2, key: "radio/2/status", name: "Mercury", on: false, last: false },
     ]);
   });
@@ -391,14 +391,14 @@ describe("the radios of the Beacon group", () => {
   it("have a Path row for each radio that is on and may carry a path, named while several are on", () => {
     expect(pathRows([fm(1)])).toEqual([{ key: "radio/1/path", radio: 1, name: null }]);
     expect(pathRows([hf(2)])).toEqual([]);
-    expect(pathRows([fm(1), hf(2)])).toEqual([{ key: "radio/1/path", radio: 1, name: "FM" }]);
+    expect(pathRows([fm(1), hf(2)])).toEqual([{ key: "radio/1/path", radio: 1, name: "Packet" }]);
     expect(pathRows([fm(1), hf(2), fm(3, { number: 2 })])).toEqual([
-      { key: "radio/1/path", radio: 1, name: "FM" },
-      { key: "radio/3/path", radio: 3, name: "FM 2" },
+      { key: "radio/1/path", radio: 1, name: "Packet" },
+      { key: "radio/3/path", radio: 3, name: "Packet 2" },
     ]);
     expect(pathRows([fm(3)])).toEqual([{ key: "radio/3/path", radio: 3, name: null }]);
     expect(pathRows([pageRadio(radioRow(1, "mercury")), fm(4)])).toEqual([
-      { key: "radio/4/path", radio: 4, name: "FM 4" },
+      { key: "radio/4/path", radio: 4, name: "Packet 4" },
     ]);
     expect(pathKey({ id: 1 })).toBe("radio/1/path");
   });

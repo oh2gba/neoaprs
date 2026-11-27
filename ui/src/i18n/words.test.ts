@@ -59,7 +59,6 @@ const DUMMY_IDS = [
   "radio.type.dummy",
   "radio.type.dummy_hf",
   "radio.type.dummy_lora",
-  "settings.profile.tip2",
 ];
 /** The texts the phone's code, the Sound card type and the modem-neutral words of a radio brought: the program in them is NeoAPRS, written one way, and never the server. */
 const BROUGHT = (id: string): boolean =>
@@ -73,11 +72,15 @@ const RECEIVE_ONLY_TYPES = ["radio.type.tnc_text", "radio.type.lora_console"];
 /** The one type whose name says Direwolf: the operator's own, which he runs himself and NeoAPRS reaches over the network. The Sound card type, whose Dire Wolf NeoAPRS carries and starts, is named by what the operator
  * has in hand (John, 16 Nov 2026: "so people don't get confused whether to still install direwolf"). */
 const OWN_PROGRAM = "radio.type.kiss_tcp";
-/** The types of the Mercury kind: Mercury is in their names, because the other station must run the same modem to be heard, and in no other type's. */
-const MERCURY_TYPES = ["radio.type.mercury", "radio.type.dummy_hf"];
-/** What no type's name says: a band or a mode the radio may not be on (a Mercury radio works on 2 m and through an FM radio's audio too), nor how the program reaches it. */
+/** The Mercury kind's words: Mercury is in its heading, its types' names clear alone and its Dummy's, because the other station must run the same modem to be heard, and in no other kind's. */
+const MERCURY_WORDS = ["radio.add.group.hf", "radio.kind_type.hf", "radio.type.dummy_hf"];
+/** The words of the other kinds, which never say Mercury. */
+const OTHER_KIND_WORDS = ["radio.add.group.fm", "radio.add.group.lora", "radio.kind_type.fm", "radio.kind_type.lora"];
+/** The types named by the word of the Sound card field: Direwolf's two and Mercury's. */
+const SOUND_CARD_TYPES = ["radio.type.direwolf", "radio.type.direwolf_300", "radio.type.mercury"];
+/** What no type's own name says: a band or a mode (Add radio's list says the band after it, from `radio.band`), nor how the program reaches it. */
 const BAND_OR_LINK = /(?<![\p{L}\p{N}])(HF|KW|VHF|UHF|SSB|TCP)(?![\p{L}\p{N}])/u;
-/** The longest a type's name is, in characters: the list of Add radio is as wide as its widest line, on a phone too (the longest English line is the KISS TNC's, 41). */
+/** The longest a type's name is, in characters: the list of Add radio is as wide as its widest line, on a phone too (the longest English line is the Yaesu's, 40). */
 const WIDEST_TYPE = 43;
 
 /** The refusals and reasons that name a field or a switch of the page, and the labels they name. */
@@ -147,33 +150,44 @@ for (const locale of LOCALES) {
       if (locale.code === "fi") expect(DUMMY_IDS.filter((id) => has(id, "testi"))).toEqual([]);
     });
 
-    it("name a type of radio by what the operator has in hand: Direwolf only in his own, Mercury only in the Mercury kind's, no band, mode or link, and no line wider than the list has room for", () => {
+    it("name a type of radio by what the operator has in hand: Direwolf only in his own, Mercury only in the Mercury kind's words, no band, mode or link, and no line wider than the list has room for", () => {
       const types = Object.keys(messages).filter((id) => id.startsWith("radio.type."));
-      expect(types.length).toBeGreaterThanOrEqual(14);
+      expect(types.length).toBeGreaterThanOrEqual(15);
       expect(types.filter((id) => /dire\s*wolf/iu.test(say(id)))).toEqual([OWN_PROGRAM]);
-      expect(say(OWN_PROGRAM)).toContain("soundmodem");
-      expect(types.filter((id) => say(id).includes("Mercury")).sort()).toEqual([...MERCURY_TYPES].sort());
+      expect(types.filter((id) => say(id).includes("Mercury"))).toEqual(["radio.type.dummy_hf"]);
+      expect(MERCURY_WORDS.filter((id) => !say(id).includes("Mercury"))).toEqual([]);
+      expect(OTHER_KIND_WORDS.filter((id) => say(id).includes("Mercury"))).toEqual([]);
       expect(types.filter((id) => BAND_OR_LINK.test(say(id)))).toEqual([]);
       expect(types.filter((id) => say(id).length > WIDEST_TYPE)).toEqual([]);
       expect(new Set(types.map(say)).size).toBe(types.length);
     });
 
-    it("call the Sound card type by the word of the Sound card field, and nothing else by it", () => {
-      expect(say("radio.type.direwolf")).toBe(say("settings.sound_card.label"));
+    it("call the Sound card types by the word of the Sound card field", () => {
+      expect(SOUND_CARD_TYPES.filter((id) => !has(id, say("settings.sound_card.label")))).toEqual([]);
     });
 
-    it("have one word for each kind of signal, the same in every language: the heading of its group in Add radio, the tag of a radio with no name, and in its box and its Dummy", () => {
-      expect([say("channel.fm"), say("channel.hf"), say("channel.lora")]).toEqual(["FM", "Mercury", "LoRa"]);
+    it("have one word for each kind of signal, the same in every language: the heading of its group in Add radio, the tag of a radio with no name, a type's name clear alone, and in its box and its Dummy", () => {
+      expect([say("channel.fm"), say("channel.hf"), say("channel.lora")]).toEqual(["Packet", "Mercury", "LoRa"]);
       for (const [word, ids] of [
-        ["FM", ["settings.group.fm_radio", "radio.type.dummy"]],
+        ["Packet", ["settings.group.fm_radio", "radio.type.dummy", "radio.add.group.fm", "radio.kind_type.fm"]],
         [
           "Mercury",
-          ["settings.group.hf_radio", "settings.hf_enabled.name", "radio.type.dummy_hf", "settings.tnc.dummy_hf"],
+          [
+            "settings.group.hf_radio",
+            "settings.hf_enabled.name",
+            "radio.type.dummy_hf",
+            "settings.tnc.dummy_hf",
+            "radio.add.group.hf",
+            "radio.kind_type.hf",
+          ],
         ],
-        ["LoRa", ["settings.group.lora_radio", "radio.type.dummy_lora"]],
+        [
+          "LoRa",
+          ["settings.group.lora_radio", "radio.type.dummy_lora", "radio.add.group.lora", "radio.kind_type.lora"],
+        ],
       ] as const)
         expect(
-          ids.filter((id) => !say(id).includes(word)),
+          ids.filter((id) => !has(id, word)),
           word,
         ).toEqual([]);
     });

@@ -244,7 +244,7 @@ describe("the header with any number of radios", () => {
       ["20 m: not connected", ["tag", "tag-warn", "headpill", "pill-radios"]],
     ]);
     expect(radios[0]?.attributes("title")).toBe(
-      "FM: connected; Mercury: connected; Shack: connected; 20 m: not connected; Portable: connected; Bench: connected. Settings → Radio",
+      "Packet: connected; Mercury: connected; Shack: connected; 20 m: not connected; Portable: connected; Bench: connected. Settings → Radio",
     );
     await radios[0]?.trigger("click");
     expect(wrapper.emitted("open")).toEqual([["settings", "set-radio-4-enabled"]]);
@@ -252,14 +252,14 @@ describe("the header with any number of radios", () => {
 
   it("has two marks by name for two radios, and one by name for one", () => {
     const two = header({ pills: marksOf(SIX.slice(0, 2)) });
-    expect(two.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM", "Mercury"]);
+    expect(two.findAll(".headpill").map((mark) => mark.text())).toEqual(["Packet", "Mercury"]);
     const named = header({ pills: marksOf([SIX[2], SIX[4]]) });
     expect(named.findAll(".headpill").map((mark) => [mark.text(), mark.attributes("title")])).toEqual([
       ["Shack", "Shack: connected. Settings → Radio"],
       ["Portable", "Portable: connected. Settings → Radio"],
     ]); // a typed name stands before a colon, never inside a sentence
     const one = header({ pills: marksOf([SIX[0]]) });
-    expect(one.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM"]);
+    expect(one.findAll(".headpill").map((mark) => mark.text())).toEqual(["Packet"]);
     const shack = header({ pills: marksOf([SIX[2]]) });
     expect(shack.findAll(".headpill").map((mark) => [mark.text(), mark.attributes("title")])).toEqual([
       ["Shack", "Shack: connected. Settings → Radio"],

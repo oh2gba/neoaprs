@@ -256,7 +256,7 @@ describe("the palette", () => {
         const removed = contrast(theme["--muted"] ?? "#000000", theme[ground] ?? "#000000");
         if (!(removed >= 4.5)) low.push(`${name}: --muted (a removed radio's tag) on ${ground} ${removed.toFixed(2)}`);
       }
-      // Dimmed: a removed radio's word is quieter than the text, and apart from the FM radio's
+      // Dimmed: a removed radio's word is quieter than the text, and apart from the Packet radio's
       // neutral plate it has none.
       expect(contrast(theme["--muted"] ?? "", theme["--panel"] ?? "")).toBeLessThan(
         contrast(theme["--text"] ?? "", theme["--panel"] ?? ""),

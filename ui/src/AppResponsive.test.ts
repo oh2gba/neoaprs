@@ -492,7 +492,7 @@ describe("the header marks and no footer under the panel", () => {
     });
     await flushPromises();
     const mark = wrapper.find(".appheader .pill-radio");
-    expect(mark.text()).toBe("FM: silent");
+    expect(mark.text()).toBe("Packet: silent");
     expect(mark.attributes("title")).toMatch(/^nothing heard since \d\d:\d\d \(10 min\)\. Settings → Radio$/);
     await mark.trigger("click");
     expect(panelOn(wrapper)).toEqual(["pane-settings"]);

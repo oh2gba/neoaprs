@@ -115,9 +115,9 @@ describe("chainOf", () => {
 describe("the radio of an attempt on the you chip", () => {
   const sentAt = /^sent \d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/;
 
-  it("names the radio it went on where radios are named, FM as Mercury, with the hover that says it: none is the unmarked default", () => {
+  it("names the radio it went on where radios are named, Packet as Mercury, with the hover that says it: none is the unmarked default", () => {
     for (const [radio, name] of [
-      [1, "FM"],
+      [1, "Packet"],
       [2, "Mercury"],
       [null, "Mobile"],
     ] as const) {

@@ -42,7 +42,7 @@ describe("StationCard", () => {
       "16 km, 282° WNW",
       "42 km/h, course 356° N",
       "31 m",
-      "FM 2 min ago",
+      "Packet 2 min ago",
       "on air",
       "QRV D-STAR",
     ]) {
@@ -67,7 +67,7 @@ describe("StationCard", () => {
   it("says when it was heard as a time ago, by the radio that heard it, the full time on hover", () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW }, global: withDaemon(fakeDaemon()) });
     const heard = wrapper.findAll("dt").find((dt) => dt.text() === "Last heard")?.element.nextElementSibling;
-    expect(heard?.textContent?.trim()).toBe("FM 2 min ago");
+    expect(heard?.textContent?.trim()).toBe("Packet 2 min ago");
     expect(heard?.getAttribute("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
   it("shows the data extensions, the locator and the telemetry of a station, a line each, and nothing for one that has none", () => {

@@ -25,7 +25,7 @@ describe("hoverRows", () => {
     expect(labelled({})).toBeUndefined();
     // An HF radio alone, treated as an FM one: every station was heard on it.
     expect(labelled({}, radioRow(1, "mercury"))).toBeUndefined();
-    expect(labelled({ heard_is: 2 })).toBe("FM · Internet");
+    expect(labelled({ heard_is: 2 })).toBe("Packet · Internet");
     expect(labelled({ heard_is: 2 }, radioRow(1, "kenwood-tnc2", { name: "2 m" }))).toBe("2 m · Internet");
     expect(labelled({ heard_rf: 0, heard_rf_gated: 1 })).toBe("iGate");
     expect(labelled({ heard_rf: 0, heard_is: 2, last_rf_at: null })).toBe(
@@ -77,14 +77,14 @@ describe("hoverRows with several radios", () => {
       last_is_at: ago(20),
       heard: { "1": { count: 1, last_at: ago(600) }, "4": { count: 3, last_at: ago(30) } },
     });
-    expect(heardOn(row, SIX)).toBe("FM: 10 min ago · 20 m: 30 s ago · Internet: 20 s ago");
+    expect(heardOn(row, SIX)).toBe("Packet: 10 min ago · 20 m: 30 s ago · Internet: 20 s ago");
   });
 
-  it("says FM and Mercury with their times for the two radios of the owner, and the words of today for the one radio", () => {
+  it("says Packet and Mercury with their times for the two radios of the owner, and the words of today for the one radio", () => {
     const both = station("OH2FMHF", { heard_rf: 5, heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]) });
     const two = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
-    expect(heardOn(both, two)).toBe("FM 3 min ago · Mercury 1 min ago");
-    expect(heardOn(station("OH2RF"), two)).toBe("FM 1 min ago");
+    expect(heardOn(both, two)).toBe("Packet 3 min ago · Mercury 1 min ago");
+    expect(heardOn(station("OH2RF"), two)).toBe("Packet 1 min ago");
   });
 });
 

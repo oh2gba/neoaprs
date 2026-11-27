@@ -36,7 +36,7 @@ describe("App", () => {
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     expect(wrapper.find(".appheader h1").text()).toBe("NeoAPRS");
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "FM"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "Packet"]);
     expect(wrapper.find(".appheader").text()).not.toContain("OH2GBA");
     expect(wrapper.find(".appheader a").attributes("href")).toBe("https://neo.oh2gba.eu/");
     expect(wrapper.find(".panelfoot").exists()).toBe(false);
@@ -46,25 +46,25 @@ describe("App", () => {
   it("shows the radio in the header all the time, in the colour of its state, and the mark does not move", async () => {
     const { wrapper, socket } = await open();
     const mark = () => wrapper.find(".appheader .pill-radio");
-    expect([mark().text(), mark().classes().includes("tag-ok")]).toEqual(["FM", true]);
+    expect([mark().text(), mark().classes().includes("tag-ok")]).toEqual(["Packet", true]);
     socket.say({
       type: "state",
       topic: "radios",
       rev: 1,
       value: radiosValue(
-        fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } }),
+        fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Packet", radio: 1 } } }),
       ),
     });
     await flushPromises();
     expect([mark().text(), mark().classes().includes("tag-warn"), mark().attributes("title")]).toEqual([
-      "FM: not connected",
+      "Packet: not connected",
       true,
       "Not connected. Settings → Radio", // (the daemon's English of the search names ports: the log has it)
     ]);
     socket.say({ type: "state", topic: "radios", rev: 2, value: radiosValue(fmRow()) });
     await flushPromises();
-    expect(mark().text()).toBe("FM");
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "FM"]);
+    expect(mark().text()).toBe("Packet");
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "Packet"]);
   });
 
   it("says Daemon: offline in orange when the socket closes, with the radio unknown meanwhile, and connects again", async () => {
@@ -74,7 +74,7 @@ describe("App", () => {
     await flushPromises();
     const daemon = wrapper.find(".appheader .pill-daemon");
     expect([daemon.text(), daemon.classes().includes("tag-bad")]).toEqual(["NeoAPRS: offline", true]);
-    expect(wrapper.find(".appheader .pill-radio").text()).toBe("FM: waiting…");
+    expect(wrapper.find(".appheader .pill-radio").text()).toBe("Packet: waiting…");
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
     expect(FakeSocket.all).toHaveLength(2);

@@ -11,7 +11,7 @@ const source = en as Record<string, Message>;
 
 /** The names every language writes as the English does: programs, makers, protocols, units, systems, and the people the About tab and the map's credits name. */
 const NAMES = new Set(
-  `NeoAPRS APRS Mercury Direwolf LoRa iGate Bluetooth Winlink Kenwood Kantronics Yaesu soundmodem OpenStreetMap Mobilinkd NinoTNC
+  `NeoAPRS APRS Packet Mercury Direwolf LoRa iGate Bluetooth Winlink Kenwood Kantronics Yaesu soundmodem OpenStreetMap Mobilinkd NinoTNC
   Firefox Chrome Chromium Edge Safari Android iOS Windows macOS Linux Keychain Raspberry Nominatim Dummy Internet GitHub gpsd rigctld
   PMTiles MHz kHz dBFS dB Mic-E https http Heikki Hannikainen John Langner tar1090 readsb dump1090 PiAware Matthias Wirth GPL`
     .split(/\s+/)

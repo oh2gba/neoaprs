@@ -45,7 +45,7 @@ describe("the About group", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("About");
     expect(wrapper.findAll("p")[0]?.text()).toBe(
-      "NeoAPRS 0.9.1, an APRS client for your radios: FM, Mercury and LoRa. Made by OH2GBA, 2026.",
+      "NeoAPRS 0.9.1, an APRS client for your radios: Packet, Mercury and LoRa. Made by OH2GBA, 2026.",
     );
     const controls = wrapper.findAll("button:not(.groupfold), input, select");
     expect(controls.map((c) => [c.text(), c.classes()])).toEqual([["Download logs", ["linkbtn"]]]);

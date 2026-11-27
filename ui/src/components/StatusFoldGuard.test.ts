@@ -109,7 +109,7 @@ describe("every status row", () => {
 
   it("is a pair's row of the Digipeater group: a plain row with nothing behind it, the arrow once it counts since a time or sent something", () => {
     const pair = (sent: number) => ({
-      first: { id: 1, name: "FM radio", stats: lineStats() },
+      first: { id: 1, name: "Packet radio", stats: lineStats() },
       second: {
         id: 2,
         name: "Mercury radio",

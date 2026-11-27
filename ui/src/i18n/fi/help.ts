@@ -40,13 +40,13 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.internet":
     "Asemat, jotka APRS-IS:llä on kartan säteen sisällä, tulevat pilvestä kartallesi vain yhteen suuntaan; mitään ei lähde takaisin.",
   "help.picture.channels":
-    "Radiolla, radioaalloilla, kuultu asema saa sen kuulleen radion merkinnän, FM; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
+    "Radiolla, radioaalloilla, kuultu asema saa sen kuulleen radion merkinnän, Packet; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
   "help.picture.mercury":
     "Oma asemasi ja kaukainen asema, kauas toisistaan; signaali nousee ylös ja tulee alas niiden välissä: vain samaa modeemia käyttävä asema kuulee sen.",
   "help.picture.scope":
     "Kaukainen asema lähettää; vesiputous näyttää sen kehyksen lohkona merkityllä kaistalla, uusin ylimpänä, ja vastaanottotason palkki on alla hyvällä alueella.",
   "help.picture.tworadios":
-    "Asemasi kahdella radiolla: FM-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, Mercury-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
+    "Asemasi kahdella radiolla: packet-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, Mercury-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
   "help.picture.dummy":
     "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
   "help.picture.notifications":

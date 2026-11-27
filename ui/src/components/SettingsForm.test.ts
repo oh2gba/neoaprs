@@ -38,12 +38,12 @@ const alertWithBoth = () => localStorage.setItem("NeoAPRS.alert.mode", "both");
 afterEach(() => localStorage.clear());
 
 /**
- * The boxes of the Notifications group (the Radio group has two of its own, FM radio and HF radio).
+ * The boxes of the Notifications group (the Radio group has two of its own, Packet radio and HF radio).
  */
 const notificationBoxes = (wrapper: ReturnType<typeof make>["wrapper"]) =>
   wrapper
     .findAll("fieldset.subbox")
-    .filter((box) => !["FM radio", "Mercury radio"].includes(box.find("legend").text()));
+    .filter((box) => !["Packet radio", "Mercury radio"].includes(box.find("legend").text()));
 
 const row = (device: string, description: string) => portRow(device, description);
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
@@ -63,7 +63,7 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "Radio",
-      "FM radio", // (the radio's box is in the Radio group)
+      "Packet radio", // (the radio's box is in the Radio group)
       "Internet stations",
       "Digipeater",
       "Web page",
@@ -107,7 +107,7 @@ describe("SettingsForm", () => {
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !beacons.some((prefix) => k.startsWith(prefix)) && !elsewhere.includes(k)).length +
         1 + // (the radio's Enable, the first row of its box)
-        3 + // (the radio's own fields behind its status: its type, its port and its speed)
+        4 + // (the radio's own fields behind its status: its type, its port, its speed and On HF)
         1 + // (the radio's digipeater in the Digipeater group, radio/1/digipeat)
         // the New version row of the Update check group and the Logs row of the Help group, which
         // are no settings
@@ -651,7 +651,7 @@ describe("SettingsForm", () => {
     const fieldIds = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper
         .findAll("fieldset.subbox")
-        .find((f) => f.find("legend").text() === "FM radio")
+        .find((f) => f.find("legend").text() === "Packet radio")
         ?.findAll("[id^='set-radio-1-']")
         .map((e) => e.attributes("id"))
         // the radio's fields: its tickbox is the first row of its box
@@ -665,29 +665,45 @@ describe("SettingsForm", () => {
       const select = wrapper.find<HTMLSelectElement>("#set-radio-1-type");
       expect(wrapper.find("label[for=set-radio-1-type]").text()).toBe("Radio type");
       expect(select.findAll("option").map((o) => o.text())).toEqual([
-        "Sound card",
-        "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
-        "Kenwood TM-D710 / TH-D72",
-        "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
-        "Kantronics KPC-3+",
-        "Your own Direwolf or soundmodem",
-        "Yaesu FTM, TNC in monitor mode (RX only)",
-        "Dummy FM radio",
+        "Packet, sound card, 1200",
+        "Packet, sound card, 300",
+        "Packet, KISS TNC",
+        "Packet, Kenwood TM-D710 / TH-D72",
+        "Packet, Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+        "Packet, Kantronics KPC-3+",
+        "Packet, Direwolf",
+        "Packet, Yaesu FTM, TNC in monitor mode (RX only)",
+        "Dummy packet radio",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");
     });
 
     it("asks the daemon for the type chosen (radio_change), and shows the port and the speed of a serial TNC", async () => {
       const { wrapper, send } = make();
-      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
+      expect(fieldIds(wrapper)).toEqual([
+        "set-radio-1-type",
+        "set-radio-1-port",
+        "set-radio-1-baud",
+        "set-radio-1-on_hf",
+      ]);
       await wrapper.find("#set-radio-1-type").setValue("kiss");
       expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 1, type: "kiss" });
-      expect(fieldIds(typed("kiss").wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
+      expect(fieldIds(typed("kiss").wrapper)).toEqual([
+        "set-radio-1-type",
+        "set-radio-1-port",
+        "set-radio-1-baud",
+        "set-radio-1-on_hf",
+      ]);
     });
 
     it("shows the address and the port of the operator's own Direwolf or soundmodem, and no serial port", () => {
       const { wrapper } = typed("kiss-tcp", { "radio/1/port": "/dev/ttyUSB0" });
-      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-tcp_host", "set-radio-1-tcp_port"]);
+      expect(fieldIds(wrapper)).toEqual([
+        "set-radio-1-type",
+        "set-radio-1-tcp_host",
+        "set-radio-1-tcp_port",
+        "set-radio-1-on_hf",
+      ]);
       expect(wrapper.find("#set-radio-1-tcp_port").attributes("placeholder")).toBe("8001");
     });
 
@@ -695,7 +711,12 @@ describe("SettingsForm", () => {
       const { wrapper, daemon } = typed("dummy", { "radio/1/port": "COM5", "radio/1/baud": "57600" });
       expect(fieldIds(wrapper)).toEqual(["set-radio-1-type"]);
       await tell(daemon, { radios: radiosTopic(radioRow(1, "kiss")) });
-      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
+      expect(fieldIds(wrapper)).toEqual([
+        "set-radio-1-type",
+        "set-radio-1-port",
+        "set-radio-1-baud",
+        "set-radio-1-on_hf",
+      ]);
       expect(wrapper.find<HTMLInputElement>("#set-radio-1-baud").element.value).toBe("57600");
     });
 
@@ -746,11 +767,11 @@ describe("SettingsForm", () => {
         .map((o) => o.text());
     const radio = (wrapper: Wrapper) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
     const headings = (wrapper: Wrapper) => radio(wrapper)?.findAll(".subgroup");
-    /** The labels of the FM radio's box: its fields, without its Enable tickbox. */
+    /** The labels of the Packet radio's box: its fields, without its Enable tickbox. */
     const labels = (wrapper: Wrapper) =>
       radio(wrapper)
         ?.findAll("fieldset.subbox")
-        .find((f) => f.find("legend").text() === "FM radio")
+        .find((f) => f.find("legend").text() === "Packet radio")
         ?.findAll("label")
         .map((l) => l.text())
         .filter((text) => text !== "Enable" && text !== "Name"); // (the Name is outside the fold, the second row)
@@ -785,23 +806,23 @@ describe("SettingsForm", () => {
 
     it("shows the port of the owner's station once, and not which ports the search looks at or skips (those stay in the daemon)", () => {
       const { wrapper } = withPorts(OWNER);
-      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed"]);
+      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed", "On HF"]);
       expect(wrapper.find("#set-serial-pattern").exists()).toBe(false);
       expect(wrapper.find("#set-serial-skip").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
     });
 
     it("says not set for the empty port where the daemon does not search", () => {
-      expect(labels(withPorts().wrapper)).toEqual(["Radio type", "Port", "Speed"]);
+      expect(labels(withPorts().wrapper)).toEqual(["Radio type", "Port", "Speed", "On HF"]);
       const { wrapper } = withPorts({}, portList({ search: false }));
-      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed"]);
+      expect(labels(wrapper)).toEqual(["Radio type", "Port", "Speed", "On HF"]);
       expect(headings(wrapper)).toHaveLength(0);
       expect(options(wrapper)[0]).toBe("not set");
     });
 
     it("shows no search and no serial port for the operator's own Direwolf or soundmodem", () => {
       const { wrapper } = make(OWNER, "settings", { ports: portList(), radios: radiosTopic(radioRow(1, "kiss-tcp")) });
-      expect(labels(wrapper)).toEqual(["Radio type", "Address", "Port"]);
+      expect(labels(wrapper)).toEqual(["Radio type", "Address", "Port", "On HF"]);
       expect(wrapper.find("#set-radio-1-port").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
     });
@@ -1221,7 +1242,7 @@ describe("SettingsForm", () => {
       const box = (wrapper: ReturnType<typeof make>["wrapper"]) =>
         group(wrapper)
           ?.findAll("fieldset.subbox")
-          .find((f) => f.find("legend").text() === "FM radio and Mercury radio i");
+          .find((f) => f.find("legend").text() === "Packet radio and Mercury radio i");
 
       it("is a box of its own after the radios' own, named by both radios, with an Enable without a note and the pair's (i) in the legend", () => {
         const { wrapper } = make(OFF, "settings", BOTH);
@@ -1229,7 +1250,7 @@ describe("SettingsForm", () => {
           group(wrapper)
             ?.findAll("fieldset.subbox legend")
             .map((l) => l.text()),
-        ).toEqual(["FM radio", "FM radio and Mercury radio i"]);
+        ).toEqual(["Packet radio", "Packet radio and Mercury radio i"]);
         expect(box(wrapper)?.findAll(".field")).toHaveLength(1);
         expect(wrapper.find("label[for='set-pair-1-2-enabled']").text()).toBe("Enable");
         expect(wrapper.find<HTMLInputElement>("#set-pair-1-2-enabled").element.checked).toBe(false);
@@ -1244,7 +1265,7 @@ describe("SettingsForm", () => {
         const before = box(wrapper)?.findAll(".field, p").length;
         await box(wrapper)?.find("legend .info-toggle").trigger("click");
         const shown = document.querySelector("[role='dialog']");
-        expect(shown?.textContent).toContain("Between FM radio and Mercury radio");
+        expect(shown?.textContent).toContain("Between Packet radio and Mercury radio");
         expect(shown?.textContent).toContain("OH2GBA-12,WIDE2-2");
         expect(shown?.textContent).toContain("Onto Mercury radio, at most 4 packets in 5 minutes.");
         expect(box(wrapper)?.element.contains(shown)).toBe(false);
@@ -1950,19 +1971,19 @@ describe("the radios that are on", () => {
   const ids = (w: ReturnType<typeof make>["wrapper"], list: string[]) => list.filter((id) => w.find(id).exists());
   const FM_ONLY_FIELDS = ["#set-radio-1-path", "#set-beacon-travel"];
 
-  it("takes the Digipeater group off the Settings tab while the FM radio is off, and changes nothing else there", () => {
+  it("takes the Digipeater group off the Settings tab while the Packet radio is off, and changes nothing else there", () => {
     const fm = legends(make().wrapper);
     expect(fm).toContain("Digipeater");
     expect(legends(make({}, "settings", FM_OFF).wrapper)).toEqual(
       fm
         .filter((l) => l !== "Digipeater")
-        .flatMap((l) => (l === "FM radio" ? [l, "Mercury radio", "PSK Reporter"] : [l])),
+        .flatMap((l) => (l === "Packet radio" ? [l, "Mercury radio", "PSK Reporter"] : [l])),
     );
     // one Digipeater Enable for each radio that may repeat, each row with the radio's name when
-    // there are several: with both radios on, the one Enable is in the FM radio's box
+    // there are several: with both radios on, the one Enable is in the Packet radio's box
     expect(legends(make({}, "settings", BOTH).wrapper)).toEqual(
       fm.flatMap((l) =>
-        l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "Mercury radio", "PSK Reporter"] : [l],
+        l === "Digipeater" ? [l, "Packet radio"] : l === "Packet radio" ? [l, "Mercury radio", "PSK Reporter"] : [l],
       ),
     );
   });
@@ -1970,7 +1991,9 @@ describe("the radios that are on", () => {
   it("has no empty hover title on the legend of the Digipeater group's radio box", () => {
     const legend = make({}, "settings", BOTH)
       .wrapper.findAll("fieldset legend")
-      .find((l) => l.text() === "FM radio" && l.element.closest("fieldset")?.querySelector("#set-radio-1-digipeat"));
+      .find(
+        (l) => l.text() === "Packet radio" && l.element.closest("fieldset")?.querySelector("#set-radio-1-digipeat"),
+      );
     expect(legend?.exists()).toBe(true);
     expect(legend?.attributes("title")).toBeUndefined();
   });
@@ -1990,7 +2013,7 @@ describe("the radios that are on", () => {
     }
   });
 
-  it("leaves out the path fold and Travelling while the FM radio is off, and keeps the Position choice, the GPS and the comment", () => {
+  it("leaves out the path fold and Travelling while the Packet radio is off, and keeps the Position choice, the GPS and the comment", () => {
     const { wrapper } = make({ "gps/source": "gpsd" }, "beacon", FM_OFF);
     for (const id of FM_ONLY_FIELDS) expect(wrapper.find(id).exists(), id).toBe(false);
     for (const id of ["#set-gps-source", "#set-gps-host", "#set-station-comment", "#set-beacon-interval_min"])

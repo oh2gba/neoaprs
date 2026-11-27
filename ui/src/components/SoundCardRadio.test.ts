@@ -191,7 +191,7 @@ describe("a Sound card radio's box", () => {
     expect(typeChoices("fm").map((c) => c.value)).toContain("direwolf");
     // the list a radio's type is changed in, too
     expect(typeChoices("fm", ["direwolf"]).map((c) => c.value)).not.toContain("direwolf");
-    expect(typeText("direwolf")).toBe("Sound card");
+    expect(typeText("direwolf")).toBe("Packet, sound card, 1200");
   });
 
   it("is asked for and takes its own sound cards and proposal, never those of the Mercury radio's answer, as every radio with a sound card does", async () => {

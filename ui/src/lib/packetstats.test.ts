@@ -41,7 +41,7 @@ describe("the statistics card's counts from the packet log", () => {
     expect(chart.points).toHaveLength(CHART_HOURS);
     expect(chart.to - chart.from).toBe(CHART_HOURS * 3_600_000);
     expect(chart.parts.map((part) => [part.label, part.tone])).toEqual([
-      ["FM", "series-0"],
+      ["Packet", "series-0"],
       ["Mercury", "series-1"],
       ["Internet", "series-net"],
     ]);
@@ -57,7 +57,7 @@ describe("the statistics card's counts from the packet log", () => {
       ],
     });
     const chart = chartOf(short, RADIOS);
-    expect(chart.parts.map((part) => part.label)).toEqual(["FM"]);
+    expect(chart.parts.map((part) => part.label)).toEqual(["Packet"]);
     expect(chart.points.map((p) => p.v).slice(-4)).toEqual([0, 1, 2, 3]);
   });
 
@@ -66,7 +66,7 @@ describe("the statistics card's counts from the packet log", () => {
       (line) => `${String(line.params?.name ?? line.label)}=${line.value}`,
     );
     expect(lines).toEqual([
-      "FM=48 heard · 17 sent",
+      "Packet=48 heard · 17 sent",
       "Mercury=28 heard · 0 sent",
       "Shack=0 heard · 1 sent",
       "Internet=240 heard",
@@ -97,7 +97,7 @@ describe("the statistics card's counts from the packet log", () => {
     const tones = (stats: PacketStatsMessage) =>
       Object.fromEntries(chartOf(stats, RADIOS).parts.map((part) => [part.label, part.tone]));
     expect(tones(silentFm)).toEqual({ Mercury: "series-1" });
-    expect(tones(answer(24))).toMatchObject({ FM: "series-0", Mercury: "series-1" });
+    expect(tones(answer(24))).toMatchObject({ Packet: "series-0", Mercury: "series-1" });
     expect(channelLines(silentFm, RADIOS, false).map((line) => line.tone)).toEqual([
       "series-0",
       "series-1",

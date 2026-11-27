@@ -62,7 +62,7 @@ describe("StatsCard", () => {
     const rows = Object.fromEntries(
       wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]),
     );
-    expect(rows["By channel"]).toBe("1 FM · 1 Mercury · 1 Shack");
+    expect(rows["By channel"]).toBe("1 Packet · 1 Mercury · 1 Shack");
     expect(rows["Frames from the radios"]).toMatch(/^123\b/);
   });
 
@@ -107,7 +107,7 @@ describe("StatsCard", () => {
     const rows = Object.fromEntries(
       wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]),
     );
-    expect(rows["FM"]).toBe("300 heard · 8 sent");
+    expect(rows["Packet"]).toBe("300 heard · 8 sent");
     expect(rows["Internet"]).toBe("72 heard");
     expect(rows["Beacons"]).toBe("5");
     expect(wrapper.find("dt .stats-swatch.series-0").exists()).toBe(true);

@@ -645,7 +645,7 @@ describe("Send on, the radios of an object", () => {
     expect(sendOn().find(".field-label").text()).toBe("Send on");
     expect(sendOn().attributes("role")).toBe("group");
     expect(ticks()).toEqual([
-      ["FM", true, true],
+      ["Packet", true, true],
       ["Mercury", false, false],
     ]);
     expect(
@@ -671,7 +671,7 @@ describe("Send on, the radios of an object", () => {
   it("ticks a new object as the object saved last, which the daemon names, first box or not", () => {
     const { ticks } = withRadios(ofRadios(FM, HF), [], { status: status({ new_object_radios: [2] }) });
     expect(ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", true, true],
     ]);
   });
@@ -681,13 +681,13 @@ describe("Send on, the radios of an object", () => {
     await field("Path")?.find("input").setValue("WIDE1-1");
     await tick("Mercury");
     expect(ticks()).toEqual([
-      ["FM", true, false],
+      ["Packet", true, false],
       ["Mercury", true, false],
     ]);
     expect(field("Path")?.classes()).not.toContain("disabled");
-    await tick("FM");
+    await tick("Packet");
     expect(ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", true, true],
     ]);
     expect(field("Path")?.classes()).toContain("disabled");
@@ -703,7 +703,7 @@ describe("Send on, the radios of an object", () => {
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radios: [2], path: "WIDE1-1" });
     expect(view.draft.radios).toEqual([2]);
-    await tick("FM");
+    await tick("Packet");
     expect(field("Path")?.classes()).not.toContain("disabled");
     expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(false);
     await wrapper.find("form").trigger("submit");
@@ -714,7 +714,7 @@ describe("Send on, the radios of an object", () => {
     const { field, tick } = withRadios(ofRadios(FM, HF, radioRow(3, "dummy-hf", { number: 2 })));
     await tick("Mercury");
     await tick("Mercury 2");
-    await tick("FM");
+    await tick("Packet");
     const path = field("Path");
     expect(path?.attributes("title")).toBe("Mercury and Mercury 2: no path");
     setLocale("ja");
@@ -754,7 +754,7 @@ describe("Send on, the radios of an object", () => {
     view.edit("FAR");
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", true, true],
     ]);
     expect(advanced()?.element.open).toBe(true);
@@ -764,7 +764,7 @@ describe("Send on, the radios of an object", () => {
     view.edit("WIDE");
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
-      ["FM", true, true],
+      ["Packet", true, true],
       ["Mercury", false, false],
     ]);
     await tick("Mercury");
@@ -795,7 +795,7 @@ describe("Send on, the radios of an object", () => {
     view.edit("GONE");
     await wrapper.vm.$nextTick();
     expect(ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", false, false],
     ]);
     expect(advanced()?.element.open).toBe(true);
@@ -807,7 +807,7 @@ describe("Send on, the radios of an object", () => {
     expect(field("Path")?.find("input").attributes("placeholder")).toBe("(default)");
     await tick("Mercury");
     expect(ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", true, true],
     ]);
     await wrapper.find("form").trigger("submit");
@@ -821,8 +821,8 @@ describe("Send on, the radios of an object", () => {
     expect(placeholder(), "a LoRa radio with no path of its own goes by WIDE1-1").toBe("WIDE1-1");
     await tick("Mercury");
     expect(placeholder(), "the Mercury radio carries no path: the LoRa radio's alone counts").toBe("WIDE1-1");
-    await tick("FM");
-    expect(placeholder(), "FM by the station's symbol, LoRa by its own").toBe("(default)");
+    await tick("Packet");
+    expect(placeholder(), "Packet by the station's symbol, LoRa by its own").toBe("(default)");
     await tick("LoRa");
     expect(placeholder()).toBe("WIDE1-1,WIDE2-1");
   });
@@ -835,9 +835,9 @@ describe("Send on, the radios of an object", () => {
     expect(view.draft.radios).toEqual([1, 2]);
     await tell(daemon, { radios: radiosTopic(FM, HF, radioRow(3, "kiss", { number: 2 })) });
     expect(ticks()).toEqual([
-      ["FM", true, false],
+      ["Packet", true, false],
       ["Mercury", true, false],
-      ["FM 2", false, false],
+      ["Packet 2", false, false],
     ]);
   });
 

@@ -25,6 +25,7 @@ import {
   shownByRadios,
   shownFor,
   typeChoices,
+  typeEntry,
   typeText,
   unnamed,
 } from "@/lib/settingsradio";
@@ -510,7 +511,7 @@ describe("portOptions", () => {
         { ...row("/dev/ttyS0", "n/a"), held_by: 1 },
       ],
     };
-    const names = (id: number) => ({ 1: "FM", 2: "Mobile" })[id];
+    const names = (id: number) => ({ 1: "Packet", 2: "Mobile" })[id];
     const listedOf = (own: number, current = "") =>
       portOptions(held, current, "", false, holderOf(own, names)).slice(1, -1);
     expect(listedOf(1)).toEqual([
@@ -666,10 +667,21 @@ describe("the radios' own settings in the form", () => {
       "dummy-hf",
     ]);
     expect(typeChoices().map((c) => c.value)).toEqual(RADIO_TYPES.map((type) => type.key));
-    expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual([
-      "Your own Direwolf or soundmodem",
+    // A name clear alone: the kind's word with the type's own name; a Dummy's own; the key of an unknown type.
+    expect(
+      ["kiss-tcp", "direwolf-300", "mercury", "lora-tcp", "dummy-hf", "nothing"].map((key) => typeText(key)),
+    ).toEqual([
+      "Packet, Direwolf",
+      "Packet, sound card, 300",
+      "Mercury, sound card",
+      "LoRa tracker or iGate on Wi-Fi",
       "Dummy Mercury radio",
       "nothing",
+    ]);
+    expect(["direwolf", "lora-console", "kiss"].map((key) => typeEntry(key))).toEqual([
+      "Sound card, 1200 (VHF/UHF)",
+      "iGate on USB (RX only)",
+      "KISS TNC",
     ]);
     // Every type the daemon lists has its name in the catalogue: no type's key on the page.
     for (const type of RADIO_TYPES) expect(typeText(type.key), type.key).not.toBe(type.key);
@@ -679,11 +691,12 @@ describe("the radios' own settings in the form", () => {
 describe("the keys of a radio's box", () => {
   const radioOf = (id: number, type: string, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, type, extra));
 
-  it("are a radio's own fields, radios 1 and 2 as every other, by its type: the port and speed of a serial TNC, the host and port of one over TCP, the card and keying of a modem", () => {
-    expect(boxKeys(radioOf(1, "kiss"))).toEqual(["radio/1/port", "radio/1/baud"]);
+  it("are a radio's own fields, radios 1 and 2 as every other, by its type: the port and speed of a serial TNC, the host and port of one over TCP, each with On HF, the card and keying of a modem", () => {
+    expect(boxKeys(radioOf(1, "kiss"))).toEqual(["radio/1/port", "radio/1/baud", "radio/1/on_hf"]);
     expect(boxKeys(radioOf(2, "mercury"))).toEqual(["radio/2/sound_card", "radio/2/keying"]);
-    expect(boxKeys(radioOf(3, "kiss"))).toEqual(["radio/3/port", "radio/3/baud"]);
-    expect(boxKeys(radioOf(4, "kiss-tcp"))).toEqual(["radio/4/tcp_host", "radio/4/tcp_port"]);
+    expect(boxKeys(radioOf(3, "kiss"))).toEqual(["radio/3/port", "radio/3/baud", "radio/3/on_hf"]);
+    expect(boxKeys(radioOf(4, "kiss-tcp"))).toEqual(["radio/4/tcp_host", "radio/4/tcp_port", "radio/4/on_hf"]);
+    expect(boxKeys(radioOf(7, "direwolf-300"))).toEqual(["radio/7/sound_card", "radio/7/keying"]);
     expect(boxKeys(radioOf(5, "mercury"))).toEqual(["radio/5/sound_card", "radio/5/keying"]);
     expect(boxKeys(radioOf(6, "dummy"))).toEqual([]);
     expect([
@@ -707,10 +720,10 @@ describe("the keys of a radio's box", () => {
       boxTitle(radioOf(5, "mercury", { number: 3 }), true),
       boxTitle(radioOf(3, "kiss", { name: "Mobile" }), true),
       boxTitle(radioOf(3, "kiss", { name: "Mobile" }), false),
-    ]).toEqual(["FM radio", "Mercury radio", "Mercury radio 3", "Mobile", "FM radio"]);
+    ]).toEqual(["Packet radio", "Mercury radio", "Mercury radio 3", "Mobile", "Packet radio"]);
     expect([unnamed(radioOf(3, "kiss", { name: "Mobile", number: 2 })), unnamed(radioOf(1, "kiss"))]).toEqual([
-      "FM 2",
-      "FM",
+      "Packet 2",
+      "Packet",
     ]);
   });
 
@@ -723,7 +736,7 @@ describe("the keys of a radio's box", () => {
     ];
     const both = digiPlaces(radios, { "radio/1/digipeat": "false", "radio/3/digipeat": "true" });
     expect(both.keys).toEqual(["radio/1/digipeat", "radio/3/digipeat"]);
-    expect(Object.values(both.boxes).map((b) => b.text)).toEqual(["FM radio", "Mobile"]);
+    expect(Object.values(both.boxes).map((b) => b.text)).toEqual(["Packet radio", "Mobile"]);
     // The status row only under an Enable that is on
     expect(both.status).toEqual({ "radio/3/digipeat": { tnc: radios[2]?.row } });
     // Radio 3 the only radio on
@@ -754,7 +767,7 @@ describe("the pairs of radios of the Digipeater group", () => {
     const places = digiPlaces([FM, HF], told([1, 2]));
     expect(pairKeys(places)).toEqual(["pair/1/2/enabled"]);
     expect(places.boxes["pair/1/2/enabled"]).toEqual({
-      text: "FM radio and Mercury radio",
+      text: "Packet radio and Mercury radio",
       title: "",
       tipLabel: "",
       tip: [],
@@ -780,7 +793,7 @@ describe("the pairs of radios of the Digipeater group", () => {
       "pair/2/3/enabled",
     ]);
     // The first is the radio whose box comes first
-    expect(digiPlaces(four, all).boxes["pair/1/4/enabled"]?.text).toBe("FM radio 2 and FM radio");
+    expect(digiPlaces(four, all).boxes["pair/1/4/enabled"]?.text).toBe("Packet radio 2 and Packet radio");
   });
 
   it("give none for a radio that only receives, a Dummy beside a real one, a radio that is off or removed, and a pair the daemon did not tell", () => {
@@ -815,7 +828,7 @@ describe("the pairs of radios of the Digipeater group", () => {
       link !== undefined && "pair" in link
         ? [link.pair.first.id, link.pair.first.name, link.pair.second.id, link.pair.second.name]
         : null,
-    ).toEqual([1, "FM radio", 2, "Mercury radio"]);
+    ).toEqual([1, "Packet radio", 2, "Mercury radio"]);
     expect(link !== undefined && "pair" in link ? link.pair.second.stats : null).toEqual(HF.row.stats);
   });
 

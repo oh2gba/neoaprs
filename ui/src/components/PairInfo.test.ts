@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import PairInfo from "@/components/PairInfo.vue";
 
 const mounted: { unmount(): void }[] = [];
-function info(slow: string[] = [], first = "FM", second = "HF 40 m") {
+function info(slow: string[] = [], first = "Packet", second = "HF 40 m") {
   const wrapper = mount(PairInfo, { props: { first, second, call: "OH2GBA-15", slow }, attachTo: document.body });
   mounted.push(wrapper);
   return wrapper;
@@ -18,7 +18,7 @@ describe("PairInfo", () => {
   it("is the notes' (i): a label for screen readers and no hover text", () => {
     const button = info().find("button.info-toggle");
     expect(button.text()).toBe("i");
-    expect(button.attributes("aria-label")).toBe("How passing between FM and HF 40 m works");
+    expect(button.attributes("aria-label")).toBe("How passing between Packet and HF 40 m works");
     expect(button.attributes("title")).toBeUndefined();
     expect(dialog()).toBeNull();
   });
@@ -27,7 +27,7 @@ describe("PairInfo", () => {
     await info().find("button").trigger("click");
     const shown = dialog() as HTMLElement;
     expect(document.getElementById(shown.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
-      "Between FM and HF 40 m",
+      "Between Packet and HF 40 m",
     );
     const [main, stop] = [...shown.querySelectorAll("svg.pairpic")] as SVGElement[];
     expect(main?.getAttribute("role")).toBe("img");
@@ -37,7 +37,7 @@ describe("PairInfo", () => {
       "OH2GBA-15,WIDE2-2",
       "OH2GBA-15*,WIDE2-2",
       "a station",
-      "FM",
+      "Packet",
       "stations",
       "HF 40 m",
       "your station",
@@ -61,14 +61,14 @@ describe("PairInfo", () => {
     await info(["HF 40 m"]).find("button").trigger("click");
     expect(dialog()?.textContent).toContain("Onto HF 40 m, at most 4 packets in 5 minutes.");
     mounted.splice(0).forEach((w) => w.unmount());
-    await info([], "FM", "FM 2").find("button").trigger("click");
+    await info([], "Packet", "Packet 2").find("button").trigger("click");
     expect(dialog()?.textContent).not.toContain("at most");
   });
 
   it("cuts a long radio name in the picture, never in the title", async () => {
-    await info([], "FM", "Kenwood TM-D710").find("button").trigger("click");
+    await info([], "Packet", "Kenwood TM-D710").find("button").trigger("click");
     expect(document.getElementById(dialog()?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
-      "Between FM and Kenwood TM-D710",
+      "Between Packet and Kenwood TM-D710",
     );
     expect(dialog()?.querySelector("svg.pairpic")?.textContent).toContain("Kenwood TM…");
   });

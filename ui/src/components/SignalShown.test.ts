@@ -20,7 +20,7 @@ const MINUS = "\u2212";
 
 describe("the signal under a message that came in", () => {
   /**
-   * The page of the FM radio (radio 1) on and the HF radio (radio 2) off, whose word HF a message
+   * The page of the Packet radio (radio 1) on and the HF radio (radio 2) off, whose word HF a message
    * that came by it carries.
    */
   const today = () =>

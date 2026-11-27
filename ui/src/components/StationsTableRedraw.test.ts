@@ -40,7 +40,7 @@ describe("the Stations table with several radios on", () => {
       global: withDaemon(fakeDaemon({ stations, radios })),
     });
     await nextTick();
-    expect(wrapper.findAll("tbody tr[data-call] .via").at(0)?.text()).toBe("FM");
+    expect(wrapper.findAll("tbody tr[data-call] .via").at(0)?.text()).toBe("Packet");
     const heardTags = vi.mocked(channels.heardTags);
     heardTags.mockClear();
     for (let n = 1; n <= 4; n++) {

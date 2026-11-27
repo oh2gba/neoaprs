@@ -67,7 +67,7 @@ describe("the radios of the topic", () => {
   });
 
   it("say each radio's line: one waiting while another is connected, and none connected that is off or removed", () => {
-    const waiting: RadioProblem = { code: "radio.not_connected", params: { name: "FM" } };
+    const waiting: RadioProblem = { code: "radio.not_connected", params: { name: "Packet" } };
     const radios = pageRadios(
       topic(
         radioRow(1, "kenwood-tnc2", { state: "waiting", problem: waiting }),
@@ -122,7 +122,7 @@ describe("what the page calls a radio", () => {
       radioLabel({ name: "", kind: "fm", number: 1 }),
       radioLabel({ name: "", kind: "hf", number: 1 }),
       radioLabel({ name: "", kind: "hf", number: 2 }),
-    ]).toEqual(["FM", "Mercury", "Mercury 2"]);
+    ]).toEqual(["Packet", "Mercury", "Mercury 2"]);
     expect(pageRadios(topic(radioRow(5, "dummy-hf", { number: 3 })), null)[0]?.name).toBe("Mercury 3");
   });
 
@@ -170,7 +170,7 @@ describe("what a radio's problem says", () => {
 
   it("is the words of its line's state as the Radio group says them", () => {
     expect([
-      said("radio.not_connected", { name: "FM" }),
+      said("radio.not_connected", { name: "Packet" }),
       said("radio.searching"),
       said("radio.silent", { since: "2026-10-21T12:00:00Z" }),
     ]).toEqual(["Not connected", "Searching for the radio…", "silent"]);

@@ -4,16 +4,7 @@ import { inject, shallowRef, type InjectionKey, type ShallowRef } from "vue";
 import { hasMessage, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { PairLink } from "@/lib/digistatus";
-import {
-  enabledRadios,
-  fieldId,
-  KIND_WORDS as KIND_NAMES,
-  radioLabel,
-  senders,
-  typeOf,
-  type PageRadio,
-  type RadioType,
-} from "@/lib/radios";
+import { enabledRadios, fieldId, radioLabel, senders, typeOf, type PageRadio, type RadioType } from "@/lib/radios";
 import { pairCall } from "@/lib/settingspair";
 import type { Choice } from "@/lib/settingchoices";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
@@ -59,6 +50,7 @@ const FIELD_WORDS: Readonly<Record<string, string>> = {
   baud: "serial/baud",
   tcp_host: "tcp/host",
   tcp_port: "tcp/port",
+  on_hf: "tnc/on_hf",
   digipeat: "digi/enabled",
   path: "beacon/path",
   sound_card: "mercury/sound_card",
@@ -160,15 +152,61 @@ export const proposedFrom = (answer: PortsMessage, key: string, value: string): 
 export const proposing = (answer: PortsMessage, key: string, value: string): void =>
   void proposed.set(answer, { key, value });
 
-/** The name of a radio type in the page's language; the key itself for an unknown type. */
-export function typeText(key: string): string {
-  const id = RADIO_TYPES.find((type) => type.key === key)?.text;
-  return id !== undefined && hasMessage(id) ? t(id) : key;
+/** The heading of each kind's group in Add radio's list. */
+const GROUP_WORDS: Record<PageRadio["kind"], MessageId> = {
+  fm: "radio.add.group.fm",
+  hf: "radio.add.group.hf",
+  lora: "radio.add.group.lora",
+};
+/** A type's name with its kind's word before it, which makes it clear alone. */
+const KIND_TYPE: Record<PageRadio["kind"], MessageId> = {
+  fm: "radio.kind_type.fm",
+  hf: "radio.kind_type.hf",
+  lora: "radio.kind_type.lora",
+};
+/** The band Add radio's list names after a type that is for one. */
+const BAND_WORDS: Record<Exclude<RadioType["band"], "">, MessageId> = {
+  vhf_uhf: "radio.band.vhf_uhf",
+  hf: "radio.band.hf",
+};
+
+/**
+ * The text with a capital first letter, as a line of a list starts; a word whose second letter is
+ * a capital already ("iGate") keeps its own.
+ */
+export function capitalFirst(text: string): string {
+  const [first, second] = [...text];
+  if (first === undefined || (second !== undefined && second !== second.toLowerCase())) return text;
+  return first.toUpperCase() + text.slice(first.length);
+}
+
+/** A type's own name as the catalogue has it, in the case of the middle of a sentence; null if unknown. */
+function ownName(type: RadioType | undefined): string | null {
+  return type !== undefined && hasMessage(type.text) ? t(type.text) : null;
 }
 
 /**
- * Radio types to choose from: those of one kind, or all (Add radio), in the daemon's order.
- * Types in `unavailable` are left out.
+ * The name of a radio type that is clear alone (its box, Radio type, a line): its kind's word with
+ * its own name ("Mercury, sound card"); a Dummy's own name. The key itself for an unknown type.
+ */
+export function typeText(key: string): string {
+  const type = RADIO_TYPES.find((found) => found.key === key);
+  const own = ownName(type);
+  if (type === undefined || own === null) return key;
+  return type.dummy ? capitalFirst(own) : t(KIND_TYPE[type.kind], { type: own });
+}
+
+/** The name of a radio type as a line of Add radio's list says it under its kind's heading. */
+export function typeEntry(key: string): string {
+  const type = RADIO_TYPES.find((found) => found.key === key);
+  const own = ownName(type);
+  if (type === undefined || own === null) return key;
+  return capitalFirst(type.band === "" ? own : t("radio.listed_band", { type: own, band: t(BAND_WORDS[type.band]) }));
+}
+
+/**
+ * Radio types to choose from: those of one kind, or all, in the daemon's order. Types in
+ * `unavailable` are left out.
  */
 export const typeChoices = (kind?: PageRadio["kind"], unavailable: readonly string[] = []): Choice[] =>
   RADIO_TYPES.filter((type) => (kind === undefined || type.kind === kind) && !unavailable.includes(type.key)).map(
@@ -180,8 +218,8 @@ export const typeChoices = (kind?: PageRadio["kind"], unavailable: readonly stri
 
 /** The groups of Add radio's list: each kind's real types, then the Dummy types of every kind. */
 const ADD_GROUPS: readonly { word: MessageId; holds: (type: RadioType) => boolean }[] = [
-  ...Object.entries(KIND_NAMES).map(([kind, word]) => ({
-    word,
+  ...(Object.keys(GROUP_WORDS) as PageRadio["kind"][]).map((kind) => ({
+    word: GROUP_WORDS[kind],
     holds: (type: RadioType) => !type.dummy && type.kind === kind,
   })),
   { word: "radio.add.without_radio", holds: (type: RadioType) => type.dummy },
@@ -197,7 +235,7 @@ export const addTypeChoices = (unavailable: readonly string[] = []): Choice[] =>
     return [...types.filter((type) => type.can.transmit), ...types.filter((type) => !type.can.transmit)].map(
       (type) => ({
         value: type.key,
-        label: typeText(type.key),
+        label: typeEntry(type.key),
         group: t(word),
       }),
     );

@@ -232,7 +232,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "route.best.send_direct": "{route}; lähetä suoraan",
   "route.best.unknown_send_by": "{route}; tuntematon digipeateri, lähetä polulla {path}",
   "route.best.unknown_send_direct": "{route}; tuntematon digipeateri, lähetä suoraan",
-  "channel.fm": "FM",
+  "channel.fm": "Packet",
   "channel.hf": "Mercury",
   "channel.lora": "LoRa",
   "channel.gated": "iGate",

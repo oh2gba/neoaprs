@@ -44,7 +44,7 @@ const fmAndHf = station("OH2FMHF", {
 });
 const object = station("LEADER", { kind: "object", own: true, last_heard: ago(200), heard_rf: 0 });
 
-/** The station of the tests: the FM radio (radio 1) on, the HF radio (radio 2) off. */
+/** The station of the tests: the Packet radio (radio 1) on, the HF radio (radio 2) off. */
 const TODAY = () =>
   radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
 const make = (...rows: ReturnType<typeof station>[]) =>
@@ -64,26 +64,26 @@ const labels = (wrapper: ReturnType<typeof make>): [string, string][] =>
 beforeEach(() => localStorage.clear());
 
 describe("how a station was heard, in the Stations table", () => {
-  it("is a small tag in its own column after the call of every row: the radio that heard it (FM, also with one radio on), iGate, Internet or two tags, one for each way; none for our own station and our objects", () => {
+  it("is a small tag in its own column after the call of every row: the radio that heard it (Packet, also with one radio on), iGate, Internet or two tags, one for each way; none for our own station and our objects", () => {
     expect(labels(make(me, rf, gated, net, both, object))).toEqual([
       ["OH2GBA", ""],
-      ["OH2BOTH", "FM · Internet"],
-      ["OH2RF", "FM"],
+      ["OH2BOTH", "Packet · Internet"],
+      ["OH2RF", "Packet"],
       ["OH2GATED", "iGate"],
       ["OH2NET", "Internet"],
       ["LEADER", ""],
     ]);
   });
 
-  it("has a tag Mercury for a station heard on the Mercury radio, beside FM when it was heard on the FM radio too, and FM alone for the rest", () => {
+  it("has a tag Mercury for a station heard on the Mercury radio, beside Packet when it was heard on the Packet radio too, and Packet alone for the rest", () => {
     expect(labels(make(rf, hfOnly, fmAndHf))).toEqual([
-      ["OH2FMHF", "FM · Mercury"],
-      ["OH2RF", "FM"],
+      ["OH2FMHF", "Packet · Mercury"],
+      ["OH2RF", "Packet"],
       ["OH2HF", "Mercury"],
     ]);
     const tags = make(fmAndHf).findAll("tbody tr[data-call] .via");
     // A radio that is now off keeps its name: "Heard on radio {name}".
-    expect(tags.map((tag) => tag.attributes("title"))).toEqual(["Heard on radio FM", "Heard on radio Mercury"]);
+    expect(tags.map((tag) => tag.attributes("title"))).toEqual(["Heard on radio Packet", "Heard on radio Mercury"]);
     expect(tags.map((tag) => tag.classes()[1])).toEqual(["tag-neutral", "tag-hf"]);
   });
 
@@ -96,9 +96,9 @@ describe("how a station was heard, in the Stations table", () => {
         .map((v) => v.attributes("title"))
         .join("; ");
     expect(titles).toEqual({
-      OH2RF: "Heard on radio FM",
+      OH2RF: "Heard on radio Packet",
       OH2NET: "Received over the internet (APRS-IS), not on the radio",
-      OH2BOTH: "Heard on radio FM; Received over the internet (APRS-IS), not on the radio",
+      OH2BOTH: "Heard on radio Packet; Received over the internet (APRS-IS), not on the radio",
     });
   });
 
@@ -204,11 +204,11 @@ describe("how a station was heard, with several radios", () => {
     },
   });
 
-  it("names FM and Mercury by their short names while both are on, the station of the owner, as with one of them on", () => {
+  it("names Packet and Mercury by their short names while both are on, the station of the owner, as with one of them on", () => {
     const wrapper = make(rf, hfOnly, fmAndHf);
     expect(labels(wrapper)).toEqual([
-      ["OH2FMHF", "FM · Mercury"],
-      ["OH2RF", "FM"],
+      ["OH2FMHF", "Packet · Mercury"],
+      ["OH2RF", "Packet"],
       ["OH2HF", "Mercury"],
     ]);
     const both = mount(StationsTable, {
@@ -221,14 +221,14 @@ describe("how a station was heard, with several radios", () => {
       ),
     });
     expect(labels(both)).toEqual([
-      ["OH2FMHF", "FM · Mercury"],
-      ["OH2RF", "FM"],
+      ["OH2FMHF", "Packet · Mercury"],
+      ["OH2RF", "Packet"],
       ["OH2HF", "Mercury"],
     ]);
     expect(
       both.findAll("tr[data-call='OH2FMHF'] .via").map((tag) => [tag.attributes("title"), tag.classes()[1]]),
     ).toEqual([
-      ["Heard on radio FM", "tag-neutral"],
+      ["Heard on radio Packet", "tag-neutral"],
       ["Heard on radio Mercury", "tag-hf"],
     ]);
   });
@@ -239,9 +239,9 @@ describe("how a station was heard, with several radios", () => {
     const tags = wrapper.findAll("tr[data-call='OH2SIX'] .via");
     expect(tags.map((tag) => tag.classes()[1])).toEqual(["tag-neutral", "tag-dummy", "tag-neutral", "tag-info"]);
     // A colon on every part once one needs it, as on the card.
-    expect(tags[2]?.attributes("title")).toBe("FM: 10 min ago; Bench: 1 h ago");
+    expect(tags[2]?.attributes("title")).toBe("Packet: 10 min ago; Bench: 1 h ago");
     // The hover text, also for a keyboard and a screen reader.
-    expect(tags[2]?.find(".sr-only").text()).toBe("FM: 10 min ago; Bench: 1 h ago");
+    expect(tags[2]?.find(".sr-only").text()).toBe("Packet: 10 min ago; Bench: 1 h ago");
     expect(tags.filter((tag) => tag.find(".sr-only").exists())).toHaveLength(1);
   });
 
@@ -297,7 +297,7 @@ describe("how a station was heard, with several radios", () => {
         three,
       );
       await nextTick();
-      expect(wrapper.findAll("tr[data-call='OH2THREE'] .via").map((tag) => seen(tag))).toEqual(["FM", "+2"]);
+      expect(wrapper.findAll("tr[data-call='OH2THREE'] .via").map((tag) => seen(tag))).toEqual(["Packet", "+2"]);
     });
 
     it("counts a Dummy part beside the radios among them at 375 px: two radios and the Dummy's packets with one radio on are one tag and +2", async () => {
@@ -310,7 +310,7 @@ describe("how a station was heard, with several radios", () => {
       });
       const wrapper = make(mixed);
       await nextTick();
-      expect(wrapper.findAll("tr[data-call='OH2MIX'] .via").map((tag) => seen(tag))).toEqual(["FM", "+2"]);
+      expect(wrapper.findAll("tr[data-call='OH2MIX'] .via").map((tag) => seen(tag))).toEqual(["Packet", "+2"]);
     });
 
     it("shows one radio and +n at 375 px with one radio on too, a radio that is off among them: a radio's tag is its name, which may be long", async () => {
@@ -319,16 +319,16 @@ describe("how a station was heard, with several radios", () => {
       await nextTick();
       expect(labels(wrapper)).toEqual([
         ["OH2FMHF", "Mercury · +1"],
-        ["OH2RF", "FM"],
+        ["OH2RF", "Packet"],
         ["OH2HF", "Mercury"],
       ]);
-      expect(wrapper.find("tr[data-call='OH2FMHF'] .via:last-child").attributes("title")).toBe("FM 3 min ago");
+      expect(wrapper.find("tr[data-call='OH2FMHF'] .via:last-child").attributes("title")).toBe("Packet 3 min ago");
     });
   });
 
   // A Dummy radio's tag and mark stay dashed, whatever its kind. With the Dummy HF radio alone,
   // its packets are labelled "Dummy", as the one radio that is on.
-  it("says a Dummy Mercury radio's packets Dummy where it is the one radio on, and its name dashed beside FM", () => {
+  it("says a Dummy Mercury radio's packets Dummy where it is the one radio on, and its name dashed beside Packet", () => {
     const made = station("OH2DUM", {
       heard_rf: 0,
       heard_dummy: 3,
@@ -382,12 +382,12 @@ describe("how a station was heard, with one radio", () => {
   const iGate = ["iGate", "tag-neutral", "Heard on the radio from an iGate, which took it from the internet"];
   const internet = ["Internet", "tag-info", "Received over the internet (APRS-IS), not on the radio"];
 
-  it("names an FM radio with no name of its own FM, beside the network's iGate and Internet", () => {
+  it("names a packet radio with no name of its own Packet, beside the network's iGate and Internet", () => {
     const wrapper = one(radioRow(1, "kenwood-tnc2"))(rf, gated, net, both);
-    expect(tags(wrapper, "OH2RF")).toEqual([["FM", "tag-neutral", "Heard on radio FM"]]);
+    expect(tags(wrapper, "OH2RF")).toEqual([["Packet", "tag-neutral", "Heard on radio Packet"]]);
     expect(tags(wrapper, "OH2GATED")).toEqual([iGate]);
     expect(tags(wrapper, "OH2NET")).toEqual([internet]);
-    expect(tags(wrapper, "OH2BOTH")).toEqual([["FM", "tag-neutral", "Heard on radio FM"], internet]);
+    expect(tags(wrapper, "OH2BOTH")).toEqual([["Packet", "tag-neutral", "Heard on radio Packet"], internet]);
   });
 
   it("names a radio by the name the operator gave it", () => {
@@ -408,7 +408,7 @@ describe("how a station was heard, with one radio", () => {
       radioRow(3, "kiss", { name: "Shack", number: 2, removed: true, enabled: false, state: "stopped" }),
     )(old);
     expect(tags(wrapper, "OH2OLD")).toEqual([
-      ["FM", "tag-neutral", "Heard on radio FM"],
+      ["Packet", "tag-neutral", "Heard on radio Packet"],
       ["Shack", "tag-removed", "Heard on radio Shack"],
     ]);
   });

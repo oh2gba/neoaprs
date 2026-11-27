@@ -57,14 +57,14 @@ describe("statusRadioLines", () => {
     expect(
       statusRadioLines(
         [
-          { name: "FM", status: { last_sent: ago(240), next_due: later(11), interval_min: 15 } },
+          { name: "Packet", status: { last_sent: ago(240), next_due: later(11), interval_min: 15 } },
           { name: "HF", status: { last_sent: null, next_due: null, interval_min: 30 } },
           { name: "LoRa", status: { last_sent: ago(120), next_due: null, interval_min: 30 } },
         ],
         NOW,
       ),
     ).toEqual([
-      "FM: last sent 4 min ago · next in 11 min (every 15 min)",
+      "Packet: last sent 4 min ago · next in 11 min (every 15 min)",
       "HF: not sent yet",
       "LoRa: last sent 2 min ago · no timed status",
     ]);

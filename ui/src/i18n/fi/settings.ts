@@ -19,14 +19,15 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.group.station": "Asema",
   "settings.group.tnc": "Radio",
-  "settings.group.fm_radio": "FM-radio",
+  "settings.group.fm_radio": "Packet-radio",
   "settings.group.hf_radio": "Mercury-radio",
   "settings.group.lora_radio": "LoRa-radio",
-  "settings.fm_enabled.name": "FM-radio",
-  "settings.fm_enabled.tip_label": "Tietoa: FM-radio",
+  "settings.fm_enabled.name": "Packet-radio",
+  "settings.fm_enabled.tip_label": "Tietoa: Packet-radio",
   "settings.fm_enabled.tip1":
-    "FM-radiosi ja sen TNC tai äänikortti: paikallinen verkko digipeatereineen ja poluineen sekä GPS:ää seuraava majakka.",
+    "Packet-radiosi ja sen TNC tai äänikortti: paikallinen verkko digipeatereineen ja poluineen sekä GPS:ää seuraava majakka.",
   "settings.fm_enabled.tip2": "Poista valinta, niin radio on pois käytöstä; sen asetukset säilyvät.",
+  "settings.hf_band.tip1": "Perinteisen APRS:n tavallinen taajuus HF:llä on 10,1476 MHz USB.",
   "settings.hf_enabled.name": "Mercury-radio",
   "settings.hf_enabled.tip_label": "Tietoa: Mercury-radio",
   "settings.hf_enabled.tip1":
@@ -113,9 +114,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.profile.label": "Radion tyyppi",
   "settings.profile.tip_label": "Minkä radiotyypin valitsen",
   "settings.profile.tip1":
-    "FM-radio Digirigillä, SignaLinkillä, AIOC:lla tai omalla USB-äänellään on Äänikortti. Useimmat TNC:t ovat KISS TNC.",
-  "settings.profile.tip2":
-    "Mercury-modeemin kuulevat vain Mercury-asemat, millä tahansa taajuusalueella, SSB:llä tai FM:llä. Ei radiota? Valitse simuloitu.",
+    "Packet tavoittaa perinteiset APRS-asemat, Mercury vain Mercury-asemat ja LoRa vain LoRa-asemat.",
+  "settings.profile.tip2": "Kenwood TH-D74/D75, Mobilinkd ja useimmat muut TNC:t ovat KISS TNC.",
 
   "settings.port.name": "Portti",
   "settings.port.label": "Portti",
@@ -140,6 +140,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_host.tip1": "Tietokone, jossa oma Direwolf tai soundmodem toimii: 127.0.0.1 on tämä tietokone.",
   "settings.tcp_port.label": "Portti",
   "settings.tcp_port.tip1": "Direwolf kuuntelee porttia 8001 ja soundmodem porttia 8100, ellet ole muuttanut sitä.",
+  "settings.on_hf.label": "HF:llä",
+  "settings.on_hf.tip_label": "Tietoa: HF:llä",
+  "settings.on_hf.tip1":
+    "Valitse tämä, kun TNC on HF-radiossa: NeoAPRS lähettää sillä silloin harvemmin, kuten Mercuryllä.",
   "settings.board_host.tip1": "Kortin osoite verkossasi sellaisena kuin sen oma verkkosivu sen näyttää.",
   "settings.board_port.tip1": "Kortin KISS-portti: 8001, ellet ole muuttanut sitä kortilla.",
   "settings.board_host.label": "Osoite",
@@ -591,7 +595,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.send": "Lähetä",
   "settings.help.dialog.cancel": "Peruuta",
   "settings.about.group": "Tietoja",
-  "settings.about.intro": "NeoAPRS {version}, APRS-ohjelma radioillesi: FM, Mercury ja LoRa. Tekijä: {call}, {year}.",
+  "settings.about.intro":
+    "NeoAPRS {version}, APRS-ohjelma radioillesi: Packet, Mercury ja LoRa. Tekijä: {call}, {year}.",
   "settings.about.license": "Vapaa ohjelmisto: {license}, versio 3 tai uudempi.",
   "settings.about.license_link": "GNU GPL",
   "settings.about.source": "Lähdekoodi",

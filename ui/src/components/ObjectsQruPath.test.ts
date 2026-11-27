@@ -118,7 +118,7 @@ describe("the path of a request for local info", () => {
     expect(fold(wrapper).attributes("open")).toBeDefined();
   });
 
-  it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
+  it("does not hold Ask for a stored path that is wrong while the Packet radio is off and the fold is not there, and sends no path", async () => {
     localStorage.setItem("NeoAPRS.qru.path", "not a path!");
     const { wrapper, daemon } = make({
       radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")),
@@ -165,7 +165,7 @@ describe("the Send on of Local info", () => {
       expect(wrapper.find("#qru-send-on").exists()).toBe(false);
       expect(wrapper.find(".qru-ask select").exists()).toBe(false);
       expect(tags(wrapper)).toEqual([]);
-      expect(line(wrapper)).not.toMatch(/FM:|Mercury:/);
+      expect(line(wrapper)).not.toMatch(/Packet:|Mercury:/);
       await ask(wrapper).trigger("click");
       await answer(daemon);
       await pills(wrapper)[0]?.trigger("click");
@@ -188,7 +188,7 @@ describe("the Send on of Local info", () => {
       "set-radio-2-local_info",
     ]);
     expect([...(row?.querySelectorAll("label.check") ?? [])].map((label) => label.textContent)).toEqual([
-      "FM",
+      "Packet",
       "Mercury",
     ]);
     expect(wrapper.find(".qru-ask").element.firstElementChild).toBe(ask(wrapper).element);
@@ -277,15 +277,15 @@ describe("the Send on of Local info", () => {
     expect(ask(one.wrapper).attributes("disabled")).toBeUndefined();
     const none = on({}, ticked({ ...FM, state: "waiting" }), ticked({ ...HF, state: "waiting" }));
     expect(ask(none.wrapper).attributes("disabled")).toBeDefined();
-    expect(ask(none.wrapper).attributes("title")).toBe("FM: not connected\nMercury: not connected");
+    expect(ask(none.wrapper).attributes("title")).toBe("Packet: not connected\nMercury: not connected");
     const alone = on({}, { ...FM, state: "waiting" });
     expect(ask(alone.wrapper).attributes("title")).toBe("The radio is not connected");
   });
 
   it("names on the state word of the status line the radios the request went on", () => {
     const { wrapper } = on({ qru: qruState({ asked: qruAsked("INFO 150", ago(90), 1, 2) }) }, ticked(FM), ticked(HF));
-    expect(wrapper.find(".qrustatus .statetext").text()).toBe("FM and Mercury: Asked");
-    expect(line(wrapper)).toMatch(/^FM and Mercury: Asked\s*\d\d:\d\d · /);
+    expect(wrapper.find(".qrustatus .statetext").text()).toBe("Packet and Mercury: Asked");
+    expect(line(wrapper)).toMatch(/^Packet and Mercury: Asked\s*\d\d:\d\d · /);
   });
 
   it("tags a server's row with the radio it answered on, and sends its group's button and Ask again on that radio, whatever is ticked", async () => {

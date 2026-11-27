@@ -19,14 +19,15 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.group.station": "局",
   "settings.group.tnc": "無線機",
-  "settings.group.fm_radio": "FM無線機",
+  "settings.group.fm_radio": "Packet無線機",
   "settings.group.hf_radio": "Mercury無線機",
   "settings.group.lora_radio": "LoRa無線機",
-  "settings.fm_enabled.name": "FM無線機",
-  "settings.fm_enabled.tip_label": "FM無線機について",
+  "settings.fm_enabled.name": "Packet無線機",
+  "settings.fm_enabled.tip_label": "Packet無線機について",
   "settings.fm_enabled.tip1":
-    "FM無線機とそのTNCまたはサウンドカード：デジピーターやパスを使うローカルのネットワークと、GPSに追従するビーコン。",
+    "Packet無線機とそのTNCまたはサウンドカード：デジピーターやパスを使うローカルのネットワークと、GPSに追従するビーコン。",
   "settings.fm_enabled.tip2": "チェックを外すとこの無線機はオフのままになり、設定は残ります。",
+  "settings.hf_band.tip1": "HFの従来のAPRSでよく使われる周波数は10.1476 MHz USBです。",
   "settings.hf_enabled.name": "Mercury無線機",
   "settings.hf_enabled.tip_label": "Mercury無線機について",
   "settings.hf_enabled.tip1":
@@ -106,10 +107,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "無線機の種類",
   "settings.profile.tip_label": "無線機の種類の選び方",
-  "settings.profile.tip1":
-    "Digirig、SignaLink、AIOC、または無線機自身のUSBオーディオを使うFM無線機は「サウンドカード」です。TNCの多くは「KISS TNC」です。",
-  "settings.profile.tip2":
-    "「Mercuryモデム」を受信できるのはMercuryの局だけで、バンドを問わずSSBでもFMでも使えます。無線機がなければ「ダミー」を選んでください。",
+  "settings.profile.tip1": "Packetは従来のAPRS局に、MercuryはMercuryの局にだけ、LoRaはLoRaの局にだけ届きます。",
+  "settings.profile.tip2": "Kenwood TH-D74/D75、Mobilinkd、その他ほとんどのTNCは「KISS TNC」です。",
 
   "settings.port.name": "ポート",
   "settings.port.label": "ポート",
@@ -136,6 +135,9 @@ export const settings: Record<keyof typeof source, Message> = {
     "自分の Direwolf や soundmodem が動いているコンピューターです。127.0.0.1 はこのコンピューター自身です。",
   "settings.tcp_port.label": "ポート",
   "settings.tcp_port.tip1": "Direwolf は 8001、soundmodem は 8100 で待ち受けます(変更していなければ)。",
+  "settings.on_hf.label": "HFで使う",
+  "settings.on_hf.tip_label": "「HFで使う」について",
+  "settings.on_hf.tip1": "HF無線機につないだTNCならチェックします。NeoAPRSはMercuryと同じく送信の回数を減らします。",
   "settings.board_host.tip1": "ボードのネットワーク上のアドレスです。ボード自身のWebページに表示されます。",
   "settings.board_port.tip1": "ボードのKISSポートです。ボードで変更していなければ8001です。",
   "settings.board_host.label": "アドレス",
@@ -567,7 +569,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.cancel": "キャンセル",
   "settings.about.group": "このアプリについて",
   "settings.about.intro":
-    "NeoAPRS {version}、FM・Mercury・LoRaの無線機に対応したAPRSクライアント。作者:{call}({year}年)。",
+    "NeoAPRS {version}、Packet・Mercury・LoRaの無線機に対応したAPRSクライアント。作者:{call}({year}年)。",
   "settings.about.license": "{license} バージョン3以降に基づくフリーソフトウェアです。",
   "settings.about.license_link": "GNU一般公衆利用許諾書",
   "settings.about.source": "ソースコード",

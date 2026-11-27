@@ -668,7 +668,7 @@ describe("BeaconPane with several radios", () => {
     send.mock.calls.map(([command]) => command).filter((command) => command.cmd === "set_config");
 
   describe("Send on", () => {
-    it("is not there with one radio on: the tab is as it was (the FM radio alone, the Mercury radio alone, a radio that is off or removed beside it)", () => {
+    it("is not there with one radio on: the tab is as it was (the Packet radio alone, the Mercury radio alone, a radio that is off or removed beside it)", () => {
       for (const rows of [
         [FM()],
         [FM({ enabled: false }), HF()],
@@ -677,7 +677,7 @@ describe("BeaconPane with several radios", () => {
       ]) {
         const { wrapper } = radiosPane(rows);
         expect(wrapper.find("#beacon-send-on").exists()).toBe(false);
-        expect(fold(wrapper).filter((line) => /^(FM|Mercury)( \d)?: /.test(line))).toEqual([]);
+        expect(fold(wrapper).filter((line) => /^(Packet|Mercury)( \d)?: /.test(line))).toEqual([]);
       }
       expect(pane().wrapper.find("#beacon-send-on").exists()).toBe(false);
     });
@@ -693,7 +693,7 @@ describe("BeaconPane with several radios", () => {
       expect(row?.getAttribute("role")).toBe("group");
       expect(wrapper.find("#set-beacon-interval_min").element.closest(".field")?.nextElementSibling).toBe(row);
       expect(row?.nextElementSibling).toBe(block(wrapper).element);
-      expect(tickNames(wrapper)).toEqual(["FM", "Mercury"]);
+      expect(tickNames(wrapper)).toEqual(["Packet", "Mercury"]);
       expect(ticks(wrapper).map((tick) => [tick.attributes("id"), tick.element.checked])).toEqual([
         ["set-radio-1-beacon", true],
         ["set-radio-2-beacon", false],
@@ -813,7 +813,7 @@ describe("BeaconPane with several radios", () => {
         radios: radiosTopic(FM({ enabled: false }), HF(hfNone), FM3(none)),
         status: status({ unheard_radio: 2, beacon_interval_min: 20 }),
       });
-      expect(tickNames(wrapper)).toEqual(["Mercury", "FM 2"]);
+      expect(tickNames(wrapper)).toEqual(["Mercury", "Packet 2"]);
       expect(ticks(wrapper).map((tick) => [tick.element.checked, tick.attributes("disabled") !== undefined])).toEqual([
         [false, false],
         [false, false],
@@ -840,14 +840,14 @@ describe("BeaconPane with several radios", () => {
   });
 
   describe("the state of the beacon", () => {
-    it("says each radio's beacon behind the arrow, by its name, with its own interval: FM 20 while Mercury keeps 30", () => {
+    it("says each radio's beacon behind the arrow, by its name, with its own interval: Packet 20 while Mercury keeps 30", () => {
       const { wrapper } = radiosPane([
         FM({ beacon: { last_sent: ago(240), next_due: later(16 * 60), interval_min: 20, problem: null } }),
         HF({ beacon: { last_sent: ago(120), next_due: later(29 * 60), interval_min: 30, problem: null } }),
       ]);
       expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 2 min ago · next in 16 min (every 20 min)");
       expect(fold(wrapper)).toEqual([
-        "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+        "Packet: last beacon 4 min ago · next in 16 min (every 20 min)",
         "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)",
       ]);
     });
@@ -859,7 +859,7 @@ describe("BeaconPane with several radios", () => {
         FM3({ name: "Mobile12" }),
         radioRow(4, "kiss", { enabled: false }),
       ]);
-      expect(fold(wrapper).map((line) => line.split(":")[0])).toEqual(["FM", "Mobile12"]);
+      expect(fold(wrapper).map((line) => line.split(":")[0])).toEqual(["Packet", "Mobile12"]);
     });
 
     it("has no Beacon choice before the daemon has told the radios (it tells them before the settings, so the form comes with them), and each radio's beacon once they come", async () => {
@@ -877,12 +877,12 @@ describe("BeaconPane with several radios", () => {
       expect(ticks(wrapper)).toHaveLength(2);
       expect(block(wrapper).find(".tncstatus").text()).toBe("Last beacon 4 min ago · next in 16 min (every 20 min)");
       expect(fold(wrapper)).toEqual([
-        "FM: last beacon 4 min ago · next in 16 min (every 20 min)",
+        "Packet: last beacon 4 min ago · next in 16 min (every 20 min)",
         "Mercury: no beacon sent yet · no timed beacon",
       ]);
     });
 
-    it("says each radio's beacon of a moving station too: FM by SmartBeaconing, Mercury by its own interval", () => {
+    it("says each radio's beacon of a moving station too: Packet by SmartBeaconing, Mercury by its own interval", () => {
       const { wrapper } = radiosPane(
         [
           FM({ beacon: { last_sent: ago(240), next_due: later(60), interval_min: 20, problem: null } }),
@@ -891,8 +891,8 @@ describe("BeaconPane with several radios", () => {
         { "gps/source": "gpsd" },
         { gps: gpsState() },
       );
-      expect(fold(wrapper).filter((line) => /^(FM|Mercury): /.test(line))).toEqual([
-        "FM: last beacon 4 min ago · next in 1 min",
+      expect(fold(wrapper).filter((line) => /^(Packet|Mercury): /.test(line))).toEqual([
+        "Packet: last beacon 4 min ago · next in 1 min",
         "Mercury: last beacon 2 min ago · next in 29 min (every 30 min)",
       ]);
     });
@@ -936,11 +936,11 @@ describe("BeaconPane with several radios", () => {
         "set-radio-2-status",
       ]);
       expect(wrapper.findAll("#status-send-on ~ .field-control label.check").map((l) => l.text())).toEqual([
-        "FM",
+        "Packet",
         "Mercury",
       ]);
       expect([...(sendOn(wrapper)?.querySelectorAll("label.check") ?? [])].map((l) => l.textContent)).toEqual([
-        "FM",
+        "Packet",
         "Mercury",
       ]);
     });
@@ -991,7 +991,7 @@ describe("BeaconPane with several radios", () => {
       expect(ticks(wrapper).map((tick) => tick.element.checked)).toEqual([true, true]);
     });
 
-    it("says behind the status row's arrow the status on each radio it goes out on, by its name: FM at the interval, Mercury at its floor", () => {
+    it("says behind the status row's arrow the status on each radio it goes out on, by its name: Packet at the interval, Mercury at its floor", () => {
       const { wrapper } = radiosPane(
         [
           FM({
@@ -1008,7 +1008,7 @@ describe("BeaconPane with several radios", () => {
       );
       expect(statusFold(wrapper)).toEqual([
         "Every 30 min",
-        "FM: last sent 4 min ago · next in 11 min (every 15 min)",
+        "Packet: last sent 4 min ago · next in 11 min (every 15 min)",
         "Mercury: last sent 2 min ago · next in 28 min (every 30 min)",
       ]);
     });
@@ -1036,7 +1036,7 @@ describe("BeaconPane with several radios", () => {
 
     it("says not sent yet on a radio the status has not gone out on", () => {
       const { wrapper } = radiosPane([FM({ choices: { ...FM().choices, status: true } }), HF()], text);
-      expect(statusFold(wrapper)).toEqual(["Every 30 min", "FM: not sent yet"]);
+      expect(statusFold(wrapper)).toEqual(["Every 30 min", "Packet: not sent yet"]);
     });
 
     it("sends Send status now on the radios the status goes out on: off while none of them is connected, with those as its title", () => {
@@ -1061,7 +1061,7 @@ describe("BeaconPane with several radios", () => {
         "status/source": "text",
       });
       expect(buttons(wrapper).map((button) => button.attributes("disabled") === undefined)).toEqual([true, false]);
-      expect(wrapper.find("#status-now").attributes("title")).toBe("FM: not connected");
+      expect(wrapper.find("#status-now").attributes("title")).toBe("Packet: not connected");
       await wrapper.find("#beacon-now").trigger("click");
       await wrapper.find("#beacon-now").trigger("click");
       expect(send).toHaveBeenCalledWith({ cmd: "beacon_now" });
@@ -1080,7 +1080,7 @@ describe("BeaconPane with several radios", () => {
       );
       const button = wrapper.find("#beacon-now");
       expect(button.attributes("disabled")).toBeDefined();
-      expect(button.attributes("title")).toBe("FM: not connected\n20 m: not connected");
+      expect(button.attributes("title")).toBe("Packet: not connected\n20 m: not connected");
     });
 
     it("is off, with no title, while the beacon is ticked for no radio that is on", () => {
@@ -1176,19 +1176,19 @@ describe("BeaconPane with several radios", () => {
           choices: { beacon: true, status: false, ask: false, local_info: false, path: "WIDE2-2", digipeat: false },
         }),
       ]);
-      expect(pathLabels(wrapper)).toEqual(["FM: path", "FM 2: path"]);
+      expect(pathLabels(wrapper)).toEqual(["Packet: path", "Packet 2: path"]);
       expect(wrapper.find("#set-radio-1-path").exists()).toBe(true);
       expect(wrapper.find<HTMLSelectElement>("#set-radio-3-path").element.value).toBe("custom");
       expect(wrapper.find<HTMLInputElement>("#set-radio-3-path-typed").element.value).toBe("WIDE2-2");
-      expect(pathLabels(radiosPane([FM(), HF()]).wrapper)).toEqual(["FM: path"]);
+      expect(pathLabels(radiosPane([FM(), HF()]).wrapper)).toEqual(["Packet: path"]);
     });
 
-    it("says in each row's Recommended the path that radio really gets while its own is empty: a LoRa radio's WIDE1-1, the FM radio's the station's symbol's", () => {
+    it("says in each row's Recommended the path that radio really gets while its own is empty: a LoRa radio's WIDE1-1, the Packet radio's the station's symbol's", () => {
       const lora = radioRow(4, "lora-tcp", {
         choices: { beacon: true, status: false, ask: false, local_info: false, path: "", digipeat: null },
       });
       const { wrapper } = radiosPane([FM(), lora]);
-      expect(pathLabels(wrapper)).toEqual(["FM: path", "LoRa: path"]);
+      expect(pathLabels(wrapper)).toEqual(["Packet: path", "LoRa: path"]);
       const recommended = (id: number) => wrapper.findAll(`#set-radio-${id}-path option`)[0]?.text();
       expect(recommended(1)).toBe("Recommended (WIDE2-2)");
       expect(

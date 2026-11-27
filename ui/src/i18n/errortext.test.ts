@@ -1,4 +1,4 @@
-// A refusal that names a radio, as the page says it: the daemon names the radio in its own English ("radio HF 2", "in use by radio FM") and sends its id beside (`radio`, `held_by`); given the page's radios, the
+// A refusal that names a radio, as the page says it: the daemon names the radio in its own English ("radio HF 2", "in use by radio Packet") and sends its id beside (`radio`, `held_by`); given the page's radios, the
 // sentence says the radio as the page calls it (lib/radios.ts), in the page's language, and a radio the page does not know, the GPS receiver, and a page that gives no radios keep the daemon's words.
 import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
@@ -92,8 +92,8 @@ describe("a refusal that names a radio", () => {
   });
 
   it("keeps the daemon's words for a radio the page does not know, and the name typed of a name that is taken", () => {
-    expect(errorReason(refusal("radio.no_line", { name: "FM 4", radio: 9 }, "find_radio"), names())).toBe(
-      "radio FM 4 has no serial line to look for",
+    expect(errorReason(refusal("radio.no_line", { name: "Packet 4", radio: 9 }, "find_radio"), names())).toBe(
+      "radio Packet 4 has no serial line to look for",
     );
     expect(errorReason(refusal("radio.name_taken", { name: "Mobile", radio: 4 }, "radio_add"), names())).toBe(
       "the name 'Mobile' is another radio's already: give this one another",
@@ -101,9 +101,9 @@ describe("a refusal that names a radio", () => {
   });
 
   it("says a removed radio is removed, by its name, and a radio that never was by its number", () => {
-    expect(errorReason(refusal("radio.unknown", { radio: 5, name: "FM 3", removed: 1 }, "radio_change"), names())).toBe(
-      "radio FM 3 is removed",
-    );
+    expect(
+      errorReason(refusal("radio.unknown", { radio: 5, name: "Packet 3", removed: 1 }, "radio_change"), names()),
+    ).toBe("radio Packet 3 is removed");
     expect(errorReason(refusal("radio.unknown", { radio: 9 }, "radio_change"), names())).toBe("there is no radio 9");
     setLocale("de");
     expect(

@@ -1,4 +1,4 @@
-// Baseline: with the FM radio alone, the Settings tab groups other than Radio, and the My station
+// Baseline: with the Packet radio alone, the Settings tab groups other than Radio, and the My station
 // tab, draw the same ids and fields as with a single radio, and the header marks stay
 // the same. Do not edit the expectations to make a change pass. What the radios' own settings
 // changed is noted where it applies (radio 1's digipeater and path ids are `set-radio-1-digipeat`
@@ -87,7 +87,7 @@ const STATION = [
   "set-station-symbol-change",
 ];
 
-describe("the Settings tab and the My station tab with the FM radio alone", () => {
+describe("the Settings tab and the My station tab with the Packet radio alone", () => {
   it("draw the groups other than Radio as they were before the Mercury radio", () => {
     expect(drawn({}, "settings")).toEqual(SETTINGS_TAB);
   });
@@ -160,8 +160,8 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
   });
 });
 
-// The header with the FM radio alone: the marks with their words, titles and colours.
-describe("the header with the FM radio alone", () => {
+// The header with the Packet radio alone: the marks with their words, titles and colours.
+describe("the header with the Packet radio alone", () => {
   const marks = (link: Link, values: Record<string, string> = {}) => {
     const wrapper = mount(AppHeader, {
       props: { call: "OH2GBA", unread: 0, pills: headerPills(values, null, null, null, link) },
@@ -181,7 +181,7 @@ describe("the header with the FM radio alone", () => {
   it("is the Server mark and the radio's mark by its name, mint while connected, whether the Mercury radio's topic is there or not", () => {
     const today = [
       ["SPAN", "NeoAPRS", "The page is connected to NeoAPRS", "tag-ok pill-daemon"],
-      ["BUTTON", "FM", "FM: connected. Settings → Radio", "tag-ok pill-radio"],
+      ["BUTTON", "Packet", "Packet: connected. Settings → Radio", "tag-ok pill-radio"],
     ];
     expect(marks(open)).toEqual(today);
     expect(marks({ ...open, radios: pageRadiosOf(fmRow(), hfRow({ enabled: false, state: "stopped" })) })).toEqual(
@@ -199,18 +199,18 @@ describe("the header with the FM radio alone", () => {
       "tag-warn pill-radio",
     ]);
     // the title says the state in the page's words; "entering KISS" is no state of a radio's row
-    expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM" } } })).toEqual([
+    expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "Packet" } } })).toEqual([
       "BUTTON",
-      "FM: not connected",
+      "Packet: not connected",
       "Not connected. Settings → Radio",
       "tag-warn pill-radio",
     ]);
     expect(radio({ state: "connecting", problem: { code: "radio.searching", params: {} } })?.[1]).toBe(
-      "FM: searching…",
+      "Packet: searching…",
     );
     expect(marks({ ...open, radios: pageRadiosOf(radioRow(1, "dummy")) })[1]).toEqual([
       "BUTTON",
-      "FM",
+      "Packet",
       "Dummy radio: made-up traffic, nothing goes on the air. Settings → Radio",
       "tag-dummy pill-radio",
     ]);
@@ -218,8 +218,8 @@ describe("the header with the FM radio alone", () => {
 
   it("keeps the other marks of the station where they were, after the radio's mark, and none for RX only", () => {
     const rx = marks(open, { "station/transmit": "false" }).map((m) => m[1]);
-    expect(rx).toEqual(["NeoAPRS", "FM"]);
+    expect(rx).toEqual(["NeoAPRS", "Packet"]);
     const beaconOff = marks(open, { "beacon/interval_min": "0" }).map((m) => m[1]);
-    expect(beaconOff).toEqual(["NeoAPRS", "FM", "Beacon off"]);
+    expect(beaconOff).toEqual(["NeoAPRS", "Packet", "Beacon off"]);
   });
 });

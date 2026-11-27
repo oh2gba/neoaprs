@@ -4,7 +4,7 @@
 // is on may carry a path, greyed with the value kept while the radio in force carries none. A path
 // belongs to the radio it was set on. The station panel's queries go on the station's radio: off
 // while it is not connected, Trace the route greyed while it carries no path and left out while no
-// radio that is on may carry one. Advanced of Ask around and Local info is there while the FM radio
+// radio that is on may carry one. Advanced of Ask around and Local info is there while the Packet radio
 // is on.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -24,7 +24,7 @@ afterEach(() => document.body.replaceChildren());
 
 const off = { enabled: false, state: "stopped" } as const;
 /**
- * The radios on: the FM radio (radio 1) alone, both it and the HF radio (radio 2), the HF radio
+ * The radios on: the Packet radio (radio 1) alone, both it and the HF radio (radio 2), the HF radio
  * alone.
  */
 const FM: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", off)) };
@@ -34,7 +34,7 @@ const FM_OFF: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2", off), ra
 const fmHeard = station("OH2FM", { heard: heardBy([1, 3]) });
 const bothHeard = station("OH2BOTH", { heard: heardBy([1, 3], [2, 2, null]) });
 const hfHeard = station("OH2HF", { heard: heardBy([2, 3, null]), heard_rf: 3 });
-/** Six radios on, radio 3 a second FM radio with a path of its own. */
+/** Six radios on, radio 3 a second Packet radio with a path of its own. */
 const SIX = radiosTopic(
   radioRow(1, "kenwood-tnc2", { name: "Shack" }),
   radioRow(2, "mercury", { name: "20 m" }),
@@ -80,9 +80,9 @@ const hasAdvanced = (wrapper: ReturnType<typeof askPath>) =>
   wrapper.findAll("details summary").some((s) => s.text() === "Advanced");
 
 describe("Route in a conversation", () => {
-  it("is there for a station heard on FM, or on both radios, or never heard, while the FM radio is on", () => {
+  it("is there for a station heard on Packet, or on both radios, or never heard, while the Packet radio is on", () => {
     for (const [name, values] of [
-      ["FM", FM],
+      ["Packet", FM],
       ["both", BOTH],
     ] as const) {
       expect(
@@ -102,10 +102,10 @@ describe("Route in a conversation", () => {
     expect(box.find("select").exists()).toBe(false);
   });
 
-  it("is there for a station messaged on Mercury while the FM radio is on too: its radio first, then the path and RF only greyed with the reason as their titles, and the line saying what the messages go by (plan section 6)", async () => {
+  it("is there for a station messaged on Mercury while the Packet radio is on too: its radio first, then the path and RF only greyed with the reason as their titles, and the line saying what the messages go by (plan section 6)", async () => {
     const box = await opened(conversation(BOTH, "OH2HF"));
     expect(box.findAll("label").map((l) => l.text())).toEqual(["Radio", "Path", "RF only"]);
-    expect(options(box)).toEqual(["Automatic: Mercury", "FM", "Mercury"]);
+    expect(options(box)).toEqual(["Automatic: Mercury", "Packet", "Mercury"]);
     const path = box.find<HTMLInputElement>(".pathbox input[type='text']");
     expect([path.element.disabled, path.attributes("title")]).toEqual([true, "Mercury: no path"]);
     expect(box.find<HTMLInputElement>(".rfonly input").element.disabled).toBe(true);
@@ -133,7 +133,7 @@ describe("Route in a conversation", () => {
     ]).toEqual(["Automatic: direct", true]);
   });
 
-  it("keeps the path of the FM radio while the station goes over Mercury, and shows it again once it goes over FM", async () => {
+  it("keeps the path of the Packet radio while the station goes over Mercury, and shows it again once it goes over Packet", async () => {
     const prefs = useStationPrefs(new Map([["OH2BOTH", { path: "OH2RCH-2", rf_only: true, alert: null }]]), () => true);
     const wrapper = conversation(BOTH, "OH2BOTH", stations({ ...bothHeard, radio_now: 2 }), { prefs });
     let box = await opened(wrapper);
@@ -146,7 +146,7 @@ describe("Route in a conversation", () => {
     expect([sent("clear_station_path"), sent("set_station_rf_only")]).toEqual([[], []]);
   });
 
-  it("is not there while the FM radio is off, whatever station it is: one radio, and it carries no path", () => {
+  it("is not there while the Packet radio is off, whatever station it is: one radio, and it carries no path", () => {
     for (const call of ["OH2FM", "OH2BOTH", "OH2HF", "OH2NEW"])
       expect(hasRoute(conversation(FM_OFF, call)), call).toBe(false);
   });
@@ -167,7 +167,10 @@ describe("Route in a conversation", () => {
     expect(sent("station_radio")).toEqual([{ cmd: "station_radio", call: "OH2BOTH", radio: 2 }]);
     await tell(daemon, { stations: stations({ ...bothHeard, radio_choice: 2, radio_now: 2 }) });
     const chosen = wrapper.find<HTMLSelectElement>(".route-box select");
-    expect([chosen.element.value, options(wrapper.find(".route-box"))]).toEqual(["2", ["Automatic", "FM", "Mercury"]]);
+    expect([chosen.element.value, options(wrapper.find(".route-box"))]).toEqual([
+      "2",
+      ["Automatic", "Packet", "Mercury"],
+    ]);
     expect(wrapper.find(".route-dot").exists()).toBe(true);
     await chosen.setValue("");
     expect(sent("station_radio").at(-1)).toEqual({ cmd: "station_radio", call: "OH2BOTH", radio: null });
@@ -209,7 +212,7 @@ describe("Route in a conversation", () => {
     ]).toEqual([
       true,
       expect.arrayContaining(["disabled"]),
-      ["Automatic: FM", "FM", "Mercury"],
+      ["Automatic: Packet", "Packet", "Mercury"],
       ["Radio", "Path", "RF only"],
     ]);
     const before = box.findAll(".prefs > *").map((row) => row.classes()[0]);
@@ -300,7 +303,7 @@ describe("Route in a conversation", () => {
 });
 
 describe("Route in the station panel", () => {
-  it("is there for a station messaged on FM while the FM radio is on", () => {
+  it("is there for a station messaged on Packet while the Packet radio is on", () => {
     expect([hasPrefs(panel(FM, fmHeard)), hasPrefs(panel(BOTH, fmHeard)), hasPrefs(panel(BOTH, bothHeard))]).toEqual([
       true,
       true,
@@ -308,7 +311,7 @@ describe("Route in the station panel", () => {
     ]);
   });
 
-  it("is there for a station messaged on Mercury while the FM radio is on too, greyed, and not while the FM radio is off (plan section 6)", () => {
+  it("is there for a station messaged on Mercury while the Packet radio is on too, greyed, and not while the Packet radio is off (plan section 6)", () => {
     const hf = panel(BOTH, hfHeard);
     expect(hasPrefs(hf)).toBe(true);
     expect(hf.find<HTMLInputElement>(".stationpanel-settings .pathbox input[type='text']").element.disabled).toBe(true);
@@ -318,8 +321,8 @@ describe("Route in the station panel", () => {
   it("has the radio first where more than one is on, and chooses it as the conversation does", async () => {
     const wrapper = panel(BOTH, bothHeard);
     expect(wrapper.findAll(".stationpanel-settings .route-radio option").map((o) => o.text())).toEqual([
-      "Automatic: FM",
-      "FM",
+      "Automatic: Packet",
+      "Packet",
       "Mercury",
     ]);
     await wrapper.find(".stationpanel-settings select").setValue("2");
@@ -341,7 +344,7 @@ describe("Route in the station panel", () => {
     const fm = panel(BOTH, gateway, { status: status({ email_radio: 1 }) });
     expect(
       fm.find<HTMLSelectElement>(".stationpanel-settings .route-radio select").element.selectedOptions[0]?.text,
-    ).toBe("FM");
+    ).toBe("Packet");
     expect(
       panel(BOTH, bothHeard).find<HTMLSelectElement>(".stationpanel-settings .route-radio select").element.disabled,
     ).toBe(false);
@@ -406,14 +409,14 @@ describe("the queries of the station panel", () => {
 });
 
 describe("the path of Ask around and of Local info", () => {
-  it("is there while the FM radio is on, with Mercury on or off", () => {
+  it("is there while the Packet radio is on, with Mercury on or off", () => {
     for (const values of [FM, BOTH]) {
       expect(hasAdvanced(askPath(values)), "ask around").toBe(true);
       expect(hasAdvanced(qruPath(values)), "local info").toBe(true);
     }
   });
 
-  it("is not there while the FM radio is off", () => {
+  it("is not there while the Packet radio is off", () => {
     expect(hasAdvanced(askPath(FM_OFF))).toBe(false);
     expect(hasAdvanced(qruPath(FM_OFF))).toBe(false);
   });

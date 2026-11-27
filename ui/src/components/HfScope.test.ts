@@ -38,7 +38,7 @@ const hfBox = (wrapper: ReturnType<typeof mount>) => {
   if (!box) throw new Error("no Mercury box");
   return box;
 };
-/** The topic `radios`: radio 1 the FM radio, radio 2 the Mercury radio with this modem. */
+/** The topic `radios`: radio 1 the Packet radio, radio 2 the Mercury radio with this modem. */
 const radiosBeside = (modem: ModemState | null) =>
   radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { modem }));
 const calls: string[] = [];
@@ -126,7 +126,7 @@ describe("the fold of the scope", () => {
     expect(box.findAll("details.hf-scope")).toHaveLength(1);
   });
 
-  it("is not there for a modem without the interface, and not for the FM radio's box", () => {
+  it("is not there for a modem without the interface, and not for the Packet radio's box", () => {
     const { box, wrapper } = make({ scope: false });
     expect(box.find("details.hf-scope").exists()).toBe(false);
     expect(wrapper.findAll("details.hf-scope")).toHaveLength(0);
@@ -299,7 +299,7 @@ describe("the picture and the receive level", () => {
     expect(again.box.find(".levelvalue").text()).toBe("-38 dBFS");
   });
 
-  it("writes the call and the SNR of a frame heard on the Mercury radio where its line is, the call alone of one heard before it was told, and nothing for the FM radio, the internet or our own", async () => {
+  it("writes the call and the SNR of a frame heard on the Mercury radio where its line is, the call alone of one heard before it was told, and nothing for the Packet radio, the internet or our own", async () => {
     packets.set("1", packet(1, { source: "OH2OLD", radio_id: 2 })); // (heard 99 s ago, before the page had any packet)
     await open();
     await say(scopeRow(), scopeRow(), scopeRow());

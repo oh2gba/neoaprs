@@ -204,7 +204,7 @@ describe("the menu's Monitor by radio", () => {
     ]);
   });
 
-  it("names the Mercury radio on a station with an FM and a Mercury radio, and says Monitor alone with one radio on", async () => {
+  it("names the Mercury radio on a station with an Packet and a Mercury radio, and says Monitor alone with one radio on", async () => {
     await withRadios(radioRow(1, "kenwood-tnc2"), mercury(2));
     rightClick(60.1, 24.9);
     await flushPromises();

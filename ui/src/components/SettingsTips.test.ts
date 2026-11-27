@@ -32,7 +32,7 @@ describe("the (i) of the Settings tab", () => {
     [
       "set-radio-1-type",
       "Which radio type to pick",
-      /An FM radio on a Digirig.* is Sound card\..*KISS TNC.*Mercury modem is heard only by stations with Mercury.*Dummy/s,
+      /Packet reaches classic APRS stations; Mercury only Mercury stations; LoRa only LoRa stations.*Mobilinkd.*KISS TNC/s,
     ], // (the one (i) of the one list)
     [
       "set-radio-1-port",

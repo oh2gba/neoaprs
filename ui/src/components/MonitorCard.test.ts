@@ -458,7 +458,7 @@ describe("the card by radio", () => {
     expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 3, on: true }]);
   });
 
-  it("names the Mercury radio on a station with an FM and a Mercury radio", () => {
+  it("names the Mercury radio on a station with an Packet and a Mercury radio", () => {
     const { card } = station(radioRow(1, "kenwood-tnc2"), mercury(2));
     expect(head(card())).toBe("Mercury: Monitor");
   });

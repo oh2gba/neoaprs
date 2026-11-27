@@ -126,7 +126,7 @@ describe("MessageChain", () => {
     expect(show(incoming(2, "OH2RDG")).find(".chain").exists()).toBe(false);
   });
 
-  it("names the radio of the attempt on the you chip where radios are named, FM as Mercury, and none with one radio on", () => {
+  it("names the radio of the attempt on the you chip where radios are named, Packet as Mercury, and none with one radio on", () => {
     const off = { enabled: false, state: "stopped" } as const;
     const both = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
     const fmAlone = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", off));
@@ -143,7 +143,7 @@ describe("MessageChain", () => {
       })
         .find(".chips li")
         .text();
-    expect([sent(1, both), sent(2, both)]).toEqual(["youFM", "youMercury"]);
+    expect([sent(1, both), sent(2, both)]).toEqual(["youPacket", "youMercury"]);
     expect([sent(1, fmAlone), sent(2, hfAlone)]).toEqual(["you", "you"]);
     expect(sent(2, fmAlone)).toBe("youMercury"); // (a radio that is not on is always named)
   });
@@ -159,7 +159,7 @@ describe("MessageChain", () => {
         props: { row: message(1, { attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio_id: id })] }) },
         global: withDaemon(fakeDaemon({ radios })),
       }).find(".chips li");
-    expect([on(3).text(), on(4).text(), on(1).text()]).toEqual(["youMobile", "youOld", "youFM"]);
+    expect([on(3).text(), on(4).text(), on(1).text()]).toEqual(["youMobile", "youOld", "youPacket"]);
   });
 
   it("uses only the page's colour variables, so that both schemes show it", () => {

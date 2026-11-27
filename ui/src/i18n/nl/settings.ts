@@ -19,14 +19,15 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.group.station": "Station",
   "settings.group.tnc": "Radio",
-  "settings.group.fm_radio": "FM-radio",
+  "settings.group.fm_radio": "Packetradio",
   "settings.group.hf_radio": "Mercury-radio",
   "settings.group.lora_radio": "LoRa-radio",
-  "settings.fm_enabled.name": "FM-radio",
-  "settings.fm_enabled.tip_label": "Over de FM-radio",
+  "settings.fm_enabled.name": "Packetradio",
+  "settings.fm_enabled.tip_label": "Over de packetradio",
   "settings.fm_enabled.tip1":
-    "Je FM-radio met zijn TNC of geluidskaart: het lokale netwerk, met digipeaters, paden en een baken dat een GPS volgt.",
+    "Je packetradio met zijn TNC of geluidskaart: het lokale netwerk, met digipeaters, paden en een baken dat een GPS volgt.",
   "settings.fm_enabled.tip2": "Vink dit uit om deze radio uit te zetten; de instellingen blijven bewaard.",
+  "settings.hf_band.tip1": "De gebruikelijke frequentie voor klassiek APRS op HF is 10,1476 MHz USB.",
   "settings.hf_enabled.name": "Mercury-radio",
   "settings.hf_enabled.tip_label": "Over de Mercury-radio",
   "settings.hf_enabled.tip1":
@@ -116,9 +117,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.profile.label": "Radiotype",
   "settings.profile.tip_label": "Welk radiotype kiezen",
   "settings.profile.tip1":
-    "Een FM-radio op een Digirig, een SignaLink, een AIOC of zijn eigen USB-audio is Geluidskaart. De meeste TNC's zijn KISS TNC.",
-  "settings.profile.tip2":
-    "Mercury-modem wordt alleen gehoord door stations met Mercury, op elke band, in SSB of FM. Geen radio? Kies een Dummy.",
+    "Packet bereikt klassieke APRS-stations, Mercury alleen Mercury-stations, LoRa alleen LoRa-stations.",
+  "settings.profile.tip2": "Een Kenwood TH-D74/D75, een Mobilinkd en de meeste andere TNC's zijn KISS TNC.",
 
   "settings.port.name": "Poort",
   "settings.port.label": "Poort",
@@ -147,6 +147,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_host.tip1": "De computer waarop je Direwolf of soundmodem draait: 127.0.0.1 is deze computer.",
   "settings.tcp_port.label": "Poort",
   "settings.tcp_port.tip1": "Direwolf luistert op 8001 en soundmodem op 8100, tenzij je dat hebt veranderd.",
+  "settings.on_hf.label": "Op HF",
+  "settings.on_hf.tip_label": "Over Op HF",
+  "settings.on_hf.tip1":
+    "Vink dit aan voor een TNC op een HF-radio: NeoAPRS zendt er dan minder vaak op, zoals bij Mercury.",
   "settings.board_host.tip1": "Het adres van het board op je netwerk, zoals de eigen webpagina ervan het toont.",
   "settings.board_port.tip1": "De KISS-poort van het board: 8001, tenzij je dat daar hebt veranderd.",
   "settings.board_host.label": "Adres",
@@ -605,7 +609,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.cancel": "Annuleren",
   "settings.about.group": "Over NeoAPRS",
   "settings.about.intro":
-    "NeoAPRS {version}, een APRS-programma voor je radio's: FM, Mercury en LoRa. Gemaakt door {call}, {year}.",
+    "NeoAPRS {version}, een APRS-programma voor je radio's: Packet, Mercury en LoRa. Gemaakt door {call}, {year}.",
   "settings.about.license": "Vrije software onder de {license}, versie 3 of later.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Broncode",

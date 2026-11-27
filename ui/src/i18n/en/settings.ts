@@ -17,14 +17,15 @@ export const settings = {
 
   "settings.group.station": "Station",
   "settings.group.tnc": "Radio",
-  "settings.group.fm_radio": "FM radio",
+  "settings.group.fm_radio": "Packet radio",
   "settings.group.hf_radio": "Mercury radio",
   "settings.group.lora_radio": "LoRa radio",
-  "settings.fm_enabled.name": "FM radio",
-  "settings.fm_enabled.tip_label": "About the FM radio",
+  "settings.fm_enabled.name": "Packet radio",
+  "settings.fm_enabled.tip_label": "About the packet radio",
   "settings.fm_enabled.tip1":
-    "Your FM radio with its TNC or sound card: the local network, with digipeaters, paths and a beacon that follows a GPS.",
+    "Your packet radio with its TNC or sound card: the local network, with digipeaters, paths and a beacon that follows a GPS.",
   "settings.fm_enabled.tip2": "Untick it to keep this radio off; its settings are kept.",
+  "settings.hf_band.tip1": "The usual classic APRS dial on HF is 10.1476 MHz USB.",
   "settings.hf_enabled.name": "Mercury radio",
   "settings.hf_enabled.tip_label": "About the Mercury radio",
   "settings.hf_enabled.tip1":
@@ -112,9 +113,8 @@ export const settings = {
   "settings.profile.label": "Radio type",
   "settings.profile.tip_label": "Which radio type to pick",
   "settings.profile.tip1":
-    "An FM radio on a Digirig, a SignaLink, an AIOC or its own USB audio is Sound card. Most TNCs are KISS TNC.",
-  "settings.profile.tip2":
-    "Mercury modem is heard only by stations with Mercury, on any band, SSB or FM. No radio? Pick a Dummy.",
+    "Packet reaches classic APRS stations; Mercury only Mercury stations; LoRa only LoRa stations.",
+  "settings.profile.tip2": "A Kenwood TH-D74/D75, a Mobilinkd and most other TNCs are KISS TNC.",
 
   "settings.port.name": "Port",
   "settings.port.label": "Port",
@@ -140,6 +140,9 @@ export const settings = {
   "settings.tcp_host.tip1": "The computer where your Direwolf or soundmodem runs: 127.0.0.1 is this computer.",
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf listens on 8001 and soundmodem on 8100, unless you changed it.",
+  "settings.on_hf.label": "On HF",
+  "settings.on_hf.tip_label": "About On HF",
+  "settings.on_hf.tip1": "Tick it for a TNC on an HF radio: NeoAPRS then sends on it less often, as on Mercury.",
   "settings.board_host.tip1": "The address of the board on your network, as its own web page shows it.",
   "settings.board_port.tip1": "The KISS port of the board: 8001 unless you changed it there.",
   "settings.board_host.label": "Address",
@@ -587,7 +590,7 @@ export const settings = {
   "settings.help.dialog.cancel": "Cancel",
   "settings.about.group": "About",
   "settings.about.intro":
-    "NeoAPRS {version}, an APRS client for your radios: FM, Mercury and LoRa. Made by {call}, {year}.",
+    "NeoAPRS {version}, an APRS client for your radios: Packet, Mercury and LoRa. Made by {call}, {year}.",
   "settings.about.license": "Free software under the {license}, version 3 or later.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Source code",

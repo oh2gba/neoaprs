@@ -19,14 +19,15 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.group.station": "Estação",
   "settings.group.tnc": "Rádio",
-  "settings.group.fm_radio": "Rádio FM",
+  "settings.group.fm_radio": "Rádio packet",
   "settings.group.hf_radio": "Rádio Mercury",
   "settings.group.lora_radio": "Rádio LoRa",
-  "settings.fm_enabled.name": "Rádio FM",
-  "settings.fm_enabled.tip_label": "Sobre o rádio FM",
+  "settings.fm_enabled.name": "Rádio packet",
+  "settings.fm_enabled.tip_label": "Sobre o rádio packet",
   "settings.fm_enabled.tip1":
-    "Seu rádio FM com o TNC ou a placa de som dele: a rede local, com digipeaters, caminhos e um beacon que segue um GPS.",
+    "Seu rádio packet com o TNC ou a placa de som dele: a rede local, com digipeaters, caminhos e um beacon que segue um GPS.",
   "settings.fm_enabled.tip2": "Desmarque para deixar este rádio desligado; os ajustes dele são mantidos.",
+  "settings.hf_band.tip1": "A frequência habitual do APRS clássico em HF é 10,1476 MHz USB.",
   "settings.hf_enabled.name": "Rádio Mercury",
   "settings.hf_enabled.tip_label": "Sobre o rádio Mercury",
   "settings.hf_enabled.tip1":
@@ -114,9 +115,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.profile.label": "Tipo de rádio",
   "settings.profile.tip_label": "Qual tipo de rádio escolher",
   "settings.profile.tip1":
-    "Um rádio FM com um Digirig, um SignaLink, um AIOC ou o próprio áudio USB é Placa de som. A maioria dos TNCs é KISS TNC.",
-  "settings.profile.tip2":
-    "Modem Mercury só é ouvido por estações com Mercury, em qualquer banda, em SSB ou FM. Sem rádio? Escolha um rádio simulado.",
+    "Packet alcança as estações APRS clássicas; Mercury, só estações Mercury; LoRa, só estações LoRa.",
+  "settings.profile.tip2": "Um Kenwood TH-D74/D75, um Mobilinkd e a maioria dos outros TNCs são KISS TNC.",
 
   "settings.port.name": "Porta",
   "settings.port.label": "Porta",
@@ -141,6 +141,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_host.tip1": "O computador onde roda o seu Direwolf ou soundmodem: 127.0.0.1 é este computador.",
   "settings.tcp_port.label": "Porta",
   "settings.tcp_port.tip1": "O Direwolf escuta na 8001 e o soundmodem na 8100, a menos que você tenha mudado.",
+  "settings.on_hf.label": "Em HF",
+  "settings.on_hf.tip_label": "Sobre Em HF",
+  "settings.on_hf.tip1":
+    "Marque para um TNC num rádio de HF: o NeoAPRS então transmite por ele com menos frequência, como no Mercury.",
   "settings.board_host.tip1": "O endereço da placa na sua rede, como a página web dela o mostra.",
   "settings.board_port.tip1": "A porta KISS da placa: 8001, a menos que você a tenha mudado nela.",
   "settings.board_host.label": "Endereço",
@@ -591,7 +595,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.dialog.cancel": "Cancelar",
   "settings.about.group": "Sobre",
   "settings.about.intro":
-    "NeoAPRS {version}, um cliente APRS para os seus rádios: FM, Mercury e LoRa. Feito por {call}, {year}.",
+    "NeoAPRS {version}, um cliente APRS para os seus rádios: Packet, Mercury e LoRa. Feito por {call}, {year}.",
   "settings.about.license": "Software livre sob a {license}, versão 3 ou posterior.",
   "settings.about.license_link": "Licença Pública Geral GNU",
   "settings.about.source": "Código-fonte",

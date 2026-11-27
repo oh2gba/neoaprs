@@ -284,7 +284,7 @@ describe("App: RX only elsewhere on the page", () => {
     socket.say({ type: "state", topic: "gps", rev: 1, value: gpsState({ state: "no_fix" }) });
     await flushPromises();
     const marks = wrapper.findAll(".appheader .headpills .tag");
-    expect(marks.map((m) => m.text())).toEqual(["NeoAPRS", "FM", "GPS", "Internet"]);
+    expect(marks.map((m) => m.text())).toEqual(["NeoAPRS", "Packet", "GPS", "Internet"]);
     expect(marks[2]?.classes()).toContain("tag-warn");
     socket.say({ type: "state", topic: "gps", rev: 2, value: gpsState({ state: "fix" }) });
     await flushPromises();

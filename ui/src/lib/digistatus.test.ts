@@ -15,7 +15,7 @@ const passed = (heard_on: number, extra: Partial<PassStats> = {}): PassStats => 
 
 /** The pair of radio 1 (FM) and radio 2 (Mercury), with what was passed onto each. */
 const pair = (ontoFirst: PassStats[] = [], ontoSecond: PassStats[] = []): PairLink => ({
-  first: { id: 1, name: "FM radio", stats: lineStats({ passed: ontoFirst }) },
+  first: { id: 1, name: "Packet radio", stats: lineStats({ passed: ontoFirst }) },
   second: { id: 2, name: "Mercury radio", stats: lineStats({ passed: ontoSecond }) },
 });
 
@@ -41,9 +41,9 @@ describe("pairLook", () => {
       false,
     );
     expect(look.line).toBe("4 packets repeated · last 2 min ago");
-    expect(look.ways).toBe("1 to FM radio · 3 to Mercury radio");
+    expect(look.ways).toBe("1 to Packet radio · 3 to Mercury radio");
     expect(pairLook(pair([], [passed(1, { sent: 1, sent_at: ago(60) })]), null, NOW, false).ways).toBe(
-      "0 to FM radio · 1 to Mercury radio",
+      "0 to Packet radio · 1 to Mercury radio",
     );
   });
 
@@ -55,7 +55,7 @@ describe("pairLook", () => {
   it("says what was held back and what was too long by the radio it was for, each only when there is some", () => {
     const look = pairLook(pair([passed(2, { held: 1 })], [passed(1, { held: 3, too_long: 2 })]), null, NOW, false);
     expect(look.held).toEqual([
-      "1 frame held back: too many for FM radio",
+      "1 frame held back: too many for Packet radio",
       "3 frames held back: too many for Mercury radio",
     ]);
     expect(look.tooLong).toEqual(["2 frames too long for Mercury radio"]);
@@ -66,7 +66,7 @@ describe("pairLook", () => {
     const look = pairLook(pair([], [passed(1, { sent: 2, sent_at: ago(60), held: 1 })]), null, NOW, true);
     expect([look.state, look.tone, look.line]).toEqual(["off", "tnc-waiting", "RX only: nothing is repeated"]);
     expect([look.ways, look.held]).toEqual([
-      "0 to FM radio · 2 to Mercury radio",
+      "0 to Packet radio · 2 to Mercury radio",
       ["1 frame held back: too many for Mercury radio"],
     ]);
   });

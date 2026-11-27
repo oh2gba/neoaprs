@@ -374,7 +374,7 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     expect(one.sendOn().exists()).toBe(false);
     await one.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(one.post().element.disabled).toBe(true);
-    expect(one.post().attributes("title")).toBe("FM: not connected");
+    expect(one.post().attributes("title")).toBe("Packet: not connected");
     await one.wrapper.find("form").trigger("submit");
     expect(one.wrapper.emitted("post")).toBeUndefined();
     await tell(one.daemon, { radios: radiosTopic(FM) });
@@ -389,15 +389,15 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     expect(two.sendOn().find(".field-label").text()).toBe("Send on");
     expect(two.wrapper.findAll(".composebar-fields > .field").at(-1)?.element).toBe(two.sendOn().element);
     expect(two.ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", true, true],
     ]);
     await two.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(two.post().element.disabled).toBe(true);
     expect(two.post().attributes("title")).toBe("Mercury: not connected");
-    await two.tick("FM");
+    await two.tick("Packet");
     expect(two.ticks()).toEqual([
-      ["FM", true, false],
+      ["Packet", true, false],
       ["Mercury", true, false],
     ]);
     expect(two.post().element.disabled).toBe(false);
@@ -414,7 +414,7 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     const two = on({ status: status({ new_bulletin_radios: [1] }) }, FM, HF);
     await two.wrapper.setProps({ ownBulletins: new Map([["BLN0", ownBulletin("BLN0", { radios: [2] })]]) });
     expect(two.ticks()).toEqual([
-      ["FM", true, true],
+      ["Packet", true, true],
       ["Mercury", false, false],
     ]);
     await two.wrapper.find("#post-text").setValue("Road open again");
@@ -431,7 +431,7 @@ describe("Post and Send on, the radios a bulletin goes on", () => {
     );
     await three.wrapper.find("#post-text").setValue("Net tonight");
     expect(three.ticks()).toEqual([
-      ["FM", false, false],
+      ["Packet", false, false],
       ["Mercury", false, false],
     ]);
     expect(three.post().element.disabled).toBe(true);

@@ -86,7 +86,7 @@ describe("the status row of a pair of radios", () => {
     expect(row(wrapper)?.querySelector(".tncstatus")?.textContent).toBe("3 packets repeated · last 2 min ago");
     expect([...(row(wrapper)?.querySelectorAll(".igatefold") ?? [])].map((p) => p.textContent)).toEqual([
       expect.stringMatching(/^Counted since /),
-      "1 to FM radio · 2 to Mercury radio",
+      "1 to Packet radio · 2 to Mercury radio",
       "3 frames held back: too many for Mercury radio",
       "1 frame too long for Mercury radio",
     ]);

@@ -1,4 +1,4 @@
-// The FM radio's box and the HF radio's box of the Radio group fold by the arrow in their legends,
+// The Packet radio's box and the HF radio's box of the Radio group fold by the arrow in their legends,
 // like the groups of the Settings tab (SettingsBox with a foldId, useFold): the state is kept in
 // this browser per box and they start open. They open by themselves for a daemon complaint about
 // one of their settings, when the page leads to a control inside them, and for a radio that is
@@ -27,7 +27,7 @@ const HF_VALUES = {
   "radio/2/tx_gain_db": "0",
 };
 /**
- * The topic `radios` of the FM radio (radio 1) and the HF radio (radio 2), both on unless a row
+ * The topic `radios` of the Packet radio (radio 1) and the HF radio (radio 2), both on unless a row
  * says otherwise.
  */
 const two = (fm: Partial<RadioRow> = {}, hf: Partial<RadioRow> = {}) => radiosTopic(fmRow(fm), hfRow(hf));
@@ -47,7 +47,7 @@ function make(more: Given = {}) {
     if (!found) throw new Error(`no ${legend} box`);
     return found;
   };
-  return { wrapper, daemon, group, fm: () => box("FM radio"), hf: () => box("Mercury radio") };
+  return { wrapper, daemon, group, fm: () => box("Packet radio"), hf: () => box("Mercury radio") };
 }
 type Box = ReturnType<ReturnType<typeof make>["fm"]>;
 const arrow = (box: Box) => box.get("legend button.groupfold");
@@ -58,7 +58,7 @@ describe("the boxes of the two radios", () => {
   it("are open at first, with their names as the buttons of arrows in their legends, which say what they open", () => {
     const { fm, hf } = make();
     for (const [box, name] of [
-      [fm(), "FM radio"],
+      [fm(), "Packet radio"],
       [hf(), "Mercury radio"],
     ] as const) {
       expect(box.get("legend").text()).toBe(name);
@@ -157,7 +157,7 @@ describe("a box that is folded opens by itself", () => {
     expect(shown(hf())).toBe(false);
   });
 
-  it("for a complaint about a setting of the FM radio", async () => {
+  it("for a complaint about a setting of the Packet radio", async () => {
     localStorage.setItem(KEY("radio-1"), "folded");
     localStorage.setItem(KEY("radio-2"), "folded");
     const { wrapper, daemon, fm, hf } = make();

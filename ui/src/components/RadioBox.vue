@@ -123,13 +123,16 @@ watch(
 );
 const refused = (part: Part): string => (refusal.value?.part === part ? refusal.value.text : "");
 
-/** The Enable of the radio, with the (i) of its kind; a listen-only type has its own (i). */
+/**
+ * The Enable of the radio, with the (i) of its kind; a listen-only type and a type for HF have
+ * their own first line.
+ */
 const enableInfo = computed<FieldInfo>(() => {
   const own = FIELDS[`${props.radio.kind}/enabled`] ?? { label: t("settings.enable.label"), kind: "bool" };
-  const kind =
-    typeOf(props.radio)?.can.transmit === false
-      ? { ...own, tip: [t("settings.rx_enabled.tip1"), t("settings.fm_enabled.tip2")] }
-      : own;
+  const type = typeOf(props.radio);
+  const first =
+    type?.can.transmit === false ? "settings.rx_enabled.tip1" : type?.band === "hf" ? "settings.hf_band.tip1" : null;
+  const kind = first === null ? own : { ...own, tip: [t(first), t("settings.fm_enabled.tip2")] };
   return props.only ? { ...kind, title: t("settings.enable.only_radio_title") } : kind;
 });
 function tick(text: string): void {

@@ -43,13 +43,13 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.internet":
     "Las estaciones que APRS-IS tiene dentro del radio del mapa llegan de la nube a tu mapa, en un solo sentido; nada vuelve.",
   "help.picture.channels":
-    "Una estación oída por radio, con ondas, lleva la etiqueta de la radio que la oyó, FM; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
+    "Una estación oída por radio, con ondas, lleva la etiqueta de la radio que la oyó, Packet; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
   "help.picture.mercury":
     "Tu estación y otra lejana, muy separadas; la señal sube y vuelve a bajar entre ellas: solo una estación con el mismo módem la oye.",
   "help.picture.scope":
     "Una estación lejana transmite; la cascada muestra su trama como un bloque en la banda marcada, lo más reciente arriba, y la barra del nivel de recepción queda en su rango bueno.",
   "help.picture.tworadios":
-    "Tu estación con dos radios: la radio FM llega al coche y al digipeater cercanos a ras del suelo, la radio Mercury llega a una estación lejana con la señal que sube y vuelve a bajar.",
+    "Tu estación con dos radios: la radio packet llega al coche y al digipeater cercanos a ras del suelo, la radio Mercury llega a una estación lejana con la señal que sube y vuelve a bajar.",
   "help.picture.dummy":
     "Estaciones inventadas en un marco discontinuo responden a tu estación, y lo que esta envía no sale: las ondas están tachadas.",
   "help.picture.notifications":

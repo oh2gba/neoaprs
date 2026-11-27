@@ -108,14 +108,14 @@ describe("Ask around in the Nearby tab", () => {
     const { wrapper, daemon } = make({ ...ofRadios(FM, LORA), config: config("") });
     expect(
       pathField(wrapper).attributes("placeholder"),
-      "FM by the station's symbol (WIDE1-1,WIDE2-1 here), LoRa by WIDE1-1",
+      "Packet by the station's symbol (WIDE1-1,WIDE2-1 here), LoRa by WIDE1-1",
     ).toBe("(default)");
     await tell(daemon, { config: config("WIDE1-1,WIDE2-1") });
     expect(pathField(wrapper).attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
     await tell(daemon, {
       radios: radiosTopic(FM, radioRow(2, "mercury", { choices: { ...ticked, path: null, digipeat: null } })),
     });
-    expect(pathField(wrapper).attributes("placeholder"), "the Mercury radio carries no path: FM's alone").toBe(
+    expect(pathField(wrapper).attributes("placeholder"), "the Mercury radio carries no path: Packet's alone").toBe(
       "WIDE1-1,WIDE2-1",
     );
   });
@@ -239,7 +239,7 @@ describe("Ask around in the Nearby tab", () => {
     expect(lines(wrapper)[0]?.text()).toMatch(/^Asked who is around/);
   });
 
-  it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
+  it("does not hold Ask for a stored path that is wrong while the Packet radio is off and the fold is not there, and sends no path", async () => {
     localStorage.setItem("NeoAPRS.ask.path", "not a path!");
     const { wrapper, daemon } = make({
       radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")),
@@ -284,7 +284,7 @@ describe("the Send on of Ask around", () => {
       expect(wrapper.find("#ask-send-on").exists()).toBe(false);
       expect(wrapper.find(".ask-row select:not(.ask-kind)").exists()).toBe(false);
       expect(lines(wrapper)[0]?.text()).toMatch(
-        rows.length === 2 && rows.every((row) => row.enabled) ? /^FM: Asked who is around/ : /^Asked who is around/,
+        rows.length === 2 && rows.every((row) => row.enabled) ? /^Packet: Asked who is around/ : /^Asked who is around/,
       );
       await ask(wrapper).trigger("click");
       expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null }]);
@@ -302,7 +302,7 @@ describe("the Send on of Ask around", () => {
     expect(row?.nextElementSibling).toBe(fold(wrapper).element);
     expect(ticks(wrapper).map((tick) => tick.attributes("id"))).toEqual(["set-radio-1-ask", "set-radio-2-ask"]);
     expect([...(row?.querySelectorAll("label.check") ?? [])].map((label) => label.textContent)).toEqual([
-      "FM",
+      "Packet",
       "Mercury",
     ]);
     expect(
@@ -414,7 +414,7 @@ describe("the Send on of Ask around", () => {
     expect(ask(one.wrapper).attributes("disabled")).toBeUndefined();
     const none = on({}, ticked({ ...FM, state: "waiting" }), ticked({ ...HF, state: "connecting" }));
     expect(ask(none.wrapper).attributes("disabled")).toBeDefined();
-    expect(ask(none.wrapper).attributes("title")).toBe("FM: not connected\nMercury: not connected");
+    expect(ask(none.wrapper).attributes("title")).toBe("Packet: not connected\nMercury: not connected");
     const hf = on({}, FM, ticked({ ...HF, state: "connecting" }));
     expect(ask(hf.wrapper).attributes("title")).toBe("Mercury: not connected");
     const alone = on({}, { ...FM, state: "waiting" });
@@ -428,7 +428,7 @@ describe("the Send on of Ask around", () => {
     const time = clockText(at).slice(0, 5);
     const { wrapper, daemon } = on({ general: general(askedOf({ at, radios: [1, 2] })) }, ticked(FM), ticked(HF));
     expect(lines(wrapper)[0]?.text()).toBe(
-      `FM and Mercury: Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`,
+      `Packet and Mercury: Asked who is around at ${time} by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations`,
     );
     expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
     await tell(daemon, { general: general(askedOf({ at, radios: [2], path: [] })) });
@@ -437,7 +437,7 @@ describe("the Send on of Ask around", () => {
     );
     await tell(daemon, { general: general(askedOf({ at, radios: [1, 3], path: null })) });
     expect(lines(wrapper)[0]?.text()).toBe(
-      `FM: Asked who is around at ${time}; answers arrive on the map and in Stations`,
+      `Packet: Asked who is around at ${time}; answers arrive on the map and in Stations`,
     );
     expect(lines(wrapper)[0]?.attributes("title")).toBe("?APRS?");
     await ask(wrapper).trigger("click");

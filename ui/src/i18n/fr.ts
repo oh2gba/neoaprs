@@ -968,7 +968,7 @@ export const fr: Catalogue = {
   "route.best.send_direct": "{route} ; envoyer en direct",
   "route.best.unknown_send_by": "{route} ; relais inconnu, envoyer par {path}",
   "route.best.unknown_send_direct": "{route} ; relais inconnu, envoyer en direct",
-  "channel.fm": "FM",
+  "channel.fm": "Packet",
   "channel.hf": "Mercury",
   "channel.lora": "LoRa",
   "channel.gated": "iGate",
@@ -1331,6 +1331,15 @@ export const fr: Catalogue = {
   "radio.add": "Ajouter une radio",
   "radio.add_button": "Ajouter",
   "radio.add.without_radio": "Sans radio",
+  "radio.add.group.fm": "Packet (APRS classique)",
+  "radio.add.group.hf": "Mercury (DATAC3)",
+  "radio.add.group.lora": "LoRa",
+  "radio.kind_type.fm": "Packet, {type}",
+  "radio.kind_type.hf": "Mercury, {type}",
+  "radio.kind_type.lora": "LoRa, {type}",
+  "radio.band.vhf_uhf": "VHF/UHF",
+  "radio.band.hf": "HF",
+  "radio.listed_band": "{type} ({band})",
   "radio.new": "Nouvelle radio",
   "radio.remove": "Retirer",
   "radio.remove_sure": "Vraiment retirer ?",
@@ -1345,20 +1354,21 @@ export const fr: Catalogue = {
   "radio.no_path": "{name} : pas de chemin",
   "radio.heard_on": "Entendue sur la radio {name}",
   "radio.more": "+{n}",
-  "radio.type.direwolf": "Carte son",
-  "radio.type.kiss": "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
+  "radio.type.direwolf": "carte son, 1200",
+  "radio.type.direwolf_300": "carte son, 300",
+  "radio.type.kiss": "KISS TNC",
   "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
   "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
   "radio.type.kantronics": "Kantronics KPC-3+",
-  "radio.type.kiss_tcp": "Votre propre Direwolf ou soundmodem",
-  "radio.type.mercury": "Modem Mercury (carte son)",
-  "radio.type.dummy": "Radio FM factice",
+  "radio.type.kiss_tcp": "Direwolf",
+  "radio.type.mercury": "carte son",
+  "radio.type.dummy": "Radio packet factice",
   "radio.type.dummy_hf": "Radio Mercury factice",
   "radio.type.tnc_text": "Yaesu FTM, TNC en moniteur (RX seul)",
   "radio.type.dummy_lora": "Radio LoRa factice",
-  "radio.type.lora_tcp": "Carte LoRa APRS sur le réseau",
-  "radio.type.lora_serial": "Carte LoRa APRS sur USB ou Bluetooth",
-  "radio.type.lora_console": "iGate LoRa APRS sur USB (RX seul)",
+  "radio.type.lora_tcp": "tracker ou iGate en Wi-Fi",
+  "radio.type.lora_serial": "tracker ou iGate en USB ou Bluetooth",
+  "radio.type.lora_console": "iGate en USB (RX seul)",
 
   // settings
   "settings.none": "aucun",
@@ -1377,14 +1387,15 @@ export const fr: Catalogue = {
 
   "settings.group.station": "Station",
   "settings.group.tnc": "Radio",
-  "settings.group.fm_radio": "Radio FM",
+  "settings.group.fm_radio": "Radio packet",
   "settings.group.hf_radio": "Radio Mercury",
   "settings.group.lora_radio": "Radio LoRa",
-  "settings.fm_enabled.name": "Radio FM",
-  "settings.fm_enabled.tip_label": "À propos de la radio FM",
+  "settings.fm_enabled.name": "Radio packet",
+  "settings.fm_enabled.tip_label": "À propos de la radio packet",
   "settings.fm_enabled.tip1":
-    "Votre radio FM avec son TNC ou sa carte son : le réseau local, avec digipeaters, chemins et une balise qui suit un GPS.",
+    "Votre radio packet avec son TNC ou sa carte son : le réseau local, avec digipeaters, chemins et une balise qui suit un GPS.",
   "settings.fm_enabled.tip2": "Décochez-la pour garder cette radio désactivée ; ses réglages sont conservés.",
+  "settings.hf_band.tip1": "La fréquence habituelle de l'APRS classique en HF est 10,1476 MHz USB.",
   "settings.hf_enabled.name": "Radio Mercury",
   "settings.hf_enabled.tip_label": "À propos de la radio Mercury",
   "settings.hf_enabled.tip1":
@@ -1475,9 +1486,8 @@ export const fr: Catalogue = {
   "settings.profile.label": "Type de radio",
   "settings.profile.tip_label": "Quel type de radio choisir",
   "settings.profile.tip1":
-    "Une radio FM sur un Digirig, un SignaLink, un AIOC ou son propre audio USB, c'est Carte son. La plupart des TNC sont des KISS TNC.",
-  "settings.profile.tip2":
-    "Modem Mercury n'est entendu que des stations avec Mercury, sur toute bande, en SSB ou en FM. Pas de radio ? Choisissez une radio factice.",
+    "Packet atteint les stations APRS classiques, Mercury les seules stations Mercury, LoRa les seules stations LoRa.",
+  "settings.profile.tip2": "Un Kenwood TH-D74/D75, un Mobilinkd et la plupart des autres TNC sont des KISS TNC.",
 
   "settings.port.name": "Port",
   "settings.port.label": "Port",
@@ -1503,6 +1513,10 @@ export const fr: Catalogue = {
   "settings.tcp_host.tip1": "L'ordinateur où tourne votre Direwolf ou soundmodem : 127.0.0.1 est cet ordinateur.",
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf écoute sur 8001 et soundmodem sur 8100, sauf si vous l'avez changé.",
+  "settings.on_hf.label": "En HF",
+  "settings.on_hf.tip_label": "À propos de En HF",
+  "settings.on_hf.tip1":
+    "Cochez-la pour un TNC sur une radio HF : NeoAPRS y émet alors moins souvent, comme avec Mercury.",
   "settings.board_host.tip1": "L'adresse de la carte sur votre réseau, telle que l'affiche sa propre page web.",
   "settings.board_port.tip1": "Le port KISS de la carte : 8001, sauf si vous l'avez changé sur la carte.",
   "settings.board_host.label": "Adresse",
@@ -1962,7 +1976,7 @@ export const fr: Catalogue = {
   "settings.help.dialog.cancel": "Annuler",
   "settings.about.group": "À propos",
   "settings.about.intro":
-    "NeoAPRS {version}, un client APRS pour vos radios : FM, Mercury et LoRa. Réalisé par {call}, {year}.",
+    "NeoAPRS {version}, un client APRS pour vos radios : Packet, Mercury et LoRa. Réalisé par {call}, {year}.",
   "settings.about.license": "Logiciel libre sous la {license}, version 3 ou ultérieure.",
   "settings.about.license_link": "licence publique générale GNU",
   "settings.about.source": "Code source",
@@ -2117,13 +2131,13 @@ export const fr: Catalogue = {
   "help.picture.internet":
     "Les stations qu'APRS-IS a dans le rayon de la carte viennent du nuage sur votre carte, dans un seul sens ; rien ne revient.",
   "help.picture.channels":
-    "Une station entendue à la radio, par des ondes, porte l'étiquette de la radio qui l'a entendue, FM ; une venue du nuage, APRS-IS, a un contour en pointillés et sa propre étiquette.",
+    "Une station entendue à la radio, par des ondes, porte l'étiquette de la radio qui l'a entendue, Packet ; une venue du nuage, APRS-IS, a un contour en pointillés et sa propre étiquette.",
   "help.picture.mercury":
     "Votre station et une station lointaine, très éloignées ; le signal monte et redescend entre elles : seule une station avec le même modem l'entend.",
   "help.picture.scope":
     "Une station lointaine émet ; la chute d'eau montre sa trame comme un bloc dans la bande marquée, le plus récent en haut, et la barre du niveau de réception reste dans sa bonne plage.",
   "help.picture.tworadios":
-    "Votre station avec deux radios : la radio FM atteint la voiture et le digipeater proches au ras du sol, la radio Mercury atteint une station lointaine par le signal qui monte et redescend.",
+    "Votre station avec deux radios : la radio packet atteint la voiture et le digipeater proches au ras du sol, la radio Mercury atteint une station lointaine par le signal qui monte et redescend.",
   "help.picture.dummy":
     "Des stations inventées dans un cadre en pointillés répondent à votre station, et ce qu'elle envoie ne sort pas : les ondes sont barrées.",
   "help.picture.notifications":

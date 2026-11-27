@@ -247,9 +247,9 @@ describe("BulletinsPane", () => {
       ).toEqual([]);
       const four = ofRadios(FM, HF, radioRow(3, "kiss", { number: 2 }), radioRow(4, "lora-tcp"));
       expect(tags(four, ownBulletin("BLN2", { radios: [1, 2, 3, 4] }))).toEqual([
-        ["FM", "Sent on radio FM"],
+        ["Packet", "Sent on radio Packet"],
         ["Mercury", "Sent on radio Mercury"],
-        ["+2", "Sent on radio FM 2; Sent on radio LoRa"],
+        ["+2", "Sent on radio Packet 2; Sent on radio LoRa"],
       ]);
     });
 

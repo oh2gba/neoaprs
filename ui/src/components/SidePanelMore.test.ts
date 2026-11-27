@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 type Wrapper = Awaited<ReturnType<typeof make>>;
-/** The radios of a station with the HF radio on beside the FM radio. */
+/** The radios of a station with the HF radio on beside the Packet radio. */
 const WITH_HF = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
 const slots = { messages: "<p>messages pane</p>", stations: "<p>stations pane</p>" };
 /**

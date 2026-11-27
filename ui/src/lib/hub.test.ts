@@ -277,7 +277,7 @@ describe("Hub", () => {
     expect(seen.messages.get("2")?.state).toBe("acked");
   });
 
-  it("follows the radios by their ids: a radio that changes is set again, a whole topic replaces the rest, and the radios are kept apart from the FM radio's topic of before", () => {
+  it("follows the radios by their ids: a radio that changes is set again, a whole topic replaces the rest, and the radios are kept apart from the Packet radio's topic of before", () => {
     const { seen, socket } = opened();
     socket.say(
       state("radios", 0, {

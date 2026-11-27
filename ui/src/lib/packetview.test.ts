@@ -48,14 +48,14 @@ describe("packetFacts", () => {
     expect(packetFacts(row).find((x) => x.label === "Reached us")?.route).toBe(true);
   });
 
-  it("says how a packet that was heard came: its radio (FM, also the one radio on), iGate or Internet, with what it means, and for the internet the path of the line", () => {
+  it("says how a packet that was heard came: its radio (Packet, also the one radio on), iGate or Internet, with what it means, and for the internet the path of the line", () => {
     const radio = Object.fromEntries(
       packetFacts(
         withDecoded({}, { type: "position", ...position }),
         pageRadios(radiosTopic(radioRow(1, "kenwood-tnc2")), null),
       ).map((f) => [f.label, f.text]),
     );
-    expect(radio["Came by"]).toBe("FM - heard on radio FM");
+    expect(radio["Came by"]).toBe("Packet - heard on radio Packet");
     const gated = facts(
       withDecoded(
         { via: "rf-gated", gate: "OH7JHF-1", route: "via OH7JHF-1 (internet) → OH2RCH-3" },

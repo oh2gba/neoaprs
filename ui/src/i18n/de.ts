@@ -973,7 +973,7 @@ export const de: Catalogue = {
   "route.best.send_direct": "{route}; direkt senden",
   "route.best.unknown_send_by": "{route}; unbekannter Repeater, senden über {path}",
   "route.best.unknown_send_direct": "{route}; unbekannter Repeater, direkt senden",
-  "channel.fm": "FM",
+  "channel.fm": "Packet",
   "channel.hf": "Mercury",
   "channel.lora": "LoRa",
   "channel.gated": "iGate",
@@ -1380,6 +1380,15 @@ export const de: Catalogue = {
   "radio.add": "Funkgerät hinzufügen",
   "radio.add_button": "Hinzufügen",
   "radio.add.without_radio": "Ohne Funkgerät",
+  "radio.add.group.fm": "Packet (klassisches APRS)",
+  "radio.add.group.hf": "Mercury (DATAC3)",
+  "radio.add.group.lora": "LoRa",
+  "radio.kind_type.fm": "Packet, {type}",
+  "radio.kind_type.hf": "Mercury, {type}",
+  "radio.kind_type.lora": "LoRa, {type}",
+  "radio.band.vhf_uhf": "VHF/UHF",
+  "radio.band.hf": "KW",
+  "radio.listed_band": "{type} ({band})",
   "radio.new": "Neues Funkgerät",
   "radio.remove": "Entfernen",
   "radio.remove_sure": "Wirklich entfernen?",
@@ -1394,18 +1403,19 @@ export const de: Catalogue = {
   "radio.no_path": "{name}: kein Pfad",
   "radio.heard_on": "Über Funkgerät {name} gehört",
   "radio.more": "+{n}",
-  "radio.type.direwolf": "Soundkarte",
-  "radio.type.kiss": "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
+  "radio.type.direwolf": "Soundkarte, 1200",
+  "radio.type.direwolf_300": "Soundkarte, 300",
+  "radio.type.kiss": "KISS TNC",
   "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
   "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
   "radio.type.kantronics": "Kantronics KPC-3+",
-  "radio.type.kiss_tcp": "Eigener Direwolf oder soundmodem",
+  "radio.type.kiss_tcp": "Direwolf",
   "radio.type.tnc_text": "Yaesu FTM, TNC im Monitor-Modus (nur RX)",
-  "radio.type.mercury": "Mercury-Modem (Soundkarte)",
-  "radio.type.lora_tcp": "LoRa-APRS-Board im Netzwerk",
-  "radio.type.lora_serial": "LoRa-APRS-Board an USB oder Bluetooth",
-  "radio.type.lora_console": "LoRa-APRS-iGate an USB (nur RX)",
-  "radio.type.dummy": "Dummy-FM-Funkgerät",
+  "radio.type.mercury": "Soundkarte",
+  "radio.type.lora_tcp": "Tracker oder iGate im WLAN",
+  "radio.type.lora_serial": "Tracker oder iGate an USB oder Bluetooth",
+  "radio.type.lora_console": "iGate an USB (nur RX)",
+  "radio.type.dummy": "Dummy-Packet-Funkgerät",
   "radio.type.dummy_hf": "Dummy-Mercury-Funkgerät",
   "radio.type.dummy_lora": "Dummy-LoRa-Funkgerät",
 
@@ -1426,15 +1436,16 @@ export const de: Catalogue = {
 
   "settings.group.station": "Station",
   "settings.group.tnc": "Funkgerät",
-  "settings.group.fm_radio": "FM-Funkgerät",
+  "settings.group.fm_radio": "Packet-Funkgerät",
   "settings.group.hf_radio": "Mercury-Funkgerät",
   "settings.group.lora_radio": "LoRa-Funkgerät",
-  "settings.fm_enabled.name": "FM-Funkgerät",
-  "settings.fm_enabled.tip_label": "Über das FM-Funkgerät",
+  "settings.fm_enabled.name": "Packet-Funkgerät",
+  "settings.fm_enabled.tip_label": "Über das Packet-Funkgerät",
   "settings.fm_enabled.tip1":
-    "Dein FM-Funkgerät mit seinem TNC oder seiner Soundkarte: das lokale Netz, mit Digipeatern, Pfaden und einer Bake, die einem GPS folgt.",
+    "Dein Packet-Funkgerät mit seinem TNC oder seiner Soundkarte: das lokale Netz, mit Digipeatern, Pfaden und einer Bake, die einem GPS folgt.",
   "settings.fm_enabled.tip2":
     "Nimm das Häkchen weg, um dieses Funkgerät auszuschalten; seine Einstellungen bleiben erhalten.",
+  "settings.hf_band.tip1": "Die übliche Frequenz für klassisches APRS auf Kurzwelle ist 10,1476 MHz USB.",
   "settings.hf_enabled.name": "Mercury-Funkgerät",
   "settings.hf_enabled.tip_label": "Über das Mercury-Funkgerät",
   "settings.hf_enabled.tip1":
@@ -1523,9 +1534,8 @@ export const de: Catalogue = {
   "settings.profile.label": "Funkgerätetyp",
   "settings.profile.tip_label": "Welchen Typ wählen",
   "settings.profile.tip1":
-    "Ein FM-Funkgerät an einem Digirig, einem SignaLink, einem AIOC oder mit eigenem USB-Ton ist Soundkarte. Die meisten TNCs sind KISS TNC.",
-  "settings.profile.tip2":
-    "Mercury-Modem hören nur Stationen mit Mercury, auf jedem Band, in SSB oder FM. Kein Funkgerät? Nimm einen Dummy.",
+    "Packet erreicht klassische APRS-Stationen, Mercury nur Mercury-Stationen, LoRa nur LoRa-Stationen.",
+  "settings.profile.tip2": "Ein Kenwood TH-D74/D75, ein Mobilinkd und die meisten anderen TNCs sind KISS TNC.",
 
   "settings.port.name": "Port",
   "settings.port.label": "Port",
@@ -1553,6 +1563,10 @@ export const de: Catalogue = {
   "settings.tcp_host.tip1": "Der Computer, auf dem dein Direwolf oder soundmodem läuft: 127.0.0.1 ist dieser Computer.",
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf lauscht auf 8001 und soundmodem auf 8100, wenn du es nicht geändert hast.",
+  "settings.on_hf.label": "Auf KW",
+  "settings.on_hf.tip_label": "Über Auf KW",
+  "settings.on_hf.tip1":
+    "Ankreuzen für einen TNC an einem KW-Funkgerät: NeoAPRS sendet darauf dann seltener, wie bei Mercury.",
   "settings.board_host.tip1": "Die Adresse des Boards in deinem Netzwerk, wie seine eigene Webseite sie zeigt.",
   "settings.board_port.tip1": "Der KISS-Port des Boards: 8001, wenn du ihn dort nicht geändert hast.",
   "settings.board_host.label": "Adresse",
@@ -2046,7 +2060,7 @@ export const de: Catalogue = {
   "settings.help.dialog.cancel": "Abbrechen",
   "settings.about.group": "Info",
   "settings.about.intro":
-    "NeoAPRS {version}, ein APRS-Programm für deine Funkgeräte: FM, Mercury und LoRa. Von {call}, {year}.",
+    "NeoAPRS {version}, ein APRS-Programm für deine Funkgeräte: Packet, Mercury und LoRa. Von {call}, {year}.",
   "settings.about.license": "Freie Software unter der {license}, Version 3 oder später.",
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Quellcode",
@@ -2201,13 +2215,13 @@ export const de: Catalogue = {
   "help.picture.internet":
     "Stationen, die APRS-IS im Radius der Karte hat, kommen aus der Wolke auf deine Karte, nur in eine Richtung; nichts geht zurück.",
   "help.picture.channels":
-    "Eine über Funk gehörte Station, mit Wellen, trägt das Schild des Funkgeräts, das sie gehört hat, FM; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
+    "Eine über Funk gehörte Station, mit Wellen, trägt das Schild des Funkgeräts, das sie gehört hat, Packet; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
   "help.picture.mercury":
     "Deine Station und eine ferne, weit auseinander; das Signal steigt auf und kommt zwischen ihnen wieder herunter: nur eine Station mit demselben Modem hört es.",
   "help.picture.scope":
     "Eine ferne Station sendet; der Wasserfall zeigt ihren Frame als Block im markierten Band, das Neueste oben, und der Empfangspegel liegt unten im guten Bereich.",
   "help.picture.tworadios":
-    "Deine Station mit zwei Funkgeräten: das FM-Funkgerät erreicht das Auto und den Digipeater in der Nähe am Boden entlang, das Mercury-Funkgerät eine ferne Station durch das Signal, das aufsteigt und wieder herunterkommt.",
+    "Deine Station mit zwei Funkgeräten: das Packet-Funkgerät erreicht das Auto und den Digipeater in der Nähe am Boden entlang, das Mercury-Funkgerät eine ferne Station durch das Signal, das aufsteigt und wieder herunterkommt.",
   "help.picture.dummy":
     "Erfundene Stationen im gestrichelten Rahmen antworten deiner Station, und was sie sendet, geht nicht hinaus: Die Wellen sind durchgestrichen.",
   "help.picture.notifications":

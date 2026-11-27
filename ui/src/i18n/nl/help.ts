@@ -44,13 +44,13 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.internet":
     "Stations die APRS-IS binnen de kaartstraal heeft, komen uit de cloud naar je kaart, maar één kant op; er gaat niets terug.",
   "help.picture.channels":
-    "Een station dat via de radio is gehoord, met golven, krijgt het label van de radio die het hoorde, FM; een station uit de cloud, APRS-IS, heeft een gestippelde rand en een eigen label.",
+    "Een station dat via de radio is gehoord, met golven, krijgt het label van de radio die het hoorde, Packet; een station uit de cloud, APRS-IS, heeft een gestippelde rand en een eigen label.",
   "help.picture.mercury":
     "Je station en een station ver weg, met het signaal dat tussen hen opstijgt en weer neerkomt: alleen een station met hetzelfde modem hoort het.",
   "help.picture.scope":
     "Een station ver weg zendt; de waterval toont zijn frame als een blok in de gemarkeerde band, het nieuwste bovenaan, en de balk van het ontvangstniveau eronder staat in het goede gebied.",
   "help.picture.tworadios":
-    "Je station met twee radio's: die op FM bereikt de auto en de digipeater in de buurt langs de grond, die met Mercury bereikt een station ver weg via het signaal dat opstijgt en weer neerkomt.",
+    "Je station met twee radio's: de packetradio bereikt de auto en de digipeater in de buurt langs de grond, die met Mercury bereikt een station ver weg via het signaal dat opstijgt en weer neerkomt.",
   "help.picture.dummy":
     "Verzonnen stations in een onderbroken kader geven je station antwoord, en wat je station verzendt, gaat de lucht niet in: de golven zijn doorgestreept.",
   "help.picture.notifications":

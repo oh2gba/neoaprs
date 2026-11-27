@@ -30,12 +30,12 @@ describe("what the panes that ask on the radios of a Send on share", () => {
   it("names the radios something went on, those that are named and that the page has", () => {
     const all = [fm, hf, away].filter((radio) => radio !== undefined);
     const byId = (id: RadioId) => all.find((radio) => radio.id === id);
-    expect(radiosNamed([1, 2], byId, several)).toBe("FM and Mercury");
-    expect(radiosNamed([1, 9], byId, several)).toBe("FM");
+    expect(radiosNamed([1, 2], byId, several)).toBe("Packet and Mercury");
+    expect(radiosNamed([1, 9], byId, several)).toBe("Packet");
     expect(radiosNamed([1, 2], byId, alone)).toBe("");
     expect(radiosNamed([], byId, several)).toBe("");
     setLocale("ja");
-    expect(radiosNamed([1, 2], byId, several)).toBe("FM、Mercury");
+    expect(radiosNamed([1, 2], byId, several)).toBe("Packet、Mercury");
   });
 
   it("says why a path is greyed for radios that carry none, as Route does", () => {
@@ -69,7 +69,7 @@ describe("Send on bound to a draft (an object's, a bulletin's)", () => {
     const row = (own: RadioId[]) =>
       draftTicks([fm, hf, away], own, "post").map((tick) => [tick.key, tick.name, tick.on, tick.last]);
     expect(row([1, 2])).toEqual([
-      ["post/1", "FM", true, false],
+      ["post/1", "Packet", true, false],
       ["post/2", "Mercury", true, false],
       ["post/3", "Mobile", false, false],
     ]);
