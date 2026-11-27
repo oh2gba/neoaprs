@@ -33,7 +33,7 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - **Layers** on the map: aircraft, ships, tracks, the locator grid, and day and night
 - **Weather** stations with 24 hour and 7 day graphs
 - **APRS over HF** with the Mercury modem built in: the waterfall of the channel, Tune and Test, and **HF tests**, a board where you say when you will be on the air
-- **A fill-in digipeater**, digipeating between two of your radios, and a receive-only **iGate**, all optional
+- **A fill-in digipeater**, digipeating between two of your radios, and an **iGate** with two ticks, Send what I hear and Show Internet stations, all optional
 - **A page for a phone, a tablet and a desktop**, in nine languages, with metric or non-metric units
 
 ## Radios
