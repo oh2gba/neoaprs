@@ -1068,6 +1068,7 @@ def test_on_linux_the_window_is_gtks_with_its_own_store_the_icon_and_the_size_an
     assert window.kwargs["background_color"] == loading.background(True), (
         "the desktop's dark scheme, before anything is painted"
     )
+    until(lambda: len(rig.toolkits.started) == 1)
     (started,) = rig.toolkits.started
     assert started == {
         "gui": "gtk",
