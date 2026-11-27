@@ -67,22 +67,19 @@ function make(opts: Made = {}) {
   const portList = ref<PortsMessage | null>(opts.ports ?? null);
   const sent: Command[] = [];
   const send = (command: Command) => (sent.push(command), true);
-  const guide = useSetupGuide(config, lastError, send);
-  guide.show();
-  const map = opts.map === undefined ? mapState() : opts.map;
-  // The settings' own saves are read without their number, which `answer` gives back as `saved`.
+  // The saves of the guide and the settings are read without their number, which `answer` gives
+  // back as `saved`.
   const saved = shallowRef<SavedMessage | null>(null);
   const out: number[] = [];
-  const settings = useSettings(
-    config,
-    lastError,
-    (command) => {
-      if (command.cmd !== "set_config") return send(command);
-      if (command.id != null) out.push(command.id);
-      return send({ cmd: command.cmd, values: command.values });
-    },
-    { saved, connection: shallowRef("open" as const) },
-  );
+  const numbered = (command: Command): boolean => {
+    if (command.cmd !== "set_config") return send(command);
+    if (command.id != null) out.push(command.id);
+    return send({ cmd: command.cmd, values: command.values });
+  };
+  const guide = useSetupGuide(config, lastError, numbered, null, undefined, saved);
+  guide.show();
+  const map = opts.map === undefined ? mapState() : opts.map;
+  const settings = useSettings(config, lastError, numbered, { saved, connection: shallowRef("open" as const) });
   const radioSearch = shallowRef<RadioSearchMessage | null>(null);
   const findRadio = useFindRadio(
     radioSearch,
@@ -162,6 +159,8 @@ function make(opts: Made = {}) {
     finish,
     configs,
     answer,
+    saved,
+    out,
     stand,
     daemon,
   };
@@ -988,18 +987,17 @@ describe("SetupGuide: Finish", () => {
   });
 
   it("sends the one set_config with the changed keys on Finish and shows 'Saving...' until the daemon answers", async () => {
-    const { wrapper, guide, config, sent, stand, next } = make();
+    const { wrapper, guide, config, sent, stand, next, answer } = make();
     await stand(3);
     await next();
     expect(sent.filter((c) => c.cmd !== "list_ports")).toEqual([PLACE, FINISH]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Saving...");
     expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeDefined();
     const now = config.value;
-    config.value = now && {
-      ...now,
-      values: { ...now.values, "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" },
-    };
+    config.value = now && { ...now, values: { ...now.values, "station/call": "OH2XYZ" } };
     await flushPromises();
+    expect(guide.open, "another page's change of the settings is no answer").toBe(true);
+    await answer();
     expect(guide.open).toBe(false);
     expect(wrapper.find(".setup").exists()).toBe(false);
   });
@@ -1034,19 +1032,17 @@ describe("SetupGuide: Finish", () => {
     const now = made.config.value;
     made.config.value = now && { ...now, radio_values: { ...now.radio_values, "radio/1/port": "/dev/ttyUSB0" } };
     await flushPromises();
+    const port = made.out.shift();
+    if (port !== undefined) made.saved.value = { type: "saved", id: port };
+    await flushPromises();
     expect(made.guide.open).toBe(true);
     expect(made.finish().text()).toBe("Saving...");
     return made;
   };
 
-  it("waits for its own answer: the config told after a radio's save sent just before is not it, and closes on the config that holds what it sent", async () => {
-    const { guide, config } = await portThenFinish();
-    const now = config.value;
-    config.value = now && {
-      ...now,
-      values: { ...now.values, "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94" },
-    };
-    await flushPromises();
+  it("waits for its own answer: the answer to a radio's save sent just before is not it, and closes on its own", async () => {
+    const { guide, answer } = await portThenFinish();
+    await answer();
     expect(guide.open).toBe(false);
   });
 

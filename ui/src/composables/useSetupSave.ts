@@ -1,17 +1,19 @@
 // How the first-run guide saves: Finish sends one `set_config` with the keys the answers change
-// (call, place, symbol, a new station's beacon); the radios of the Radio step are saved as
-// changed, and the topic `config` after a save is the answer. A daemon error naming a key shows
-// under its field and the guide goes to its step. When the guide goes on from the Position step,
-// the place is sent on its own if the answers changed it, else `map_wanted` says the map of the
-// area is wanted (the daemon makes it unless its map covers the place).
+// (call, place, symbol, a new station's beacon) and a number of its own (useSettingsQueue saveId);
+// the radios of the Radio step are saved as changed. The answer is `saved` or an `error` with that
+// number; a daemon error naming a key shows under its field and the guide goes to its step. When
+// the guide goes on from the Position step, the place is sent on its own if the answers changed it,
+// else `map_wanted` says the map of the area is wanted (the daemon makes it unless its map covers
+// the place).
 import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
 import { endWithTheSocket } from "@/composables/useInFlight";
+import { saveId } from "@/composables/useSettingsQueue";
 import type { Connection } from "@/lib/hub";
 import { reasonOf } from "@/lib/settings";
 import { KEY_OF, STEP_OF } from "@/lib/setup";
-import type { Command, ConfigValues } from "@/protocol/protocol";
+import type { Command, ConfigValues, SavedMessage } from "@/protocol/protocol";
 
 export function useSetupSave(
   answers: ReturnType<typeof useSetupAnswers>,
@@ -21,22 +23,18 @@ export function useSetupSave(
   step: Ref<number>,
   done: () => void,
   connection?: Readonly<Ref<Connection>>,
+  saved?: Readonly<Ref<SavedMessage | null>>,
 ) {
   const saving = ref(false);
   endWithTheSocket(connection, () => (saving.value = false));
-  /**
-   * What the daemon held of each key the save names when Finish sent it: a config with none of them
-   * changed answers another save.
-   */
-  let held: Record<string, string> = {};
+  /** The number of Finish's save while it is out. */
+  let out = 0;
   const nothing = computed(() => Object.keys(answers.changes.value).length === 0);
 
   function save(): void {
     answers.clearErrors();
-    const values = { ...answers.changes.value };
-    const before = config.value?.values ?? {};
-    held = Object.fromEntries(Object.keys(values).map((key) => [key, before[key] ?? ""]));
-    saving.value = send({ cmd: "set_config", values });
+    out = saveId();
+    saving.value = send({ cmd: "set_config", values: { ...answers.changes.value }, id: out });
   }
 
   /**
@@ -67,25 +65,26 @@ export function useSetupSave(
   watch(
     config,
     (now) => {
-      if (!now) return;
-      if (!saving.value) {
-        if (!answers.touched.value) answers.fill(now.values);
-        return;
-      }
-      if (Object.entries(held).every(([key, text]) => (now.values[key] ?? "") === text)) return;
-      saving.value = false;
-      done();
+      if (now && !saving.value && !answers.touched.value) answers.fill(now.values);
     },
     { immediate: true },
   );
 
-  // The refusal of Finish's save; one naming a key Finish does not send is a radio's, shown under
-  // that field there.
+  if (saved)
+    watch(saved, (message) => {
+      if (!message || !saving.value || message.id !== out) return;
+      saving.value = false;
+      done();
+    });
+
+  // The refusal of Finish's save: an error with its number, or one without a number that names a
+  // key Finish sends (another key is a radio's, shown under that field there).
   watch(lastError, (toast) => {
     if (!toast || !saving.value) return;
+    if (toast.id != null && toast.id !== out) return;
     const named = toast.cmd === "set_config" && toast.key !== null;
     const field = named && toast.key !== null ? KEY_OF[toast.key] : undefined;
-    if (named && !field) return;
+    if (named && !field && toast.id == null) return;
     saving.value = false;
     if (!field) return;
     answers.errors[field] = reasonOf(toast);

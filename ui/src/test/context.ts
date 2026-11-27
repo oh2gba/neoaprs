@@ -181,7 +181,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
     keys: over.keys ?? useStationKeys(shallowReactive(new Map<string, StationKey>()), status, sender),
     settings,
-    guide: over.guide ?? useSetupGuide(config, lastError, sender, radios, connection),
+    guide: over.guide ?? useSetupGuide(config, lastError, unnumbered, radios, connection, saved),
     panel: over.panel ?? usePanel(),
   };
   // The browser alert listens to the window: it is made when a pane asks for it.

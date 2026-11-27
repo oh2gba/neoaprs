@@ -8,6 +8,12 @@ import type { Command } from "@/protocol/protocol";
 
 export const ANSWER_MS = 20000;
 
+let numbered = 0;
+/** The number of a new `set_config`: one count for the whole page, so that no two askers share one. */
+export function saveId(): number {
+  return ++numbered;
+}
+
 export interface Request {
   values: Record<string, string>;
   keys: string[];
@@ -33,7 +39,6 @@ export function useSettingsQueue(
   const inflight = shallowRef<Request | null>(null);
   const saving = computed(() => inflight.value !== null || queue.value.length > 0);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let counter = 0;
   let out = 0;
 
   function pump(): void {
@@ -41,7 +46,7 @@ export function useSettingsQueue(
     if (inflight.value || !next) return;
     queue.value.shift();
     inflight.value = next;
-    out = ++counter;
+    out = saveId();
     timer = setTimeout(() => give(next, t("settings.no_answer")), ANSWER_MS);
     if (!send({ cmd: "set_config", values: { ...next.values }, id: out })) give(next, t("settings.not_sent"));
   }

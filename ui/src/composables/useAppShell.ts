@@ -292,7 +292,7 @@ export function useAppShell() {
   const { config, connection, lastError, send } = daemon;
   askPortsOnOpen(daemon);
   const derived = useDerived(daemon);
-  const guide = useSetupGuide(config, lastError, send, daemon.radios, connection);
+  const guide = useSetupGuide(config, lastError, send, daemon.radios, connection, daemon.saved);
   openGuideOnce(config, guide);
   const panel = usePanel();
   const tabs = useTabs(daemon, panel);
