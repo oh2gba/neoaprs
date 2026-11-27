@@ -20,7 +20,10 @@ class GeneralQuery(_Command):
     cmd: Literal["general_query"]
     kind: Literal["aprs", "igate", "wx"]
     path: PathText | None
-    rf_only: bool
+    rf_only: bool = Field(
+        default=True,
+        description="RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may",
+    )
 
 
 class GeneralAsked(_Model):

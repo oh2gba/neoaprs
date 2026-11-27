@@ -119,8 +119,6 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.rf_only_title": "iGates zetten deze berichten niet op internet",
   "route.request_path_tip":
     "Roepnamen of aliassen gescheiden door komma's (OH2RDK-7,OH2RCH-2 of WIDE1-1,WIDE2-1), DIRECT voor geen. Leeg laten geeft het gewone pad.",
-  "route.request_rf_only_tip":
-    "Voegt RFONLY aan het pad toe: iGates zetten de vraag niet op internet, en alleen stations binnen radiobereik antwoorden.",
   "pathbuilder.open": "Pad samenstellen",
   "pathbuilder.title": "Pad samenstellen",
   "pathbuilder.cancel": "Annuleren",

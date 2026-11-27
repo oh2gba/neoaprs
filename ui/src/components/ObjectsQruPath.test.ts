@@ -1,5 +1,5 @@
-// The fold of Local info's Ask (ObjectsQru.vue with RequestPath.vue): the path and RF only of a
-// request to QRU, and that the request is unchanged when they are left alone.
+// The fold of Local info's Ask (ObjectsQru.vue with RequestPath.vue): the path of a request to QRU,
+// and that the request is unchanged when it is left alone.
 import { mount } from "@vue/test-utils";
 import { shallowReactive } from "vue";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -20,7 +20,6 @@ const ask = (wrapper: Wrapper) => wrapper.find(".qru-ask button.btn");
 const pills = (wrapper: Wrapper) => wrapper.findAll("button.qru-group");
 const fold = (wrapper: Wrapper) => wrapper.find("details.disclosure");
 const pathField = (wrapper: Wrapper) => fold(wrapper).find("input[type='text']");
-const rfOnly = (wrapper: Wrapper) => fold(wrapper).find("input[type='checkbox']");
 const sent = (daemon: ReturnType<typeof make>["daemon"]) => daemon.send.mock.calls.map(([command]) => command);
 let told = 0;
 /** The daemon tells the request it took, long enough ago to hold nothing back: the next press
@@ -33,7 +32,7 @@ const answer = (daemon: ReturnType<typeof make>["daemon"]) =>
 beforeEach(() => localStorage.clear());
 
 describe("the path of a request for local info", () => {
-  it("is in a closed fold titled Advanced under Ask, as in Ask around, with its radio's path as the placeholder and RF only ticked", () => {
+  it("is in a closed fold titled Advanced under Ask, as in Ask around, with its radio's path as the placeholder and no RF only tick", () => {
     const { wrapper } = make();
     expect(fold(wrapper).attributes("open")).toBeUndefined();
     expect(fold(wrapper).find("summary").text()).toBe("Advanced");
@@ -41,9 +40,9 @@ describe("the path of a request for local info", () => {
       fold(wrapper)
         .findAll("label")
         .map((l) => l.text()),
-    ).toEqual(["Path", "RF only"]);
+    ).toEqual(["Path"]);
+    expect(fold(wrapper).find("input[type='checkbox']").exists()).toBe(false);
     expect(pathField(wrapper).attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
-    expect((rfOnly(wrapper).element as HTMLInputElement).checked).toBe(true);
   });
 
   it("has as its placeholder the path its ticked radios share, a LoRa radio's own WIDE1-1 among them, and the page's word for the default while theirs differ", async () => {
@@ -78,21 +77,20 @@ describe("the path of a request for local info", () => {
     expect(sent(daemon)).toEqual([{ cmd: "qru_ask", text: "INFO 150" }]);
   });
 
-  it("sends the path typed, and RF only as it is ticked, with Ask and with a group", async () => {
+  it("sends the path typed with Ask and with a group, and none once it is emptied", async () => {
     const { wrapper, daemon } = make();
     await pathField(wrapper).setValue("OH2RDK-7,OH2RCH-2");
     await ask(wrapper).trigger("click");
     await answer(daemon);
-    await rfOnly(wrapper).setValue(false);
     await pills(wrapper)[0]?.trigger("click");
     await answer(daemon);
     await pathField(wrapper).setValue("");
     expect(sent(daemon)).toEqual([
-      { cmd: "qru_ask", text: "INFO 150", path: "OH2RDK-7,OH2RCH-2", rf_only: true },
-      { cmd: "qru_ask", text: "RP70 150", path: "OH2RDK-7,OH2RCH-2", rf_only: false },
+      { cmd: "qru_ask", text: "INFO 150", path: "OH2RDK-7,OH2RCH-2" },
+      { cmd: "qru_ask", text: "RP70 150", path: "OH2RDK-7,OH2RCH-2" },
     ]);
     await ask(wrapper).trigger("click");
-    expect(sent(daemon)[2]).toEqual({ cmd: "qru_ask", text: "INFO 150", path: null, rf_only: false });
+    expect(sent(daemon)[2]).toEqual({ cmd: "qru_ask", text: "INFO 150" });
   });
 
   it("keeps Ask and the groups off while the path is wrong, with the reason, and the field orange", async () => {
@@ -227,7 +225,7 @@ describe("the Send on of Local info", () => {
     expect(localStorage.getItem("NeoAPRS.qru.path")).toBe("OH2RDK-7");
     expect(Object.keys(localStorage).filter((key) => /qru\.\d/.test(key))).toEqual([]);
     await ask(wrapper).trigger("click");
-    expect(requests(daemon)).toEqual([{ cmd: "qru_ask", text: "INFO 150", path: "OH2RDK-7", rf_only: true }]);
+    expect(requests(daemon)).toEqual([{ cmd: "qru_ask", text: "INFO 150", path: "OH2RDK-7" }]);
     await answer(daemon);
     await ticks(wrapper)[0]?.setValue(false); // (Mercury alone, which carries no path)
     expect(
@@ -236,7 +234,6 @@ describe("the Send on of Local info", () => {
         .every((field) => field.classes().includes("disabled")),
     ).toBe(true);
     expect((pathField(wrapper).element as HTMLInputElement).disabled).toBe(true);
-    expect((rfOnly(wrapper).element as HTMLInputElement).disabled).toBe(true);
     expect((pathField(wrapper).element as HTMLInputElement).value).toBe("OH2RDK-7");
     expect(fold(wrapper).find("button.pathbuild-open").attributes("disabled")).toBeDefined();
     expect(
@@ -248,7 +245,7 @@ describe("the Send on of Local info", () => {
         .findAll(".field")
         .map((field) => field.attributes("title")),
       "the reason, as Route's greyed Path has it",
-    ).toEqual(["Mercury: no path", "Mercury: no path"]);
+    ).toEqual(["Mercury: no path"]);
     await tell(daemon, { now: NOW + 61_000 });
     await ask(wrapper).trigger("click");
     expect(requests(daemon)[1]).toEqual({ cmd: "qru_ask", text: "INFO 150" });

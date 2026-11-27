@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// The closed fold under an Ask: the request's Path and RF only. The path is calls or aliases
-// separated by commas, or DIRECT for none; empty is each radio's own path (`usual`, null while the
-// radios differ). RF only adds RFONLY after the path. An invalid path is orange with the reason in
-// its title. The fold starts open when either value is not the default. While the radio carries no
-// path (`disabled`) both rows are greyed with their values kept.
+// The closed fold under an Ask: the request's Path. The path is calls or aliases separated by
+// commas, or DIRECT for none; empty is each radio's own path (`usual`, null while the radios
+// differ). The request always goes with RFONLY after the path. An invalid path is orange with the
+// reason in its title. The fold starts open when a path is typed. While the radio carries no path
+// (`disabled`) the row is greyed with its value kept.
 import { useId } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -14,7 +14,6 @@ import { t } from "@/i18n";
 const props = withDefaults(
   defineProps<{
     path: string;
-    rfOnly: boolean;
     usual: string | null;
     problem: string;
     disabled?: boolean;
@@ -25,17 +24,13 @@ const props = withDefaults(
     pathless: undefined,
   },
 );
-const emit = defineEmits<{ "update:path": [path: string]; "update:rfOnly": [on: boolean] }>();
+const emit = defineEmits<{ "update:path": [path: string] }>();
 const id = useId();
-const opened = props.path.trim() !== "" || !props.rfOnly;
+const opened = props.path.trim() !== "";
 const about = (label: string): string => t("settings.about", { label });
 
 function typed(event: Event): void {
   if (event.target instanceof HTMLInputElement) emit("update:path", event.target.value);
-}
-
-function ticked(event: Event): void {
-  if (event.target instanceof HTMLInputElement) emit("update:rfOnly", event.target.checked);
 }
 </script>
 
@@ -65,27 +60,11 @@ function ticked(event: Event): void {
           :usual="usual ?? ''"
           :disabled="disabled"
           :why="pathless"
-          :check="(text) => requestPathProblem(text, rfOnly)"
+          :check="requestPathProblem"
           @use="emit('update:path', $event)"
         />
         <InfoTip :label="about(t('route.path'))"
           ><span class="info-line">{{ t("route.request_path_tip") }}</span></InfoTip
-        >
-      </div>
-    </div>
-    <div class="field" :class="{ disabled }" :title="disabled ? pathless : undefined">
-      <label :for="`${id}-rfonly`">{{ t("route.rf_only") }}</label>
-      <div class="field-control">
-        <input
-          :id="`${id}-rfonly`"
-          class="check"
-          type="checkbox"
-          :checked="rfOnly"
-          :disabled="disabled"
-          @change="ticked"
-        />
-        <InfoTip :label="about(t('route.rf_only'))"
-          ><span class="info-line">{{ t("route.request_rf_only_tip") }}</span></InfoTip
         >
       </div>
     </div>

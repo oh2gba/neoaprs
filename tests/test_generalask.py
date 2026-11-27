@@ -331,6 +331,17 @@ async def test_the_command_sends_the_query_and_the_topic_tells_it_and_who_spoke_
     await until(lambda: _out(page)[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:?WX?")
 
 
+async def test_the_pages_command_has_no_rf_only_and_goes_with_rfonly_and_a_path_too_long_for_it_is_refused(
+    tmp_path: Path,
+) -> None:
+    e, page = await with_page(tmp_path)
+    await page.send({"cmd": "general_query", "kind": "igate", "path": "A1,A2,A3,A4,A5,A6,A7,A8"})
+    error = await page.expect("error")
+    assert (error["cmd"], error["code"]) == ("general_query", "path.too_long_rf_only")
+    await page.send({"cmd": "general_query", "kind": "aprs", "path": None})
+    await until(lambda: _out(page) == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:?APRS?"])
+
+
 async def test_the_command_is_refused_in_rx_only_and_with_a_path_that_is_none(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "general_query", "kind": "igate", "path": "OH2RDK-7,WIDE1-1,DIRECT", "rf_only": True})

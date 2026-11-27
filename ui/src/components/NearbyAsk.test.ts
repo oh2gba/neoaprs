@@ -17,7 +17,6 @@ const ask = (wrapper: Wrapper) => wrapper.find(".ask-row button.btn");
 const choice = (wrapper: Wrapper) => wrapper.find("select.ask-kind");
 const fold = (wrapper: Wrapper) => wrapper.find("details.disclosure");
 const pathField = (wrapper: Wrapper) => wrapper.find("details input[type='text']");
-const rfOnly = (wrapper: Wrapper) => wrapper.find("details input[type='checkbox']");
 const lines = (wrapper: Wrapper) => wrapper.findAll("p.ask-line");
 const sent = (daemon: ReturnType<typeof make>["daemon"]) => daemon.send.mock.calls.map(([command]) => command);
 
@@ -65,7 +64,7 @@ describe("Ask around in the Nearby tab", () => {
     expect(ask(wrapper).attributes("title")).toBe("Send ?APRS? once, by radio");
   });
 
-  it("sends the query chosen by the beacon's path with RF only, as the fold starts", async () => {
+  it("sends the query chosen by the beacon's path, with no RF only in the command (the daemon adds RFONLY)", async () => {
     const { wrapper, daemon } = make();
     await ask(wrapper).trigger("click");
     await tell(daemon, { general: general(askedOf()) });
@@ -73,12 +72,12 @@ describe("Ask around in the Nearby tab", () => {
     expect(ask(wrapper).attributes("title")).toBe("Send ?WX? once, by radio");
     await ask(wrapper).trigger("click");
     expect(sent(daemon)).toEqual([
-      { cmd: "general_query", kind: "aprs", path: null, rf_only: true },
-      { cmd: "general_query", kind: "wx", path: null, rf_only: true },
+      { cmd: "general_query", kind: "aprs", path: null },
+      { cmd: "general_query", kind: "wx", path: null },
     ]);
   });
 
-  it("has the path and RF only in a closed fold titled Advanced, the path's placeholder its radio's path, RF only ticked; what is set there goes with the query", async () => {
+  it("has the path alone in a closed fold titled Advanced, its placeholder its radio's path, and no RF only tick; the path goes with the query", async () => {
     const { wrapper, daemon } = make();
     expect(fold(wrapper).attributes("open")).toBeUndefined();
     expect(fold(wrapper).find("summary").text()).toBe("Advanced");
@@ -86,14 +85,13 @@ describe("Ask around in the Nearby tab", () => {
       fold(wrapper)
         .findAll("label")
         .map((l) => l.text()),
-    ).toEqual(["Path", "RF only"]);
+    ).toEqual(["Path"]);
+    expect(fold(wrapper).find("input[type='checkbox']").exists()).toBe(false);
     expect(pathField(wrapper).attributes("placeholder")).toBe("WIDE1-1,WIDE2-1");
-    expect((rfOnly(wrapper).element as HTMLInputElement).checked).toBe(true);
     await pathField(wrapper).setValue(" oh2rdk-7,OH2RCH-2 ");
-    await rfOnly(wrapper).setValue(false);
     await choice(wrapper).setValue("igate");
     await ask(wrapper).trigger("click");
-    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "igate", path: "oh2rdk-7,OH2RCH-2", rf_only: false }]);
+    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "igate", path: "oh2rdk-7,OH2RCH-2" }]);
   });
 
   it("says direct as the placeholder when its radio's path is direct", () => {
@@ -122,19 +120,17 @@ describe("Ask around in the Nearby tab", () => {
     );
   });
 
-  it("remembers the query, the path and RF only in this browser, and opens the fold when they are not the usual", async () => {
+  it("remembers the query and the path in this browser, and opens the fold when a path is typed", async () => {
     const first = make();
     await choice(first.wrapper).setValue("igate");
     await pathField(first.wrapper).setValue("OH2RDK-7,OH2RCH-2");
-    await rfOnly(first.wrapper).setValue(false);
     first.wrapper.unmount();
     const { wrapper, daemon } = make();
     expect((choice(wrapper).element as HTMLSelectElement).value).toBe("igate");
     expect((pathField(wrapper).element as HTMLInputElement).value).toBe("OH2RDK-7,OH2RCH-2");
-    expect((rfOnly(wrapper).element as HTMLInputElement).checked).toBe(false);
     expect(fold(wrapper).attributes("open")).toBeDefined();
     await ask(wrapper).trigger("click");
-    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "igate", path: "OH2RDK-7,OH2RCH-2", rf_only: false }]);
+    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "igate", path: "OH2RDK-7,OH2RCH-2" }]);
     expect(localStorage.getItem("NeoAPRS.qru.path")).toBeNull();
   });
 
@@ -151,12 +147,11 @@ describe("Ask around in the Nearby tab", () => {
     expect(ask(wrapper).attributes("title")).toBe(
       "path too long for RF only: 8 digipeaters and RFONLY make more than the 8 a path may have",
     );
-    await rfOnly(wrapper).setValue(false);
-    expect(ask(wrapper).attributes("disabled")).toBeUndefined();
+    expect(ask(wrapper).attributes("disabled")).toBeDefined();
     await pathField(wrapper).setValue("direct");
     expect(wrapper.find("details .field").classes()).not.toContain("invalid");
     await ask(wrapper).trigger("click");
-    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: "direct", rf_only: false }]);
+    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: "direct" }]);
   });
 
   it("keeps Ask off in RX only, and for the minute after a query of the same kind, with the seconds left; another kind may go", async () => {
@@ -252,7 +247,7 @@ describe("Ask around in the Nearby tab", () => {
     expect(fold(wrapper).exists()).toBe(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
-    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
+    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null }]);
     const withFm = make();
     expect(ask(withFm.wrapper).attributes("disabled")).toBeDefined();
   });
@@ -292,7 +287,7 @@ describe("the Send on of Ask around", () => {
         rows.length === 2 && rows.every((row) => row.enabled) ? /^FM: Asked who is around/ : /^Asked who is around/,
       );
       await ask(wrapper).trigger("click");
-      expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
+      expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null }]);
     }
   });
 
@@ -341,7 +336,7 @@ describe("the Send on of Ask around", () => {
     ]);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
-    expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
+    expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null }]);
   });
 
   it("ticks as the daemon has it, greys the last one ticked, and applies a tick at once", async () => {
@@ -367,7 +362,7 @@ describe("the Send on of Ask around", () => {
     expect(Object.keys(localStorage).filter((key) => /ask\.\d/.test(key))).toEqual([]);
     expect(fold(wrapper).find(".field").classes()).not.toContain("disabled");
     await ask(wrapper).trigger("click");
-    expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: "OH2RDK-7", rf_only: true }]);
+    expect(queries(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: "OH2RDK-7" }]);
     await tell(daemon, { general: general(askedOf()) });
     await ticks(wrapper)[0]?.setValue(false); // (Mercury alone, which carries no path)
     expect(
@@ -381,10 +376,10 @@ describe("the Send on of Ask around", () => {
       fold(wrapper)
         .findAll(".field")
         .map((field) => field.attributes("title")),
-    ).toEqual(["Mercury: no path", "Mercury: no path"]);
+    ).toEqual(["Mercury: no path"]);
     await choice(wrapper).setValue("igate");
     await ask(wrapper).trigger("click");
-    expect(queries(daemon)[1]).toEqual({ cmd: "general_query", kind: "igate", path: null, rf_only: true });
+    expect(queries(daemon)[1]).toEqual({ cmd: "general_query", kind: "igate", path: null });
     await ticks(wrapper)[2]?.setValue(true); // (and the Mobile radio, which carries one)
     expect(fold(wrapper).find(".field").classes()).not.toContain("disabled");
     expect((pathField(wrapper).element as HTMLInputElement).value).toBe("OH2RDK-7");

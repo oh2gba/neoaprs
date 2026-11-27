@@ -190,7 +190,7 @@ The (i) beside the title is a short guide to `WIDEn-N`:
 - N is never more than n: `WIDE1-2` or `WIDE2-3` is no path. The hops of a path are the Ns of its aliases and one for each digipeater named.
 - A digipeater named (`OH2RDK-7`) is one hop by exactly that digipeater.
 
-The path is checked as the field checks it (for a request with RF only, 7 hops at most leave room for `RFONLY`): while it cannot go, it is orange and **Use** is off, with the reason in their hover text. **Use** puts the path into the field, which saves it as it saves what you type (the beacon's path and a station's at once). **Cancel**, the x, Esc and a click beside the builder leave the field as it was.
+The path is checked as the field checks it (for Ask around and Local info, which always add `RFONLY`, and a station that is RF only, 7 hops at most leave room for it): while it cannot go, it is orange and **Use** is off, with the reason in their hover text. **Use** puts the path into the field, which saves it as it saves what you type (the beacon's path and a station's at once). **Cancel**, the x, Esc and a click beside the builder leave the field as it was.
 
 ### RF only
 

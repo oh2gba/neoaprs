@@ -438,8 +438,6 @@ export const fr: Catalogue = {
   "route.rf_only_title": "Les iGates ne mettent pas ces messages sur internet",
   "route.request_path_tip":
     "Indicatifs ou alias séparés par des virgules (OH2RDK-7,OH2RCH-2 ou WIDE1-1,WIDE2-1), DIRECT pour aucun. Vide : le chemin habituel.",
-  "route.request_rf_only_tip":
-    "Ajoute RFONLY au chemin : les iGates gardent la demande hors d'internet, et seules les stations à portée radio répondent.",
   "pathbuilder.open": "Composer le chemin",
   "pathbuilder.title": "Composer un chemin",
   "pathbuilder.cancel": "Annuler",

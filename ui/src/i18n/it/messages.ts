@@ -118,8 +118,6 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "route.rf_only_title": "Gli iGate non mettono questi messaggi su internet",
   "route.request_path_tip":
     "Nominativi o alias separati da virgole (OH2RDK-7,OH2RCH-2 o WIDE1-1,WIDE2-1), DIRECT per nessuno. Vuoto è il percorso solito.",
-  "route.request_rf_only_tip":
-    "Aggiunge RFONLY al percorso: gli iGate tengono la richiesta fuori da internet, e rispondono solo le stazioni in portata radio.",
   "pathbuilder.open": "Componi la via",
   "pathbuilder.title": "Componi una via",
   "pathbuilder.cancel": "Annulla",

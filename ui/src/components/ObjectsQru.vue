@@ -5,7 +5,7 @@
 // Send on follows (SendOn.vue, `radio/<id>/local_info`): the request goes once on each ticked
 // connected radio. A server's row carries the tag of the radio it answered on, and its group
 // buttons and Ask again use that radio. Under Send on is the closed fold of the request's Path
-// and RF only (RequestPath.vue, shared with Ask around). One status row (StatusFold) follows,
+// (RequestPath.vue, shared with Ask around). One status row (StatusFold) follows,
 // then a row per answering server with its groups as tags and how many objects it sent and how
 // many arrived. The objects arrive as ordinary objects (map, Stations tab with the Local info
 // tag).
@@ -40,10 +40,10 @@ const radios = useRadios();
 const { told, severalSenders: several, senders, allowsPath, byId, named, pathOf } = radios;
 /** Local info's Send on: its ticks and the radios INFO goes on. */
 const { ticks, radios: on, error: tickError, tick } = useSendOn("local_info", radios);
-/** A request's path and RF only, remembered by this browser apart from Ask around's: one for all
+/** A request's path, remembered by this browser apart from Ask around's: one for all
  * radios. */
 const request = useRequestPath("qru");
-/** Whether a request on these radios has a path and RF only to set: some radio that is on may
+/** Whether a request on these radios has a path to set: some radio that is on may
  * carry one (else no fold), and one of these does (else greyed). */
 const routable = (to: readonly PageRadio[]): boolean =>
   allowsPath.value && (to.length === 0 || to.some((radio) => radio.carriesPath));
@@ -121,14 +121,13 @@ watch(
   () => (refusal.value = ""),
 );
 
-/** The request as the command carries it: the text, the path and RF only only when the fold
- * differs from the usual (an empty path and RF only ticked), and the single radio of a request
- * to a server while several are on (none: Send on's radios). */
+/** The request as the command carries it: the text, the path only when one is typed, and the
+ * single radio of a request to a server while several are on (none: Send on's radios). */
 function command(text: string, to: readonly PageRadio[], one: PageRadio | null): Command {
   const radio = several.value && one !== null ? { radio: one.id } : {};
-  return !routable(to) || (request.sent.value === null && request.rfOnly.value)
+  return !routable(to) || request.sent.value === null
     ? { cmd: "qru_ask", text, ...radio }
-    : { cmd: "qru_ask", text, path: request.sent.value, rf_only: request.rfOnly.value, ...radio };
+    : { cmd: "qru_ask", text, path: request.sent.value, ...radio };
 }
 
 /** Send the INFO request with the field's distance on Send on's radios, unless held (RX only,
@@ -211,7 +210,6 @@ function inStations(names: readonly string[]): void {
     <RequestPath
       v-if="allowsPath"
       v-model:path="request.path.value"
-      v-model:rf-only="request.rfOnly.value"
       :usual="usual"
       :problem="routable(on) ? request.problem.value : ''"
       :disabled="!routable(on)"

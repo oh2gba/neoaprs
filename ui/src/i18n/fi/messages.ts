@@ -119,8 +119,6 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.rf_only_title": "iGatet eivät vie näitä viestejä internetiin",
   "route.request_path_tip":
     "Kutsut tai aliakset pilkuilla erotettuina (OH2RDK-7,OH2RCH-2 tai WIDE1-1,WIDE2-1), DIRECT jos ei yhtään. Tyhjä on tavallinen polku.",
-  "route.request_rf_only_tip":
-    "Lisää polkuun RFONLY: iGatet pitävät kyselyn poissa internetistä, ja vain kuuluvuusalueen asemat vastaavat.",
   "pathbuilder.open": "Rakenna polku",
   "pathbuilder.title": "Polun rakentaja",
   "pathbuilder.cancel": "Peruuta",

@@ -24,7 +24,10 @@ class AskQru(_Command):
         default=None,
         description="the path the request goes by; left out (or null, or empty) the path of messages to QRU",
     )
-    rf_only: bool = Field(default=True, description="RFONLY after the path; left out it is true")
+    rf_only: bool = Field(
+        default=True,
+        description="RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may",
+    )
     radio: int | None = Field(
         default=None,
         ge=1,

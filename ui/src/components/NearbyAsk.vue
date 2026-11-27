@@ -2,7 +2,7 @@
 // Ask around, the first box of the Nearby tab: one general APRS query to the stations in radio
 // range (the daemon's services/generalask.py), chosen in plain words, and **Ask**. While several
 // sending radios are on, Send on follows (SendOn.vue, `radio/<id>/ask`), then the closed fold of
-// the request's Path and RF only (RequestPath.vue, shared with Local info). Two quiet lines of
+// the request's Path (RequestPath.vue, shared with Local info). Two quiet lines of
 // fixed height follow: what was asked, when and by what path, and how many stations that had
 // been quiet for ten minutes spoke in the two minutes after. The query goes once on each ticked
 // connected radio. Ask is off, with the reason in its title, in RX only, while no radio of it is
@@ -28,10 +28,10 @@ const { told, allowsPath, byId, named, sharedPath } = radios;
 const kind = usePersisted("ask.kind", GENERAL_KINDS[0] ?? "aprs", GENERAL_KINDS);
 /** Ask around's Send on: its ticks and the radios the query goes on. */
 const { ticks, radios: on, error: tickError, tick } = useSendOn("ask", radios);
-/** The query's path and RF only, remembered by this browser apart from Local info's: one for all
+/** The query's path, remembered by this browser apart from Local info's: one for all
  * radios. */
 const request = useRequestPath("ask");
-/** Whether the query has a path and RF only to set: some radio that is on may carry one (else no
+/** Whether the query has a path to set: some radio that is on may carry one (else no
  * fold), and one it goes on does (else greyed). */
 const routable = computed(
   () => allowsPath.value && (on.value.length === 0 || on.value.some((radio) => radio.carriesPath)),
@@ -88,7 +88,6 @@ function ask(): void {
       cmd: "general_query",
       kind: kind.value,
       path: routable.value ? request.sent.value : null,
-      rf_only: request.rfOnly.value,
     }),
   );
 }
@@ -122,7 +121,6 @@ function ask(): void {
     <RequestPath
       v-if="allowsPath"
       v-model:path="request.path.value"
-      v-model:rf-only="request.rfOnly.value"
       :usual="usual"
       :problem="routable ? request.problem.value : ''"
       :disabled="!routable"

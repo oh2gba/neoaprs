@@ -438,8 +438,6 @@ export const de: Catalogue = {
   "route.rf_only_title": "iGates setzen diese Nachrichten nicht ins Internet",
   "route.request_path_tip":
     "Rufzeichen oder Aliase, durch Kommas getrennt (OH2RDK-7,OH2RCH-2 oder WIDE1-1,WIDE2-1), DIRECT für keine. Leer ist der übliche Pfad.",
-  "route.request_rf_only_tip":
-    "Hängt RFONLY an den Pfad: iGates lassen die Anfrage aus dem Internet, und nur Stationen in Funkreichweite antworten.",
   "pathbuilder.open": "Pfad zusammenstellen",
   "pathbuilder.title": "Pfad zusammenstellen",
   "pathbuilder.cancel": "Abbrechen",
