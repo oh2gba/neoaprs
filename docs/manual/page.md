@@ -2,7 +2,7 @@
 
 NeoAPRS serves a page at `http://127.0.0.1:7303/` (the port is `web/port`). The [desktop app](desktop.md) shows the same page in a window. The colours follow the system's light or dark scheme.
 
-The page has a **map** of the area round your station and, at its right, a **panel** with its tabs: Messages, Stations, Nearby, Email, Bulletins, HF tests (while a Mercury radio is on), Objects, My station, Packets and Settings. A new page opens on Messages.
+The page has a **map** of the area round your station and, at its right, a **panel** with its tabs: Messages, Stations, Nearby, Email, Bulletins, HF tests, Objects, My station, Packets and Settings. A new page opens on Messages.
 
 ## The panel and its tabs
 
@@ -18,7 +18,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 | **Nearby** | what is around you: Ask around, then the digipeaters, voice frequencies, iGates and stations heard direct |
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
-| **HF tests** | when stations trying APRS on HF will be on the air, and the box to plan your own test ([hf-tests.md](hf-tests.md)); there while a Mercury radio is on |
+| **HF tests** | when stations trying APRS on HF will be on the air, and the box to plan your own test ([hf-tests.md](hf-tests.md)); there with or without an HF radio |
 | **Objects** | your objects and items, and Local info, where you ask the stations near you for theirs ([objects.md](objects.md)) |
 | **My station** | the state of the beacon with Beacon now, where your position comes from (fixed, or a GPS), the Beacon choice that switches the beacon off, and what your station says on the air ([beacon.md](beacon.md)) |
 | **Packets** | the log, newest first, below |

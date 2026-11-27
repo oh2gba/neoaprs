@@ -2,7 +2,7 @@
 
 The HF tests tab is for stations trying APRS on HF: you say when you will be on the air and on which frequency, so that another station can test with you. On HF there are few stations, and two of them have to agree on a time and a frequency before they can hear each other at all.
 
-The tab comes after Bulletins, and is there while a Mercury radio is on ([radio.md](radio.md#the-mercury-modem)), the Dummy Mercury radio too. It shows the tests planned by other stations and by you, and has a group box at its bottom, **Plan a test**. Reading and posting need no radio: the board is on the web.
+The tab comes after Bulletins, and is always there, with or without a Mercury radio ([radio.md](radio.md#the-mercury-modem)): you may want to see when others are on before your radio is set up, or announce a test of your own. It shows the tests planned by other stations and by you, and has a group box at its bottom, **Plan a test**. Reading and posting need no radio: the board is on the web.
 
 The tests are kept on a public board on the project's page, neo.oh2gba.eu. Nothing here goes over the air. The (i) at the top of the tab says so.
 

@@ -7,10 +7,15 @@ import { open as openPage, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
 
-/** A station with the HF radio on: the HF tests tab is there only then. */
-async function open() {
+/** A station with the HF radio on beside the Packet radio, with the Packet radio alone, or with no radio. */
+const STATIONS = {
+  "with an HF radio": () => radiosValue(fmRow(), hfRow()),
+  "with a Packet radio alone": () => radiosValue(fmRow()),
+  "with no radio": () => radiosValue(),
+};
+async function open(radios = STATIONS["with an HF radio"]) {
   const page = await openPage();
-  page.socket.say({ type: "state", topic: "radios", rev: 1, value: radiosValue(fmRow(), hfRow()) });
+  page.socket.say({ type: "state", topic: "radios", rev: 1, value: radios() });
   await flushPromises();
   return page;
 }
@@ -28,6 +33,19 @@ const sayBoard = async (socket: FakeSocket, rows = board) => {
 const badge = (wrapper: VueWrapper) => tabButton(wrapper, "HF tests")?.find(".badge");
 
 describe("App: the Skeds tab", () => {
+  for (const [station, radios] of Object.entries(STATIONS)) {
+    it(`is there ${station}, asks for the board when it comes on show, shows it and posts from its form`, async () => {
+      const { wrapper, socket } = await open(radios);
+      await sayBoard(socket);
+      await tabButton(wrapper, "HF tests")?.trigger("click");
+      expect(cmds(socket, "skeds_wanted")).toEqual([{ cmd: "skeds_wanted" }]);
+      expect(wrapper.findAll("#pane-skeds .sked")).toHaveLength(2);
+      await wrapper.find("#sked-note").setValue("Before the radio is set up");
+      await wrapper.find("#pane-skeds .sked-compose").trigger("submit");
+      expect(cmds(socket, "sked_post")).toHaveLength(1);
+    });
+  }
+
   it("comes after Bulletins and before Objects", async () => {
     const { wrapper } = await open();
     const names = wrapper.findAll("[role='tab']").map((t) => t.text().replace(/\s*\d+$/, ""));

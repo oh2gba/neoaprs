@@ -74,7 +74,7 @@ describe("the page in the pseudo-locale", () => {
         problem: { code: "radio.not_connected", params: { name: "Mercury", radio: 2 } },
       });
       const off = fmRow({ enabled: false, state: "stopped" });
-      // The HF tests tab is there while an HF radio is on; one radio on, one Radio mark.
+      // The HF tests tab is drawn with an HF radio on (its dials); one radio on, one Radio mark.
       socket.say({
         type: "state",
         topic: "radios",
@@ -84,8 +84,8 @@ describe("the page in the pseudo-locale", () => {
       socket.say({ type: "state", topic: "config", rev: 5, value: configValues({ "station/call": "" }) });
       socket.say(status({ update: { version: "9.9.9", message: "", url: "https://example.org/" } }));
       await flushPromises();
-      // No HF radio, no HF tests tab.
-      expect(wrapper.findAll("[role='tab']").length).toBe(tab === "skeds" ? TAB_IDS.length : TAB_IDS.length - 1);
+      // Every tab, with an HF radio or not.
+      expect(wrapper.findAll("[role='tab']").length).toBe(TAB_IDS.length);
       expect(wrapper.findAll("[role='tab']").every((b) => b.text().startsWith("[!!"))).toBe(true);
       expect(wrapper.find(".appheader button.nocall").text()).toMatch(/^\[!! /);
       for (const mark of ["daemon", "radio"]) {

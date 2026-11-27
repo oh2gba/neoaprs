@@ -92,7 +92,11 @@ describe("which tabs stay in the row", () => {
 });
 
 describe("which of the tabs offered stay in the row", () => {
-  const nine = offeredTabs(false);
+  const nine = TAB_IDS.filter((id) => id !== "skeds");
+
+  it("offers all ten", () => {
+    expect(offeredTabs()).toEqual([...TAB_IDS]);
+  });
 
   it("splits the tabs offered only, in their order, the way it splits all ten", () => {
     for (let room = 0; room <= 640; room += 7) {

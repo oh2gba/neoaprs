@@ -13,7 +13,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import TabBadge from "@/components/TabBadge.vue";
 import TabMenu from "@/components/TabMenu.vue";
 import type { PhoneView } from "@/composables/useLayout";
-import { useRadios } from "@/composables/useRadios";
 import { useTabsFit } from "@/composables/useTabsFit";
 import { t } from "@/i18n";
 import {
@@ -59,17 +58,8 @@ const onResize = (): void => {
 onMounted(() => window.addEventListener("resize", onResize));
 onBeforeUnmount(() => window.removeEventListener("resize", onResize));
 
-/**
- * The tabs of this station: HF tests only while an HF radio is on. Before the daemon has listed its
- * radios the row is drawn without it, except that a remembered HF tests tab keeps its place.
- */
-const radios = useRadios();
-const hfOn = computed(() => radios.enabled.value.some((radio) => radio.kind === "hf"));
-const offered = computed(() => offeredTabs(hfOn.value || (!radios.told.value && props.tab === "skeds")));
-/**
- * A remembered or requested tab that this station does not offer gives way to the first one
- * (HF tests is offered until the radios are listed, while it is the tab).
- */
+/** The tabs of this station: every one. A remembered or requested tab that is none gives way to the first. */
+const offered = computed(() => offeredTabs());
 watch(
   [offered, () => props.tab],
   ([tabs, tab]) => {

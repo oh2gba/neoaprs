@@ -22,7 +22,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`igate.md`](igate.md) | Internet (APRS-IS): stations from the internet on the map, and what your radios hear sent to APRS-IS as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |
-| [`hf-tests.md`](hf-tests.md) | the HF tests tab, there while a Mercury radio is on: meeting another station on HF to try APRS, the board on the project page, planning, joining and deleting a test |
+| [`hf-tests.md`](hf-tests.md) | the HF tests tab: meeting another station on HF to try APRS, the board on the project page, planning, joining and deleting a test |
 | [`objects.md`](objects.md) | objects and items of your own, and the QRU server that sends them to a station that asks |
 | [`weather.md`](weather.md) | weather stations, the graphs and what else NeoAPRS reads |
 | [`notifications.md`](notifications.md) | being told of a new message |
