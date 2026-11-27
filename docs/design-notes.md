@@ -1396,7 +1396,8 @@ the desktop app) wait while it is fresh; one left by a kill goes stale by itself
 A write that times out (pyserial's SerialTimeoutException: the device took no data within the
 write timeout, as the incoming Bluetooth port of Windows does) is its own reason. The line is opened
 again with the usual back-off, but the row says `waiting` with `radio.write_timeout` until a write
-goes through or a byte comes: a bare reopen proves nothing. Frames still go to the port meanwhile,
+goes through, a byte comes, or the port has stayed open for the watchdog's probe interval with no
+failed write (a quiet radio that is sent nothing): a bare reopen proves nothing. Frames still go to the port meanwhile,
 since only a write that goes through can show that it works, and a quiet channel is no evidence.
 
 A Kenwood TH-D7 TNC starts in command mode: it prints heard packets as TNC2 text and answers a carriage return with "cmd:".
@@ -1412,6 +1413,13 @@ Where the radio is not searched for among the ports (Windows, macOS), a replugge
 or /dev/cu device. The adapter behind the named port is remembered by serial number, or by vendor and product ids when unique,
 and the new port is opened if the named one cannot be. The memory is made after the line is open, in a task, because reading the
 system's port list in a thread can be slow and nothing may be awaited while an open port has no owner.
+
+## neoaprs/tnchealth.py
+
+A usable TNC line is reported as `connected` even before its first KISS frame, since a Kenwood or
+Kantronics TNC is silent in KISS mode until it hears a packet. A connected line whose Mercury runs
+and hears nothing (its stall watch) has the problem `modem.receive_deaf` until the warning stops or
+the modem is restarted.
 
 ## neoaprs/tncsearch.py
 
@@ -1542,11 +1550,6 @@ The Origin check alone is not enough under DNS rebinding, since an Origin that m
 nothing when both are the attacker's; the Host is therefore checked in `prepare()`. Sockets use
 permessage-deflate (RFC 7692) because the station table is large, repetitive JSON; Tornado keeps a
 deflate state of a few hundred kilobytes per direction per socket, so connections are capped.
-
-## neoaprs/web/radioview.py
-
-A usable TNC line is reported as `connected` even before its first KISS frame, since a Kenwood or
-Kantronics TNC is silent in KISS mode until it hears a packet.
 
 ## neoaprs/web/scopefeed.py
 

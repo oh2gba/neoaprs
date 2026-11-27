@@ -406,6 +406,10 @@ class DirewolfModem(Tuning, ModemLife):
         self._relaunch_later()
 
     # ---- what the Tnc and the page ask
+    @property
+    def deaf(self) -> bool:
+        return False  # no stall watch: Direwolf reports no stalled receive side
+
     def take_reading(self) -> Reading:
         return NO_READING
 

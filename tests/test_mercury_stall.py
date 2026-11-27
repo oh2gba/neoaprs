@@ -11,13 +11,20 @@ from pathlib import Path
 import pytest
 
 from neoaprs import childprogram, mercuryhelper, mercurymodem, mercurystall
+from neoaprs.claims import Claims
 from neoaprs.mercurychannel import KEYED_MAX_SEC
 from neoaprs.mercury import CAPTURE_FULL, SOURCE_COMMIT, capture_full
 from neoaprs.mercurymodem import RECEIVE_STALLED
 from neoaprs.mercurystall import GAP_SEC, RESTART_EVERY_SEC, STALL_SEC, StallWatch
+from neoaprs.source import Source
+from neoaprs.tnc import Tnc
+from neoaprs.tncprofile import MERCURY
+from neoaprs.web.radioview import radio_row
 from tests.support.env import until_started
 from tests.support.modemports import own_ports
 from tests.test_mercury_modem import HF, modem, stopped
+from tests.test_radio_health import HF as HF_SPEC
+from tests.test_radio_health import at_work
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTED = "2026-11-26 06:26:18.361 [+384.378s] [WRN] [audio-cap] Buffer full in capture buffer!"
@@ -243,6 +250,31 @@ async def test_a_stalled_mercury_says_it_hears_nothing_until_the_warning_stops_o
         assert changes[-1] is True, "the page is told"
         await until_started(lambda: changes[-1] is False)  # the warning stopped: it hears again
         assert not m.deaf and m.describe() == "Mercury DATAC3, listening"
+    finally:
+        await stopped(m)
+
+
+async def test_the_row_of_a_connected_radio_whose_mercury_hears_nothing_has_the_code_on_the_wire(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mercurystall, "GAP_SEC", 0.5)
+    monkeypatch.setattr(mercurymodem, "GAP_SEC", 0.05)
+    m = modem(tmp_path)
+    line = Tnc("127.0.0.1:1", profile=MERCURY)
+    line.modem = m
+    line.state = Source.State.CONNECTED
+    row = lambda: radio_row(HF_SPEC, (HF_SPEC,), at_work(line, "mercury"), Claims())  # noqa: E731
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        assert row()["problem"] is None
+        end = time.monotonic()
+        m.stall._restarted.append(end)  # (restarted just now: no restart while the test looks)
+        for n in range(int(STALL_SEC * 10) + 1):
+            m._capture_full(end - STALL_SEC - 0.1 + n / 10)
+        assert (row()["state"], row()["problem"]) == ("connected", {"code": "modem.receive_deaf", "params": {}})
+        await until_started(lambda: not m.deaf)  # the warning stopped: it hears again
+        assert row()["problem"] is None
     finally:
         await stopped(m)
 

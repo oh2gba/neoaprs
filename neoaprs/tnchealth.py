@@ -84,6 +84,8 @@ def _problem(line: Line) -> tuple[str | None, Mapping[str, Param]]:
         return None, {}  # Tune or the keying test has the radio; the line may be down meanwhile
     if modem is not None and modem.state == "waiting" and modem.reason:
         return f"modem.{modem.reason}", {}
+    if state is Source.State.CONNECTED and modem is not None and modem.deaf:
+        return "modem.receive_deaf", {}
     if state is Source.State.CONNECTED:
         return ("radio.text_lines", {}) if code_of(line.why_unusable())[0] == "radio.text_lines" else (None, {})
     if state is Source.State.SILENT:
