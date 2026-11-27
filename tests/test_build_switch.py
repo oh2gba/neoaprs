@@ -185,3 +185,8 @@ async def test_a_data_folder_with_keys_and_sealed_messages_is_read_by_a_build_wi
     assert sent.wire is not None and not any(sent.text.encode() in frame.info for frame in after.tnc.sent), (
         "a retry sends the ciphertext it kept, never the text"
     )
+
+
+def test_no_workflow_builds_with_the_switch_on() -> None:
+    for workflow in (ROOT / ".github" / "workflows").glob("*.yml"):
+        assert "NEOAPRS_ENCRYPTION" not in workflow.read_text(encoding="utf-8"), workflow.name

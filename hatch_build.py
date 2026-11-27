@@ -31,6 +31,6 @@ class EncryptionSwitch(BuildHookInterface):  # type: ignore[type-arg]
         if not page_has_encryption(Path(self.root) / "neoaprs" / "page"):
             raise RuntimeError(
                 f"{SWITCH}=1, but neoaprs/page/ was built without encrypted messages: "
-                f"run {SWITCH}=1 scripts/build-page in a clone first"
+                f"run {SWITCH}=1 scripts/build-page in a clone of the repository, then build the wheel there"
             )
         build_data["force_include"].update({os.path.join(self.root, *path.split("/")): path for path in ENCRYPTION})
