@@ -48,10 +48,10 @@ class RadioSpec:
     @property
     def rtype(self) -> RadioType:
         """Return its type in force, slowed if ticked On HF (RadioTypeError if unknown)."""
-        return in_force(type_of(self.type), self.on_hf)
+        return in_force(type_of(self.type), self.slowed)
 
     @property
-    def on_hf(self) -> bool:
+    def slowed(self) -> bool:
         """Whether its type has the tick On HF and it is ticked; a bad stored value is unticked (it is
         reported once, where the stored settings are read: configradios._checked)."""
         try:
