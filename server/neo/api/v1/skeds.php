@@ -39,13 +39,15 @@
  *
  * What is kept: one file per sked, ID.json, in private/skeds/ (Apache refuses to serve private/),
  * written to a .part and renamed under one lock (the file `lock`); skeds that ended more than 30 days
- * ago, the oldest past ones beyond 1000, and those of a blocked call are removed at every write. The
- * sender's address is never written down: it is hashed under a salt
- * only this folder knows, for the rate limit (10 adds an hour from one address, 60 an hour in all; an
- * add counts once it is well formed and within the times, and so does a remove with a wrong token or of
- * an id that is gone; a remove with the right token and a refresh do not, so a flood cannot keep the
- * moderator from remaking the board). The hash is forgotten after the hour. A refresh writes each file
- * only when what it says has changed.
+ * ago, the oldest past ones beyond 1000, and those of a blocked call are left out of both files at
+ * once and removed by the first write after ten minutes since the last such cleanup (the file
+ * `cleaned`). The sender's address is never written down: it is hashed under a salt only this folder
+ * knows, for the rate limit (10 adds an hour from one address, 60 an hour in all; an add counts once it
+ * is well formed and within the times, and so does a remove with a wrong token or of an id that is
+ * gone; a remove with the right token does not). A refresh is counted apart (refresh.json): 60 an hour
+ * from one address and no share in all, so that a flood from elsewhere cannot keep the moderator from
+ * remaking the board. The hash is forgotten after the hour. A refresh writes each file only when what
+ * it says has changed.
  *
  * Moderation (server/skeds.sh, over SFTP): a file `closed` in the folder makes every add answer `closed`
  * and the board say "closed": true; `blocked.txt` holds a call per line whose adds answer `closed` and
@@ -76,6 +78,8 @@ const MAX_PAST_KEPT    = 1000;
 const RATE_PER_ADDRESS = 10;
 const RATE_IN_ALL      = 60;
 const RATE_WINDOW_SEC  = 3600;
+const RATE_REFRESH     = 60;      // refreshes an hour from one address, counted apart from the adds and never in all
+const CLEAN_EVERY_SEC  = 600;     // the removal of old, surplus and blocked files, at most this often
 const LOG_MAX_BYTES    = 256 * 1024;  // log cap: each application logs under its own private/logs/, each file at most 256 KB
 const TIME_FORM        = '/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/';
 const DIAL_FORM        = '/\A\d{1,2}\.\d{3,4} MHz (USB|LSB)\z/';  // as neoaprs/versions.py reads a dial and the HF box shows it
@@ -136,15 +140,15 @@ function skeds_address(): string
 }
 
 /**
- * Count this request against the address and the whole; false when either has used its hour's
- * share. Only hashes are kept.
+ * Count this request against the address and the whole in `file`; false when either has used its
+ * hour's share. Only hashes are kept.
  */
-function skeds_allowed(string $dir, string $address, int $now): bool
+function skeds_allowed(string $dir, string $address, int $now, string $file = 'rate.json', int $per = RATE_PER_ADDRESS, int $inAll = RATE_IN_ALL): bool
 {
     $saltFile = "$dir/salt";
     if (!is_file($saltFile)) @file_put_contents($saltFile, bin2hex(random_bytes(16)), LOCK_EX);
     $key = substr(hash('sha256', trim((string) @file_get_contents($saltFile)) . '|' . $address), 0, 16);
-    $h = @fopen("$dir/rate.json", 'c+');
+    $h = @fopen("$dir/$file", 'c+');
     if ($h === false) skeds_refuse(500, 'storage');
     flock($h, LOCK_EX);
     $seen = json_decode((string) stream_get_contents($h), true);
@@ -157,7 +161,7 @@ function skeds_allowed(string $dir, string $address, int $now): bool
         if ($times) { $kept[$k] = $times; $all += count($times); }
     }
     $mine = count($kept[$key] ?? []);
-    $ok = $mine < RATE_PER_ADDRESS && $all < RATE_IN_ALL;
+    $ok = $mine < $per && $all < $inAll;
     if ($ok) $kept[$key][] = $now;
     ftruncate($h, 0);
     rewind($h);
@@ -262,12 +266,25 @@ function skeds_is_blocked(string $call, array $blocked): bool
 }
 
 /**
+ * Whether the files that are no longer listed are removed now: at most every CLEAN_EVERY_SEC (the
+ * file `cleaned` holds when last), so that a write does not unlink at every request. Under the lock only.
+ */
+function skeds_clean_due(string $dir, int $now): bool
+{
+    $at = @filemtime("$dir/cleaned");
+    if ($at !== false && $now - $at < CLEAN_EVERY_SEC && $at <= $now) return false;
+    @touch("$dir/cleaned", $now);
+    return true;
+}
+
+/**
  * The stored skeds by id, to come and past, in the order of their start; ones that ended more than
  * KEEP_PAST_SEC ago, the oldest past ones beyond MAX_PAST_KEPT, ones of a blocked call and files that
- * are no sked are removed. Under the lock only.
+ * are no sked are left out, and removed when a cleanup is due. Under the lock only.
  */
 function skeds_stored(string $dir, int $now): array
 {
+    $clean = skeds_clean_due($dir, $now);
     $blocked = skeds_blocked($dir);
     $found = [];
     foreach ((array) @scandir($dir) as $name) {
@@ -279,20 +296,20 @@ function skeds_stored(string $dir, int $now): array
         $call = is_array($row) ? skeds_call($row['call'] ?? null) : null;
         $good = $from !== null && $to !== null && $from < $to && $call !== null && ($row['id'] ?? null) === $id && skeds_dial($row['dial'] ?? null) !== null && is_string($row['note'] ?? '');
         if (!$good || $to <= $now - KEEP_PAST_SEC || skeds_is_blocked($call, $blocked)) {
-            @unlink("$dir/$name");
+            if ($clean) @unlink("$dir/$name");
             continue;
         }
         $found[$id] = ['at' => $from, 'end' => $to] + $row;
     }
     $past = array_filter($found, fn($row) => $row['end'] <= $now);
     if (count($past) > MAX_PAST_KEPT) {
-        uasort($past, fn($a, $b) => [$b['end'], $a['id']] <=> [$a['end'], $b['id']]);
+        uasort($past, fn($a, $b) => $b['end'] <=> $a['end'] ?: strcmp((string) $a['id'], (string) $b['id']));
         foreach (array_slice($past, MAX_PAST_KEPT, null, true) as $id => $row) {
-            @unlink("$dir/$id.json");
+            if ($clean) @unlink("$dir/$id.json");
             unset($found[$id]);
         }
     }
-    uasort($found, fn($a, $b) => [$a['at'], $a['id']] <=> [$b['at'], $b['id']]);
+    uasort($found, fn($a, $b) => $a['at'] <=> $b['at'] ?: strcmp((string) $a['id'], (string) $b['id']));
     return $found;
 }
 
@@ -325,10 +342,10 @@ function skeds_past_rows(array $stored, int $now): array
         if ($row['end'] > $now) continue;
         $tests[$row['from'] . '|' . $row['to'] . '|' . $row['dial']][] = $row;
     }
-    uasort($tests, fn($a, $b) => [$b[0]['end'], $b[0]['at'], $a[0]['dial']] <=> [$a[0]['end'], $a[0]['at'], $b[0]['dial']]);
+    uasort($tests, fn($a, $b) => $b[0]['end'] <=> $a[0]['end'] ?: $b[0]['at'] <=> $a[0]['at'] ?: strcmp((string) $a[0]['dial'], (string) $b[0]['dial']));
     $rows = [];
     foreach (array_slice($tests, 0, MAX_PAST_TESTS) as $test) {
-        usort($test, fn($a, $b) => $a['id'] <=> $b['id']);
+        usort($test, fn($a, $b) => strcmp((string) $a['id'], (string) $b['id']));
         foreach ($test as $row) $rows[] = skeds_row($row);
     }
     return array_slice($rows, 0, MAX_PAST_ROWS);
@@ -474,6 +491,9 @@ function skeds_serves(string $path, array $value): bool
  */
 function skeds_refresh(string $dir, array $in, int $now): never
 {
+    if (!skeds_allowed($dir, skeds_address(), $now, 'refresh.json', RATE_REFRESH, PHP_INT_MAX)) {
+        skeds_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
+    }
     $lock = skeds_lock($dir);
     [$board, $past] = skeds_lists($dir, $now);
     if (skeds_serves(BOARD, $board)) $board = json_decode((string) file_get_contents(BOARD), true);

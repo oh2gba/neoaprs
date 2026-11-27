@@ -1212,6 +1212,8 @@ SKED_PAST = [
     ],
     [["ddddddddddd1", "OH2GBA", -722, -721, SKED_40], ["ddddddddddd2", "OH2XYZ", -720, -719, SKED_40]],
     [[f"eeeeeeeee{n:03d}", "OH2GBA", -2 * n - 2, -2 * n - 1, SKED_40] for n in range(21)],
+    # ids that read as numbers to PHP are ordered as text, as everywhere
+    [["12345e678902", "OH2XYZ", -3, -1, SKED_40], ["12345e678901", "OH2GBA", -3, -1, SKED_40]],
 ]
 SKED_NOTES = [
     "",

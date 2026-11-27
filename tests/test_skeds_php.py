@@ -147,7 +147,7 @@ class Endpoint:
         return [row["id"] for row in answer["past"]["past"]]
 
     def files(self) -> list[str]:
-        return sorted(p.name for p in self.stored.glob("*.json") if p.name != "rate.json")
+        return sorted(p.name for p in self.stored.glob("*.json") if p.name not in ("rate.json", "refresh.json"))
 
     def keep(
         self, sked: str, call: str = "OH2GBA", start: str | None = None, end: str | None = None, key: str | None = None
@@ -166,6 +166,10 @@ class Endpoint:
             "posted": at(-HOUR),
         }
         (self.stored / f"{sked}.json").write_text(json.dumps(row), encoding="utf-8")
+
+    def due(self) -> None:
+        """Make the next write the cleanup's, as ten minutes after the last one."""
+        (self.stored / "cleaned").unlink(missing_ok=True)
 
     def counted(self) -> int:
         path = self.stored / "rate.json"
@@ -502,7 +506,38 @@ def test_a_past_test_cannot_be_withdrawn_and_a_blocked_calls_past_tests_go(endpo
     code, answer = endpoint.remove(key, "0000000000c1")
     assert code == 200 and answer["board"]["skeds"] == [] and endpoint.past() == ["0000000000c1", "0000000000c2"]
     (endpoint.stored / "blocked.txt").write_text("OH2XYZ\n", encoding="utf-8")
+    assert endpoint.past() == ["0000000000c1"], "left out at once"
+    assert len(endpoint.files()) == 2, "the file goes at the next cleanup, not at every write"
+    endpoint.due()
     assert endpoint.past() == ["0000000000c1"] and endpoint.files() == ["0000000000c1.json"]
+
+
+def test_files_no_longer_listed_are_removed_at_most_every_ten_minutes(endpoint: Endpoint) -> None:
+    endpoint.start()
+    day = datetime.timedelta(days=30)
+    endpoint.keep("0000000000d1", start=at(-HOUR), end=at(HOUR))
+    assert endpoint.refresh()[0] == 200
+    cleaned = endpoint.stored / "cleaned"
+    stamp = cleaned.stat().st_mtime
+    endpoint.keep("0000000000d2", start=at(-day - 2 * HOUR), end=at(-day - HOUR))
+    assert endpoint.past() == [] and "0000000000d2.json" in endpoint.files(), "left out, kept until the cleanup"
+    assert cleaned.stat().st_mtime == stamp
+    os.utime(cleaned, (stamp - 601, stamp - 601))
+    assert endpoint.past() == [] and endpoint.files() == ["0000000000d1.json"]
+    assert cleaned.stat().st_mtime > stamp - 601
+
+
+def test_a_refresh_is_counted_for_its_address_apart_from_the_adds(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for _ in range(60):
+        assert endpoint.refresh()[0] == 200
+    assert endpoint.refresh() == (429, {"ok": False, "reason": "rate"})
+    assert endpoint.counted() == 0 and endpoint.add(token())[0] == 200, "the adds' share is untouched"
+    rates = json.loads((endpoint.stored / "refresh.json").read_text(encoding="utf-8"))
+    assert len(rates) == 1 and all(re.fullmatch(r"[0-9a-f]{16}", k) for k in rates), "only the hash"
+    path = endpoint.stored / "refresh.json"
+    path.write_text(json.dumps({k: [int(time.time()) - 3700] * 60 for k in rates}), encoding="utf-8")
+    assert endpoint.refresh()[0] == 200, "the hour gives the share back"
 
 
 def test_past_tests_beyond_a_thousand_are_removed_oldest_first(endpoint: Endpoint) -> None:
@@ -545,6 +580,7 @@ def test_a_blocked_call_cannot_add_and_its_skeds_go_at_the_next_write(endpoint: 
     endpoint.keep("cccccccccccc", call="OH2GBA-7")
     (endpoint.stored / "blocked.txt").write_text("# made up\noh2gba\n", encoding="utf-8")
     assert endpoint.add(token(), call="OH2GBA-5") == (403, {"ok": False, "reason": "closed"})
+    endpoint.due()
     assert [row["id"] for row in endpoint.refresh()[1]["board"]["skeds"]] == [kept] and endpoint.files() == [
         f"{kept}.json"
     ]
