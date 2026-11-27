@@ -26,6 +26,7 @@ from typing import IO
 
 import pytest
 
+from neoaprs import nodevices
 from neoaprs.cli import dbcmd
 from neoaprs import PROGRAM, VERSION
 from neoaprs import daemon as entry
@@ -409,6 +410,9 @@ def taken_ports(count: int) -> Iterator[int]:
     """`count` neighbouring ports on the loopback, bound and listening; the first of them."""
     for _ in range(50):
         base = random.randrange(10000, 11900)  # below the tests' page and modem ports and every system's outgoing range
+        # (the page tries the ports after its own too: none of them may be one a real modem uses)
+        if any(nodevices.modem_port(port) for port in range(base, base + count + 12)):
+            continue
         held: list[socket.socket] = []
         try:
             for port in range(base, base + count):
