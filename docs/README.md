@@ -32,6 +32,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/direwolf.md` | for developers: every number NeoAPRS fixes for the Sound card type and its Direwolf, where each comes from, and how the program is built, started and checked |
 | `docs/mercury.md` | for developers: every number NeoAPRS fixes for the Mercury modem, where each comes from and what was measured |
 | `docs/realmodems.md` | for developers: the workflow that runs five daemons with the real Direwolf and Mercury on virtual sound cables, what it proves and what it does not |
+| `docs/satellites.md` | for developers: the map's satellites layer: the data flow from CelesTrak through the project's server to the page, the provider's rules, where the list lives and how to add a satellite |
 | `docs/pskreporter.md` | for developers: what a Mercury radio reports to PSK Reporter, the templates, the pace and where each rule comes from |
 | `docs/palette.md` | the palette of the page: every colour token with its light and dark value and what it is for, held to `tokens.css` by a test |
 | `docs/ARCHITECTURE.md` | the layers and their import rules, the composition root, the database actor, the size and duplication ratchets |

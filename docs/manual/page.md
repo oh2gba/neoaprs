@@ -169,6 +169,7 @@ The **Layers** button is in the map's top left corner, under + and −. It opens
 | **ALOHA circle** | the dashed circles above | yes |
 | **Locator grid** | the Maidenhead grid, below | no |
 | **Day and night** | the night and the twilight, below | no |
+| **Satellites** | the ISS and the satellites with an APRS digipeater, below | no |
 | **Aircraft** | the aircraft, below | no |
 | **Ships** | the ships, below | no |
 
@@ -181,6 +182,17 @@ At most 400 cells are named at a time; when more would be in view the grid uses 
 ### Day and night
 
 With **Day and night** ticked, the night is a soft shade over the map, with a lighter band for the twilight, where the sun is up to 6 degrees below the horizon. It moves with the sun and is redrawn every minute. It shows only while the map is zoomed out, to zoom 6; closer in, it is gone.
+
+### Satellites
+
+With **Satellites** ticked, the map shows the ISS and the satellites that carry a working APRS digipeater, each where it is now, moving as it goes round. They are drawn wherever they are: zoom the map out to see them all. There is nothing to set.
+
+- **A click** on a satellite opens its card. Several can be open at once, beside the stations' cards; a phone shows one.
+- **The next pass** over your station: when it rises, how long it lasts, when it sets and how high it gets. While it is up, the card shows the time left, its elevation now and the Doppler shift now instead. A pass that stays below 10 degrees is not listed. Without a position of your station the card has no pass.
+- **The frequencies, the mode and the path** to put in a packet, each only where the project's list is sure of it: a frequency or path that has not been confirmed is not shown. **Copy** beside the path copies it.
+- **Where to tune**: with a pass, a small table gives the downlink frequency to listen on at the rise, the highest point and the set, and the uplink frequency to send on, which goes the other way.
+- **The footprint and the track**: for each open card the map draws the circle on the ground from which the satellite is above the horizon, and the way it will go for one orbit. The radio is not tuned and nothing is sent.
+- **The list and the orbits** come from the project's server once a day, while the layer is on: `https://neo.oh2gba.eu/api/v1/satellites.php`, asked with the User-Agent of [the update check](install.md#the-update-check) and nothing else. The last file is kept in the data folder and used while the network is away; a satellite whose orbit is older than 14 days is not drawn. With the update check off (`NEOAPRS_UPDATE_CHECK=0`) nothing is fetched.
 
 ### Aircraft and ships
 
