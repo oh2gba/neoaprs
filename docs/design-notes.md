@@ -31,7 +31,7 @@ file is unchanged since. A temporary copy file is dead once unchanged for five m
 
 ## neoaprs/beaconrule.py
 
-The floor of a radio type is about shared airtime (HF and LoRa, 30 minutes), whereas FM's 20
+The floor of a radio type is about shared airtime (HF and LoRa, 30 minutes), whereas the 1200 baud Packet types' 20
 minutes is what the setting already enforces; only the higher floor is a radio's own and also
 limits how often a live object is repeated on it.
 #### Notes from comment pass 2 (list pass2-00x02)
@@ -695,8 +695,8 @@ The numbers of the kinds (radiotypes/common.py makes the `Limits` and `Allowed` 
   hears. No SmartBeaconing, because a report every few tens of seconds would take the channel from
   everyone. The station's one beacon interval has a floor of 30 minutes (a 3.8 s frame on a shared
   channel). A random pause of up to 300 s comes in each slot of the interval, because fixed stations with stable
-  clocks that started together would otherwise key up together every interval; FM has one of up to 30 s, and the
-  status, our objects' and bulletins' repeats and the first beacon after a start have the radio's pause too
+  clocks that started together would otherwise key up together every interval; Packet at 1200 baud has one of up to
+  30 s, and the status, our objects' and bulletins' repeats and the first beacon after a start have the radio's pause too
   (docs/daemon.md, "The random pause"). The size was
   measured with `scripts/mercury-measure beacons` (docs/mercury.md): at a 30-minute interval,
   stations started within a minute lose 14 percent of beacons with two stations and 43 percent with
