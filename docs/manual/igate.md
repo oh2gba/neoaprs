@@ -47,7 +47,7 @@ While the iGate gates (switched on, with a passcode, logged in and verified: the
 ```
 
 - `MSG_CNT` is the messages sent from the internet to the radio: always 0, because nothing of the internet is ever sent on the air;
-- `LOC_CNT` is the "local" stations: those heard direct (by no digipeater) in the last hour on the radios that may carry a path, FM and LoRa;
+- `LOC_CNT` is the "local" stations: those heard direct (by no digipeater) in the last hour on the radios that may carry a path, Packet and LoRa;
 - `UPL_CNT` is the packets put on APRS-IS since NeoAPRS started, one of the counts Dire Wolf adds.
 
 It goes after a random wait of 0 to 120 seconds by the path of the station that asked, and once one is taken another is not for 10 minutes, as for `?APRS?` ([Answers to queries](beacon.md#answers-to-queries)). With the iGate off, still connecting, or only listening (no passcode, or one the server did not accept), it is no iGate and the query is not answered; nor under **RX only**, when nothing is sent at all.

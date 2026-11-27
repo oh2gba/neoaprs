@@ -1,6 +1,6 @@
 # The NeoAPRS manual
 
-NeoAPRS is an APRS client for your radios: one or several, of any kind, an FM radio with its TNC or on a sound card, an SSB radio with the Mercury modem, a LoRa board. It reads them, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of each radio and the settings.
+NeoAPRS is an APRS client for your radios: one or several, of any kind, a packet radio with its TNC or on a sound card, an SSB radio with the Mercury modem, a LoRa board. It reads them, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of each radio and the settings.
 
 It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. Switched on, it also shows the stations of APRS-IS round you, receive only. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard, and asks the stations round you who is there.
 

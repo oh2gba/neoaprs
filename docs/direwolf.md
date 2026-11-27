@@ -1,10 +1,10 @@
 # Direwolf in NeoAPRS
 
-For developers: every number NeoAPRS fixes for the radio type **Sound card**, whose modem is the Direwolf that NeoAPRS carries and starts, where each comes from, and how the program is built, started and checked. The source was read at the tag 1.8.1 (commit `a231971a652bfb574a4bae9a5d875fbce53d2267`), and the file and line references below are to that tree.
+For developers: every number NeoAPRS fixes for the radio types **Sound card, 1200 (VHF/UHF)** (`direwolf`) and **Sound card, 300 (HF)** (`direwolf-300`), whose modem is the Direwolf that NeoAPRS carries and starts, where each comes from, and how the program is built, started and checked. The source was read at the tag 1.8.1 (commit `a231971a652bfb574a4bae9a5d875fbce53d2267`), and the file and line references below are to that tree.
 
 ## What it is
 
-A radio of the type is an FM radio behind a sound-card interface (a Digirig, an AIOC, a USB sound card). NeoAPRS starts the Direwolf it carries for it, with a configuration it writes at every start in the
+A radio of the 1200 type is an FM radio behind a sound-card interface (a Digirig, an AIOC, a USB sound card); one of the 300 type is an SSB radio on HF behind one ([300 baud on HF](#300-baud-on-hf)). NeoAPRS starts the Direwolf it carries for it, with a configuration it writes at every start in the
 radio's own folder (`radios/<id>/`), and reaches it on its KISS port as it reaches any KISS server over TCP. The code: `neoaprs/direwolf.py` (pure: the pins, the configuration, the command line, the
 keying proposed, what the program prints), `neoaprs/direwolfprogram.py` (one run of the program), `neoaprs/direwolfmodem.py` and `neoaprs/direwolftune.py` (the supervisor: the claims, the restarts, Tune and the
 keying test), `neoaprs/direwolfdriver.py` (the radio's driver), `neoaprs/winmm.py` (the WinMM devices on Windows), `neoaprs/radiotypes/soundcard.py` (the type). What it shares with the Mercury modem is
@@ -22,7 +22,7 @@ starts: the system's default device may be the computer's speakers.
 | line | why |
 |---|---|
 | `ADEVICE <card>` | the card's id (Linux: its stable ALSA name, `plughw:CARD=CODEC,DEV=0`; never `default`); on Windows the WinMM numbers of its input and output (`ADEVICE 1 3`) |
-| `ACHANNELS 1`, `CHANNEL 0`, `MODEM 1200` | one channel of AFSK 1200; one stereo card as two radios is not offered, the claims hold a card whole |
+| `ACHANNELS 1`, `CHANNEL 0`, `MODEM 1200` | one channel of AFSK 1200; one stereo card as two radios is not offered, the claims hold a card whole. The 300 type writes `MODEM 300 A- 7@30` ([300 baud on HF](#300-baud-on-hf)) |
 | `TXTAIL 20` | 200 ms of flags after the last frame before the key goes off, twice Direwolf's own 100 ms: room for the sound card's output delay on Windows ([Keying times](#keying-times)) |
 | `PTT CM108`, `PTT <port> RTS`, `PTT <port> DTR`, none | the keying `cm108`, `rts:PORT`, `dtr:PORT`, `vox`; after ADEVICE, because `PTT CM108` looks up the HID of the output device set before it (`config.c:2140-2145`) |
 | `KISSPORT 0`, `KISSPORT <port>` | slot 0 holds 8001 until it is cleared, and a new port takes the first empty slot (`config.c:877-884`, `4985-5020`) |
@@ -81,6 +81,21 @@ All three numbers are `demod_get_audio_level` of channel 0 (`demod.c:1069`): hal
 level does not scale it: `-G` reaches the tone generators alone (`gen_tone_init`, `dtmf_init`, `morse_init`, `direwolf.c`), and the same audio read at `-G 30` and `-G 100` gives the same number
 (`tests/test_direwolf_real.py`). A level that differs after a change of the Transmit level is the card's or the radio's: each change starts Direwolf again, which opens the card anew (a card with an automatic gain of its own
 may settle at another level from there; not proven on the FTX-1).
+
+## 300 baud on HF
+
+The type `direwolf-300` is the same program and configuration with one line changed, `MODEM 300 A- 7@30` (`direwolf.BAUDS`, `_MODEM_LINES`), chosen from the User Guide of 1.8.1, section 9.2.4 "Radio channel - Modem configuration for 300 baud HF":
+
+| part | why |
+|---|---|
+| `300` | 300 baud AFSK; with no tones given Direwolf takes 1600 and 1800 Hz for it (`config.c:1497-1501`; `config.c:1596-1602` prints a warning when the default pair is written out, so it is not) |
+| `A-` | the A demodulator with one slicer: `@` and `+` cannot be combined (`demod.c:278-284`, "Demodulator + option can't be combined with multiple frequencies"), and the default letter, A with `+`, would turn the seven decoders back into one. The `+` is for FM's pre-emphasis, which SSB does not have (User Guide 9.2.4) |
+| `7@30` | seven decoders whose tones are 30 Hz apart, 1510/1710 to 1690/1890 Hz (`demod.c:468`): the Guide's example for HF, which "should be able to tolerate mistuning of 100 Hz in each direction". The B demodulator with several slicers (`B+`), the Guide's other way, gives no such figure |
+| the sample rate | divided by 3 for 300 baud whatever is written (`demod.c:233-247`), so seven decoders cost little |
+
+TXDELAY, TXTAIL, SLOTTIME and PERSIST are those of the 1200 type: the same 300 ms and 200 ms are 90 and 60 bits at 300 baud, and the flags are the preamble a transceiver's SSB transmitter needs no more of. The program says its modem at the start, `Channel 0: 300 baud, AFSK 1600 & 1800 Hz, A-, 44100 sample rate / 3, Tx AX.25.` and a line for each decoder (`demod.c:304-314`, `474`), which the log keeps among the first lines of a run. The status line and the row's `mode` say `AFSK300` (`direwolf.mode_of`). A change between the two types restarts the radio (`DirewolfSettings.baud`).
+
+A frame of 80 bytes takes over two seconds at 300 baud, so the type is paced as a slow channel, by its limits and not its name (`radiotypes.common.SLOW_PACKET_LIMITS`, [design-notes.md](design-notes.md#neoaprsradiotypepy)): the beacon's floor of 30 minutes and its random pause of up to 300 s, the pause before each retry of a message, what a pair passes onto it. It has paths (HF has digipeaters and iGates of its own), and no fill-in digipeater, SmartBeaconing or ALOHA circle. Not tried on the air.
 
 ## Running it
 

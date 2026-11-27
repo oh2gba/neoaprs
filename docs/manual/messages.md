@@ -96,7 +96,7 @@ Resize the panel and the layout follows, with the same conversation open.
 ### The conversation
 
 - The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the radio the messages go on (while several radios that can send are on), the path they go by and the **RF only** tickbox ([below](#the-radio-of-a-message)); Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route.
-- While several radios that can send are on, the tag of the radio the messages go on stands after the call, such as **FM** or **20 m**. Its hover text says "Messages to this station go on radio 20 m". The tag keeps the room of the longest name, so nothing beside it moves when the radio changes.
+- While several radios that can send are on, the tag of the radio the messages go on stands after the call, such as **Packet** or **20 m**. Its hover text says "Messages to this station go on radio 20 m". The tag keeps the room of the longest name, so nothing beside it moves when the radio changes.
 - The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2"), and while several radios are on the tag of the radio it came on before its route words.
 - When the radio measured the signal of a packet that came in, the SNR ends that line ("Mercury direct · SNR −3 dB", in whole dB; RSSI in dBm too for a radio that gives it, a LoRa board); a radio that measures none, a KISS TNC, leaves it out.
 - Each message of yours has a mark: a clock while it is being sent or is queued; a check once it is acked (the title has the time of the ack and the SNR of the ack, when the radio measured it); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
@@ -205,7 +205,7 @@ A path of 8 digipeaters has no room for it. A message to the station is then ref
 With one radio on, every message goes on it and nothing here applies. With several radios on that can send, each conversation has one radio, which the daemon chooses when a message goes:
 
 1. the radio you chose for the station in Route, while it is on;
-2. else the radio that heard the station in the last six hours, a local one (FM, LoRa) before a Mercury radio when both did;
+2. else the radio that heard the station in the last six hours, a local one (Packet, LoRa) before a Mercury radio when both did;
 3. else the radio that heard it last;
 4. a call no radio heard goes on a radio that can send, by the order of the boxes in Settings → Radio: the topmost one that is on ([radio.md](radio.md#what-goes-on-which-radio)). So does a text to `CQ`, `ALL` or `QST`, which is no station.
 
@@ -213,7 +213,7 @@ A message keeps the radio of its first attempt for all its retries, after a rest
 
 - **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: Mercury"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too.
 - **Path and RF only** under it belong to the radio in force. On a radio that carries no path (Mercury) they are greyed with their value kept, their hover text says "Mercury: no path", and the line under them says "Automatic: direct". For a station heard there through a gateway the line names it, "Automatic: via OH2GBA-12", and RF only stays yours to tick. The path you set for a station on one radio is not used on another.
-- **A call that was never heard** has the row Radio greyed on Automatic until the station is heard. It names the radio the message will go on ("Automatic: FM"), so you see it before Send.
+- **A call that was never heard** has the row Radio greyed on Automatic until the station is heard. It names the radio the message will go on ("Automatic: Packet"), so you see it before Send.
 - **The station panel** of the Stations tab has the same Route, and its questions go on the station's radio. **Trace the route** is greyed on a radio that carries no path.
 - **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is. A message heard only on a radio that receives, or on one switched off or removed since, is acked on the radio a message to that station would take; a query heard only there is not answered.
 - **Email** (`EMAIL-2`) goes on the one radio chosen in the Email tab ([email.md](email.md#which-radio)). The Route of the gateway shows that radio greyed: it is chosen there and nowhere else.

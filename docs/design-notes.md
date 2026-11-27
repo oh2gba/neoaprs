@@ -688,7 +688,7 @@ missed; the speed threshold for "in motion" is chosen because a parked GPS drift
 
 The numbers of the kinds (radiotypes/common.py makes the `Limits` and `Allowed` of each from them):
 
-- FM: paths and the fill-in digipeater of the VHF network, SmartBeaconing for a moving station,
+- Packet (`fm`) on VHF and UHF: paths and the fill-in digipeater of the VHF network, SmartBeaconing for a moving station,
   beacons from 20 minutes (the net cycle of a 2-hop path), AX.25's own frame limit.
 - HF (Mercury): no path, because every station hears every frame direct and a path costs bytes of
   a 123-byte frame. No digipeater, because a repeat only fills a channel every station already
@@ -713,6 +713,14 @@ The numbers of the kinds (radiotypes/common.py makes the `Limits` and `Allowed` 
   before the closing FEND), so a frame whose escapes would not fit is shortened or refused too
   (the KISS frame limit is 256; 250 leaves room for three escapes). On the air a packet is the
   text after a 3-byte header in a 255-byte buffer, so 252 bytes of text.
+
+- Classic APRS on HF (the type `direwolf-300`, and a KISS type ticked On HF, which `radiotypes.in_force`
+  gives these limits): AX.25 at 300 baud, about 2.5 s for a frame of 80 bytes on a channel every station
+  within the skip shares, so Mercury's floor of 30 minutes, its random pause of 300 s and its retry pause,
+  and the pairs' slow-channel limits (`crossrule.slow_channel`); no frame limit but AX.25's. Paths stay,
+  as HF has digipeaters and iGates of its own; no fill-in digipeater, which on HF only fills a channel
+  every station hears; no SmartBeaconing; no ALOHA circle, which is worked out for 1200 baud. A ticked
+  type is the same type with these limits: its fields and driver are its own.
 
 The HF retry pause (up to 20 s before each message retry) exists because two stations that
 collided would otherwise retry at the same moments and collide again. A frame keys the radio for

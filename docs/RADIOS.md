@@ -1,6 +1,6 @@
 # Radios and TNCs
 
-How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the page, **Settings** tab, **Radio** group, choose the **Radio type** and, for a serial one, the **Port** and **Speed**; for a sound card, the **Sound card** and **Keying**; for a program or a board on the network, the **Address** and **Port**. On Linux an empty serial port means NeoAPRS searches the USB serial ports; on Windows pick the COM port from the list. **Find my radio**, in the Settings tab and in the setup guide, tries the ports for you (Linux, Windows, macOS). With no radio at all, a *Dummy* radio makes up traffic to try NeoAPRS with.
+How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the page, **Settings** tab, **Radio** group, **Add radio** lists the types under four headings, **Packet (classic APRS)**, **Mercury (DATAC3)**, **LoRa** and **Without a radio**; choose the **Radio type** and, for a serial one, the **Port** and **Speed**; for a sound card, the **Sound card** and **Keying**; for a program or a board on the network, the **Address** and **Port**. On Linux an empty serial port means NeoAPRS searches the USB serial ports; on Windows pick the COM port from the list. **Find my radio**, in the Settings tab and in the setup guide, tries the ports for you (Linux, Windows, macOS). With no radio at all, a *Dummy* radio makes up traffic to try NeoAPRS with.
 
 ## Which radio or TNC do you have?
 
@@ -9,7 +9,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | Kenwood TH-D7 | yes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | PC cable PG-4W, serial 9600 |
 | Kenwood TM-D700 | yes | same | PC port (DE-9), serial 9600 |
 | Kenwood TM-D710, TH-D72 | yes with notes | Kenwood TM-D710 / TH-D72 | COM socket (D710) or USB (D72), 9600 |
-| Kenwood TH-D74, TH-D75 | yes | KISS TNC (Kenwood TH-D74/D75, Mobilinkd…) | USB-C or Bluetooth (classic); KISS switched on at the radio. Bluetooth LE only through a B.B. Link adapter |
+| Kenwood TH-D74, TH-D75 | yes | KISS TNC | USB-C or Bluetooth (classic); KISS switched on at the radio. Bluetooth LE only through a B.B. Link adapter |
 | Kenwood TS-2000 | yes with notes (unverified) | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | COM port, shared with CAT |
 | Kenwood TM-D750E | unknown | – | announced, nothing known |
 | Mobilinkd TNC3, TNC4 | yes | KISS TNC | USB, Bluetooth (classic) or Bluetooth LE (`ble://`, needs the extra `ble`; LE untested by us) |
@@ -17,18 +17,19 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | TNC-X, TNC-Pi, other TNC already in KISS | yes | KISS TNC | serial or USB; TNC-Pi baud unverified (19200 reported) |
 | MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | RS-232; depends on the firmware |
 | Kantronics KPC-3+ | yes | Kantronics KPC-3+ | RS-232 |
-| A sound-card interface on an FM radio: Digirig, SignaLink, AIOC, a radio's data port or USB audio, a USB sound dongle | yes | Sound card | NeoAPRS carries Direwolf and starts it itself: nothing to install (Windows, Linux; [Sound card](#sound-card)) |
-| Yaesu FTX-1 (its own USB sound card) | yes, tried on the air on FM | Sound card | the radio's USB cable: its sound card, keyed by RTS on the second of its two serial ports, after one setting on the radio ([Yaesu FTX-1](#yaesu-ftx-1)) |
-| A Direwolf or a soundmodem you run yourself, on this computer or another (on a Mac: the way for a sound-card interface) | yes | Your own Direwolf or soundmodem | the program serves KISS on the network ([Your own Direwolf](#your-own-direwolf)) |
-| A radio with a sound card and the Mercury modem (Rhizomatica): an SSB radio on shortwave, on 6 m or 2 m, or an FM radio's audio | yes | Mercury modem (sound card) | NeoAPRS carries Mercury and starts it itself; only stations with the same modem on the same frequency hear you ([Mercury modem](#mercury-modem)) |
+| A sound-card interface on an FM radio: Digirig, SignaLink, AIOC, a radio's data port or USB audio, a USB sound dongle | yes | Sound card, 1200 (VHF/UHF) | NeoAPRS carries Direwolf and starts it itself: nothing to install (Windows, Linux; [Sound card](#sound-card)) |
+| A sound-card interface on an SSB radio, for classic APRS on HF (300 baud, usually 10.1476 MHz USB) | untested on the air | Sound card, 300 (HF) | the same Direwolf with its 300 baud modem, paced as a Mercury radio ([Sound card](#sound-card)) |
+| Yaesu FTX-1 (its own USB sound card) | yes, tried on the air on FM | Sound card, 1200 (VHF/UHF) | the radio's USB cable: its sound card, keyed by RTS on the second of its two serial ports, after one setting on the radio ([Yaesu FTX-1](#yaesu-ftx-1)) |
+| A Direwolf or a soundmodem you run yourself, on this computer or another (on a Mac: the way for a sound-card interface) | yes | Direwolf | the program serves KISS on the network ([Your own Direwolf](#your-own-direwolf)) |
+| A radio with a sound card and the Mercury modem (Rhizomatica): an SSB radio on shortwave, on 6 m or 2 m, or an FM radio's audio | yes | Sound card, under Mercury (DATAC3) | NeoAPRS carries Mercury and starts it itself; only stations with the same modem on the same frequency hear you ([Mercury modem](#mercury-modem)) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
 | PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP; Bluetooth LE (`ble://`) is listed by the BLE KISS specification, untested |
-| LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU's T-Beam tracker, esp32_loraprs | untested on a board, tested against each firmware's bytes | LoRa APRS board on the network, LoRa APRS board on USB or Bluetooth, or LoRa APRS iGate on USB (RX only) | a radio of its own kind, LoRa ([LoRa APRS boards](#lora-aprs-boards)) |
-| Yaesu FTM-100, FTM-400, FTM-500 | yes, receive only | Yaesu FTM, TNC in monitor mode (RX only) | the data cable that comes with the radio, 9600 ([RX only](#yaesu-ftm-tnc-in-monitor-mode-rx-only)); nothing is sent from the PC. To transmit, use a sound-card interface and the type Sound card |
+| LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU's T-Beam tracker, esp32_loraprs | untested on a board, tested against each firmware's bytes | Tracker or iGate on Wi-Fi, Tracker or iGate on USB or Bluetooth, or iGate on USB (RX only), under LoRa | a radio of its own kind, LoRa ([LoRa APRS boards](#lora-aprs-boards)) |
+| Yaesu FTM-100, FTM-400, FTM-500 | yes, receive only | Yaesu FTM, TNC in monitor mode (RX only) | the data cable that comes with the radio, 9600 ([RX only](#yaesu-ftm-tnc-in-monitor-mode-rx-only)); nothing is sent from the PC. To transmit, use a sound-card interface and the type Sound card, 1200 (VHF/UHF) |
 | Yaesu FTM-300 | untested | Yaesu FTM, TNC in monitor mode (RX only) | as the FTM-400 |
-| Yaesu FT1D, FT2D, FT3D, FT5D | no | – | their data port output is incomplete (ygate's tests). A sound-card interface and the type Sound card work as for any radio |
+| Yaesu FT1D, FT2D, FT3D, FT5D | no | – | their data port output is incomplete (ygate's tests). A sound-card interface and the type Sound card, 1200 (VHF/UHF) work as for any radio |
 | A TNC in its own monitor mode: TAPR TNC-2 and clones, Kantronics KPC-3, AEA PK-232 | yes, receive only | Yaesu FTM, TNC in monitor mode (RX only) | RS-232; the TNC keeps its own digipeater and mailbox ([RX only](#yaesu-ftm-tnc-in-monitor-mode-rx-only)) |
-| Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound-card interface and the type Sound card work as for any radio |
+| Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound-card interface and the type Sound card, 1200 (VHF/UHF) work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
 
 Tried on the air: the Kenwood TH-D7 and the Yaesu FTX-1. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
@@ -62,7 +63,7 @@ KISS only, no command mode. NeoAPRS cannot enter KISS or ask the radio anything,
 1. Menu 983: choose **USB** or **Bluetooth** for KISS (one at a time).
 2. USB: menu 980 to *COM + AF/IF Output* (not Mass Storage). Connect USB-C. **Windows:** install the Kenwood virtual COM driver *before* the first plugging in. **Linux:** the port is a ttyACM device, under `/dev/serial/by-id` named like `usb-JVCKENWOOD_TH-D75-if00` (D75; the D74's name is unverified). The baud setting is ignored.
    Bluetooth: pair it once with the system as in "Bluetooth" below (radio side: menu 930 on, 932 search; D74: menu 931 on, 934 pairing mode).
-3. Radio type: *KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)*. Port: the serial port, the COM port, or on Linux the paired radio in the list (`bt://AA:BB:CC:DD:EE:FF`; NeoAPRS finds its serial channel, which is usually 2, itself).
+3. Radio type: *KISS TNC*. Port: the serial port, the COM port, or on Linux the paired radio in the list (`bt://AA:BB:CC:DD:EE:FF`; NeoAPRS finds its serial channel, which is usually 2, itself).
    The radio's own Bluetooth is classic only. The B.B. Link adapter (an ESP32 that joins the radio's classic Bluetooth serial to Bluetooth LE, made for iPhones) speaks the BLE KISS service, so it can be reached as `ble://`; untested by us.
 4. On the radio press **[F]** then **[LIST]** until the display shows KISS (D75; D74: **[F]** then **[TNC]**). Menu 505 data speed 1200 or 9600, menu 506 data band A or B, menu 508 TX delay (D75).
 
@@ -86,7 +87,7 @@ One radio sold under these names (the GA-5WB too). It has a KISS TNC that is rea
 1. **KISS on:** Menu, General Settings, *KISS TNC*: switch it on and save (the UV-PRO's menu; the VR-N76's names may differ slightly).
 2. **Pair:** on the radio Menu, *Pairing*, OK (it stays discoverable about two minutes); then pair it with the computer as in "Bluetooth" below. The device is named `UV-PRO` or `VR-N76`. If a code is asked for, try `0000` or `1234`.
 3. **Disconnect the radio's own app** (the phone app) first. A Bluetooth serial link serves one program at a time; the vendors do not say so, it is the rule for the others.
-4. **NeoAPRS:** Radio type *KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)*, **Port**: the radio, `bt://AA:BB:CC:DD:EE:FF`. Reports give RFCOMM channel 1 (a user who bound it by hand says another number did not work); NeoAPRS asks the radio which channel its serial port is on and tries 1 to 3 after it, and the log (`neoaprs.log`) says which channel connected. If it is not the right one, write it: `bt://AA:BB:CC:DD:EE:FF/1` with *Other...*.
+4. **NeoAPRS:** Radio type *KISS TNC*, **Port**: the radio, `bt://AA:BB:CC:DD:EE:FF`. Reports give RFCOMM channel 1 (a user who bound it by hand says another number did not work); NeoAPRS asks the radio which channel its serial port is on and tries 1 to 3 after it, and the log (`neoaprs.log`) says which channel connected. If it is not the right one, write it: `bt://AA:BB:CC:DD:EE:FF/1` with *Other...*.
 5. The radio shows a small telephone icon beside the power level when the link is up. A silent line is normal until it hears a packet.
 6. Bluetooth LE: address the radio as `ble://AA:BB:CC:DD:EE:FF` (its address is in `bluetoothctl devices` or a scan, "Bluetooth LE" below). Nothing here has been tried with this radio's LE.
 
@@ -100,7 +101,7 @@ DB1NTO's pocket APRS device (VHF, 0.5 or 1 W, GPS, a KISS TNC). **Status: untest
 
 1. **Mode:** device mode *TNC*, then choose *Bluetooth* (not *Bluetooth LE*). Bluetooth works only in TNC mode and switches on with it.
 2. **Pair:** the PicoAPRS is visible for 4 minutes after TNC mode is switched on and then switches Bluetooth off to save power; the Bluetooth icon in its main menu switches it on again. Pair it with the computer as in "Bluetooth" below, in that time: it is named `PicoAPRS`, both sides show a PIN, and the **right-hand button (Confirm)** on the device confirms it.
-3. **NeoAPRS:** Radio type *KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)*, **Port**: `bt://AA:BB:CC:DD:EE:FF` as listed under its name. The channel is looked up on the device; if that fails, 1 to 3 are tried, and the log says which one connected (name it with `/1` if need be).
+3. **NeoAPRS:** Radio type *KISS TNC*, **Port**: `bt://AA:BB:CC:DD:EE:FF` as listed under its name. The channel is looked up on the device; if that fails, 1 to 3 are tried, and the log says which one connected (name it with `/1` if need be).
 4. The Bluetooth LE mode needs no pairing and does not appear among the paired devices; it is reached as `ble://AA:BB:CC:DD:EE:FF` ("Bluetooth LE" below; the specification of KISS over LE lists the PicoAPRS V4, the manual does not say which service it uses). The USB-C port (a virtual COM port, 115200, ignored by the device) is the other way.
 
 ## NinoTNC
@@ -115,9 +116,9 @@ A LoRa APRS board is an ESP32 board with a LoRa chip (a LilyGO LoRa32 or T-Beam,
 
 | type | the board | what is set on the board |
 |---|---|---|
-| LoRa APRS board on the network (`lora-tcp`, the default) | the CA2RXU LoRa APRS iGate on WiFi or Ethernet: its TNC server on port 8001 | *TNC*: *Enable TNC server*, *Protocol* KISS |
-| LoRa APRS board on USB or Bluetooth (`lora-serial`) | the CA2RXU Tracker's `_TNC` image over Bluetooth, the CA2RXU iGate's TNC on USB (`tnc.enableSerial`), DL9SAU's T-Beam tracker (KISS on USB and Bluetooth by default), esp32_loraprs | KISS; the port is the serial device, `bt://` or `ble://` |
-| LoRa APRS iGate on USB (RX only) (`lora-console`) | the CA2RXU iGate on USB with its TNC off, as it comes: it writes a line for each packet it hears, with its signal | nothing: this radio only receives, and nothing is ever written to it |
+| Tracker or iGate on Wi-Fi (`lora-tcp`, the default) | the CA2RXU LoRa APRS iGate on WiFi or Ethernet: its TNC server on port 8001 | *TNC*: *Enable TNC server*, *Protocol* KISS |
+| Tracker or iGate on USB or Bluetooth (`lora-serial`) | the CA2RXU Tracker's `_TNC` image over Bluetooth, the CA2RXU iGate's TNC on USB (`tnc.enableSerial`), DL9SAU's T-Beam tracker (KISS on USB and Bluetooth by default), esp32_loraprs | KISS; the port is the serial device, `bt://` or `ble://` |
+| iGate on USB (RX only) (`lora-console`) | the CA2RXU iGate on USB with its TNC off, as it comes: it writes a line for each packet it hears, with its signal | nothing: this radio only receives, and nothing is ever written to it |
 
 **On the CA2RXU iGate** (its page, or `igate_conf.json`):
 - *Protocol* KISS (`tnc.kissProtocol`). Left at TNC2, the board is heard and nothing is sent on it: the radio status says "the board sends text lines: set it to KISS".
@@ -141,22 +142,23 @@ A LoRa APRS board is an ESP32 board with a LoRa chip (a LilyGO LoRa32 or T-Beam,
 
 ## Sound card
 
-For an FM radio on a sound-card interface (Digirig, AIOC, SignaLink, a USB dongle, a radio's USB audio): NeoAPRS carries Direwolf and runs it for you, on Windows and Linux. There is nothing to install.
+For a radio on a sound-card interface (Digirig, AIOC, SignaLink, a USB dongle, a radio's USB audio): NeoAPRS carries Direwolf and runs it for you, on Windows and Linux. There is nothing to install.
 
-1. Settings → Radio → Add radio: *Sound card*, then Add.
+1. Settings → Radio → Add radio, under Packet: *Sound card, 1200 (VHF/UHF)* for an FM radio, or *Sound card, 300 (HF)* for classic APRS on an SSB radio on HF; then Add.
 2. In its box: the Sound card (the interface's card is proposed), the Keying (RTS of a Digirig's serial port, the CM108 pin of an AIOC, or VOX; proposed from what is plugged in), the Transmit level and the Receive level. Where the sound card has levels of its own, the Transmit level is a slider for its playback level and the Receive level has a slider for its capture level; NeoAPRS puts what you set back on the card at every start.
 3. Tune sends alternating tones for ten seconds, to set the deviation; Test keys the radio for a second. The Receive level shows the audio as it arrives, ten times a second while you look at it: a packet should reach the green.
 
 - One sound card is one radio's: a card that another radio uses, a Mercury radio or another Sound card radio, is refused.
 - **Never choose the Digirig's serial port as a serial TNC.** Opening it keys the transmitter through RTS. Its keying is the Sound card radio's.
 - On Linux, keying by a CM108 pin (an AIOC, a dongle) needs your user to be allowed to write the chip's `/dev/hidraw` device, which a udev rule gives; without it the radio waits and says its keying could not be opened.
-- A Mac has no Sound card type yet: run your own Direwolf there, as below.
+- A Mac has no Sound card types under Packet yet: run your own Direwolf there, as below.
+- **On HF** (*Sound card, 300 (HF)*): Direwolf's 300 baud modem, the tones 1600 and 1800 Hz with seven decoders 30 Hz apart, so that a station up to about 100 Hz off the dial is still decoded ([direwolf.md](direwolf.md#300-baud-on-hf)). The usual dial is 10.1476 MHz USB. A packet takes seconds there, so the radio is paced as a Mercury radio: the beacon every 30 minutes at the most often, a random pause of up to 5 minutes, a pause before each retry, no fill-in digipeater, no SmartBeaconing. A KISS TNC on an HF radio gets the same with the tick **On HF** in its box.
 
 ### Yaesu FTX-1
 
 The FTX-1's USB cable is all it takes: the computer sees one hub with a sound card ("USB Audio Device"), two serial ports (a CP2105 chip) and one port more.
 
-1. In NeoAPRS, Add radio: *Sound card*. Sound card: *USB Audio Device*. Keying: RTS on the second of the radio's two serial ports (on Linux the one whose name under /dev/serial/by-id ends in if01-port0).
+1. In NeoAPRS, Add radio: *Sound card, 1200 (VHF/UHF)*. Sound card: *USB Audio Device*. Keying: RTS on the second of the radio's two serial ports (on Linux the one whose name under /dev/serial/by-id ends in if01-port0).
 2. On the radio, hold FUNC: RADIO SETTING → MODE FM → RPTT SELECT: *RTS* (it is OFF when the radio is new, and the radio then ignores the computer's keying). Leave MOD SOURCE on AUTO: keyed by RTS the radio sends the computer's audio, keyed by the microphone's PTT the microphone's, so voice works as before.
 3. The levels are on the radio, under MODE FM: USB OUT LEVEL (what the computer hears) and USB MOD GAIN (what the radio sends), each 0 to 100, 50 when new.
 
@@ -184,7 +186,7 @@ KISSPORT 8001
 ```
 
 3. Start it: `direwolf -c direwolf.conf` (Windows: `direwolf.exe -c direwolf.conf`). It prints "Ready to accept KISS client application on port 8001".
-4. NeoAPRS: Radio type *Your own Direwolf or soundmodem*, Address `127.0.0.1`, Port `8001`.
+4. NeoAPRS: Radio type *Direwolf*, Address `127.0.0.1`, Port `8001`. For a Direwolf of your own on HF, tick **On HF** in its box.
 5. Direwolf on another machine (a Pi): enter its address as the Address. Port 8001 is open to the whole network: keep it inside your LAN.
 
 - Channels, TX delay and the like are Direwolf's: see its User Guide.
@@ -192,7 +194,7 @@ KISSPORT 8001
 ## UZ7HO soundmodem (Windows)
 
 1. In the soundmodem settings choose the sound card and the PTT as for any modem, and switch on its KISS server.
-2. NeoAPRS: *Your own Direwolf or soundmodem*, Address `127.0.0.1`, Port as in the soundmodem's setting. Reports say 8100 (unverified; the AGW port is 8000, do not use it). If NeoAPRS does not connect, check that the KISS port is on and the AGW port is not the same number.
+2. NeoAPRS: *Direwolf*, Address `127.0.0.1`, Port as in the soundmodem's setting. Reports say 8100 (unverified; the AGW port is 8000, do not use it). If NeoAPRS does not connect, check that the KISS port is on and the AGW port is not the same number.
 3. QtSoundModem works the same way.
 
 ## Mercury modem
@@ -203,7 +205,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 
 **Who can reach Mercury.** Mercury listens on TCP ports for its KISS and control lines and has no password of its own, so whoever could reach those ports could key the transmitter past everything NeoAPRS checks. The Mercury NeoAPRS ships is built to listen on this computer only (the loopback), on Linux, macOS and Windows alike: NeoAPRS builds it from Rhizomatica's source with a change that binds every port it opens to 127.0.0.1 (`packaging/mercury/loopback.patch`), so nothing on the network can reach it, and nothing has to be set in a firewall or anywhere else. A Mercury of the operator's own, started by something else (`--hf-port`), is the operator's to keep to the same; a program that NeoAPRS started and finds listening on any other address is ended and not run again.
 
-**Set-up.** In the Radio group of the Settings tab, **Add radio**: *Mercury modem (sound card)*, then **Add** (the type *Dummy Mercury radio* is for trying it with no radio: below). That is all for most stations: NeoAPRS chooses the radio's **Sound card** (the one USB sound card that records and plays, else the system's default device) and how the radio is keyed (**Keying**: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, as a DigiRig or an IC-7300 with its USB cable is keyed, else VOX) and keeps both as the settings. Both can be changed: the sound card from the list Mercury gives, the keying as VOX, a CM108 sound chip, or the RTS or DTR line of one of the serial ports listed. The mode (DATAC3) is fixed so that every NeoAPRS station can hear every other. With several radios on, a message goes out on the radio that heard the station in the last six hours, FM or LoRa before HF, and the iGate gates what every radio hears. **Never choose the DigiRig's serial port as a serial TNC**: opening it keys the transmitter. Two buttons try the set-up with no station on the other end: **Test**, beside Keying, keys the radio for a second (with next to no audio on a keying line, with the tuning tone on VOX, which keys on audio), so you see it go to transmit and come back; **Tune** keys it through the same keying and sends a steady 1000 Hz tone (Mercury's own TUNE command) through the sound card for ten seconds, or until pressed again, so that an antenna tuner finds its match, the drive is set with the radio's ALC still, and the right sound device is told from the others by the tone on the monitor and the meter. Both are off while RX only is ticked and while Mercury is not running.
+**Set-up.** In the Radio group of the Settings tab, **Add radio**: *Sound card* under Mercury (DATAC3), then **Add** (the type *Dummy Mercury radio* is for trying it with no radio: below). That is all for most stations: NeoAPRS chooses the radio's **Sound card** (the one USB sound card that records and plays, else the system's default device) and how the radio is keyed (**Keying**: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, as a DigiRig or an IC-7300 with its USB cable is keyed, else VOX) and keeps both as the settings. Both can be changed: the sound card from the list Mercury gives, the keying as VOX, a CM108 sound chip, or the RTS or DTR line of one of the serial ports listed. The mode (DATAC3) is fixed so that every NeoAPRS station can hear every other. With several radios on, a message goes out on the radio that heard the station in the last six hours, Packet or LoRa before Mercury, and the iGate gates what every radio hears. **Never choose the DigiRig's serial port as a serial TNC**: opening it keys the transmitter. Two buttons try the set-up with no station on the other end: **Test**, beside Keying, keys the radio for a second (with next to no audio on a keying line, with the tuning tone on VOX, which keys on audio), so you see it go to transmit and come back; **Tune** keys it through the same keying and sends a steady 1000 Hz tone (Mercury's own TUNE command) through the sound card for ten seconds, or until pressed again, so that an antenna tuner finds its match, the drive is set with the radio's ALC still, and the right sound device is told from the others by the tone on the monitor and the meter. Both are off while RX only is ticked and while Mercury is not running.
 
 **Trying it with no radio.** The radio type *Dummy Mercury radio* (**Add radio**, as above) makes up six fixed stations hundreds of kilometres away (Turku, Kuopio, Oulu, Stockholm, Hamburg, Warsaw; calls on the Q prefix, which is nobody's), beaconing every half hour to an hour with the HF pause, the first within two minutes; the nearest answers a message with an ack after a frame's time each way and a reply. Nothing is keyed and nothing goes on the air; your own frames are played through the computer's speakers as Mercury's real audio (the bundled Mercury: on Linux and macOS its transmit audio is handed to the system's player, `pw-play`, `paplay` or `aplay`; on Windows, which has no named pipes for Mercury's audio, nothing is played and the Dummy HF radio runs without the sound), so you hear what the modem sounds like ([radio.md](manual/radio.md#the-dummy-mercury-radio)).
 
@@ -217,7 +219,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 | 10 m | 28.1800 MHz |
 | 6 m | 50.6200 MHz |
 
-10.1476 MHz is the 300 baud HF APRS frequency, not this one.
+10.1476 MHz USB is classic APRS at 300 baud, another signal: a radio of the type *Sound card, 300 (HF)* is for it ([Sound card](#sound-card)).
 
 **The rules to keep**
 
@@ -231,7 +233,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 
 - A packet keys the radio for 3.8 seconds, and the radio carries 123 bytes of it. A message that would not fit is refused with the reason; a beacon's comment is cut to fit. Nothing is sent cut off.
 - With VOX keying the modem plays a steady tone of 150 ms just ahead of every frame, so that the radio is already transmitting when the frame itself begins.
-- The beacon is the station's one Beacon choice in the My station tab, for every radio; on a Mercury radio it is 30 minutes at the least (a shorter one is raised there, with a line in the log) while an FM radio keeps the interval chosen. Every timed send (the beacon, the status, the repeats of objects and bulletins) waits a random pause, up to five minutes on a Mercury radio and 30 seconds on FM, so that fixed stations do not key up together. Over HF it is a timed beacon: no SmartBeaconing; a moving station's HF beacon says where it is now and sends nothing without a fresh fix. A message and its acknowledgement take the channel for about 10 seconds; the acknowledgement comes back well inside the first wait of 32 seconds, so the retries are the usual ones.
+- The beacon is the station's one Beacon choice in the My station tab, for every radio; on a Mercury radio it is 30 minutes at the least (a shorter one is raised there, with a line in the log) while a packet radio on VHF or UHF keeps the interval chosen. Every timed send (the beacon, the status, the repeats of objects and bulletins) waits a random pause, up to five minutes on a Mercury radio and 30 seconds on a packet radio on VHF or UHF, so that fixed stations do not key up together. Over HF it is a timed beacon: no SmartBeaconing; a moving station's HF beacon says where it is now and sends nothing without a fresh fix. A message and its acknowledgement take the channel for about 10 seconds; the acknowledgement comes back well inside the first wait of 32 seconds, so the retries are the usual ones.
 - Every frame goes direct. There are no digipeaters on HF (every station on the mode hears every frame), so no path is sent whatever the radios' paths and the stations' own paths say (they are kept, untouched, for VHF), the path and RF only controls are not shown while a Mercury radio is the radio, and the fill-in digipeater is off and not offered: repeating would only fill a channel every station already hears, and a WIDE or GATE path would carry your packet to every VHF network that hears it. A packet reaches HF from another radio of the station only through a pair of radios: the one whose call the packet's path names, at most four frames in any five minutes, two of them kept for messages and acks ([the manual](manual/beacon.md#passing-a-packet-between-two-radios)); a message or an ack of ours goes back through the gateway its station came by.
 - On 40 m and 20 m, distant stations are usually heard 1000 to 2000 km away and not nearby. An iGate that hears you puts you on aprs.fi.
 - The radio status says what Mercury does and nothing of the plumbing: the mode, listening, transmitting, channel busy, tuning or keyed, the signal-to-noise ratio of the latest frame, and the last packet. When Mercury has stopped, or this installation carries none (a wheel install), the status says so; a sound card Mercury cannot open (it runs on deaf and mute, saying `[ERR] [audio-play] error in audio->open()`) ends it with the status "the sound card could not be opened: choose another one in the Sound card field", and it is tried again after a while; the log has Mercury's own lines and the ports it was started on. Mercury's configuration is written by NeoAPRS at every start into `mercury.ini` in the radio's folder of the data folder (`radios/<id>`, its number); the busy detector is switched on there.

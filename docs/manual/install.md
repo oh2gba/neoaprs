@@ -9,7 +9,7 @@ Every file is on the [releases page](https://github.com/oh2gba/neoaprs/releases/
 | Mac with Apple silicon | `NeoAPRS-<version>-arm64.dmg` ([macOS](#macos)) |
 | Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` or `_amd64.deb` ([.deb](#raspberry-pi-debian-ubuntu-deb)) |
 
-These four are the supported ways: each carries its own Python and the Mercury modem, and all but the Mac's also carry Direwolf for an FM radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
+These four are the supported ways: each carries its own Python and the Mercury modem, and all but the Mac's also carry Direwolf for a packet radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
 
 After installing, [start.md](start.md) takes you through the first start. The data you make (settings, messages, packets, the map) is kept in the data folder, which no installer, update or removal touches.
 

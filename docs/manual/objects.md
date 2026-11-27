@@ -130,7 +130,7 @@ The group box **Local info**, the last of this tab, asks the stations round you 
 - Under a station's categories its row says **sent 1 · 1 arrived**: how many objects its closing line says it sent and how many were heard. When fewer arrived, once 30 seconds have passed since that line, the row is on a lime plate and **Ask again** asks for the same once more (the same waits as Ask: the same request once a minute, any two ten seconds apart). A request can lose an object to a collision with the stations still repeating it. **in Stations** opens the Stations tab and flashes the first of them.
 - A station with nothing within its range (50 km unless you named a distance) stays silent: "no answer" in the status row means that, or that none is in radio range.
 - The stations that answered are forgotten an hour after they answered.
-- With the [Dummy FM radio](radio.md#the-dummy-fm-radio) the made-up club station Q1CLB answers with local info (the categories 70 cm repeater and Food), so that you can try it without a radio.
+- With the [Dummy packet radio](radio.md#the-dummy-packet-radio) the made-up club station Q1CLB answers with local info (the categories 70 cm repeater and Food), so that you can try it without a radio.
 
 ## Heard back, and taken over
 

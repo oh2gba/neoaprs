@@ -33,10 +33,10 @@ Choosing an interval, or **On**, turns it all on again. Choosing **On** for a mo
 With one radio on, the beacon goes out on it and nothing here applies. With several radios on that can send:
 
 - **Send on**, under the Beacon choice, has a tick for each radio that is on and can send, by its name (a radio that only receives has none, [radio.md](radio.md#what-each-radio-does-and-what-the-station-does-once)). The beacon goes out on every radio that is ticked, and a change applies at once. The last tick that is ticked is greyed, so that the beacon is switched off by the Beacon choice alone; a radio switched off or removed can leave the beacon ticked for none of those that are on, and then it goes on none until you tick one. A new radio is ticked.
-- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside a Mercury radio that sends every 30. The random pause ([below](#the-random-pause)) is the radio's own.
+- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on a Mercury or a LoRa radio goes every 30 minutes at the most often, a moving station's on a LoRa radio follows SmartBeaconing, as on a packet radio on VHF. A packet radio on VHF or UHF keeps the interval chosen: 20 minutes is 20 minutes there, beside a Mercury radio that sends every 30; a packet radio on HF is held to 30 minutes as a Mercury radio is. The random pause ([below](#the-random-pause)) is the radio's own.
 - **The state of the beacon** says the latest and the soonest of the radios, and behind its arrow a line for each radio, by its name, with its last and next beacon and its own interval.
-- **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); a Mercury radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
-- **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("FM: path"). A Mercury radio has none: every frame of it goes direct.
+- **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (a packet radio on VHF or UHF, and LoRa); a Mercury radio or a packet radio on HF sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
+- **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("Packet: path"). A Mercury radio has none: every frame of it goes direct.
 - **Beacon now** goes on every ticked radio and is on while one of them is connected. **Send status now** goes on the radios of the status's own Send on ([The status](#the-status)), and so does the timed status.
 
 ## RX only
@@ -94,7 +94,7 @@ Your own row on the map is your settings (position, symbol and comment), or the 
 
 ### The random pause
 
-What goes out by the clock waits a random time first, drawn anew each time, so that stations that keep the same time do not send together: the beacon, the status, the repeats of your objects and bulletins, and the first beacon after a start. The pause is up to 30 seconds on an FM radio and up to 5 minutes on a Mercury or a LoRa radio. The next send is an interval after the slot, not after the pause, so the interval holds on average.
+What goes out by the clock waits a random time first, drawn anew each time, so that stations that keep the same time do not send together: the beacon, the status, the repeats of your objects and bulletins, and the first beacon after a start. The pause is up to 30 seconds on a packet radio on VHF or UHF and up to 5 minutes on a packet radio on HF, a Mercury or a LoRa radio. The next send is an interval after the slot, not after the pause, so the interval holds on average.
 
 Beacon now, Send status now and the first packet of a new or changed object or post go at once, with no pause.
 
@@ -115,7 +115,7 @@ PHG is written `PHGphgd`:
 
 The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details.
 
-**Beacon now** is the row under it, **Send now**: a button that asks twice ("Really send?"). It is off while no radio it goes out on is connected (its title then says "The TNC is not connected", or "FM: not connected" with the radio's name while several are on), while a change of the settings is being saved (so what is sent is what is in force), and in [RX only](#rx-only), with a tip that says so; [Off](#beacon-off) does not. The next beacon of the timer is then an interval later.
+**Beacon now** is the row under it, **Send now**: a button that asks twice ("Really send?"). It is off while no radio it goes out on is connected (its title then says "The TNC is not connected", or "Packet: not connected" with the radio's name while several are on), while a change of the settings is being saved (so what is sent is what is in force), and in [RX only](#rx-only), with a tip that says so; [Off](#beacon-off) does not. The next beacon of the timer is then an interval later.
 
 For a fixed station the state is **on** while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is behind the arrow. With the beacon off it reads **No automatic beacon · Beacon now still sends**; in RX only the state is **off** in the warn colour and the line reads **RX only: nothing is sent**. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
@@ -132,7 +132,7 @@ What to set (the Station and Beacon groups of the My station tab):
 1. **Position**: **A GPS via gpsd** reads a gpsd daemon (on this computer or another one on the network; its address, **gpsd address**, is `gps/host`, `127.0.0.1:2947` by default). **A GPS on a serial port** reads the NMEA sentences of a GPS receiver (**GPS port**, `gps/device`, such as `/dev/ttyUSB1`, at **GPS speed**, `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
 
    The port is picked from the serial ports of the computer, as the radio's is: **not set** first, then the ports listed, **Refresh** for a cable just plugged in, and **Other...** to type a path or a `socket://host:port`. Choosing a GPS is never refused for a missing port or address: the GPS state then reads Connecting and says what to give (**no port set** or **no address set**), and nothing is opened until it is given.
-2. **Travelling** in the Beacon group (`beacon/travel`), if you are not going by car: see below. It is there while a radio that is on does SmartBeaconing (an FM or a LoRa radio).
+2. **Travelling** in the Beacon group (`beacon/travel`), if you are not going by car: see below. It is there while a radio that is on does SmartBeaconing (a packet radio on VHF or UHF, or a LoRa radio).
 3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
 
 The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon, and also while the beacon is Off. The log says `gps: reading` and the address or port when the GPS is read, and `gps: off` when you choose Fixed again.
@@ -295,7 +295,7 @@ It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: 
 
 The general query `?IGATE?` asks the iGates for their capabilities. It is answered only while your iGate puts what the radios hear on APRS-IS: switched on, with a passcode, logged in and verified ([Internet stations](igate.md#answering-igate)).
 
-The answer to `?IGATE?` is one packet, `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812`: no message sent from the internet to the radio (the iGate is receive only), the stations heard direct in the last hour on the radios that may carry a path, FM and LoRa and the packets put on APRS-IS since NeoAPRS started. It is taken as `?APRS?` is: a packet and not the text of a message, after a random wait of 0 to 120 seconds, not again for 10 minutes (its own 10 minutes, apart from those of `?APRS?`), with the same footprint.
+The answer to `?IGATE?` is one packet, `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812`: no message sent from the internet to the radio (the iGate is receive only), the stations heard direct in the last hour on the radios that may carry a path, Packet and LoRa and the packets put on APRS-IS since NeoAPRS started. It is taken as `?APRS?` is: a packet and not the text of a message, after a random wait of 0 to 120 seconds, not again for 10 minutes (its own 10 minutes, apart from those of `?APRS?`), with the same footprint.
 
 The general query `?WX?` (asking the weather stations for a weather report) is recognised and never answered: NeoAPRS has no weather report of its own to send, and a station that has nothing relevant need not answer. The log notes it at the debug level and the packet is an ordinary packet in the packet log.
 
@@ -310,7 +310,7 @@ A request for local info is not a query to you; if you keep objects in a categor
 
 The digipeater is off until you tick its **Enable** in the Settings tab, group Digipeater (with an (i)): the radio's own `radio/<id>/digipeat`. It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
 
-Each FM radio that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. A Mercury or a LoRa radio repeats nothing as a fill-in; a packet reaches one from another radio only through a [pair](#passing-a-packet-between-two-radios).
+Each packet radio on VHF or UHF that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. A packet radio on HF, a Mercury or a LoRa radio repeats nothing as a fill-in; a packet reaches one from another radio only through a [pair](#passing-a-packet-between-two-radios).
 
 When it is on, NeoAPRS sends a packet that radio heard again, once, when the first digipeater of the packet's path that is not yet marked as used is:
 
@@ -350,7 +350,7 @@ A radio that is not connected, not enabled or ticked RX only takes nothing. A pa
 
 **The limits of the radio it goes out on.**
 
-- An FM radio takes at most 4 frames sent again in any 10 seconds, the fill-in's frames and the pair's together; the rest are dropped.
+- A packet radio on VHF or UHF takes at most 4 frames sent again in any 10 seconds, the fill-in's frames and the pair's together; the rest are dropped.
 - A radio that sends slowly, an HF radio or a LoRa radio, takes from the pairs at most 4 frames in any 5 minutes. Other packets (positions, status, objects, bulletins, telemetry) take at most 2 of the 4, so that messages and acks always keep the other 2; from one station at most 2 messages in those 5 minutes (its acks do not count in its 2). A packet other than a message or an ack goes at most once in 30 minutes for a station. What is over a limit is dropped, not kept for later.
 - A directed query (`?APRSP` to one station) is not passed onto a radio that carries no path, because its answer goes back without a path and could not cross: HF is one. A query to all stations is passed nowhere.
 - A slow radio is handed one frame at a time: a frame passed while the radio is keyed or the channel is busy, or within 3.8 seconds of the previous frame handed to it, waits for it, one frame for each radio, and is sent when the radio is free if that is within 30 seconds of when the packet was heard; else it is dropped.

@@ -1,6 +1,6 @@
 # NeoAPRS
 
-See who is on the air around you, chat with other hams and know your message arrived. Use every radio you have at once: FM, HF and LoRa. No internet needed, and it is free.
+See who is on the air around you, chat with other hams and know your message arrived. Use every radio you have at once: packet on VHF and HF, Mercury and LoRa. No internet needed, and it is free.
 
 NeoAPRS is an APRS client for Windows, macOS, Linux and the Raspberry Pi. It runs as a desktop app, or as a service next to the radio that you open from a laptop, a tablet or a phone.
 
@@ -18,7 +18,7 @@ NeoAPRS is in beta. We are looking for more users and testers: try it and [tell 
 - Linux: [NeoAPRS-x86_64.AppImage](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage): make it executable and run it
 - Raspberry Pi: [neoaprs_arm64.deb](https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb); Debian and Ubuntu on a PC: [neoaprs_amd64.deb](https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_amd64.deb): `sudo apt install ./neoaprs_arm64.deb`, then `neoaprs service install --linger`
 
-Each carries its own Python and the Mercury modem, and on Windows and Linux Direwolf for an FM radio on a sound card: nothing else to install.
+Each carries its own Python and the Mercury modem, and on Windows and Linux Direwolf for a packet radio on a sound card: nothing else to install.
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? A Dummy radio makes up the traffic of a station near you (FM, Mercury or LoRa), to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
 
@@ -38,11 +38,13 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 
 ## Radios
 
-On FM: any radio with a sound-card interface (Digirig, AIOC, SignaLink), with the APRS modem built in on Windows and Linux; Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75; Mobilinkd TNC3 and TNC4; NinoTNC, TNC-Pi, TNC-X, Kantronics KPC-3+, TNC-2 clones and any TNC in KISS mode; Bluetooth radios such as the BTech UV-PRO; PicoAPRS; your own Direwolf or UZ7HO soundmodem; a Yaesu FTM or a TNC without KISS, receive only.
+Packet on VHF and UHF: any radio with a sound-card interface (Digirig, AIOC, SignaLink), with the APRS modem built in on Windows and Linux; Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75; Mobilinkd TNC3 and TNC4; NinoTNC, TNC-Pi, TNC-X, Kantronics KPC-3+, TNC-2 clones and any TNC in KISS mode; Bluetooth radios such as the BTech UV-PRO; PicoAPRS; your own Direwolf or UZ7HO soundmodem; a Yaesu FTM or a TNC without KISS, receive only.
 
-On HF: an SSB radio with a USB sound card or an interface (a Digirig, a SignaLink, the radio's own USB audio) and the [Mercury](https://github.com/Rhizomatica/mercury) modem that comes with NeoAPRS. The suggested frequencies are on the [project page](https://neo.oh2gba.eu/#hf). Read more: [the article](https://neo.oh2gba.eu/aprs-below-the-noise.html), [the one-page summary](https://neo.oh2gba.eu/aprs-over-hf-one-page.html), [the technical note](https://neo.oh2gba.eu/aprs-over-hf-mercury.html) and [the first test on the air](https://neo.oh2gba.eu/first-test.html).
+Packet on HF: an SSB radio with a sound-card interface and the 300 baud modem of the Direwolf that comes with NeoAPRS, or a TNC ticked On HF.
 
-On LoRa: ESP32 boards with the CA2RXU iGate or Tracker, DL9SAU's tracker or esp32_loraprs, on the network, USB or Bluetooth.
+Mercury: an SSB radio with a USB sound card or an interface (a Digirig, a SignaLink, the radio's own USB audio) and the [Mercury](https://github.com/Rhizomatica/mercury) modem that comes with NeoAPRS. The suggested frequencies are on the [project page](https://neo.oh2gba.eu/#hf). Read more: [the article](https://neo.oh2gba.eu/aprs-below-the-noise.html), [the one-page summary](https://neo.oh2gba.eu/aprs-over-hf-one-page.html), [the technical note](https://neo.oh2gba.eu/aprs-over-hf-mercury.html) and [the first test on the air](https://neo.oh2gba.eu/first-test.html).
+
+LoRa: ESP32 boards with the CA2RXU iGate or Tracker, DL9SAU's tracker or esp32_loraprs, on the network, USB or Bluetooth.
 
 A GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the setup of each.
 
