@@ -9,14 +9,16 @@
  *    "elements": {OMM field: text} | null}]}
  * The list is private/satellites-list.json of the repository (uploaded by server/deploy.sh --site);
  * the elements are CelesTrak's group "amateur" as CSV (OMM fields, which hold catalogue numbers above
- * 99999). Before any file exists the answer is 503 {"ok": false, "reason": "none"}; another method 405.
+ * 99999). Without a readable list the answer is 503 {"ok": false, "reason": "none"}; another method 405.
  *
  * CelesTrak's rules (celestrak.org/usage-policy.php, gp-data-formats.php): one download per update,
  * new data at most every 2 hours, compressed, and no further asking after an answer that is not 200.
  * So: the elements are downloaded when the served file is older than 24 hours, by one request at a
  * time (the file `lock`), never twice within 2 hours, and after a failed download (any status but
- * 200, no answer, or a body that is not the CSV) not again for 2 hours (the file `failed`); the old
- * file is served meanwhile. A changed list is merged with the last download (elements.csv) at once,
+ * 200, no answer, or a body that is not the whole CSV: its header, every line a row, at least
+ * MIN_ROWS rows, and no more than one of the listed satellites lost since the last download) not
+ * again for 2 hours, then 6, then 24 (the file `failed` holds how many in a row); the old file is
+ * served meanwhile, and while another request makes the first file the list without elements. A changed list is merged with the last download (elements.csv) at once,
  * without asking CelesTrak. CELESTRAK_URL in the environment replaces the address (the tests). */
 declare(strict_types=1);
 
@@ -32,7 +34,8 @@ const SERVED        = STORE . '/satellites.json';
 const RAW           = STORE . '/elements.csv';
 const CELESTRAK     = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=csv';
 const MAX_AGE_SEC   = 86400;
-const PAUSE_SEC     = 7200;           // CelesTrak's update interval: the least time between two downloads, and the wait after a failure
+const PAUSES_SEC    = [7200, 21600, 86400];  // the wait after one, two, three or more failures in a row; the first is CelesTrak's update interval
+const MIN_ROWS      = 20;
 const MAX_RAW       = 4 * 1024 * 1024;
 const FIELD_FORM    = '/\A[0-9A-Za-z_ .:+\-()\/]{0,40}\z/';
 const MODES         = ['', 'afsk1200', 'gmsk9600'];
@@ -83,20 +86,39 @@ function sats_download(string $url): ?string
     return is_string($body) && str_starts_with($body, 'OBJECT_NAME,') ? $body : null;
 }
 
-/** The CSV's rows by catalogue number, only fields of the plain form. */
-function sats_rows(string $csv): array
+/** The CSV's rows by catalogue number, only fields of the plain form; $bad counts the lines that are no row with a catalogue number. */
+function sats_rows(string $csv, int &$bad = 0): array
 {
     $lines = preg_split('/\r?\n/', trim($csv));
     $names = str_getcsv((string) array_shift($lines), ',', '"', '');
     $rows = [];
+    $bad = 0;
     foreach ($lines as $line) {
         $values = str_getcsv($line, ',', '"', '');
-        if (count($values) !== count($names)) continue;
-        $row = array_combine($names, $values);
+        $row = count($values) === count($names) ? array_combine($names, $values) : [];
+        if (!ctype_digit($row['NORAD_CAT_ID'] ?? '')) {
+            $bad++;
+            continue;
+        }
         $ok = array_filter($row, static fn ($v, $k) => preg_match(FIELD_FORM, (string) $k) && preg_match(FIELD_FORM, (string) $v), ARRAY_FILTER_USE_BOTH);
-        if (count($ok) === count($row) && ctype_digit($row['NORAD_CAT_ID'] ?? '')) $rows[(int) $row['NORAD_CAT_ID']] = $row;
+        if (count($ok) === count($row)) $rows[(int) $row['NORAD_CAT_ID']] = $row;
     }
     return $rows;
+}
+
+/** Whether a download is the whole CSV and has not lost more than one listed satellite of the last one. */
+function sats_whole(string $csv, array $list, string $last): bool
+{
+    $bad = 0;
+    $rows = sats_rows($csv, $bad);
+    if ($bad > 0 || count($rows) < MIN_ROWS) return false;
+    $before = $last === '' ? [] : sats_rows($last);
+    $lost = 0;
+    foreach (is_array($list['satellites'] ?? null) ? $list['satellites'] : [] as $one) {
+        $id = $one['id'] ?? null;
+        if (is_int($id) && isset($before[$id]) && !isset($rows[$id])) $lost++;
+    }
+    return $lost <= 1;
 }
 
 function sats_freqs(mixed $list): array
@@ -159,13 +181,17 @@ function sats_refresh(): void
     $served = is_file(SERVED) ? (int) filemtime(SERVED) : 0;
     $raw = is_file(RAW) ? (int) filemtime(RAW) : 0;
     $failed = is_file(STORE . '/failed') ? (int) filemtime(STORE . '/failed') : 0;
-    if ($now - $raw >= MAX_AGE_SEC && $now - $failed >= PAUSE_SEC) {
+    $failures = $failed > 0 ? max(1, (int) @file_get_contents(STORE . '/failed')) : 0;
+    $pause = PAUSES_SEC[min(max($failures, 1), count(PAUSES_SEC)) - 1];
+    if ($now - $raw >= MAX_AGE_SEC && $now - $failed >= $pause) {
         $csv = sats_download(getenv('CELESTRAK_URL') ?: CELESTRAK);
-        if ($csv !== null && sats_write(RAW, $csv)) {
+        $last = $raw > 0 ? (string) @file_get_contents(RAW) : '';
+        if ($csv !== null && sats_whole($csv, $list, $last) && sats_write(RAW, $csv)) {
             $raw = $now;
             $served = 0;
+            @unlink(STORE . '/failed');
         } else {
-            @touch(STORE . '/failed');
+            @file_put_contents(STORE . '/failed', (string) ($failures + 1));
         }
     }
     if ($served === 0 || $served < (int) filemtime(LIST_FILE) || $served < $raw) {
@@ -183,5 +209,9 @@ if ($method !== 'GET' && $method !== 'HEAD') {
 }
 sats_refresh();
 $body = @file_get_contents(SERVED);
-if ($body === false) sats_answer(503, json_encode(['ok' => false, 'reason' => 'none']) . "\n");
+if ($body === false) {
+    $list = json_decode((string) @file_get_contents(LIST_FILE), true);
+    if (!is_array($list)) sats_answer(503, json_encode(['ok' => false, 'reason' => 'none']) . "\n");
+    $body = sats_merge($list, [], null);  // another request is making the first file
+}
 sats_answer(200, $body);

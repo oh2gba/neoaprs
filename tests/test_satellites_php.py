@@ -186,3 +186,66 @@ def test_a_changed_list_is_merged_at_once_without_asking_celestrak(site: Site, u
 def test_only_a_get_is_answered(site: Site, upstream: Celestrak) -> None:
     code, answer = site.get("POST")
     assert code == 405 and answer == {"ok": False, "reason": "method"} and upstream.asked == []
+
+
+def _good_csv() -> bytes:
+    return fixture_bytes("satellites/amateur.csv")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"",
+        b"OBJECT_NAME,OBJECT_ID,EPOCH,NORAD_CAT_ID\n",
+        b"\n".join(_good_csv().splitlines()[:3]) + b"\n",  # the header and two rows
+        _good_csv()[: len(_good_csv()) // 2],  # cut off in a line
+        b"<html>not the csv</html>",
+    ],
+    ids=["empty", "header-only", "two-rows", "truncated", "not-csv"],
+)
+def test_a_partial_empty_truncated_or_malformed_download_never_replaces_the_good_elements(
+    site: Site, upstream: Celestrak, body: bytes
+) -> None:
+    _, first = site.get()
+    site.age("elements.csv", DAY + 60)
+    upstream.body = body
+    code, answer = site.get()
+    assert code == 200 and len(upstream.asked) == 2
+    assert answer["satellites"] == first["satellites"], "the good elements are kept"
+    assert (site.store / "failed").is_file()
+
+
+def test_a_download_that_lost_listed_satellites_is_not_taken(site: Site, upstream: Celestrak) -> None:
+    _, first = site.get()
+    site.age("elements.csv", DAY + 60)
+    lines = _good_csv().splitlines()
+    gone = [b",25544," in line or b",101098," in line for line in lines]
+    upstream.body = b"\n".join(line for line, out in zip(lines, gone, strict=True) if not out) + b"\n"
+    assert sum(gone) == 2
+    _, answer = site.get()
+    assert answer["satellites"] == first["satellites"]
+
+
+def test_failures_in_a_row_wait_two_hours_then_six_then_a_day_and_a_good_download_ends_it(
+    site: Site, upstream: Celestrak
+) -> None:
+    site.get()
+    site.age("elements.csv", DAY + 60)
+    upstream.status = 404
+    site.get()
+    for waited in (2 * 3600 + 60, 6 * 3600 + 60):
+        asked = len(upstream.asked)
+        site.age("failed", waited - 3600)
+        site.get()
+        assert len(upstream.asked) == asked, f"not asked again within {waited - 60} s"
+        site.age("failed", waited)
+        site.get()
+        assert len(upstream.asked) == asked + 1
+    asked = len(upstream.asked)
+    site.age("failed", 6 * 3600 + 60)
+    site.get()
+    assert len(upstream.asked) == asked, "after three failures, a day"
+    site.age("failed", DAY + 60)
+    upstream.status = 200
+    site.get()
+    assert len(upstream.asked) == asked + 1 and not (site.store / "failed").exists()
