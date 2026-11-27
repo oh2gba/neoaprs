@@ -85,6 +85,15 @@ def test_the_300_type_and_a_kiss_tnc_ticked_on_hf_are_paced_as_a_slow_channel_an
     assert tnc("tnc-text", on_hf="true").rtype.limits == FM_LIMITS, "a type with no On HF field is never slowed"
 
 
+def test_a_bad_stored_on_hf_is_read_as_unticked_without_a_warning_on_each_reading(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    radio = tnc(on_hf="maybe")
+    with caplog.at_level(logging.WARNING):
+        assert [radio.rtype.limits for _ in range(3)] == [FM_LIMITS] * 3
+    assert caplog.records == []
+
+
 def test_a_radio_row_tells_the_page_the_limits_and_rules_in_force() -> None:
     for radio, slow in ((tnc(on_hf="true"), True), (tnc(), False), (sound_card(), True)):
         row = radio_row(radio, (radio,), None, Claims())
