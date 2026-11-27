@@ -155,7 +155,7 @@ def status(plan: Plan) -> int:
         print("launchd: " + ("loaded" if is_loaded else "not loaded"))
     running, line = describe(plan.data)
     print(f"daemon: {line}")
-    why = refusal(plan.data) if is_set else None
+    why = refusal(plan.data) if is_set and not running else None
     if why is not None:
         print(f"the service is stopped because {why}; start it again with: neoaprs service install")
     if not is_set:

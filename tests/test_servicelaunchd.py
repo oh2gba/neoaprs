@@ -134,6 +134,25 @@ async def test_another_copy_on_the_folder_ends_the_daemon_with_success_under_lau
     assert await second.stop() == 0
 
 
+def test_status_gives_no_reason_for_a_stop_while_a_daemon_runs_on_the_folder(
+    tmp_path: Path, mac: Launchctl, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / servicelaunchd.REFUSAL_NAME).write_text("another NeoAPRS is running on this data folder\n")
+    servicelaunchd.install(plan_in(tmp_path))
+    capsys.readouterr()
+    held = InstanceLock(data)
+    held.acquire()
+    try:
+        assert servicelaunchd.status(plan_in(tmp_path)) == 0
+    finally:
+        held.release()
+    out = capsys.readouterr().out
+    assert "daemon: a daemon is running" in out
+    assert "stopped because" not in out
+
+
 async def test_without_launchd_a_refusal_keeps_its_exit_code_and_leaves_no_note(
     tmp_path: Path, signals_restored: None
 ) -> None:
