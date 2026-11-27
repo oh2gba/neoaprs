@@ -17,7 +17,7 @@ from .clock import Clock, utcnow
 from .direwolf import (
     CONF_FILE,
     FIRST_PORT,
-    MODE,
+    mode_of,
     PID_FILE,
     PORT_TRIES,
     DeviceLists,
@@ -102,6 +102,7 @@ class DirewolfModem(Tuning, ModemLife):
         self.rx_level: int | None = None  # last receive level reported; None while it does not run
         self.frames_keyed = self.starts = 0
         self.sound_card, self.keying, self.tx_gain_db = "", Keying("vox"), 0
+        self.baud = 1200  # the modem of the radio's type (direwolf.BAUDS)
         self.snr: float | None = None
         self.tx_peak_dbfs: int | None = None
         self.scope = False
@@ -129,11 +130,13 @@ class DirewolfModem(Tuning, ModemLife):
         return self._program.pid
 
     # ---- life
-    async def start(self, sound_card: str, keying: str, gain_db: int, leave: Sequence[str] = ()) -> None:
+    async def start(
+        self, sound_card: str, keying: str, gain_db: int, leave: Sequence[str] = (), *, baud: int = 1200
+    ) -> None:
         """Start Direwolf for these settings; `leave` lists serial ports that key no radio."""
         await self.stop()
         self._generation += 1
-        self._settings, self.tx_gain_db = (sound_card, keying, tuple(leave)), clamp(gain_db)
+        self._settings, self.tx_gain_db, self.baud = (sound_card, keying, tuple(leave)), clamp(gain_db), baud
         self.backoff.reset()
         self._held.forget()
         await self._launch()
@@ -250,7 +253,8 @@ class DirewolfModem(Tuning, ModemLife):
         conf = self.home / CONF_FILE
         try:
             conf.write_text(
-                conf_text(adevice(self.sound_card, self._numbers), self.keying, self.kiss_port), encoding="utf-8"
+                conf_text(adevice(self.sound_card, self._numbers), self.keying, self.kiss_port, self.baud),
+                encoding="utf-8",
             )
         except OSError as e:
             return self._failed(
@@ -421,7 +425,7 @@ class DirewolfModem(Tuning, ModemLife):
         return {
             "state": self.state,
             "reason": self.reason,
-            "mode": MODE,
+            "mode": mode_of(self.baud),
             "keyed": self.keyed or bool(self.test),
             "busy": self.busy,
             "test": self.test,

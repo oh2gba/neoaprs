@@ -469,19 +469,19 @@ def test_the_log_calls_a_radio_by_its_name_and_until_it_has_one_by_its_kind() ->
     assert (fm.label, hf.label) == ("tnc", "hf radio") and (fm.radio_id, hf.radio_id) == (FM_ID, HF_ID), (
         "today's two, before a driver names them"
     )
-    fm.radio_name, hf.radio_name = "FM", "HF 2"
-    assert (fm.label, hf.label) == ("FM", "HF 2")
+    fm.radio_name, hf.radio_name = "Packet", "HF 2"
+    assert (fm.label, hf.label) == ("Packet", "HF 2")
 
 
 async def test_the_lines_of_the_log_of_a_named_radio_begin_with_its_name(caplog: pytest.LogCaptureFixture) -> None:
     radio = FakeRadio()
     await radio.start()
     tnc = Tnc(radio.url, fallback_probe=False, backoff=tiny_backoff(), check_sec=0.0)
-    tnc.radio_id, tnc.radio_name = 3, "FM 2"
+    tnc.radio_id, tnc.radio_name = 3, "Packet 2"
     try:
         with caplog.at_level(logging.INFO, logger="neoaprs.tnc"):
             await tnc.start()
-        assert tnc.state is Source.State.CONNECTED and f"FM 2: opened {radio.url}" in [
+        assert tnc.state is Source.State.CONNECTED and f"Packet 2: opened {radio.url}" in [
             r.getMessage() for r in caplog.records
         ]
     finally:

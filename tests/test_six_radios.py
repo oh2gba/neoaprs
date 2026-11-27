@@ -113,7 +113,7 @@ PATHS = {
         ("ack", "WIDE1-1"): 1,
     },
 }
-NAMES = {FM1: "FM", HF1: "Mercury", FM2: "FM 2", HF2: "Mercury 2", HF3: "Mercury 3", LORA: "LoRa"}
+NAMES = {FM1: "Packet", HF1: "Mercury", FM2: "Packet 2", HF2: "Mercury 2", HF3: "Mercury 3", LORA: "LoRa"}
 # Beside the six: a text monitor (tnc-text), a LoRa iGate on the network (lora-tcp) and a Sound card
 # radio (direwolf), each a real type on a fake line or program
 TEXT, BOARD, WOLF = 7, 8, 9
@@ -358,7 +358,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         monitor = e.ctl.radios.get(TEXT)
         assert monitor is not None
         await until_started(lambda: monitor.state is Source.State.CONNECTED)
-        assert {id: e.ctl.radios.name_of(id) for id in (TEXT, BOARD)} == {TEXT: "FM 3", BOARD: "LoRa 2"}, (
+        assert {id: e.ctl.radios.name_of(id) for id in (TEXT, BOARD)} == {TEXT: "Packet 3", BOARD: "LoRa 2"}, (
             "the two are called by their kind and number as every other radio"
         )
         # A station, and a query of it heard on the monitor alone
@@ -523,7 +523,7 @@ async def test_three_hf_radios_a_message_goes_on_the_one_that_heard_the_station_
 ) -> None:
     """Rule 3.2 among three Mercury radios: a station heard on one Mercury radio alone takes its
     message there, one heard on two takes it on the one that heard it last, and one heard on an FM
-    radio and then on a Mercury radio takes it on the FM radio (a local kind before Mercury, within
+    radio and then on a Mercury radio takes it on the Packet radio (a local kind before Mercury, within
     six hours)."""
     day = Day(tmp_path)
     e = day.e

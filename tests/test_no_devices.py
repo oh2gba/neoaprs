@@ -1114,7 +1114,7 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
         assert daemon.poll() is None, f"the daemon ended: {logged()}"
         assert (
             "NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened" in logged()
-            and f"FM (radio 1): {radio_port}: No such file or directory; trying again" in logged()
+            and f"Packet (radio 1): {radio_port}: No such file or directory; trying again" in logged()
         )
         assert logged().index("NEOAPRS_NO_DEVICES is set: no serial port") < logged().index("is not opened"), (
             "the line of the start comes before any door"

@@ -3,7 +3,7 @@
 A radio is named by its id (`RadioId`, a never reused integer). No I/O.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
@@ -13,6 +13,12 @@ from .coded import CodedError, Reason
 Kind = Literal["fm", "hf", "lora"]
 KINDS: tuple[Kind, ...] = ("fm", "hf", "lora")
 LOCAL_KINDS: frozenset[Kind] = frozenset({"fm", "lora"})
+# the English word of a kind, for the log
+KIND_WORDS: Mapping[Kind, str] = {"fm": "Packet", "hf": "Mercury", "lora": "LoRa"}
+# what stands between a kind's word and a type's name in type_label
+_KIND_JOINS: Mapping[Kind, str] = {"fm": ", ", "hf": ", ", "lora": " "}
+# the band a type is for, which Add radio's list says after its name
+Band = Literal["", "vhf_uhf", "hf"]
 
 # the numbers of the kinds (see the developer notes)
 FM_BEACON_MIN_MIN = 20
@@ -105,7 +111,7 @@ class Field:
 class RadioType:
     key: str
     kind: Kind
-    name: str
+    name: str  # in English as Add radio's list says it under its kind, in the case of the middle of a sentence
     text: str
     transport: Transport
     # the driver key: "tnc", "mercury" or "direwolf"
@@ -118,9 +124,15 @@ class RadioType:
     dummy: bool
     recommended_path: str = ""
     systems: frozenset[str] = frozenset()
+    band: Band = ""
 
     def field(self, key: str) -> Field | None:
         return next((f for f in self.fields if f.key == key), None)
+
+
+def type_label(rtype: RadioType) -> str:
+    """Return the type's name that is clear alone ("Packet, sound card, 300"); a Dummy's is its own."""
+    return rtype.name if rtype.dummy else KIND_WORDS[rtype.kind] + _KIND_JOINS[rtype.kind] + rtype.name
 
 
 class RadioTypeError(CodedError):

@@ -160,7 +160,7 @@ def test_the_id_of_a_message_to_a_station_is_what_an_ack_can_answer() -> None:
 
 @pytest.mark.parametrize("rtype", TYPES, ids=lambda t: t.key)
 def test_the_slow_channels_are_the_types_that_pause_before_a_retry(rtype) -> None:
-    assert slow_channel(rtype.limits) == (rtype.kind in ("hf", "lora"))
+    assert slow_channel(rtype.limits) == (rtype.kind in ("hf", "lora") or rtype.band == "hf")
 
 
 def test_the_sound_card_and_the_fm_types_are_fast_and_mercury_is_slow() -> None:
@@ -169,7 +169,7 @@ def test_the_sound_card_and_the_fm_types_are_fast_and_mercury_is_slow() -> None:
     assert not slow_channel(by_key["dummy"].limits)
     assert slow_channel(by_key["mercury"].limits)
     assert slow_channel(by_key["dummy-hf"].limits)
-    assert not any(slow_channel(t.limits) for t in TYPES if t.driver == "direwolf")
+    assert [t.key for t in TYPES if t.driver == "direwolf" and slow_channel(t.limits)] == ["direwolf-300"]
 
 
 @pytest.mark.parametrize(

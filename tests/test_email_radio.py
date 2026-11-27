@@ -117,7 +117,7 @@ OLD = [
         2,
         "removed or off: HF alone, as above",
     ),
-    ((radio(1, type="dummy"), radio(2, "hf")), None, 1, 1, "the Dummy FM radio is an FM radio here as well"),
+    ((radio(1, type="dummy"), radio(2, "hf")), None, 1, 1, "the Dummy packet radio is an FM radio here as well"),
     ((), None, None, None, "no radio at all"),
     (
         (radio(1, enabled=False), radio(2, "hf", enabled=False)),
@@ -401,7 +401,7 @@ async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_
 
 
 class Station:
-    """A daemon on made-up radios (radio 1 a Dummy FM radio, radio 2 a Dummy Mercury radio, then
+    """A daemon on made-up radios (radio 1 a Dummy packet radio, radio 2 a Dummy Mercury radio, then
     `more` by type), a page on its socket, and every frame of ours with the radio it went on. The
     clock stands still until a test moves it, so a message goes out once."""
 
@@ -529,7 +529,7 @@ async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carr
     mails[5] += 1
     assert sent(MAIL) == mails
     for number, (wrong, code) in enumerate(
-        (("99", "radio.unknown"), ("0", "setting.range"), ("FM", "setting.not_whole")), start=1
+        (("99", "radio.unknown"), ("0", "setting.range"), ("Packet", "setting.not_whole")), start=1
     ):
         await s.page.send({"cmd": "set_config", "values": {"email/radio": wrong}})
         await s.page.until(lambda number=number: len(s.page.of("error")) == number)

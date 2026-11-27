@@ -7,14 +7,13 @@ from datetime import datetime
 from typing import Any
 
 from .coded import CodedError
-from .radiotype import FM_ID as FM_ID, HF_ID as HF_ID, Kind, RadioId as RadioId, RadioType, RadioTypeError
-from .radiotypes import kind_field, type_of
+from .radiotype import FM_ID as FM_ID, HF_ID as HF_ID, KIND_WORDS as KIND_WORDS, Kind, RadioId as RadioId
+from .radiotype import RadioType, RadioTypeError
+from .radiotypes import in_force, kind_field, type_of
 
 log = logging.getLogger("neoaprs.radiospec")
 
 MAX_NAME = 8
-# the English word of a kind, for the log
-KIND_WORDS: Mapping[Kind, str] = {"fm": "FM", "hf": "Mercury", "lora": "LoRa"}
 
 
 class RadioError(CodedError):
@@ -48,8 +47,9 @@ class RadioSpec:
 
     @property
     def rtype(self) -> RadioType:
-        """Return its type (RadioTypeError if unknown)."""
-        return type_of(self.type)
+        """Return its type in force, slowed if ticked On HF (RadioTypeError if unknown)."""
+        found = type_of(self.type)
+        return in_force(found, found.field("on_hf") is not None and bool(self.value("on_hf")))
 
     @property
     def removed(self) -> bool:

@@ -217,7 +217,7 @@ def test_a_radio_setting_that_is_wrong_is_told_as_stored_while_its_default_is_in
     fm = told["radios"][0]
     assert (fm["id"], fm["log_name"], fm["type"], fm["values"]["baud"], fm["stored"]["baud"]) == (
         1,
-        "FM",
+        "Packet",
         "kantronics",
         "",
         "fast",

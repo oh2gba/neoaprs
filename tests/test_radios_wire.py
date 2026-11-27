@@ -133,7 +133,7 @@ async def test_every_refusal_of_the_radio_commands_has_its_code(tmp_path: Path) 
         (
             {"cmd": "radio_change", "radio": id, "type": "mercury"},
             "radio.type_kind",
-            {"type": "mercury", "kind": "FM", "name": "Shack", "radio": id},
+            {"type": "mercury", "kind": "Packet", "name": "Shack", "radio": id},
         ),
         ({"cmd": "radio_change", "radio": 9, "name": "Gone"}, "radio.unknown", {"radio": 9}),
         ({"cmd": "radio_remove", "radio": 9}, "radio.unknown", {"radio": 9}),
@@ -176,7 +176,7 @@ async def test_every_refusal_of_the_radio_commands_has_its_code(tmp_path: Path) 
     )
     assert (await refused(page, {"cmd": "radio_change", "radio": id, "type": "mercury"}))[
         "text"
-    ] == "radio_change: radio Shack takes only a type of its own kind (FM)", "no key, no type's key"
+    ] == "radio_change: radio Shack takes only a type of its own kind (Packet)", "no key, no type's key"
     await page.send({"cmd": "radio_change", "radio": FM_ID, "enabled": False})
     await page.until(lambda: not page.topics["radios"]["1"]["enabled"])
     for command in ({"cmd": "radio_change", "radio": id, "enabled": False}, {"cmd": "radio_remove", "radio": id}):
@@ -300,7 +300,7 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
     assert (error["key"], error["code"], error["params"]) == (
         f"radio/{id}/port",
         "radio.resource_held",
-        {"resource": "serial", "holder": "FM", "held_by": FM_ID},
+        {"resource": "serial", "holder": "Packet", "held_by": FM_ID},
     )
     monkeypatch.setattr(
         web_handlers,
@@ -745,7 +745,7 @@ def test_a_device_named_by_another_radio_that_is_on_is_refused_and_two_radios_ma
     assert (held.value.key, held.value.code, held.value.params) == (
         "radio/6/port",
         "radio.resource_held",
-        {"resource": "serial", "holder": "FM 2", "held_by": 5},
+        {"resource": "serial", "holder": "Packet 2", "held_by": 5},
     ), "set to it, though not holding it yet"
     refuse_held(
         before,

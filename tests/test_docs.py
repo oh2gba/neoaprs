@@ -379,18 +379,24 @@ def test_the_manual_and_the_readme_say_of_the_sound_card_type_what_the_program_o
     from neoaprs.direwolf import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
     from neoaprs.radiotypes import type_of, unavailable_types
 
-    name = catalogue_text("radio", "radio.type.direwolf")
+    # as Add radio's list says them: a capital first, the band after
+    names = [catalogue_text("radio", f"radio.type.{key}").capitalize() for key in ("direwolf", "direwolf_300")]
     sound = section(operator_docs()["radio.md"], "### Sound card")
-    assert f"*{name}*" in sound and f"from {TX_GAIN_MIN_DB} to {TX_GAIN_MAX_DB} dB" in sound, (
-        "the type by the page's name, and its transmit level's range"
+    assert all(f"*{name} (" in sound for name in names) and f"from {TX_GAIN_MIN_DB} to {TX_GAIN_MAX_DB} dB" in sound, (
+        "the types by the page's names, and the transmit level's range"
     )
-    assert type_of("direwolf").systems == {"linux", "win32"} and unavailable_types("darwin") == ("direwolf",)
-    assert "On Windows and Linux NeoAPRS carries Direwolf" in sound and f"On a Mac there is no *{name}* type" in sound
+    assert type_of("direwolf").systems == {"linux", "win32"} and unavailable_types("darwin") == (
+        "direwolf",
+        "direwolf-300",
+    )
+    assert (
+        "On Windows and Linux NeoAPRS carries Direwolf" in sound and "On a Mac there are no *Sound card* types" in sound
+    )
     assert (
         "on Windows and Linux Direwolf" in README and "Direwolf by John Langner, WB2OSZ (GPL-2.0-or-later)" in README
     ), "the downloads that carry it, and its credit"
     assert (
-        "and all but the Mac's also carry Direwolf for an FM radio on a sound card" in operator_docs()["install.md"]
+        "and all but the Mac's also carry Direwolf for a packet radio on a sound card" in operator_docs()["install.md"]
     ), "the downloads that carry it, the Mac's alone without"
 
 

@@ -152,7 +152,7 @@ async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_
             main.rtype == e.tnc.rtype
             and main.max_frame is None
             and main.usable == e.tnc.usable
-            and (main.kind, main.name) == ("fm", "FM")
+            and (main.kind, main.name) == ("fm", "Packet")
         )
         # The defaults of the station's settings: still the radios it has
         await e.ctl.save_config(replace(DEFAULTS, radios=e.ctl.config.radios))

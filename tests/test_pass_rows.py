@@ -265,8 +265,8 @@ def test_a_passed_frame_is_told_at_info_and_a_held_one_at_info_once_and_never_as
         rig.hear(frame("OH2GBA-12", info=b">" + b"x" * (100 + n)))
     infos = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
     assert infos == [
-        "passed OH2XYZ>APRS from FM to Mercury: the path OH2GBA-12 is sent as OH2GBA-12*",
-        "Mercury: a packet of OH2XYZ from FM is not passed: too long: 124 bytes, the radio carries 123",
+        "passed OH2XYZ>APRS from Packet to Mercury: the path OH2GBA-12 is sent as OH2GBA-12*",
+        "Mercury: a packet of OH2XYZ from Packet is not passed: too long: 124 bytes, the radio carries 123",
     ]
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 

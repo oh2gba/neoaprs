@@ -5,6 +5,7 @@ The limits and allowed controls of each kind and the shared sets (`NOTHING_ALLOW
 """
 
 from dataclasses import replace
+from functools import cache
 
 from neoaprs.configtypes import boolean
 from neoaprs.configvalues import digipeater_path
@@ -24,6 +25,7 @@ from neoaprs.radiotype import (
     Can,
     Field,
     Limits,
+    RadioType,
 )
 from neoaprs.tnc2line import MAX_TEXT
 
@@ -60,8 +62,19 @@ LORA_LIMITS = Limits(
     LORA_MAX_FRAME, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_RETRY_JITTER_SEC, MAX_TEXT, max_kiss=LORA_MAX_KISS
 )
 LORA_ALLOWED = Allowed(paths=True, digipeat=False, smart_beacon=True, gateway_heard=True, shared_channel=False)
+# classic APRS on HF at 300 baud: paced as Mercury, frames as AX.25 has them (see the developer notes)
+SLOW_PACKET_LIMITS = Limits(None, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_RETRY_JITTER_SEC)
+SLOW_PACKET_ALLOWED = Allowed(paths=True, digipeat=False, smart_beacon=False, gateway_heard=True, shared_channel=False)
+# a KISS TNC on an HF radio: ticked, the radio is paced as SLOW_PACKET_LIMITS (radiotypes.in_force)
+ON_HF = Field("on_hf", "bool", boolean, "false", text="radio.field.on_hf")
 # the LoRa networks' path, which their iGates repeat
 LORA_PATH = "WIDE1-1"
+
+
+@cache
+def slowed(rtype: RadioType) -> RadioType:
+    """Return the type with the limits and allowed controls of classic APRS on HF."""
+    return replace(rtype, limits=SLOW_PACKET_LIMITS, allowed=SLOW_PACKET_ALLOWED)
 
 
 def fields_of(own: tuple[Field, ...], allowed: Allowed, *, transmit: bool = True) -> tuple[Field, ...]:

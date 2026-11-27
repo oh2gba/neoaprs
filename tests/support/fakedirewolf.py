@@ -1,6 +1,7 @@
 """A stand-in for the `direwolf` binary, for the tests of the daemon starting, watching and stopping
-it. `program(...)` is its command. It reads the `-c` configuration, prints its banner, listens on
-its KISS port and gives back every frame it is sent as a frame heard.
+it. `program(...)` is its command. It reads the `-c` configuration, prints its banner and its
+channel's modem (1200, or 300 with several decoders), listens on its KISS port and gives back
+every frame it is sent as a frame heard.
 """
 
 import asyncio
@@ -73,11 +74,11 @@ def _option(argv: list[str], flag: str) -> str:
 
 
 def _conf(path: str) -> dict[str, str]:
-    """ADEVICE, PTT and the KISS port of the configuration (the last KISSPORT that is not 0)."""
+    """ADEVICE, PTT, MODEM and the KISS port of the configuration (the last KISSPORT that is not 0)."""
     found: dict[str, str] = {}
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         words = line.split(None, 1)
-        if len(words) == 2 and words[0] in ("ADEVICE", "PTT"):
+        if len(words) == 2 and words[0] in ("ADEVICE", "PTT", "MODEM"):
             found[words[0]] = words[1].strip()
         elif len(words) == 2 and words[0] == "KISSPORT" and words[1].strip() != "0":
             found["KISSPORT"] = words[1].strip()
@@ -97,6 +98,25 @@ def _lists(adevice: str, wrong: bool) -> None:
     say("Available audio output devices for transmit (*=selected):")
     for n, name in enumerate(WINMM_OUTPUTS):
         say(f" {'*' if n == chosen_out else ' '}  {n}: {name}" + ("   (channel 0)" if n == chosen_out else ""))
+
+
+def _modem(line: str) -> list[str]:
+    """What Direwolf says of channel 0's modem (demod.c:304-314, 474): its speed, tones, decoder
+    and sample rate, and with `N@OFFSET` each decoder's tones; [] for a speed it has no AFSK of."""
+    words = line.split()
+    baud = int(words[0]) if words and words[0].isdigit() else 1200
+    if baud not in (300, 1200):
+        return []
+    mark, space = (1600, 1800) if baud == 300 else (1200, 2200)
+    letters = next((w for w in words[1:] if w[:1].isalpha()), "A+")
+    count, _, offset = next((w for w in words[1:] if "@" in w), "1@0").partition("@")
+    rate = " / 3" if baud == 300 else ""
+    said = [f"Channel 0: {baud} baud, AFSK {mark} & {space} Hz, {letters}, 44100 sample rate{rate}, Tx AX.25."]
+    n, step = int(count), int(offset)
+    for d in range(n) if n > 1 else ():
+        k = d * step - (n - 1) * step // 2
+        said.append(f"        0.{d}: {letters[0]} {mark + k} & {space + k}")
+    return said
 
 
 class Fake:
@@ -189,6 +209,12 @@ class Fake:
         threading.Thread(target=self.watch_stdin, daemon=True).start()
         say(BANNER)
         say("Includes optional support for:  cm108-ptt")
+        modem = _modem(self.conf.get("MODEM", "1200"))
+        if not modem:
+            say(f"Line 4: Unsupported data rate {self.conf.get('MODEM', '')}.")
+            return 1
+        for line in modem:
+            say(line)
         _lists(self.conf.get("ADEVICE", ""), "--wrong-star" in self.argv)
         if "--fail-card" in self.argv:
             say(f"Could not open audio device {self.conf.get('ADEVICE', '')} for input")

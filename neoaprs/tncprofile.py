@@ -22,7 +22,7 @@ TextLines = Literal["", "tnc2", "console"]
 @dataclass(frozen=True)
 class Profile:
     key: str  # the value of tnc/profile
-    name: str  # shown on the page
+    name: str  # the English name of its radio type, under its kind (radiotype.type_label)
     transport: Transport
     baud: int | None  # default speed; None for no serial line
     enter: tuple[Step, ...]  # written to switch to KISS; empty if already in KISS
@@ -76,7 +76,7 @@ class Profile:
 
 KISS_TCP = Profile(
     "kiss-tcp",
-    "Your own Direwolf or soundmodem",
+    "Direwolf",
     "tcp",
     None,
     (),
@@ -88,7 +88,7 @@ KISS_TCP = Profile(
 
 KISS = Profile(
     "kiss",
-    "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
+    "KISS TNC",
     "serial",
     9600,
     (),
@@ -139,7 +139,7 @@ KANTRONICS = Profile(
 # Mercury carries 123 bytes in a frame and silently cuts a longer one: the daemon shortens first.
 MERCURY = Profile(
     "mercury",
-    "Mercury modem (sound card)",
+    "sound card",
     "modem",
     None,
     (),
@@ -152,7 +152,7 @@ MERCURY = Profile(
 
 DUMMY = Profile(
     "dummy",
-    "Dummy FM radio",
+    "Dummy packet radio",
     "dummy",
     None,
     (),
@@ -193,7 +193,7 @@ DUMMY_LORA = Profile(
 LORA_NUDGE = kiss.encode(b"\x00", command=5)
 LORA_TCP = Profile(
     "lora-tcp",
-    "LoRa APRS board on the network",
+    "tracker or iGate on Wi-Fi",
     "tcp",
     None,
     (),
@@ -210,7 +210,7 @@ LORA_TCP = Profile(
 )
 LORA_SERIAL = Profile(
     "lora-serial",
-    "LoRa APRS board on USB or Bluetooth",
+    "tracker or iGate on USB or Bluetooth",
     "serial",
     115200,
     (),
@@ -227,7 +227,7 @@ LORA_SERIAL = Profile(
 )
 LORA_CONSOLE = Profile(
     "lora-console",
-    "LoRa APRS iGate on USB (RX only)",
+    "iGate on USB (RX only)",
     "serial",
     115200,
     (),

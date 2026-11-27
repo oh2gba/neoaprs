@@ -535,10 +535,10 @@ def test_each_radio_is_a_line_by_its_name_with_its_type_and_how_it_is_reached_or
     code, out = run(data, capsys)
     assert code == 0, out
     assert [line for line in lines_of(out, "ok") if line.startswith("ok    radio ")] == [
-        "ok    radio FM (kenwood-tnc2): port /dev/ttyUSB0, speed 9600 baud",
+        "ok    radio Packet (kenwood-tnc2): port /dev/ttyUSB0, speed 9600 baud",
         "ok    radio Mercury (mercury): sound card plughw:1,0, keying rts:/dev/ttyUSB1",
         "ok    radio Base (kiss-tcp): port 10.0.0.9:8100",
-        "ok    radio FM 3 (dummy): off",
+        "ok    radio Packet 3 (dummy): off",
     ], "by position; the third of its kind is FM 3, the named one counted"
     assert "no radio is on" not in out
 
@@ -551,7 +551,7 @@ def test_a_station_with_no_radio_on_is_a_warning_with_the_way_to_tick_one(
     conn.execute("UPDATE radio SET enabled = 0")
     conn.close()
     code, out = run(data, capsys)
-    assert code == 0 and "radio FM (kiss): off" in out and "radio Mercury (mercury): off" in out
+    assert code == 0 and "radio Packet (kiss): off" in out and "radio Mercury (mercury): off" in out
     assert (
         "warn  no radio is on: nothing is heard and nothing is sent" in out
         and "fix: tick a radio on the page (Settings tab, Radio)" in out
@@ -569,11 +569,11 @@ def test_a_database_without_radios_is_told_it_has_none_yet_and_an_older_file_is_
         and "warn  this station has no radio yet: nothing is heard and nothing is sent" in out
         and "fix: add one: the setup guide, the page (Settings tab, Radio), or neoaprs db radios add TYPE" in out
     )
-    assert "radio FM" not in out and "no radio is on" not in out
+    assert "radio Packet" not in out and "no radio is on" not in out
     set_up(data, "kiss")
     set_up(data, **{"radio/1/port": "COM3"})
     code, out = run(data, capsys)
-    assert code == 0 and "radio FM (kiss): port COM3, speed 9600 baud" in out and "no radio yet" not in out
+    assert code == 0 and "radio Packet (kiss): port COM3, speed 9600 baud" in out and "no radio yet" not in out
     conn = sqlite3.connect(data / "neoaprs.sqlite", isolation_level=None)
     conn.execute("UPDATE radio SET removed_at = '2026-11-14T10:00:00.000000Z', enabled = 0")
     conn.close()
@@ -595,7 +595,11 @@ def test_a_database_without_radios_is_told_it_has_none_yet_and_an_older_file_is_
     code, out = run(older, capsys)
     err = capsys.readouterr().err
     assert (
-        code == 0 and "migrates the file" in out and "radio FM" not in out and "no radio yet" not in out and err == ""
+        code == 0
+        and "migrates the file" in out
+        and "radio Packet" not in out
+        and "no radio yet" not in out
+        and err == ""
     ), (
         "the radios of a file older than their rows are not asked for: the migration makes them, and nothing is said of tables it lacks"
     )

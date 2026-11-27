@@ -835,9 +835,9 @@ RADIO_WORDS: dict[str, tuple[int, str, str]] = {
         "the run's ports (--port radio 1's, --hf-port), which the start's log tells of",
     ),
     "neoaprs/radiospec.py": (
-        5,
+        2,
         "open",
-        "the re-exports of FM_ID and HF_ID, and the kinds' English words by kind (KIND_WORDS, whose place is beside KINDS)",
+        "the re-exports of FM_ID and HF_ID",
     ),
     "neoaprs/services/beaconframe.py": (
         4,

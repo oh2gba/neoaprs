@@ -366,7 +366,10 @@ async def test_where_direwolf_is_not_carried_the_type_is_not_offered_and_not_add
     e, page = await started(tmp_path)
     try:
         await page.until(
-            lambda: bool(page.of("status")) and page.of("status")[-1]["unavailable_types"] == ["direwolf"], timeout=12
+            lambda: (
+                bool(page.of("status")) and page.of("status")[-1]["unavailable_types"] == ["direwolf", "direwolf-300"]
+            ),
+            timeout=12,
         )
         error = await refused(page, {"cmd": "radio_add", "type": "direwolf"})
         assert (error["code"], error["params"]) == ("radio.unknown_type", {"type": "direwolf"})
@@ -383,13 +386,13 @@ def test_a_type_whose_program_this_installation_does_not_carry_is_not_offered_bu
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: None)
-    assert radioregistry.unavailable_types() == ("direwolf",), (
+    assert radioregistry.unavailable_types() == ("direwolf", "direwolf-300"), (
         "a wheel installed with pip, a checkout: no Direwolf, so no radio that would only wait for it"
     )
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: ["direwolf"])
     assert radioregistry.unavailable_types() == ()
     monkeypatch.setattr(radiotypes, "sys", SimpleNamespace(platform="darwin"))
-    assert radioregistry.unavailable_types() == ("direwolf",), "nor on a system whose installations carry none"
+    assert radioregistry.unavailable_types() == ("direwolf", "direwolf-300"), "nor on a system whose installations carry none"
     monkeypatch.setattr(radiotypes, "sys", SimpleNamespace(platform="linux"))
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: None)
     monkeypatch.setattr("neoaprs.nodevices.on", lambda: True)
@@ -418,7 +421,7 @@ def test_while_tune_or_the_keying_test_has_the_radio_its_row_shows_the_test_and_
         SimpleNamespace(line=driver.line, beacon=None, driver=driver, driver_key="direwolf"),
         Claims(),
     )
-    assert row is not None and row["problem"] == {"code": "radio.not_connected", "params": {"name": "FM"}}
+    assert row is not None and row["problem"] == {"code": "radio.not_connected", "params": {"name": "Packet"}}
 
 
 async def test_a_sound_card_radios_own_choice_of_keying_never_takes_a_port_another_radio_is_set_to_though_none_has_opened_it(

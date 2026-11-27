@@ -13,7 +13,7 @@ from .cardlevels import CardLevels, wanted
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
-from .direwolf import PROFILE
+from .direwolf import PROFILE, PROFILE_300, modem_baud
 from .mercury import HOST
 from .direwolfmodem import DirewolfModem, levels_card, port_chosen
 from .mercurydriver import chosen_as_set
@@ -26,16 +26,18 @@ from .tncprofile import LINE_SPEED, tcp_url
 
 log = logging.getLogger("neoaprs.controller")
 
+PROFILES = {p.key: p for p in (PROFILE, PROFILE_300)}
 NO_DIREWOLF = "a Sound card radio has no line to a Direwolf: none is started"
 
 
 class DirewolfSettings(NamedTuple):
-    # Sound card and keying ("" lets the daemon choose); a change restarts the radio.
+    # Sound card and keying ("" lets the daemon choose), and the speed of the type's modem; a change restarts.
     modem: tuple[str, str]
+    baud: int
 
 
 def direwolf_settings(spec: RadioSpec) -> DirewolfSettings:
-    return DirewolfSettings((spec.value("sound_card"), spec.value("keying")))
+    return DirewolfSettings((spec.value("sound_card"), spec.value("keying")), modem_baud(spec.rtype.profile))
 
 
 def direwolf_words(spec: RadioSpec) -> str:
@@ -59,7 +61,7 @@ class DirewolfDriver:
     ) -> None:
         self.id = spec.id
         self.claims = claims
-        self._line = line if line is not None else Tnc(clock=clock, profile=PROFILE)
+        self._line = line if line is not None else Tnc(clock=clock, profile=PROFILES.get(spec.rtype.profile, PROFILE))
         self._modem = modem if modem is not None else DirewolfModem(folder, clock, claims=claims, holder=spec.id)
         self._line.radio_id = spec.id
         self._line.modem = self._modem
@@ -96,10 +98,17 @@ class DirewolfDriver:
             self._line.fallback_probe,
             self._line.skip,
             self._line.pattern,
-        ) = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), LINE_SPEED, PROFILE, False, (), ""
+        ) = (
+            ("" if no_line else tcp_url(HOST, self._modem.kiss_port)),
+            LINE_SPEED,
+            PROFILES.get(self._spec.rtype.profile, PROFILE),
+            False,
+            (),
+            "",
+        )
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
-        """Return the sound card and keying; the transmit level and card levels are applied live."""
+        """Return the sound card, keying and speed; the transmit level and card levels are applied live."""
         return (direwolf_settings(spec),)
 
     def made_explicit(self, before: RadioSpec, after: RadioSpec) -> RadioSpec:
@@ -117,6 +126,7 @@ class DirewolfDriver:
                 spec.value("keying"),
                 spec.value("tx_gain_db"),
                 left_out(self._station, spec.id),
+                baud=direwolf_settings(spec).baud,
             )
         except Exception:
             log.exception("Direwolf could not be started")

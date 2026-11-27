@@ -10,7 +10,7 @@ from types import MappingProxyType
 
 from neoaprs.radiotype import Field, Kind, RadioType, RadioTypeError
 from neoaprs.radiotypes import dummy, dummylora, kisstcp, lora, mercury, serialtnc, soundcard, tnctext
-from neoaprs.radiotypes.common import COMMON_FIELDS as COMMON_FIELDS
+from neoaprs.radiotypes.common import COMMON_FIELDS as COMMON_FIELDS, slowed
 
 # The order of the page's lists (types_of, Add radio): sound card interfaces first, then KISS
 # TNCs, then text TNCs from newest to oldest, then the operator's own program on the network.
@@ -38,6 +38,11 @@ def type_of(key: str) -> RadioType:
         raise RadioTypeError(
             f"{key!r} is not a type of radio (the types are {', '.join(BY_KEY)})", "radio.unknown_type", type=key
         ) from None
+
+
+def in_force(rtype: RadioType, on_hf: bool) -> RadioType:
+    """Return the type as a radio of it is run: slowed (common.slowed) when ticked On HF."""
+    return slowed(rtype) if on_hf else rtype
 
 
 def types_of(kind: Kind) -> tuple[RadioType, ...]:

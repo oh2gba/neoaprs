@@ -123,7 +123,7 @@ def _stored(name: str, done: bool) -> None:
 
 
 def refuse_label(name: str, typed: str | None, specs: Sequence[RadioSpec], own: RadioId | None) -> None:
-    """Refuse a name shaped like a default radio label ("FM", "mercury 2").
+    """Refuse a name shaped like a default radio label ("Packet", "mercury 2").
 
     Raise `radio.name_taken` if another radio has it now, else `radio.name_label`.
     """

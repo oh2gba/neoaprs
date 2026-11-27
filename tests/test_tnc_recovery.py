@@ -384,17 +384,17 @@ async def test_an_adapter_is_not_followed_to_a_port_another_radio_holds_or_is_se
             raise SerialError("COM5: not there")
         return path
 
-    follow = AdapterFollow(lambda: "FM 2")
+    follow = AdapterFollow(lambda: "Packet 2")
     await follow.remember("COM5", "COM5")
     with pytest.raises(SerialError, match="COM5: not there"):
-        await follow.open("COM5", True, opener, lambda text: None, lambda path: "held by FM" if path == "COM7" else "")
+        await follow.open("COM5", True, opener, lambda text: None, lambda path: "held by Packet" if path == "COM7" else "")
     assert (
         opened == ["COM5"]
-        and "FM 2: COM5 is gone; an adapter like it is on COM7, which is left alone: held by FM" in caplog.text
+        and "Packet 2: COM5 is gone; an adapter like it is on COM7, which is left alone: held by Packet" in caplog.text
     )
     assert (
         await follow.open("COM5", True, opener, lambda text: None) == ("COM7", "COM7")
-        and "FM 2: COM5 is gone; the adapter is on COM7" in caplog.text
+        and "Packet 2: COM5 is gone; the adapter is on COM7" in caplog.text
     )
 
 
@@ -411,7 +411,7 @@ async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_s
     # The fake radios' sockets stand for COM ports: each is a device of the station's table
     monkeypatch.setattr(serialprobe, "claim_value", lambda path: path)
     claims = Claims()
-    claims.named, claims.name_of = lambda: (Claim("serial", second.url, 1),), {1: "FM"}.get  # type: ignore[assignment]   # (radio 1 is set to the port the adapter comes back on)
+    claims.named, claims.name_of = lambda: (Claim("serial", second.url, 1),), {1: "Packet"}.get  # type: ignore[assignment]   # (radio 1 is set to the port the adapter comes back on)
     tnc = Tnc(first.url, backoff=tiny_backoff(), fallback_probe=True, claims=claims)
     tnc.radio_id = 3
     try:
@@ -419,7 +419,7 @@ async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_s
         await first.connected()
         await until(lambda: tnc._follow.knows(first.url))
         ports.move()
-        await until(lambda: f"is on {second.url}, which is left alone: held by FM" in caplog.text)
+        await until(lambda: f"is on {second.url}, which is left alone: held by Packet" in caplog.text)
         await idle_for(0.3)
         assert tnc.state is not Source.State.CONNECTED and tnc.path != second.url and second.connections == 0, (
             "the line stays with its own port"

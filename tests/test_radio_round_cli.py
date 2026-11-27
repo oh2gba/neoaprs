@@ -159,20 +159,20 @@ async def test_a_new_installation_has_no_radio_until_one_is_added_and_the_comman
     _, members = await bundle(tmp_path / "out", data)
     assert bundle_radios(members) == [] and summary_titles(members) == []
     code, out, _ = await db(capsys, data, "radios", "add", "kiss")
-    assert code == 0 and out.split() == ["radio", "1", "FM", "fm", "kiss", "on", "(position", "1)"]
+    assert code == 0 and out.split() == ["radio", "1", "Packet", "fm", "kiss", "on", "(position", "1)"]
     code, out, err = await db(capsys, data, "radios")
     assert (
         code == 0
         and err == ""
         and [line.split() for line in out.splitlines() if line.startswith("radio ")]
-        == [["radio", "1", "FM", "fm", "kiss", "on", "(position", "1)"]]
+        == [["radio", "1", "Packet", "fm", "kiss", "on", "(position", "1)"]]
     )
-    assert await doctor_radios(capsys, data) == ["ok    radio FM (kiss): port (found by searching), speed 9600 baud"], (
-        "radio 1 alone"
-    )
+    assert await doctor_radios(capsys, data) == [
+        "ok    radio Packet (kiss): port (found by searching), speed 9600 baud"
+    ], "radio 1 alone"
     _, members = await bundle(tmp_path / "out2", data)
-    assert bundle_radios(members) == [(FM_ID, "fm", "kiss", "FM", True, False)] and summary_titles(members) == [
-        "Radio 1: FM"
+    assert bundle_radios(members) == [(FM_ID, "fm", "kiss", "Packet", True, False)] and summary_titles(members) == [
+        "Radio 1: Packet"
     ]
     assert (
         "radios_problem" not in json.loads(members["settings.json"])
@@ -200,7 +200,7 @@ async def test_a_sound_card_radio_is_a_new_installations_radio_1_by_the_command_
     monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))
     data = tmp_path / "data"
     code, out, _ = await db(capsys, data, "radios", "add", "direwolf")
-    assert code == 0 and out.split() == ["radio", "1", "FM", "fm", "direwolf", "on", "(position", "1)"], (
+    assert code == 0 and out.split() == ["radio", "1", "Packet", "fm", "direwolf", "on", "(position", "1)"], (
         "a new installation's first radio is radio 1"
     )
     assert (await db(capsys, data, "set", "radio/1/sound_card", "plughw:7,0"))[0] == 0 and (
@@ -286,19 +286,19 @@ async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command
     await e.stop()
     code, out, _ = await db(capsys, data, "radios")
     assert code == 0 and [line.split()[:6] for line in out.splitlines() if line.startswith("radio ")] == [
-        ["radio", "1", "FM", "fm", "kenwood-tnc2", "on"],
+        ["radio", "1", "Packet", "fm", "kenwood-tnc2", "on"],
         ["radio", "2", "Mercury", "hf", "dummy-hf", "on"],
     ]
     assert "radio/2/keying" in out and "vox" in out
     assert [line.split(":")[0] for line in await doctor_radios(capsys, data)] == [
-        "ok    radio FM (kenwood-tnc2)",
+        "ok    radio Packet (kenwood-tnc2)",
         "ok    radio Mercury (dummy-hf)",
     ]
     path, members = await bundle(tmp_path / "out", data)
     assert bundle_radios(members) == [
-        (FM_ID, "fm", "kenwood-tnc2", "FM", True, False),
+        (FM_ID, "fm", "kenwood-tnc2", "Packet", True, False),
         (HF_ID, "hf", "dummy-hf", "Mercury", True, False),
-    ] and summary_titles(members) == ["Radio 1: FM", "Radio 2: Mercury"]
+    ] and summary_titles(members) == ["Radio 1: Packet", "Radio 2: Mercury"]
     made = tmp_path / "again" / DB_NAME
     assert bundle_database(made, path) == []
     opened(made).close()  # (migrated to this version, as a start does)
@@ -346,4 +346,4 @@ async def test_a_removed_radio_is_no_setting_of_the_station_on_the_page_on_the_c
     )
     assert [(r[0], r[-1]) for r in bundle_radios(members)] == [(FM_ID, False), (HF_ID, True)] and summary_titles(
         members
-    ) == ["Radio 1: FM"], "the removed radio told as removed, no section"
+    ) == ["Radio 1: Packet"], "the removed radio told as removed, no section"

@@ -294,7 +294,7 @@ def test_the_type_is_an_fm_radio_on_a_sound_card_offered_where_direwolf_is_carri
         "fm",
         "direwolf",
         "modem",
-        "Sound card",
+        "sound card, 1200",
         "radio.type.direwolf",
     )
     assert [f.key for f in t.fields] == [
@@ -320,7 +320,7 @@ def test_the_type_is_an_fm_radio_on_a_sound_card_offered_where_direwolf_is_carri
     ), "the card's own levels: never set until the operator sets them"  # type: ignore[union-attr]
     assert t.can.tune and t.can.key_test and t.can.tx_gain and t.can.rx_level and not t.can.scope and not t.can.find
     assert (
-        unavailable_types("darwin") == ("direwolf",)
+        unavailable_types("darwin") == ("direwolf", "direwolf-300")
         and unavailable_types("linux") == ()
         and unavailable_types("win32") == ()
     )

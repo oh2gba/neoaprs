@@ -129,11 +129,11 @@ async def test_a_save_that_changes_both_radios_restarts_each_once_and_the_log_na
     await w.until(lambda: a.tnc.usable and a.hf.usable and a.tnc._generation > fm_line and a.hf._generation > hf_line)
     said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.controller"]
     assert [line for line in said if "is restarted because" in line] == [
-        "the FM radio (radio 1) is restarted because its settings changed: baud 9600 -> 19200",
+        "the Packet radio (radio 1) is restarted because its settings changed: baud 9600 -> 19200",
         "the Mercury radio (radio 2) is restarted because its settings changed: keying default -> cm108",
     ]
     assert (
-        len([line for line in said if line.startswith("the FM radio (radio 1) is started: ")])
+        len([line for line in said if line.startswith("the Packet radio (radio 1) is started: ")])
         == len([line for line in said if line.startswith("the Mercury radio (radio 2) is started: ")])
         == 1
     )
@@ -157,7 +157,7 @@ async def test_the_log_says_which_radio_is_restarted_and_what_changed_in_its_set
         if line.startswith("the Mercury radio (radio 2) is restarted because its settings changed")
     ]
     assert why.endswith("sound card default -> plughw:9,0")
-    assert not any(line.startswith("the FM radio (radio 1) is restarted") for line in said), (
+    assert not any(line.startswith("the Packet radio (radio 1) is restarted") for line in said), (
         "the FM radio was not touched"
     )
     assert any(line.startswith("the Mercury radio (radio 2) is started: the Mercury modem") for line in said)
@@ -167,7 +167,7 @@ async def test_the_log_says_which_radio_is_restarted_and_what_changed_in_its_set
     [why] = [
         r.getMessage()
         for r in caplog.records
-        if r.getMessage().startswith("the FM radio (radio 1) is restarted because its settings changed")
+        if r.getMessage().startswith("the Packet radio (radio 1) is restarted because its settings changed")
     ]
     assert "baud 9600 -> 19200" in why
     assert await a.ctl.save_config(replace(a.ctl.config, hf_enabled=False))

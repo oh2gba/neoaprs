@@ -8,7 +8,7 @@ from dataclasses import replace
 from neoaprs.configtypes import int_in
 from neoaprs.configvalues import host_name
 from neoaprs.radiotype import Field, RadioType
-from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS, TERMINAL_ONLY, fields_of
+from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS, ON_HF, TERMINAL_ONLY, fields_of
 from neoaprs.radiotypes.serialtnc import PORT as SERIAL_PORT
 from neoaprs.tncprofile import KISS_TCP
 
@@ -36,7 +36,7 @@ TYPES: tuple[RadioType, ...] = (
         KISS_TCP.transport,
         "tnc",
         KISS_TCP.key,
-        fields_of((PORT, TCP_HOST, TCP_PORT), FM_ALLOWED),
+        fields_of((PORT, TCP_HOST, TCP_PORT, ON_HF), FM_ALLOWED),
         FM_LIMITS,
         FM_ALLOWED,
         TERMINAL_ONLY,

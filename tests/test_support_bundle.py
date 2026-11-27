@@ -102,7 +102,7 @@ def test_the_summarys_beacon_is_each_radios_interval_in_force_the_hf_radio_raise
         },
         radios=True,
     )
-    assert "on, every 20 min on FM, 30 min on Mercury" in made(tmp_path, data)[1]["summary.txt"], (
+    assert "on, every 20 min on Packet, 30 min on Mercury" in made(tmp_path, data)[1]["summary.txt"], (
         "the 20 minutes set stay on FM and are 30 on the Mercury radio, as each beacon goes (plan rule 3.1)"
     )
     (tmp_path / "alone").mkdir()
@@ -149,12 +149,12 @@ def test_the_summary_says_on_which_radios_each_thing_goes_one_line_each_objects_
     }
     summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
     assert [" ".join(line.split()) for line in section(summary, "Send on").splitlines()] == [
-        "Beacon: FM, Mercury",
+        "Beacon: Packet, Mercury",
         "Status: Mercury",
-        "Ask around: FM, Mercury",
-        "Local info: FM",
+        "Ask around: Packet, Mercury",
+        "Local info: Packet",
         "E-mail: Mercury",
-        "Object NET: FM, Mercury",
+        "Object NET: Packet, Mercury",
         "Object GONE: none",
         "Bulletin BLN1: Mercury",
     ], "a thing ticked nowhere (an object on a radio the station no longer has) says none"
@@ -189,7 +189,7 @@ def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_scree
     ):
         assert label in summary, label
     assert "OH2GBA" in summary and "Fixed" in summary and "on, every 60 min" in summary and "kenwood-tnc2" in summary
-    assert "Radio 1: FM" in summary and "Radio 2" not in summary, (
+    assert "Radio 1: Packet" in summary and "Radio 2" not in summary, (
         "the radios the station has, by the name the log gives each: one that never set up Mercury has radio 1 alone"
     )
     assert "2026-10-26 12:00:00Z (UTC)" in summary and "local " in summary
@@ -227,9 +227,9 @@ def test_a_daemon_that_holds_the_folder_is_said_so_and_its_state_is_in_the_bundl
     _, members = made(tmp_path, running=True, live=live, by="the running daemon")
     summary = members["summary.txt"]
     assert "running, up 3 h 2 min (since 2026-10-26T09:00:00Z)" in summary
-    assert "waiting" in section(summary, "Radio 1: FM") and "no radio found" in section(summary, "Radio 1: FM"), (
-        "the radio's state is under the radio"
-    )
+    assert "waiting" in section(summary, "Radio 1: Packet") and "no radio found" in section(
+        summary, "Radio 1: Packet"
+    ), "the radio's state is under the radio"
     assert "no_fix" in summary and "TNC not connected" in summary and "127.0.0.1, port 7303" in summary
     assert json.loads(members["state.json"])["radios"][0]["tnc"]["state"] == "waiting"
     assert "state.json" in members["README.txt"]
@@ -267,7 +267,7 @@ def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_n
     assert "{0.0.0.00000000}.{ca03}" in hf and "rts:COM7" in hf and "the sound card could not be opened" in hf
     assert "'USB Audio CODEC': records and plays; {0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" in hf
     assert "'Line (Webcam)': records, the system default; {0.0.1.00000000}.{dddd}" in hf
-    assert "the daemon did not run this radio" in section(summary, "Radio 1: FM"), (
+    assert "the daemon did not run this radio" in section(summary, "Radio 1: Packet"), (
         "a radio of the settings that the daemon's state lacks says so"
     )
     (tmp_path / "off").mkdir()
@@ -473,13 +473,13 @@ def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_o
     _, members = made(tmp_path, data, running=True, live=live, by="the running daemon")
     summary = members["summary.txt"]
     titles = [line for line in summary.splitlines() if line.startswith("Radio ")]
-    assert titles == ["Radio 1: FM", "Radio 2: Mercury", f"Radio {third}: Base"], (
+    assert titles == ["Radio 1: Packet", "Radio 2: Mercury", f"Radio {third}: Base"], (
         "each radio that is not removed, by position, by the name the log gives it"
     )
     assert (
-        "kenwood-tnc2" in section(summary, "Radio 1: FM")
-        and "/dev/ttyUSB0" in section(summary, "Radio 1: FM")
-        and "connected" in section(summary, "Radio 1: FM")
+        "kenwood-tnc2" in section(summary, "Radio 1: Packet")
+        and "/dev/ttyUSB0" in section(summary, "Radio 1: Packet")
+        and "connected" in section(summary, "Radio 1: Packet")
     )
     assert re.search(r"On:\s+no", section(summary, "Radio 2: Mercury")) and "vox" in section(
         summary, "Radio 2: Mercury"
@@ -489,7 +489,7 @@ def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_o
     )
     settings = json.loads(members["settings.json"])
     assert [(r["id"], r["log_name"], r["enabled"], r["removed_at"] is not None) for r in settings["radios"]] == [
-        (1, "FM", True, False),
+        (1, "Packet", True, False),
         (2, "Mercury", False, False),
         (third, "Base", True, False),
         (gone, "Old", True, True),
@@ -567,7 +567,7 @@ async def test_the_daemon_tells_every_radio_it_runs_with_its_line_and_its_beacon
     assert set(radios) == {r.id for r in e.ctl.radios.all()} and 1 in radios
     fm = radios[1]
     assert (
-        (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "FM", True)
+        (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "Packet", True)
         and fm["tnc"]["state"] == "connected"
         and fm["tnc"]["path"] == e.link
     ), "radio 1's line"
@@ -579,7 +579,9 @@ async def test_the_daemon_tells_every_radio_it_runs_with_its_line_and_its_beacon
     members = (
         await asyncio.to_thread(made, tmp_path / "bundle", e.dir, running=True, live=state, by="the running daemon")
     )[1]
-    assert re.search(r"State:\s+connected", section(members["summary.txt"], "Radio 1: FM")) and "doctor.txt" in members
+    assert (
+        re.search(r"State:\s+connected", section(members["summary.txt"], "Radio 1: Packet")) and "doctor.txt" in members
+    )
 
 
 def test_radios_that_cannot_be_read_are_one_section_that_says_so_and_no_made_up_radio(tmp_path: Path) -> None:

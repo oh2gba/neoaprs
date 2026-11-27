@@ -268,7 +268,7 @@ async def test_aprsd_on_a_radio_that_carries_paths_leaves_out_a_station_heard_di
     rig = Rig()
     pick = pick_of(rig)
     third = StubTnc()
-    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))  # a second radio that carries paths
+    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="Packet 3"))  # a second radio that carries paths
     pick.on.add(3)
     rig.q = Queries(
         pick,
@@ -306,7 +306,7 @@ async def test_aprsd_on_a_radio_that_carries_paths_counts_only_what_that_radio_h
     rig = Rig()
     pick = pick_of(rig)
     third = StubTnc()
-    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))  # a second radio that carries paths
+    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="Packet 3"))  # a second radio that carries paths
     pick.on.add(3)
     rig.q = Queries(
         pick,
@@ -343,7 +343,7 @@ async def test_an_answer_goes_by_the_askers_path_on_the_radio_it_is_sent_on() ->
     rig = Rig()
     pick = pick_of(rig)
     third = StubTnc()
-    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))
+    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="Packet 3"))
     pick.on.add(3)
     by_radio = {FM_ID: ("WIDE1-1",), 3: ("OH2RD3",)}
     rig.q = Queries(

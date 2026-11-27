@@ -1,4 +1,4 @@
-"""Direwolf, the AFSK 1200 sound-card modem: version pin, configuration, command line, output.
+"""Direwolf, the AFSK 1200 and 300 sound-card modem: version pin, configuration, command line, output.
 
 Pure values and functions, no I/O. Direwolf keys the radio itself and does not digipeat or gate.
 The patched build (packaging/direwolf/) adds `-Q`, `-G` and `-R`; docs/direwolf.md has the sources.
@@ -46,7 +46,7 @@ TESTS = {"tune": "a", "key": "p"}
 
 PROFILE = Profile(
     "direwolf",
-    "Sound card",
+    "sound card, 1200",
     "modem",
     None,
     (),
@@ -55,6 +55,30 @@ PROFILE = Profile(
     False,
     "Direwolf 1.8.1, which NeoAPRS carries, on the radio's sound card: AFSK 1200, keyed by a CM108 pin, RTS or DTR, or VOX.",
 )
+PROFILE_300 = Profile(
+    "direwolf-300",
+    "sound card, 300",
+    "modem",
+    None,
+    (),
+    None,
+    False,
+    False,
+    "The same Direwolf with its 300 baud modem for HF SSB (tones 1600 and 1800 Hz), seven decoders 30 Hz apart; keyed as the 1200 type.",
+)
+# the speed of the modem of each profile, and its MODEM line (docs/direwolf.md, "300 baud on HF")
+BAUDS = {PROFILE.key: 1200, PROFILE_300.key: 300}
+_MODEM_LINES = {1200: "MODEM 1200", 300: "MODEM 300 A- 7@30"}
+
+
+def modem_baud(profile: str) -> int:
+    """Return the modem's speed for a Sound card type's profile key (1200 for any other)."""
+    return BAUDS.get(profile, 1200)
+
+
+def mode_of(baud: int) -> str:
+    """Return the mode the status line names ("AFSK1200", "AFSK300")."""
+    return f"AFSK{baud}"
 
 
 def gain_percent(gain_db: int) -> int:
@@ -83,14 +107,14 @@ def adevice(sound_card: str, numbers: tuple[int, int] | None = None) -> str:
     return sound_card
 
 
-def conf_text(device: str, keying: Keying, kiss_port: int) -> str:
+def conf_text(device: str, keying: Keying, kiss_port: int, baud: int = 1200) -> str:
     """Return the configuration. `KISSPORT 0` clears the default slot; ADEVICE precedes PTT."""
     return (
         "# written by NeoAPRS at every start\n"
         f"ADEVICE {device}\n"
         "ACHANNELS 1\n"
         "CHANNEL 0\n"
-        "MODEM 1200\n"
+        f"{_MODEM_LINES[baud]}\n"
         f"TXTAIL {TXTAIL_MS // 10}\n"
         f"{ptt_line(keying)}"
         "KISSPORT 0\n"

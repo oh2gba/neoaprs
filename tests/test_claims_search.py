@@ -96,8 +96,8 @@ async def test_a_second_serial_radio_waits_while_the_first_searches_and_then_lea
     (first_master, second_master), (port_1, port_2), pattern = await links(tmp_path, ptys, 2)
     claims, lock = Claims(), asyncio.Lock()
     fm, fm2 = (
-        serial_radio(1, "FM", claims, lock, pattern=pattern),
-        serial_radio(3, "FM 2", claims, lock, pattern=pattern),
+        serial_radio(1, "Packet", claims, lock, pattern=pattern),
+        serial_radio(3, "Packet 2", claims, lock, pattern=pattern),
     )
     feeders: list[asyncio.Task[None]] = []
     starts = [asyncio.create_task(fm.start())]
@@ -108,14 +108,14 @@ async def test_a_second_serial_radio_waits_while_the_first_searches_and_then_lea
         assert fm2.describe() == WAITING and fm2.searching == [] and lock.locked(), (
             "the second radio waits for its turn, and says so"
         )
-        assert f"FM 2: {WAITING}" in caplog.text and any(line.endswith(WAITING) for line in fm2.lines)
+        assert f"Packet 2: {WAITING}" in caplog.text and any(line.endswith(WAITING) for line in fm2.lines)
         feeders.append(asyncio.create_task(keep_feeding(first_master, kiss_of(ui_frame()))))
         await until(lambda: fm.state is Source.State.CONNECTED and fm.path == port_1, 10.0)
         assert claims.all() == (Claim("serial", port_key(port_1), 1),), "the port the first radio found is its radio's"
         await until(lambda: fm2.searching == [port_2], 10.0)
-        assert f"probe: skipping {port_1}: held by radio 1" in caplog.text and "FM 2: listening on" in caplog.text, (
-            "the second searches in its turn, without the first's port"
-        )
+        assert (
+            f"probe: skipping {port_1}: held by radio 1" in caplog.text and "Packet 2: listening on" in caplog.text
+        ), "the second searches in its turn, without the first's port"
         feeders.append(asyncio.create_task(keep_feeding(second_master, kiss_of(ui_frame()))))
         await until(lambda: fm2.state is Source.State.CONNECTED and fm2.path == port_2, 10.0)
         assert (
@@ -178,15 +178,15 @@ async def test_a_radio_that_never_finds_its_port_gives_its_turn_to_a_radio_that_
     (_, second_master), (port_1, port_2), _ = await links(tmp_path, ptys, 2)
     claims, lock = Claims(), asyncio.Lock()
     # (its radio is switched off: port_1 never says a word)
-    fm = serial_radio(1, "FM", claims, lock, pattern=port_1, nudge_sec=0.1)
-    fm2 = serial_radio(3, "FM 2", claims, lock, pattern=port_2, nudge_sec=0.1)
+    fm = serial_radio(1, "Packet", claims, lock, pattern=port_1, nudge_sec=0.1)
+    fm2 = serial_radio(3, "Packet 2", claims, lock, pattern=port_2, nudge_sec=0.1)
     feeder = asyncio.create_task(keep_feeding(second_master, kiss_of(ui_frame())))
     starts = [asyncio.create_task(fm.start())]
     try:
         await until(lambda: fm.searching == [port_1], 5.0)
         starts.append(asyncio.create_task(fm2.start()))
         await until(lambda: fm2.state is Source.State.CONNECTED and fm2.path == port_2, 10.0)
-        assert "FM: the search gives its turn to another radio" in caplog.text and claims.all() == (
+        assert "Packet: the search gives its turn to another radio" in caplog.text and claims.all() == (
             Claim("serial", port_key(port_2), 3),
         )
         await until(lambda: fm.searching == [port_1], 5.0)
@@ -206,7 +206,7 @@ async def test_a_port_another_radio_or_the_gps_receiver_takes_while_the_search_l
     monkeypatch.setattr(serialprobe, "RELIST_SEC", 0.1)
     _, (port_1, port_2), pattern = await links(tmp_path, ptys, 2)
     claims = Claims()
-    fm = serial_radio(1, "FM", claims, asyncio.Lock(), pattern=pattern)
+    fm = serial_radio(1, "Packet", claims, asyncio.Lock(), pattern=pattern)
     start = asyncio.create_task(fm.start())
     try:
         await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
@@ -227,7 +227,7 @@ async def test_a_named_port_another_radio_or_the_gps_receiver_holds_is_never_ope
     claims, lock = Claims(), asyncio.Lock()
     # (the HF radio's modem keys its radio on this port's RTS: one device, whichever the use)
     claims.hold(Claim("keying", port_key(port), 2))
-    tnc = serial_radio(3, "FM 2", claims, lock, port=port)
+    tnc = serial_radio(3, "Packet 2", claims, lock, port=port)
     try:
         await tnc.start()
         assert tnc.state is Source.State.WAITING and tnc.problem == f"{port}: held by radio 2" and tnc.stats.opens == 0
@@ -553,7 +553,7 @@ async def test_a_port_another_radio_is_set_to_is_never_opened_by_a_search_and_th
     claims, lock = Claims(), asyncio.Lock()
     # (a LoRa board's radio 3 is set to port_2, and is started after radio 1)
     claims.named = set_to((port_2, 3))
-    fm = serial_radio(1, "FM", claims, lock, pattern=pattern)
+    fm = serial_radio(1, "Packet", claims, lock, pattern=pattern)
     lora = serial_radio(3, "LoRa", claims, lock, port=port_2)
     starts = [asyncio.create_task(fm.start())]
     feeder = asyncio.create_task(keep_feeding(board, kiss_of(ui_frame())))
@@ -582,7 +582,7 @@ async def test_a_search_that_has_a_port_open_lets_go_of_it_when_another_radio_is
     monkeypatch.setattr(serialprobe, "RELIST_SEC", 0.1)
     (_, board), (port_1, port_2), pattern = await links(tmp_path, ptys, 2)
     claims, lock = Claims(), asyncio.Lock()
-    fm = serial_radio(1, "FM", claims, lock, pattern=pattern)
+    fm = serial_radio(1, "Packet", claims, lock, pattern=pattern)
     lora = serial_radio(3, "LoRa", claims, lock, port=port_2)
     starts = [asyncio.create_task(fm.start())]
     feeder: asyncio.Task[None] | None = None
@@ -621,7 +621,7 @@ async def test_a_named_port_another_radio_holds_is_waited_for_and_no_other_port_
         claims=claims,
         search_lock=lock,
     )
-    tnc.radio_id, tnc.radio_name = 3, "FM 2"
+    tnc.radio_id, tnc.radio_name = 3, "Packet 2"
     feeder = asyncio.create_task(keep_feeding(other, kiss_of(ui_frame())))
     seen: list[list[str]] = []
     tnc.changed.connect(lambda: seen.append(tnc.searching))
@@ -654,8 +654,8 @@ async def test_two_searches_that_take_turns_nudge_each_port_once_and_say_their_t
     os.set_blocking(master, False)
     claims, lock = Claims(), asyncio.Lock()
     radios = [
-        serial_radio(1, "FM", claims, lock, pattern=pattern, nudge_sec=0.1),
-        serial_radio(3, "FM 2", claims, lock, pattern=pattern, nudge_sec=0.1),
+        serial_radio(1, "Packet", claims, lock, pattern=pattern, nudge_sec=0.1),
+        serial_radio(3, "Packet 2", claims, lock, pattern=pattern, nudge_sec=0.1),
     ]
     starts = [asyncio.create_task(radio.start()) for radio in radios]
     heard = b""
@@ -671,18 +671,18 @@ async def test_two_searches_that_take_turns_nudge_each_port_once_and_say_their_t
     gives = [r for r in caplog.records if "the search gives its turn" in r.getMessage()]
     assert len(gives) > 2, "the two took turns"
     assert heard.count(b"\r") <= 2, "one carriage return for each radio's search, however many turns it takes"
-    for name in ("FM", "FM 2"):
+    for name in ("Packet", "Packet 2"):
         for words in ("the search gives its turn to another radio", WAITING, "listening on"):
             said = [
                 r for r in caplog.records if r.levelno == logging.INFO and r.getMessage().startswith(f"{name}: {words}")
             ]
             assert len(said) <= 1, f"{name}: {words!r} is said once a search at INFO, at DEBUG after"
-        assert sum(WAITING in line for line in radios[0 if name == "FM" else 1].lines) <= 1
+        assert sum(WAITING in line for line in radios[0 if name == "Packet" else 1].lines) <= 1
 
 
 def test_the_words_of_who_holds_a_port_name_the_radio() -> None:
     claims = Claims()
-    claims.name_of = {2: "HF", 3: "FM 2"}.get  # type: ignore[assignment]
+    claims.name_of = {2: "HF", 3: "Packet 2"}.get  # type: ignore[assignment]
     # (a claim holds the port as port_key compares it: in upper case on Windows)
     claims.hold(Claim("keying", port_key("/dev/ttyUSB0"), 2))
     claims.hold(Claim("gps", port_key("/dev/ttyACM0"), None))
@@ -853,7 +853,7 @@ async def test_a_board_that_speaks_after_a_save_named_its_port_for_another_radio
     monkeypatch.setattr(serialprobe, "RELIST_SEC", 30.0)
     (_, board), (port_1, port_2), pattern = await links(tmp_path, ptys, 2)
     claims, lock = Claims(), asyncio.Lock()
-    fm = serial_radio(1, "FM", claims, lock, pattern=pattern)
+    fm = serial_radio(1, "Packet", claims, lock, pattern=pattern)
     lora = serial_radio(3, "LoRa", claims, lock, port=port_2)
     starts = [asyncio.create_task(fm.start())]
     feeder: asyncio.Task[None] | None = None
@@ -886,8 +886,8 @@ async def test_a_radio_a_save_names_a_port_for_takes_it_at_once_from_a_search_th
     monkeypatch.setattr(serialprobe, "RELIST_SEC", 30.0)
     _, (port_1, port_2), pattern = await links(tmp_path, ptys, 2)
     claims, lock = Claims(), asyncio.Lock()
-    fm = serial_radio(1, "FM", claims, lock, pattern=pattern)
-    radio = serial_radio(3, "FM 2", claims, lock, port=port_2, pattern=pattern)
+    fm = serial_radio(1, "Packet", claims, lock, pattern=pattern)
+    radio = serial_radio(3, "Packet 2", claims, lock, port=port_2, pattern=pattern)
     radio.fallback_probe = fallback
     starts = [asyncio.create_task(fm.start())]
     try:
@@ -947,7 +947,7 @@ async def test_radio_1s_remembered_port_that_the_gps_receiver_holds_is_searched_
     claims, lock = Claims(), asyncio.Lock()
     # (serial/last_port is the receiver's port now)
     claims.hold(Claim("gps", port_key(port_1), None))
-    fm = serial_radio(1, "FM", claims, lock, port=port_1, pattern=pattern)
+    fm = serial_radio(1, "Packet", claims, lock, port=port_1, pattern=pattern)
     fm.fallback_probe, fm.remembered = True, True
     feeder = asyncio.create_task(keep_feeding(tnc_master, kiss_of(ui_frame())))
     try:

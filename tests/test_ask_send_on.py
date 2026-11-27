@@ -352,7 +352,7 @@ def test_the_log_says_each_radio_a_query_went_on_and_a_radio_that_did_not_take_i
     assert station.general.ask("aprs").radios == (1, 2)
     assert [(r.name, r.levelname, r.getMessage()) for r in caplog.records] == [
         ("neoaprs.services", "WARNING", "asking around: the LoRa radio (radio 3) did not take the frame"),
-        ("neoaprs.queries", "INFO", "asked around: ?APRS? by WIDE1-1,WIDE2-1,RFONLY on FM"),
+        ("neoaprs.queries", "INFO", "asked around: ?APRS? by WIDE1-1,WIDE2-1,RFONLY on Packet"),
         ("neoaprs.queries", "INFO", "asked around: ?APRS? by no digipeaters on Mercury"),
     ]
 

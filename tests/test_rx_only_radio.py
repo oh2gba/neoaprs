@@ -1,5 +1,5 @@
 """A receive-only radio (type `tnc-text`, neoaprs/radiotypes/tnctext.py) on the real controller:
-alone, every sending service refuses with `transmit.off`; beside a Dummy FM radio everything goes
+alone, every sending service refuses with `transmit.off`; beside a Dummy packet radio everything goes
 there; nothing is written on it.
 """
 
@@ -13,7 +13,7 @@ import pytest
 from neoaprs import ax25, kiss
 from neoaprs.claims import Claims
 from neoaprs.beaconrule import beacon_radios
-from neoaprs.direwolf import PROFILE as DIREWOLF
+from neoaprs.direwolf import PROFILE as DIREWOLF, PROFILE_300 as DIREWOLF_300
 from neoaprs.config import LISTENS_ONLY, RECEIVE_ONLY, can_transmit
 from neoaprs.emailrule import email_radio
 from neoaprs.messagerule import message_radio
@@ -367,7 +367,7 @@ def test_every_radio_a_rule_picks_can_send(
 
 def test_a_type_whose_profile_reads_text_or_writes_nothing_cannot_send_and_every_other_can() -> None:
     # The Sound card type's line is told Direwolf's profile by its own driver
-    profiles = {**PROFILES, DIREWOLF.key: DIREWOLF}
+    profiles = {**PROFILES, DIREWOLF.key: DIREWOLF, DIREWOLF_300.key: DIREWOLF_300}
     for t in BY_KEY.values():
         assert (
             profiles[t.profile].writes_nothing

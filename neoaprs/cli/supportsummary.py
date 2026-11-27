@@ -15,7 +15,7 @@ from neoaprs.emailrule import email_radio
 from neoaprs.radiospec import RadioId, RadioSpec, in_force_set, log_name
 from neoaprs.versions import InstallInfo
 
-from .radiosettings import is_mercury, reached
+from .radiosettings import is_mercury, reached, type_words
 
 Section = tuple[str, list[tuple[str, str]]]
 LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z?)  (DEBUG|INFO|WARNING|ERROR|CRITICAL)  (.*)$")
@@ -197,7 +197,7 @@ def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
     tnc: dict[str, Any] = found if isinstance(found, dict) else {}
     now = {"Port": tnc.get("path"), "Speed": f"{tnc['baud']} baud" if tnc.get("baud") else None}
     rows = [
-        ("Type", spec.type),
+        ("Type", type_words(spec)),
         ("On", "yes" if spec.enabled else "no"),
         *((label, now.get(label) or words) for label, words in reached(spec)),
     ]

@@ -107,7 +107,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     ),
     "beacon/interval_min": (
         "My station tab, Beacon",
-        "minutes between your position packets: 0 is off, else {beacon_interval_min}. 0 switches the beacon off ([beacon.md](beacon.md#beacon-off)): no beacon and no status report, while messages, answers, objects, bulletins and the digipeater go on. The page offers Off and every 30 min, 60 min and 3 hours; a moving station (a GPS is chosen) is offered Off and On (SmartBeaconing), where any value but 0 is On and the value is not used, and On stores 30. A stored value below {beacon_min} is raised to {beacon_min}, with a line in the log (a stored 20 or 45 is shown as one more choice). On a Mercury radio an interval below {hf_min} is raised to {hf_min}, with a line in the log; the FM radio keeps the interval set: a frame on a channel that distant stations share is not sent often. The default is off so that an upgrade never starts to transmit",
+        "minutes between your position packets: 0 is off, else {beacon_interval_min}. 0 switches the beacon off ([beacon.md](beacon.md#beacon-off)): no beacon and no status report, while messages, answers, objects, bulletins and the digipeater go on. The page offers Off and every 30 min, 60 min and 3 hours; a moving station (a GPS is chosen) is offered Off and On (SmartBeaconing), where any value but 0 is On and the value is not used, and On stores 30. A stored value below {beacon_min} is raised to {beacon_min}, with a line in the log (a stored 20 or 45 is shown as one more choice). On a Mercury radio, and on a packet radio on HF, an interval below {hf_min} is raised to {hf_min}, with a line in the log; a packet radio on VHF or UHF keeps the interval set: a frame on a channel that distant stations share is not sent often. The default is off so that an upgrade never starts to transmit",
     ),
     "beacon/power_w": (
         "My station tab, Beacon, Antenna",
@@ -320,7 +320,7 @@ def fixed() -> str:
         f"A GPS fix older than {GPS_STALE_SEC} seconds is not used: a moving station sends no beacon on it, and never the home position instead.",
         f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {_choices(SENT_FOR['bulletin'])} hours and an announcement for {_choices(SENT_FOR['announcement'], 24)} days, as chosen under Sent for ({DEFAULT_HOURS['bulletin']} hours and {DEFAULT_HOURS['announcement'] // 24} days until you choose).",
         f"The update check asks the version page every {updates} hours.",
-        f"A beacon interval below a radio's floor is raised to it: {HF_BEACON_MIN_MIN} minutes on a Mercury radio, {LORA_BEACON_MIN_MIN} on a LoRa radio, {FM_BEACON_MIN_MIN} on an FM radio. Everything a radio sends by the clock waits a random extra time first (up to {HF_BEACON_JITTER_SEC} seconds on a Mercury radio, {LORA_BEACON_JITTER_SEC} on LoRa, {FM_BEACON_JITTER_SEC} on FM), so that stations started together do not key up together.",
+        f"A beacon interval below a radio's floor is raised to it: {HF_BEACON_MIN_MIN} minutes on a Mercury radio and on a packet radio on HF, {LORA_BEACON_MIN_MIN} on a LoRa radio, {FM_BEACON_MIN_MIN} on a packet radio on VHF or UHF. Everything a radio sends by the clock waits a random extra time first (up to {HF_BEACON_JITTER_SEC} seconds on a Mercury radio and on a packet radio on HF, {LORA_BEACON_JITTER_SEC} on LoRa, {FM_BEACON_JITTER_SEC} on VHF or UHF), so that stations started together do not key up together.",
         f"A frame on a Mercury radio is at most {HF_MAX_FRAME} bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.",
     ]
     return "\n".join(f"- {item}" for item in items) + "\n"
@@ -383,6 +383,10 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "tcp_port": (
         "Settings tab, Radio (Port)",
         "the KISS port there ({tcp_port}): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100",
+    ),
+    "on_hf": (
+        "Settings tab, Radio (On HF)",
+        "`true`: the TNC is on an HF radio, and the radio is held as a Mercury radio is: the beacon every {hf_min} minutes at the most often, a random pause of up to 5 minutes before what goes by the clock, a pause before each retry of a message, no fill-in digipeater and no SmartBeaconing ([radio.md](radio.md#a-tnc-on-a-serial-port)). `false` by default",
     ),
     "beacon": (
         DB_ONLY,

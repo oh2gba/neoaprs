@@ -1729,11 +1729,11 @@ async def test_the_log_says_when_a_message_is_kept_on_which_radio_it_went_when_i
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
     said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.messaging"]
     assert said == [
-        "message 1 to OH2RDG is kept: 11 characters, at most 4 attempts, on the FM radio (radio 1)",
-        "message 1 to OH2RDG sent on the FM radio (radio 1) (attempt 1 of 4): Hello Pekka",
+        "message 1 to OH2RDG is kept: 11 characters, at most 4 attempts, on the Packet radio (radio 1)",
+        "message 1 to OH2RDG sent on the Packet radio (radio 1) (attempt 1 of 4): Hello Pekka",
         "message 1 to OH2RDG is cancelled (the operator asked): 1 of 4 attempts were made",
         "message 1 to OH2RDG is sent again from the first attempt (it was cancelled; the operator asked)",
-        "message 1 to OH2RDG sent on the FM radio (radio 1) (attempt 1 of 4): Hello Pekka",
+        "message 1 to OH2RDG sent on the Packet radio (radio 1) (attempt 1 of 4): Hello Pekka",
         "message 1 to OH2RDG is acked",
     ]
 
@@ -1747,7 +1747,7 @@ async def test_the_log_says_when_the_radio_takes_frames_again_and_for_how_long_i
     await rig.pass_time(10)
     await rig.radio(Source.State.CONNECTED)
     assert any(
-        "the FM radio (radio 1) takes frames again after" in r.getMessage()
+        "the Packet radio (radio 1) takes frames again after" in r.getMessage()
         and "moved on by that time" in r.getMessage()
         for r in caplog.records
     )

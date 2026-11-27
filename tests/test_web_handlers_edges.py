@@ -131,7 +131,7 @@ async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_
     closed: bool, cancelled: int
 ) -> None:
     finder, page = Finder(), Page(closed)
-    radio = SimpleNamespace(id=1, name="FM", rtype=type_of("kenwood-tnc2"))
+    radio = SimpleNamespace(id=1, name="Packet", rtype=type_of("kenwood-tnc2"))
     # Radio 1, which a page that names no radio searches for
     ctx = SimpleNamespace(
         ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: radio if id == 1 else None)),

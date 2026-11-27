@@ -71,7 +71,7 @@ def test_a_third_radio_goes_by_its_own_path_not_the_stations(path: str, frame_pa
     config = with_radios(replace(BOTH), *BOTH.radios, third(path))
     frames = BeaconFrames(lambda: config, None, FixedClock())
     radio = radio_of(config, 3)
-    assert radio.name == "FM 2" and frames.position(radio).path_text == frame_path, (
+    assert radio.name == "Packet 2" and frames.position(radio).path_text == frame_path, (
         "an empty path is the recommended one of the symbol, DIRECT none"
     )
     assert frames.position(radio_of(config, FM_ID)).path_text == "WIDE1-1,WIDE2-1", "radio 1 keeps beacon/path"
@@ -178,7 +178,7 @@ def test_a_radio_of_the_old_shape_is_read_as_the_registrys_radio_of_its_kind() -
     assert isinstance(fm, OldLine) and (fm.id, fm.kind, fm.name, fm.max_frame, fm.allowed, fm.limits) == (
         FM_ID,
         "fm",
-        "FM",
+        "Packet",
         None,
         BOTH.radios[0].rtype.allowed,
         BOTH.radios[0].rtype.limits,
@@ -204,7 +204,7 @@ class BothShapes(StubTnc):
     """A stub line that is also a radio of the registry's shape with choices of its own (as a test's
     stub may be): its path is the recommended one, not the station's beacon/path."""
 
-    id, kind, name, limits, allowed = FM_ID, "fm", "FM", FM_LIMITS, FM_ALLOWED
+    id, kind, name, limits, allowed = FM_ID, "fm", "Packet", FM_LIMITS, FM_ALLOWED
     stats = TncStats()
 
     def choice(self, key: str) -> Any:

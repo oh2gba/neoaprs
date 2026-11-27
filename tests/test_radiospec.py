@@ -68,13 +68,13 @@ def test_the_live_radios_are_the_ones_not_removed_and_the_enabled_ones_are_also_
 
 def test_a_radio_is_numbered_within_its_kind_by_id_and_a_removed_one_after_the_live_ones() -> None:
     assert [number_in_kind(s, SIX) for s in SIX] == [1, 1, 2, 2, 1, 3]
-    assert [log_name(s, SIX) for s in SIX] == ["FM", "Mercury", "Mercury 2", "FM 2", "LoRa", "20m"]
+    assert [log_name(s, SIX) for s in SIX] == ["Packet", "Mercury", "Mercury 2", "Packet 2", "LoRa", "20m"]
     one = [radio(4, removed=True), radio(7)]
-    assert [log_name(s, one) for s in one] == ["FM 2", "FM"], (
+    assert [log_name(s, one) for s in one] == ["Packet 2", "Packet"], (
         "the live one is the first FM radio once the other is removed"
     )
     two_gone = [radio(1, removed=True), radio(3, removed=True), radio(5)]
-    assert [log_name(s, two_gone) for s in two_gone] == ["FM 2", "FM 3", "FM"], (
+    assert [log_name(s, two_gone) for s in two_gone] == ["Packet 2", "Packet 3", "Packet"], (
         "a live radio among the live ones of its kind, a removed one after them, by id among the removed"
     )
     hf = [radio(1), radio(2, "hf", removed=True), radio(5, "hf")]

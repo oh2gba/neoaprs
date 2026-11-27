@@ -88,7 +88,7 @@ async def test_a_radio_whose_type_has_no_scope_is_refused_with_its_name_and_a_st
     dummy = await added(page, "dummy-hf", "Attic")
     for command, code, params in (
         ({"cmd": "radio_scope", "radio": dummy, "on": True}, "radio.no_scope", {"name": "Attic", "radio": dummy}),
-        ({"cmd": "radio_scope", "radio": 1, "on": True}, "radio.no_scope", {"name": "FM", "radio": 1}),
+        ({"cmd": "radio_scope", "radio": 1, "on": True}, "radio.no_scope", {"name": "Packet", "radio": 1}),
         ({"cmd": "radio_scope", "radio": 9, "on": True}, "radio.unknown", {"radio": 9}),
     ):
         error = await refused(page, command)

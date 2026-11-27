@@ -220,11 +220,11 @@ def test_a_stored_name_that_is_a_kinds_word_alone_is_read_as_no_name() -> None:
         (3, "hf", "mercury", "MERCURY", 1, 3, None),
         (4, "hf", "dummy-hf", "HF", 1, 4, None),
         (5, "lora", "lora-tcp", "Mercury1", 1, 5, None),
-        (6, "fm", "kiss", "FM 2", 1, 6, None),
+        (6, "fm", "kiss", "Packet 2", 1, 6, None),
     ]
     found = radios_from_rows(rows, [])
-    assert [s.name for s in found] == ["", "", "", "HF", "Mercury1", "FM 2"]
-    assert [log_name(s, found) for s in found] == ["FM", "Mercury", "Mercury 2", "HF", "Mercury1", "FM 2"], (
+    assert [s.name for s in found] == ["", "", "", "HF", "Mercury1", "Packet 2"]
+    assert [log_name(s, found) for s in found] == ["Packet", "Mercury", "Mercury 2", "HF", "Mercury1", "Packet 2"], (
         "no two radios under one word, and HF is a name like any other now"
     )
 

@@ -344,7 +344,7 @@ async def test_why_send_status_now_sent_nothing_is_a_code_with_its_values_never_
     ), "the radio by its id: the page says its own name for it"
     refusing = Station(ticked(FM), ticked(HF))
     refusing.lines[1].takes = refusing.lines[2].takes = False
-    assert await why(refusing) == ("radio.not_taken", {"radio": 1, "name": "FM"}), (
+    assert await why(refusing) == ("radio.not_taken", {"radio": 1, "name": "Packet"}), (
         "none took it: the first radio's reason"
     )
     silent = Station(ticked(FM))

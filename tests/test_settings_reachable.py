@@ -84,6 +84,7 @@ NOT_YET_ON_THE_PAGE = {
     "tx_card": "the sound card's own playback level, the Transmit level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
     "psk_report": "a Mercury radio's own Enable of PSK Reporter, in its box of PSK Reporter (with no flat key): unticked by default, nothing is reported",
     "psk_dial": "a Mercury radio's own dial for PSK Reporter, in its box (with no flat key): empty by default, nothing is reported",
+    "on_hf": "a KISS TNC's own tick On HF, in its box (with no flat key): unticked by default; ticked, the radio sends less often and repeats nothing, which blocks nothing the page offers",
     "rx_card": "the sound card's own capture level, the Receive level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
 }
 

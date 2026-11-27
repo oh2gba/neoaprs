@@ -117,7 +117,7 @@ def test_a_save_that_gives_the_receivers_port_to_a_radio_or_a_radios_port_to_the
     assert (held.value.key, held.value.code, held.value.params) == (
         "gps/device",
         "radio.resource_held",
-        {"resource": "gps", "holder": "FM", "held_by": 1},
+        {"resource": "gps", "holder": "Packet", "held_by": 1},
     )
     found = Claims()
     # (the port radio 3's search found)

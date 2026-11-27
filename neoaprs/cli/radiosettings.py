@@ -12,7 +12,7 @@ from neoaprs.dberror import Connection, Row
 from neoaprs.migrations import schema_version
 from neoaprs.radiospec import RadioId, RadioSpec
 from neoaprs.radiosql import radio_rows, radio_settings
-from neoaprs.radiotype import RadioType, RadioTypeError, stored_text
+from neoaprs.radiotype import RadioType, RadioTypeError, stored_text, type_label
 from neoaprs.radiotypes import kind_fields
 from neoaprs.tncprofile import names_tcp, profile_of
 
@@ -71,6 +71,12 @@ def type_or_none(spec: RadioSpec) -> RadioType | None:
         return None
 
 
+def type_words(spec: RadioSpec) -> str:
+    """Return the radio's type by its name and key ("Packet, KISS TNC (kiss)"); the key alone if unknown."""
+    rtype = type_or_none(spec)
+    return spec.type if rtype is None else f"{type_label(rtype)} ({spec.type})"
+
+
 def own_fields(spec: RadioSpec) -> list[str]:
     """Return the keys of a radio's settings in its type's order, then other stored ones."""
     rtype = type_or_none(spec)
@@ -122,7 +128,7 @@ def port_problem(spec: RadioSpec) -> str:
     if transport != "tcp" or not port or names_tcp(port):
         return ""
     assert rtype is not None
-    return f"{rtype.name} connects over TCP (radio/{spec.id}/tcp_host and tcp_port), not to the serial port {port}: clear radio/{spec.id}/port, or give the radio a serial type"
+    return f"{type_label(rtype)} connects over TCP (radio/{spec.id}/tcp_host and tcp_port), not to the serial port {port}: clear radio/{spec.id}/port, or give the radio a serial type"
 
 
 def profile_baud(rtype: RadioType) -> int | None:

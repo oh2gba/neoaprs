@@ -255,8 +255,8 @@ def test_a_pair_of_a_radio_that_only_receives_or_of_a_dummy_and_a_real_radio_is_
     assert (e.key, e.code, e.params, str(e)) == (
         "pair/1/5/enabled",
         "pair.receive_only",
-        {"name": "FM 3"},
-        "pair/1/5/enabled: radio FM 3 only receives",
+        {"name": "Packet 3"},
+        "pair/1/5/enabled: radio Packet 3 only receives",
     )
     e = refusal({"pair/1/3/ssid": "4"})
     assert (e.key, e.code, e.params, str(e)) == (
@@ -399,7 +399,7 @@ def test_with_pairs_refuses_a_radio_that_is_none_or_removed_as_no_radio_and_make
     assert (e.value.key, e.value.code, e.value.params) == (
         "pair/1/6/enabled",
         "radio.unknown",
-        {"radio": 6, "name": "FM 5", "removed": 1},
+        {"radio": 6, "name": "Packet 5", "removed": 1},
     )
     with pytest.raises(SettingError) as e:
         checked_pairs({"pair/1/9/ssid": "3"})
@@ -510,7 +510,7 @@ async def test_through_the_page_a_pair_is_offered_set_refused_kept_and_survives_
             {f"pair/{real}/{monitor}/enabled": "true"},
             f"pair/{real}/{monitor}/enabled",
             "pair.receive_only",
-            {"name": "FM 3"},
+            {"name": "Packet 3"},
         ),
         ({f"pair/1/{hf}/ssid": "16"}, f"pair/1/{hf}/ssid", "setting.range", {"value": 16, "min": 1, "max": 15}),
         ({f"pair/{hf}/1/ssid": "3"}, f"pair/{hf}/1/ssid", "setting.unknown", {}),

@@ -1465,7 +1465,7 @@ OH2GBA-9   station  2026-11-15 18:12:30Z  60.1699 24.9384          0
 ### doctor
 NeoAPRS 0.20.0 on Windows 11 (AMD64)
 ok    database neoaprs.sqlite, version 33 (0.2 MB)
-ok    radio FM (dummy): traffic made up: nothing goes on the air
+ok    radio Packet (dummy): traffic made up: nothing goes on the air
 warn  no base map yet: the page shows no map
       fix: make it on the page (Settings tab, Map, Download) or with `neoaprs map`
 0 to fix, 1 to look at
@@ -2308,8 +2308,8 @@ def test_the_radio_data_check_holds_the_keys_of_a_radio_and_the_name_that_was_ty
     assert same_word == ([], [RADIOS_AFTER.replace("Mercury", "HF"), NOTHING_TO_MIGRATE]), (
         "and nothing is said when it calls it the same"
     )
-    assert radio_data_problems(script, "Proof", "FM") == [
-        "radio 1 had the name 'Proof' and has 'FM' after the update"
+    assert radio_data_problems(script, "Proof", "Packet") == [
+        "radio 1 had the name 'Proof' and has 'Packet' after the update"
     ], "in db radios and in the doctor's line alike: the doctor is held to db radios"
     assert radio_data_problems(script, "radio 1  Proof", "radio 1  Other") == [
         "radio 1 had the name 'Proof' and has 'Other' after the update",
@@ -2746,7 +2746,7 @@ def test_the_doctors_line_of_a_radio_is_read_up_to_its_type_whatever_follows_it(
     for line, name, key in (
         ("ok    radio Proof (dummy): traffic made up: nothing goes on the air", "Proof", "dummy"),
         ("ok    radio Mercury 2 (dummy-hf): off", "Mercury 2", "dummy-hf"),
-        ("ok    radio FM (kiss): port (found by searching), speed 9600 baud", "FM", "kiss"),
+        ("ok    radio Packet (kiss): port (found by searching), speed 9600 baud", "Packet", "kiss"),
         ("ok    radio IC (705) (kiss-tcp): port 127.0.0.1:8001", "IC (705)", "kiss-tcp"),
         # (a sound card is named by the system, brackets and colons too)
         ("ok    radio HF (mercury): sound card Line (USB): Front, keying (the daemon's choice)", "HF", "mercury"),

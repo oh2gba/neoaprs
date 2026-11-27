@@ -316,7 +316,7 @@ def test_what_the_services_are_given_until_the_registry_is_read_as_a_radio_pick_
     old = StubRadios(hf_stations=("OH2C",))
     pick = as_pick(old, lambda: BOTH)
     hf_packet = Packet(T0, "in", b"", "OH2C", "APRS", (), b"", Message("OH2GBA", "over hf", None), None, "rf", HF_ID)
-    assert [(r.id, r.kind, r.name) for r in pick.enabled()] == [(FM_ID, "fm", "FM"), (HF_ID, "hf", "Mercury")]
+    assert [(r.id, r.kind, r.name) for r in pick.enabled()] == [(FM_ID, "fm", "Packet"), (HF_ID, "hf", "Mercury")]
     assert [
         r.radio
         for r in (
@@ -589,7 +589,7 @@ def seen(air: AirRig, **heard: dict[int, int]) -> None:
 
 
 def switch(air: AirRig, **on: bool) -> None:
-    """A save that switches the FM radio (`fm`) or the Mercury radio (`hf`) on or off."""
+    """A save that switches the Packet radio (`fm`) or the Mercury radio (`hf`) on or off."""
     air.put(replace(air.config, **{f"{kind}_enabled": value for kind, value in on.items()}))
 
 

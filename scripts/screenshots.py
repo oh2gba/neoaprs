@@ -96,7 +96,7 @@ RADIOS: tuple[tuple[str, str, str], ...] = (
 # The station of the shots, in the order of their boxes: (kind, type, name). Every type is a
 # Dummy one that opens no device, never Mercury or Direwolf (they start a modem on the sound card).
 LABELS = {"fm": "2 m", "hf": "40 m", "lora": "LoRa"}
-FORBIDDEN_TYPES = ("mercury", "direwolf")  # the types no shot may use
+FORBIDDEN_TYPES = ("mercury", "direwolf", "direwolf-300")  # the types no shot may use
 # The day is played without the alert command, the beacon timer and the status; the page's
 # daemon starts them.
 AFTER_THE_DAY = {

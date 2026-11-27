@@ -6,7 +6,7 @@ The line is a device, or a socket://, ble:// or bt:// address. One driver, "tnc"
 from neoaprs.configtypes import optional_int
 from neoaprs.configvalues import port_address
 from neoaprs.radiotype import Can, Field, RadioType
-from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS, fields_of
+from neoaprs.radiotypes.common import FM_ALLOWED, FM_LIMITS, ON_HF, fields_of
 from neoaprs.tncprofile import KANTRONICS, KENWOOD_D710, KENWOOD_TNC2, KISS, Profile
 
 BAUD_RANGE = (300, 921600)  # the range of serial/baud (config.RANGES)
@@ -26,7 +26,7 @@ def _serial(profile: Profile) -> RadioType:
         profile.transport,
         "tnc",
         profile.key,
-        fields_of((PORT, BAUD), FM_ALLOWED),
+        fields_of((PORT, BAUD, ON_HF), FM_ALLOWED),
         FM_LIMITS,
         FM_ALLOWED,
         SERIAL_CAN,

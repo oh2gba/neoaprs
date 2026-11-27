@@ -229,6 +229,6 @@ async def test_a_port_lost_after_the_write_problem_shows_its_own_problem_not_the
         ser.unplugged = True
         await until(lambda: tnc.state is Source.State.WAITING and tnc.stats.opens >= 2 and "COM8:" in tnc.problem)
         assert tnc.write_stuck is None
-        assert row_of(tnc) == ("waiting", {"code": "radio.not_connected", "params": {"name": "FM"}})
+        assert row_of(tnc) == ("waiting", {"code": "radio.not_connected", "params": {"name": "Packet"}})
     finally:
         await tnc.stop()

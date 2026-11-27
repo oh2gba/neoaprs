@@ -9,9 +9,10 @@ from dataclasses import replace
 import pytest
 
 from neoaprs.config import DEFAULTS, RANGES, Config
-from neoaprs.direwolf import PROFILE as DIREWOLF
+from neoaprs.direwolf import PROFILE as DIREWOLF, PROFILE_300 as DIREWOLF_300
 from neoaprs.radiospec import KIND_WORDS
 from neoaprs.radiotype import FM_ID, HF_ID, KINDS, LOCAL_KINDS, Can, Limits, RadioTypeError, radio_id_of, stored_text
+from neoaprs.radiotype import type_label
 from neoaprs.radiotypes import (
     BY_KEY,
     COMMON_FIELDS,
@@ -46,9 +47,9 @@ DUMMY_CAN = Can(False, True, False, False, False, False, False)
 
 
 def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field() -> None:
-    profiles = {**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}
+    profiles = {**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF, DIREWOLF_300.key: DIREWOLF_300}
     assert set(BY_KEY) == set(profiles) and len(TYPES) == len(profiles), (
-        "one type for each entry of the lists of profiles, and the Sound card type for Direwolf's profile (neoaprs/direwolf.py)"
+        "one type for each entry of the lists of profiles, and the two Sound card types for Direwolf's profiles (neoaprs/direwolf.py)"
     )
     for t in TYPES:
         p = profiles[t.key]
@@ -61,25 +62,34 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
             f"radio.type.{p.key}",
         ), t.key
         assert type_of(p.key) is t, f"{p.key}: a profile's key is its type's (a Tnc's rtype)"
+        slow = t.band == "hf"
         assert (
             t.limits
             == {
                 "hf": Limits(123, 30, 300, 20),
                 "lora": Limits(250, 30, 300, 20, 252, max_kiss=256),
-                "fm": Limits(None, 20, 30, 0),
+                "fm": Limits(None, 30, 300, 20) if slow else Limits(None, 20, 30, 0),
             }[kind]
-        ), t.key
-        sends = {"hf": (False, False, False), "lora": (True, False, True), "fm": (True, True, True)}[kind]
+        ), f"{t.key}: classic APRS on HF is paced as Mercury, with AX.25's own frames"
+        sends = {
+            "hf": (False, False, False),
+            "lora": (True, False, True),
+            "fm": (True, False, False) if slow else (True, True, True),
+        }[kind]
         assert (t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon) == (
             sends if t.can.transmit else (False, False, False)
         ), f"{t.key}: a radio that sends nothing is allowed nothing that sends"
         assert (t.allowed.gateway_heard, t.allowed.shared_channel) == (
-            (t.kind != "hf", t.kind == "fm") if t.can.transmit else (False, False)
+            (t.kind != "hf", t.kind == "fm" and not slow) if t.can.transmit else (False, False)
         ), (
             "internet gateways hear FM and LoRa; the ALOHA circle is FM's 1200 baud alone; neither for a radio that sends nothing"
         )
         assert t.driver == (
-            "direwolf" if p is DIREWOLF else "mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc"
+            "direwolf"
+            if p in (DIREWOLF, DIREWOLF_300)
+            else "mercury"
+            if p.transport == "modem" or p is DUMMY_HF
+            else "tnc"
         ) and t.dummy == (p.transport == "dummy")
 
 
@@ -87,38 +97,47 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
 # it (ui/src/i18n/en/radio.ts), by the kind's list
 NAMES = {
     "fm": [
-        "Sound card",
-        "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)",
+        "sound card, 1200",
+        "sound card, 300",
+        "KISS TNC",
         "Kenwood TM-D710 / TH-D72",
         "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
         "Kantronics KPC-3+",
-        "Your own Direwolf or soundmodem",
+        "Direwolf",
         "Yaesu FTM, TNC in monitor mode (RX only)",
-        "Dummy FM radio",
+        "Dummy packet radio",
     ],
-    "hf": ["Mercury modem (sound card)", "Dummy Mercury radio"],
+    "hf": ["sound card", "Dummy Mercury radio"],
     "lora": [
-        "LoRa APRS board on the network",
-        "LoRa APRS board on USB or Bluetooth",
-        "LoRa APRS iGate on USB (RX only)",
+        "tracker or iGate on Wi-Fi",
+        "tracker or iGate on USB or Bluetooth",
+        "iGate on USB (RX only)",
         "Dummy LoRa radio",
     ],
 }
 
 
 def test_a_types_name_says_what_the_operator_has_in_hand_and_names_a_program_only_where_he_acts_on_it() -> None:
-    """A type is named by what the operator holds: a model, a sound card, a LoRa board. A program is
-    in a name only where the operator acts on it (Mercury, Direwolf, soundmodem). No name says a
-    band, a mode or how the program reaches it; an RX-only type ends with "(RX only)", a Dummy
-    starts with "Dummy"."""
+    """A type is named by what the operator holds, as Add radio's list says it under its kind: a
+    model, a sound card, a tracker. A program is in a name only where the operator runs it himself
+    (Direwolf). No name says a band, a mode or how the program reaches it; an RX-only type ends with
+    "(RX only)", a Dummy starts with "Dummy". Clear alone, a name has its kind's word before it."""
     assert {kind: [t.name for t in types_of(kind)] for kind in KINDS} == NAMES
     names = {t.key: t.name for t in TYPES}
     assert [key for key, name in names.items() if "direwolf" in name.casefold() or "dire wolf" in name.casefold()] == [
         "kiss-tcp"
     ], "the operator's own alone: the Sound card type's is carried and started by NeoAPRS"
-    assert sorted(key for key, name in names.items() if "Mercury" in name) == ["dummy-hf", "mercury"], (
-        "the modem's name where the other station must run it too"
+    assert sorted(key for key, name in names.items() if "Mercury" in name) == ["dummy-hf"], (
+        "the modem's name is its kind's word, which the list's heading and type_label say"
     )
+    assert [type_label(type_of(key)) for key in ("direwolf-300", "kiss", "mercury", "lora-tcp", "dummy")] == [
+        "Packet, sound card, 300",
+        "Packet, KISS TNC",
+        "Mercury, sound card",
+        "LoRa tracker or iGate on Wi-Fi",
+        "Dummy packet radio",
+    ], "clear alone: the kind's word and the type's name, a Dummy's own"
+    assert {t.key: t.band for t in TYPES if t.band} == {"direwolf": "vhf_uhf", "direwolf-300": "hf"}
     assert [name for name in names.values() if re.search(r"\b(HF|VHF|UHF|SSB|TCP)\b", name)] == [], (
         "no band, no mode, no link"
     )
@@ -127,13 +146,13 @@ def test_a_types_name_says_what_the_operator_has_in_hand_and_names_a_program_onl
         == [t.key for t in TYPES if t.name.endswith("(RX only)")]
         == ["tnc-text", "lora-console"]
     )
-    assert [t.name for t in TYPES if t.dummy] == [f"Dummy {KIND_WORDS[t.kind]} radio" for t in TYPES if t.dummy], (
-        "Dummy, the kind's word (radiospec.KIND_WORDS: the log's name of a radio with none), radio"
+    assert [t.name.casefold() for t in TYPES if t.dummy] == [
+        f"dummy {KIND_WORDS[t.kind]} radio".casefold() for t in TYPES if t.dummy
+    ], "Dummy, the kind's word (radiospec.KIND_WORDS: the log's name of a radio with none), radio"
+    assert KIND_WORDS == {"fm": "Packet", "hf": "Mercury", "lora": "LoRa"}, (
+        "a kind is called by how its signal is made, never by a band: classic APRS is on HF too, and Mercury on 2 m"
     )
-    assert KIND_WORDS == {"fm": "FM", "hf": "Mercury", "lora": "LoRa"}, (
-        "a kind is called by its signal, who can hear it, never by a band: a Mercury radio may be on 2 m"
-    )
-    assert max(len(name) for name in names.values()) == 41 and len(set(names.values())) == len(names), (
+    assert max(len(name) for name in names.values()) == 40 and len(set(names.values())) == len(names), (
         "the list is as wide as its widest line"
     )
 
@@ -141,6 +160,7 @@ def test_a_types_name_says_what_the_operator_has_in_hand_and_names_a_program_onl
 def test_each_kind_lists_its_types_in_the_order_of_the_pages_list_and_a_new_radio_gets_todays_default() -> None:
     assert [t.key for t in types_of("fm")] == [
         "direwolf",
+        "direwolf-300",
         "kiss",
         "kenwood-d710",
         "kenwood-tnc2",
@@ -149,10 +169,10 @@ def test_each_kind_lists_its_types_in_the_order_of_the_pages_list_and_a_new_radi
         "tnc-text",
         "dummy",
     ], (
-        "what most stations have first: the sound card, the KISS TNC (whose name has the TH-D74) above the two Kenwood lines, the operator's own program, the type that only receives, the Dummy"
+        "what most stations have first: the two sound cards, the KISS TNC (whose name has the TH-D74) above the two Kenwood lines, the operator's own program, the type that only receives, the Dummy"
     )
-    assert {t.key for t in types_of("fm")} == {p.key for p in PROFILES} | {"direwolf"}, (
-        "the types of before's flat list, and the Sound card type"
+    assert {t.key for t in types_of("fm")} == {p.key for p in PROFILES} | {"direwolf", "direwolf-300"}, (
+        "the types of before's flat list, and the two Sound card types"
     )
     assert [t.key for t in types_of("hf")] == [p.key for p in HF_PROFILES]
     assert (
@@ -189,10 +209,11 @@ def test_what_each_type_can_do() -> None:
         "lora-serial": tcp,
         "lora-console": replace(tcp, transmit=False),
         "direwolf": Can(False, True, True, True, False, True, False, rx_level=True),
+        "direwolf-300": Can(False, True, True, True, False, True, False, rx_level=True),
     }, (
         "a LoRa board has its terminal, and no Find: an open may restart one; a text TNC and the iGate's log send nothing"
     )
-    assert [key for key, c in can.items() if c.rx_level] == ["direwolf"], (
+    assert [key for key, c in can.items() if c.rx_level] == ["direwolf", "direwolf-300"], (
         "the level of the packets heard: Direwolf's alone"
     )
 
@@ -211,7 +232,9 @@ def test_the_types_that_only_receive_share_one_can_and_one_allowed_and_every_lin
     )
     for t in TYPES:
         assert (
-            Tnc("", profile={**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}[t.profile]).rtype.limits.max_text
+            Tnc(
+                "", profile={**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF, DIREWOLF_300.key: DIREWOLF_300}[t.profile]
+            ).rtype.limits.max_text
             == t.limits.max_text
         ), f"{t.key}: the line refuses what the fit lets through, or the other way round"
 
@@ -219,11 +242,12 @@ def test_the_types_that_only_receive_share_one_can_and_one_allowed_and_every_lin
 def test_a_type_has_its_own_fields_then_the_beacon_and_the_status_and_the_path_and_digipeater_where_allowed() -> None:
     keys = {t.key: [f.key for f in t.fields] for t in TYPES}
     for serial in ("kenwood-tnc2", "kenwood-d710", "kantronics", "kiss"):
-        assert keys[serial] == ["port", "baud", "beacon", "status", "ask", "local_info", "path", "digipeat"]
+        assert keys[serial] == ["port", "baud", "on_hf", "beacon", "status", "ask", "local_info", "path", "digipeat"]
     assert keys["kiss-tcp"] == [
         "port",
         "tcp_host",
         "tcp_port",
+        "on_hf",
         "beacon",
         "status",
         "ask",
@@ -231,6 +255,18 @@ def test_a_type_has_its_own_fields_then_the_beacon_and_the_status_and_the_path_a
         "path",
         "digipeat",
     ]
+    assert keys["direwolf-300"] == [
+        "sound_card",
+        "keying",
+        "tx_gain_db",
+        "tx_card",
+        "rx_card",
+        "beacon",
+        "status",
+        "ask",
+        "local_info",
+        "path",
+    ], "the 1200 type's box without the digipeater, which on HF only fills a channel every station hears"
     assert keys["tnc-text"] == ["port", "baud"], (
         "a radio that sends nothing has no beacon tick, no path and no digipeater"
     )
@@ -272,6 +308,7 @@ def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_sam
         "rx_card",
         "port",
         "baud",
+        "on_hf",
         "tcp_host",
         "tcp_port",
         "beacon",
@@ -380,7 +417,11 @@ def test_the_sound_card_type_and_the_dummy_lora_type_stand_side_by_side_in_the_o
     assert sound.systems == {"linux", "win32"} and lora.systems == frozenset(), (
         "the LoRa Dummy carries no program, so every installation offers it"
     )
-    assert [unavailable_types(system) for system in ("linux", "win32", "darwin")] == [(), (), ("direwolf",)]
+    assert [unavailable_types(system) for system in ("linux", "win32", "darwin")] == [
+        (),
+        (),
+        ("direwolf", "direwolf-300"),
+    ]
     assert (sound.recommended_path, recommended_path("fm"), recommended_path("lora")) == ("", "", "WIDE1-1"), (
         "the Sound card type's empty path is FM's (the symbol's), LoRa's is its own"
     )

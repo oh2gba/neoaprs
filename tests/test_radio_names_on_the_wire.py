@@ -1,5 +1,5 @@
 """How refusals name a radio on the wire: a removed radio is said to be removed by its name, and a
-typed name equal to what another unnamed radio is called ("FM", "Mercury 2") is taken or refused.
+typed name equal to what another unnamed radio is called ("Packet", "Mercury 2") is taken or refused.
 """
 
 from pathlib import Path
@@ -25,17 +25,17 @@ async def test_a_removed_radio_is_refused_as_removed_with_its_name_and_a_radio_t
         error = await refused(page, command)
         assert (error["code"], error["params"], error["text"]) == (
             "radio.unknown",
-            {"radio": gone, "name": "FM 2", "removed": 1},
-            f"{command['cmd']}: radio FM 2 is removed",
+            {"radio": gone, "name": "Packet 2", "removed": 1},
+            f"{command['cmd']}: radio Packet 2 is removed",
         ), command
     error = await refused(page, {"cmd": "set_config", "values": {f"radio/{gone}/path": "WIDE1-1"}})
     assert (error["key"], error["params"], error["text"]) == (
         f"radio/{gone}/path",
-        {"radio": gone, "name": "FM 2", "removed": 1},
-        f"set_config: radio/{gone}/path: radio FM 2 is removed",
+        {"radio": gone, "name": "Packet 2", "removed": 1},
+        f"set_config: radio/{gone}/path: radio Packet 2 is removed",
     )
     error = await refused(page, {"cmd": "set_config", "values": {"email/radio": str(gone)}})
-    assert (error["key"], error["params"]) == ("email/radio", {"radio": gone, "name": "FM 2", "removed": 1})
+    assert (error["key"], error["params"]) == ("email/radio", {"radio": gone, "name": "Packet 2", "removed": 1})
     for command in (
         {"cmd": "radio_change", "radio": 9, "name": "Never"},
         {"cmd": "radio_tune", "radio": 9, "on": True},
@@ -51,7 +51,7 @@ async def test_a_removed_radio_is_refused_as_removed_with_its_name_and_a_radio_t
 
 async def test_a_name_that_is_what_another_radio_is_called_is_taken(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
-    for typed, kept in (("FM", "FM"), (" fm ", "fm")):
+    for typed, kept in (("Packet", "Packet"), (" packet ", "packet")):
         error = await refused(page, {"cmd": "radio_add", "type": "dummy", "name": typed})
         assert (error["code"], error["params"], error["text"]) == (
             "radio.name_taken",
@@ -60,9 +60,9 @@ async def test_a_name_that_is_what_another_radio_is_called_is_taken(tmp_path: Pa
         ), typed
     two = await added(page, "dummy")
     assert page.topics["radios"][str(two)]["name"] == "" and page.topics["radios"][str(two)]["number"] == 2
-    error = await refused(page, {"cmd": "radio_change", "radio": FM_ID, "name": "fm 2"})
-    assert (error["code"], error["params"]) == ("radio.name_taken", {"name": "fm 2", "radio": two}), (
-        "the second FM radio is FM 2"
+    error = await refused(page, {"cmd": "radio_change", "radio": FM_ID, "name": "packet 2"})
+    assert (error["code"], error["params"]) == ("radio.name_taken", {"name": "packet 2", "radio": two}), (
+        "the second packet radio is Packet 2"
     )
     await e.stop()
 
@@ -72,10 +72,10 @@ async def test_a_name_in_the_form_of_a_radio_with_no_name_of_its_own_is_refused_
 ) -> None:
     e, page = await started(tmp_path)
     for command in (
-        {"cmd": "radio_add", "type": "dummy", "name": "FM 3"},
+        {"cmd": "radio_add", "type": "dummy", "name": "Packet 3"},
         {"cmd": "radio_add", "type": "dummy", "name": "Mercury"},
         {"cmd": "radio_add", "type": "dummy", "name": "lora 7"},
-        {"cmd": "radio_change", "radio": FM_ID, "name": " Fm 1 "},
+        {"cmd": "radio_change", "radio": FM_ID, "name": " Packet 1 "},
     ):
         error = await refused(page, command)
         typed = str(command["name"]).strip()
@@ -87,23 +87,25 @@ async def test_a_name_in_the_form_of_a_radio_with_no_name_of_its_own_is_refused_
     two = await added(page, "dummy")
     three = await added(page, "dummy")
     assert [page.topics["radios"][str(id)]["number"] for id in (two, three)] == [2, 3], (
-        "the radios added unnamed are FM 2 and FM 3, and no radio is called so by a name typed"
+        "the radios added unnamed are Packet 2 and Packet 3, and no radio is called so by a name typed"
     )
     # The name of a band is no kind's word: a Mercury radio on shortwave may be called HF
-    for name in ("FM 2X", "FM2", "FMS", "HF", "HF 2", "Home"):
+    for name in ("Packet2X", "FM", "FM 2", "HF", "HF 2", "Home"):
         await page.send({"cmd": "radio_change", "radio": FM_ID, "name": name})
         await page.until(lambda name=name: page.topics["radios"]["1"]["name"] == name)  # type: ignore[misc]
     await page.send({"cmd": "radio_remove", "radio": two})
     await page.until(lambda: page.topics["radios"][str(three)]["number"] == 2)
-    error = await refused(page, {"cmd": "radio_change", "radio": FM_ID, "name": "FM 3"})
-    assert (error["code"], error["params"]) == ("radio.name_label", {"name": "FM 3"}), (
-        "FM 3 is no radio's now, and would be the next one added"
+    error = await refused(page, {"cmd": "radio_change", "radio": FM_ID, "name": "Packet 3"})
+    assert (error["code"], error["params"]) == ("radio.name_label", {"name": "Packet 3"}), (
+        "Packet 3 is no radio's now, and would be the next one added"
     )
-    assert await e.ctl.change_radio(three, name="FM 9"), "a name stored before the rule"
-    await page.until(lambda: page.topics["radios"][str(three)]["name"] == "FM 9")
-    await page.send({"cmd": "radio_change", "radio": three, "name": "FM 9", "enabled": False})
+    assert await e.ctl.change_radio(three, name="Packet 9"), "a name stored before the rule"
+    await page.until(lambda: page.topics["radios"][str(three)]["name"] == "Packet 9")
+    await page.send({"cmd": "radio_change", "radio": three, "name": "Packet 9", "enabled": False})
     await page.until(lambda: not page.topics["radios"][str(three)]["enabled"])
-    assert page.topics["radios"][str(three)]["name"] == "FM 9", "the radio's own name, sent again by a form, is taken"
+    assert page.topics["radios"][str(three)]["name"] == "Packet 9", (
+        "the radio's own name, sent again by a form, is taken"
+    )
     await e.stop()
 
 

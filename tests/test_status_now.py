@@ -211,6 +211,6 @@ async def test_the_error_of_a_radio_that_is_not_connected_names_the_radio_which_
         assert (error["cmd"], error["code"], error["params"]) == (
             command,
             code,
-            {"why": "radio.not_connected", "radio": 1, "name": "FM"},
+            {"why": "radio.not_connected", "radio": 1, "name": "Packet"},
         ), error
     await e.stop()

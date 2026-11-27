@@ -250,7 +250,7 @@ async def test_the_status_waits_each_radios_own_pause() -> None:
     draws = Draws(1.0)
     rig = await StatusRig(both=True).watch().started(draws)
     rig.run(400)
-    assert (rig.at(rig.tnc), rig.at(rig.hf)) == ([30], [300]), "FM 30 s, HF 300 s after the start"
+    assert (rig.at(rig.tnc), rig.at(rig.hf)) == ([30], [300]), "Packet 30 s, HF 300 s after the start"
     assert draws.calls == [30, 300, 30, 300], "one draw for each radio's report, then for its next"
 
 

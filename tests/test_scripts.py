@@ -687,7 +687,7 @@ def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_ra
     tmp_path: Path,
 ) -> None:
     """give_radios on a data folder with the day's radio 1 (a KISS TNC over TCP, named "2 m"), as
-    prepare leaves it once the day is played: radio 1 becomes the Dummy FM radio and keeps its name,
+    prepare leaves it once the day is played: radio 1 becomes the Dummy packet radio and keeps its name,
     the Dummy HF radio "40 m" is radio 2 and the Dummy LoRa radio with no name radio 3, all on, and
     radio 1 is ticked for the status, Ask around and Local info (what it carried alone)."""
     import asyncio

@@ -57,7 +57,7 @@ def test_the_fm_radio_at_20_minutes_is_not_slowed_by_the_hf_radio_at_30() -> Non
     assert station_interval(20, config.radios) == 20 and config.beacon_interval() == 20, (
         "our position goes out every 20 minutes on some radio"
     )
-    assert interval_words(20, config.radios) == "20 min on FM, 30 min on Mercury"
+    assert interval_words(20, config.radios) == "20 min on Packet, 30 min on Mercury"
     assert [beacon_interval(45, s) for s in config.radios] == [45, 45] and [
         beacon_interval(0, s) for s in config.radios
     ] == [0, 0], "a longer interval stays on both, Off stays Off"
@@ -76,13 +76,15 @@ def test_each_type_has_its_floor_and_only_a_floor_above_the_settings_own_raises(
     ), "no type is floored below what the setting holds by itself"
     for t in TYPES:
         radio = spec(9, t.kind, t.key)
-        assert floor_of(radio) == t.limits.beacon_min_min == {"fm": 20, "hf": 30, "lora": 30}[t.kind], t.key
+        # classic APRS on HF is floored as Mercury
+        kind = "hf" if t.band == "hf" else t.kind
+        assert floor_of(radio) == t.limits.beacon_min_min == {"fm": 20, "hf": 30, "lora": 30}[kind], t.key
         assert (
-            beacon_interval(20, radio) == {"fm": 20, "hf": 30, "lora": 30}[t.kind]
+            beacon_interval(20, radio) == {"fm": 20, "hf": 30, "lora": 30}[kind]
             and beacon_interval(90, radio) == 90
             and beacon_interval(0, radio) == 0
         ), t.key
-        assert repeat_floor_sec(t.limits) == {"fm": 0, "hf": 1800, "lora": 1800}[t.kind], (
+        assert repeat_floor_sec(t.limits) == {"fm": 0, "hf": 1800, "lora": 1800}[kind], (
             f"{t.key}: an object repeats no more often than the radio's own floor where it is about airtime"
         )
     assert beacon_interval(1, spec(1)) == 1 and beacon_interval(1, spec(2, "hf")) == 30, (
@@ -91,7 +93,9 @@ def test_each_type_has_its_floor_and_only_a_floor_above_the_settings_own_raises(
 
 
 def test_a_radio_of_a_type_that_is_none_takes_the_longest_floor_of_its_kind_or_of_every_type() -> None:
-    assert floor_of(spec(5, "hf", "hf-of-tomorrow")) == 30 and floor_of(spec(6, "fm", "fm-of-tomorrow")) == 20
+    assert floor_of(spec(5, "hf", "hf-of-tomorrow")) == 30 and floor_of(spec(6, "fm", "fm-of-tomorrow")) == 30, (
+        "the packet kind's longest is its HF type's"
+    )
     assert floor_of(spec(7, "lora", "lora-of-tomorrow")) == max(t.limits.beacon_min_min for t in TYPES) == 30, (
         "the longest floor of its kind's types (LoRa's: 30)"
     )

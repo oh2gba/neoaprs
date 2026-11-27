@@ -1,5 +1,5 @@
 """The refusal of a device another holds names the holder as the page does (the two forms of a
-radio's name: after the noun, "radio FM 2"), and the GPS receiver by its own words: it is no
+radio's name: after the noun, "radio Packet 2"), and the GPS receiver by its own words: it is no
 radio."""
 
 from pathlib import Path
@@ -29,7 +29,7 @@ def test_a_device_another_radio_names_is_in_use_by_that_radio_after_the_noun() -
         Claims(), before, Config(radios=(kiss(1, "/dev/ttyUSB0"), kiss(5, "/dev/ttyUSB3"), kiss(6, "/dev/ttyUSB3")))
     )
     assert params["held_by"] == 5 and text.endswith(
-        "radio/6/port: the device is in use by radio FM 2: choose another"
+        "radio/6/port: the device is in use by radio Packet 2: choose another"
     ), text
 
 

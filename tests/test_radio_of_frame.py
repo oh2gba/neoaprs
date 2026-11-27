@@ -159,7 +159,8 @@ def test_two_radios_of_one_kind_are_watched_each_by_its_id_and_the_time_one_was_
     config = replace(BOTH, hf_enabled=False)
     # Two FM radios, ids 1 and 3, as the round has them; OH2C is reached on the second
     pick = StubPick(
-        [LineAir(StubTnc(), lambda: config), LineAir(StubTnc(), lambda: config, id=3, name="FM 2")], chosen={"OH2C": 3}
+        [LineAir(StubTnc(), lambda: config), LineAir(StubTnc(), lambda: config, id=3, name="Packet 2")],
+        chosen={"OH2C": 3},
     )
     lines = pick.lines
     clock = FixedClock()
@@ -181,7 +182,7 @@ def test_two_radios_of_one_kind_are_watched_each_by_its_id_and_the_time_one_was_
     assert retries._due[2] == at + timedelta(seconds=32 + 20) and retries._due[1] == at + timedelta(seconds=32), (
         "the 20 s away moved on the wait of the message on radio 3 alone"
     )
-    assert "the FM 2 radio (radio 3) takes frames again after 20 s" in caplog.text, (
+    assert "the Packet 2 radio (radio 3) takes frames again after 20 s" in caplog.text, (
         "a radio other than 1 and 2 is named by its name"
     )
 
@@ -453,7 +454,8 @@ def test_a_radio_that_comes_back_with_no_message_waiting_on_it_is_not_told_above
 ) -> None:
     config = replace(BOTH, hf_enabled=False)
     pick = StubPick(
-        [LineAir(StubTnc(), lambda: config), LineAir(StubTnc(), lambda: config, id=3, name="FM 2")], chosen={"OH2C": 3}
+        [LineAir(StubTnc(), lambda: config), LineAir(StubTnc(), lambda: config, id=3, name="Packet 2")],
+        chosen={"OH2C": 3},
     )
     clock = FixedClock()
     host = Host(pick, [record(1, "OH2B", clock())])

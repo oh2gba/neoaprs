@@ -10,7 +10,7 @@ import time
 
 from .childprogram import Command
 from .coded import CodedError, Reason
-from .direwolf import KEY_TEST_SEC, MODE, TUNE_SEC, TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
+from .direwolf import KEY_TEST_SEC, TUNE_SEC, TX_GAIN_MAX_DB, TX_GAIN_MIN_DB, mode_of
 from .direwolfprogram import Program
 from .mercury import Keying
 from .signal import Signal
@@ -39,6 +39,7 @@ class Tuning:
     keyed: bool
     busy: bool
     keying: Keying
+    baud: int
     tx_gain_db: int
     changed: Signal[[]]
     _program: Program
@@ -122,13 +123,14 @@ class Tuning:
 
     def describe(self) -> str:
         """Return the status line, for example "Direwolf AFSK1200, listening"."""
+        mode = mode_of(self.baud)
         if self.state == "waiting":
-            return f"Direwolf {MODE}: {self.problem}"
+            return f"Direwolf {mode}: {self.problem}"
         if self.test:
-            return f"Direwolf {MODE}, {'tuning' if self.test == 'tune' else 'keyed'}"
+            return f"Direwolf {mode}, {'tuning' if self.test == 'tune' else 'keyed'}"
         if self.state != "running":
-            return f"Direwolf {MODE}, {self.state}"
-        return f"Direwolf {MODE}, {'transmitting' if self.keyed else 'channel busy' if self.busy else 'listening'}"
+            return f"Direwolf {mode}, {self.state}"
+        return f"Direwolf {mode}, {'transmitting' if self.keyed else 'channel busy' if self.busy else 'listening'}"
 
     async def tune_stop(self) -> None:
         """End the tones or the test early; do nothing if none is on."""

@@ -321,7 +321,7 @@ def test_the_dummy_is_a_profile_that_is_first_in_no_list_and_needs_neither_a_por
         and not DUMMY.can_probe
         and not DUMMY.detect_command_mode
     )
-    assert DUMMY.name == "Dummy FM radio"
+    assert DUMMY.name == "Dummy packet radio"
 
 
 @pytest.fixture
@@ -461,10 +461,10 @@ async def test_each_dummy_radio_says_in_the_log_which_radio_it_is(
     refuse_the_world(monkeypatch)
     caplog.set_level(logging.INFO, "neoaprs")
     tnc = Tnc(profile=DUMMY, port=DUMMY_PATH, clock=FixedClock(START))
-    tnc.radio_name = "FM 3"
+    tnc.radio_name = "Packet 3"
     try:
         await tnc.start()
-        assert any(r.getMessage().startswith("FM 3: the dummy radio makes") for r in caplog.records)
+        assert any(r.getMessage().startswith("Packet 3: the dummy radio makes") for r in caplog.records)
     finally:
         await tnc.stop()
 

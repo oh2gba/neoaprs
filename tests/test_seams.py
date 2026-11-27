@@ -125,6 +125,7 @@ def test_the_radios_of_the_settings_are_todays_fm_and_hf_radio_made_of_the_flat_
     assert set(fm.settings) == {
         "port",
         "baud",
+        "on_hf",
         "tcp_host",
         "tcp_port",
         "sound_card",
@@ -323,7 +324,7 @@ def test_the_shapes_wave_one_writes_are_what_the_services_take_and_the_frame_par
         and pick.get(3) is None
     )
     assert [(r.name, r.kind, r.max_frame, r.stats is lines[r.id].stats) for r in pick.enabled()] == [
-        ("FM", "fm", None, True),
+        ("Packet", "fm", None, True),
         ("Mercury", "hf", type_of("mercury").limits.max_frame, True),
     ]
     info = b"!6010.00N/02455.00E-" + b"long comment " * 12

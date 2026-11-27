@@ -344,6 +344,7 @@ def _radio_type(t: RadioType) -> dict[str, Any]:
             "slow": slow_channel(t.limits),
         },
         "recommended_path": t.recommended_path,
+        "band": t.band,
         "fields": fields,
     }
 
@@ -355,7 +356,7 @@ def _radio_types() -> str:
     rows = [_radio_type(t) for kind in KINDS for t in types_of(kind)]
     return (
         "/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
-        "its limits (`slow`: a frame holds the shared channel for seconds, HF and LoRa, so what the pairs pass onto it is limited), the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
+        "its limits (`slow`: a frame holds the shared channel for seconds, HF and LoRa, so what the pairs pass onto it is limited), the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), the band Add radio names after it (`band`: `vhf_uhf`, `hf`, or empty for none), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
         f"export const RADIO_TYPES = {_literal(rows)} as const;\n"
     )
 

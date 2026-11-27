@@ -22,7 +22,7 @@ from .mercurymodem import Mercury
 from .packet import Packet
 from .radiodriver import RadioDriver, RunOverrides
 from .radiospec import RadioId, RadioSpec, live, log_label, log_name, told, transmits
-from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
+from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError, type_label
 from .signal import Signal
 from .source import Source
 from .station import Station
@@ -380,7 +380,7 @@ class RadioRegistry(StationChoices, Generic[B]):
     ) -> str | None:
         """Return why the radio must restart for the new settings, or None if nothing changed."""
         if driver_key(new) != radio.driver_key:
-            return f"type {old.rtype.name} -> {new.rtype.name}"
+            return f"type {type_label(old.rtype)} -> {type_label(new.rtype)}"
         driver = radio.driver
         if isinstance(driver, ChoosesForItself):
             old = driver.made_explicit(old, new)

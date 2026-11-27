@@ -461,7 +461,7 @@ def test_radios_lists_each_radio_by_its_name_with_its_own_settings_and_whether_e
     lines = capsys.readouterr().out.splitlines()
     heads = [line for line in lines if line.startswith("radio ")]
     assert heads == [
-        "radio 1  FM  fm  kenwood-tnc2  on  (position 1)",
+        "radio 1  Packet  fm  kenwood-tnc2  on  (position 1)",
         "radio 2  Mercury  hf  mercury  on  (position 2)",
         f"radio {third}  Base  fm  kiss-tcp  off  (position 3)",
     ]
@@ -523,7 +523,7 @@ def test_radios_add_makes_a_fresh_folder_and_adds_each_radio_after_the_others_wi
     assert db("radios", "add", "kiss", "--off", data=folder) == 0, "a station set up before its first start"
     assert db("radios", "add", "mercury", "20 m", data=folder) == 0
     assert capsys.readouterr().out.splitlines() == [
-        "radio 1  FM  fm  kiss  off  (position 1)",
+        "radio 1  Packet  fm  kiss  off  (position 1)",
         "radio 2  20 m  hf  mercury  on  (position 2)",
     ]
     assert rows_of(folder, "SELECT id, kind, type, name, enabled, position FROM radio ORDER BY id") == [

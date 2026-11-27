@@ -84,7 +84,7 @@ async def test_a_check_that_nothing_answers_makes_the_radio_silent_and_describe_
 
 
 # The radio's name, and what the log calls it: its kind's word until its driver names it
-NAMES = [("", "tnc"), ("FM 2", "FM 2")]
+NAMES = [("", "tnc"), ("Packet 2", "Packet 2")]
 
 
 @pytest.mark.parametrize(("name", "label"), NAMES)
