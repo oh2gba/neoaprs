@@ -228,6 +228,27 @@ async def test_the_descriptors_go_in_the_first_three_datagrams_then_hourly_and_t
     assert all(b.sent_at - a.sent_at >= 300 for a, b in zip(standin.datagrams, standin.datagrams[1:], strict=False))
 
 
+@pytest.mark.parametrize("step_sec", [3600.0, -3600.0])
+async def test_a_stepped_clock_neither_sends_early_nor_stops_reporting_and_the_report_keeps_its_heard_time(
+    standin: PskStandIn, step_sec: float
+) -> None:
+    async with running(Rig(standin)) as rig:
+        await idle_for(QUIET_SEC)
+        rig.hear("OH2ABC-7>APRS:!6010.20N/02456.40E-hello")
+        rig.advance(60)
+        rig.clock.step(step_sec)  # the network time sets the clock; the monotonic time stands
+        await idle_for(QUIET_SEC)
+        rig.advance(200)
+        await idle_for(QUIET_SEC)
+        assert standin.datagrams == [], "five minutes have not gone by since the station was heard"
+        rig.hear("OH2ABC-9>APRS:>the same call, two minutes after the first by the monotonic time")
+        assert len(rig.queued()) == 1, "the call's five minutes follow the step too"
+        rig.advance(70)
+        await until(lambda: standin.datagrams)
+        [datagram] = standin.datagrams
+        assert [s["flowStartSeconds"] for s in datagram.senders] == [STARTED]
+
+
 async def test_full_datagrams_go_at_once_and_the_rest_waits_for_the_next_round(standin: PskStandIn) -> None:
     async with running(Rig(standin)) as rig:
         for i in range(80):
