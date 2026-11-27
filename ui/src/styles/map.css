@@ -288,6 +288,27 @@
 .layercard-room span {
   display: block;
 }
+/* where to tune a satellite at its pass: a small table of figures under the card's rows */
+.satcard-tune {
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.satcard-tune th,
+.satcard-tune td {
+  padding: 2px 8px 2px 0;
+  text-align: right;
+  font-weight: normal;
+  white-space: nowrap;
+}
+.satcard-tune th[scope="row"],
+.satcard-tune thead th:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+.satcard-tune thead th {
+  color: var(--muted);
+}
 
 .mapnote-box {
   display: flex;

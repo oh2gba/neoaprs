@@ -111,15 +111,16 @@ describe("the Layers button", () => {
 });
 
 describe("the rows of the box", () => {
-  it("are Tracks, ALOHA circle, Locator grid and Day and night, each with its mark, and no row of things while the station has no source for them", async () => {
+  it("are Tracks, ALOHA circle, Locator grid, Day and night and Satellites, each with its mark, and no row of things while the station has no source for them", async () => {
     mounted();
     await openBox();
-    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight"]);
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "satellites"]);
     expect([...place.querySelectorAll(".layers-name")].map((name) => name.textContent)).toEqual([
       "Tracks",
       "ALOHA circle",
       "Locator grid",
       "Day and night",
+      "Satellites",
     ]);
     expect(row("tracks")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.track.d);
     expect(row("aloha")?.querySelector(".layermark path")?.getAttribute("stroke-dasharray")).toBe(MARKS.circle.dash);
@@ -130,7 +131,7 @@ describe("the rows of the box", () => {
   it("have Aircraft and Ships under a thin line while the station has a source for them, the service's own name after the name and none for the own receiver", async () => {
     mounted([mapLayer("aircraft", { source: "adsbfi" }), mapLayer("ships", { source: "receiver" })]);
     await openBox();
-    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "aircraft", "ships"]);
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "satellites", "aircraft", "ships"]);
     const rule = place.querySelector(".layers-rule");
     expect(rule?.nextElementSibling).toBe(row("aircraft"));
     expect(place.querySelectorAll(".layers-rule")).toHaveLength(1);
@@ -145,7 +146,7 @@ describe("the rows of the box", () => {
   it("give a Radarcape's aircraft no source word, as any own receiver", () => {
     expect(
       layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")]).map((one) => one.source),
-    ).toEqual([null, null, null, null, null]);
+    ).toEqual([null, null, null, null, null, null]);
   });
 
   it("name adsb.lol and Fintraffic by their own names", () => {
@@ -153,15 +154,15 @@ describe("the rows of the box", () => {
       layerRows([mapLayer("aircraft", { source: "adsblol" }), mapLayer("ships", { source: "fintraffic" })]).map(
         (one) => one.source,
       ),
-    ).toEqual([null, null, null, null, "adsb.lol", "Fintraffic"]);
+    ).toEqual([null, null, null, null, null, "adsb.lol", "Fintraffic"]);
   });
 
   it("have no Aircraft row with the source none, and no row of things from a daemon that tells no layers", () => {
     expect(layerRows([mapLayer("aircraft"), mapLayer("ships", { source: "fintraffic" })]).map((one) => one.id)).toEqual(
-      ["tracks", "aloha", "grid", "daynight", "ships"],
+      ["tracks", "aloha", "grid", "daynight", "satellites", "ships"],
     );
-    expect(layerRows([]).map((one) => one.id)).toEqual(["tracks", "aloha", "grid", "daynight"]);
-    expect(layerRows(undefined).map((one) => one.id)).toEqual(["tracks", "aloha", "grid", "daynight"]);
+    expect(layerRows([]).map((one) => one.id)).toEqual(["tracks", "aloha", "grid", "daynight", "satellites"]);
+    expect(layerRows(undefined).map((one) => one.id)).toEqual(["tracks", "aloha", "grid", "daynight", "satellites"]);
   });
 
   it("have Day and night after Locator grid on every station, with a radio of any kind or none", async () => {
@@ -172,11 +173,17 @@ describe("the rows of the box", () => {
       wrapper?.unmount();
       return ids;
     };
-    expect(await rowsOf(ofRadios())).toEqual(["tracks", "aloha", "grid", "daynight"]);
-    expect(await rowsOf(ofRadios(radioRow(1, "kenwood-tnc2")))).toEqual(["tracks", "aloha", "grid", "daynight"]);
+    expect(await rowsOf(ofRadios())).toEqual(["tracks", "aloha", "grid", "daynight", "satellites"]);
+    expect(await rowsOf(ofRadios(radioRow(1, "kenwood-tnc2")))).toEqual([
+      "tracks",
+      "aloha",
+      "grid",
+      "daynight",
+      "satellites",
+    ]);
     mounted(undefined, undefined, ofRadios(radioRow(2, "dummy-hf")));
     await openBox();
-    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight"]);
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "satellites"]);
     expect(row("daynight")?.querySelector(".layers-name")?.textContent).toBe("Day and night");
     expect(row("daynight")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.daynight.d);
     expect(row("daynight")?.querySelector(".layers-source")).toBeNull();
@@ -187,7 +194,7 @@ describe("the rows of the box", () => {
   it("have Day and night before the thin line", async () => {
     mounted([mapLayer("aircraft", { source: "adsbfi" })]);
     await openBox();
-    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "aircraft"]);
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "satellites", "aircraft"]);
     expect(place.querySelector(".layers-rule")?.nextElementSibling).toBe(row("aircraft"));
   });
 
@@ -197,11 +204,11 @@ describe("the rows of the box", () => {
     await tell(daemon, {
       map: mapState({ layers: [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships")] }),
     });
-    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight"]);
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "satellites"]);
     button()?.click();
     await nextTick();
     await openBox();
-    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "aircraft"]);
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "satellites", "aircraft"]);
   });
 
   it("keep the room of a count at one width in tabular figures on every row of things: a number, a dash while away, nothing while off", async () => {

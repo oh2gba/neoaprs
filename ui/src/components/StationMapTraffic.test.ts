@@ -121,7 +121,7 @@ describe("the aircraft and ships on the map", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
     await mounted();
     expect([...FakeMap.last().images.keys()].sort()).toEqual(
-      THING_SHAPES.flatMap((shape) => [`traffic-${shape}`, `traffic-${shape}-bad`]).sort(),
+      [...THING_SHAPES.flatMap((shape) => [`traffic-${shape}`, `traffic-${shape}-bad`]), "satellite-mark"].sort(),
     );
     expect(THING_SHAPES).toHaveLength(13);
     expect(FakeMap.last().images.get("traffic-diamond")).toMatchObject({ width: 32, height: 32 });
@@ -132,7 +132,7 @@ describe("the aircraft and ships on the map", () => {
     expect(FakeMap.last().images.get("traffic-balloon")).toMatchObject({ width: 2 * AIRCRAFT_SHAPES.balloon.size });
     const before = drawnWith.length;
     FakeMap.last().fire("style.load");
-    expect(drawnWith.length).toBe(before + 26);
+    expect(drawnWith.length).toBe(before + 26 + 1); // and the satellites' mark
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

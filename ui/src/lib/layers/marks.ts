@@ -5,7 +5,8 @@
 // kind (lib/layers/aircraftshapes.ts); the box's aircraft row shows the airliner.
 import { AIRCRAFT_SHAPES, type AircraftShape } from "@/lib/layers/aircraftshapes";
 
-export type MarkName = "layers" | "track" | "circle" | "grid" | "daynight" | "hull" | "diamond" | AircraftShape;
+export type MarkName =
+  "layers" | "track" | "circle" | "grid" | "daynight" | "satellite" | "hull" | "diamond" | AircraftShape;
 
 export interface Mark {
   /** The path on a 16 by 16 square, pointing north. */
@@ -40,6 +41,12 @@ export const MARKS: Readonly<Record<MarkName, Mark>> = {
     d: "M8 2 A6 6 0 1 1 8 14 A6 6 0 1 1 8 2 Z M8 3.5 V12.5 A4.5 4.5 0 0 0 8 3.5 Z",
     fill: true,
     token: "--map-label",
+  },
+  /** a satellite: a body between two wings of solar panels */
+  satellite: {
+    d: "M6 4.5 H10 V11.5 H6 Z M0.5 6 H6 V10 H0.5 Z M10 6 H15.5 V10 H10 Z",
+    fill: true,
+    token: "--map-satellite",
   },
   /** a ship: a hull seen from above, its bow ahead */
   hull: {

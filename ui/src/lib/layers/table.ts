@@ -12,7 +12,7 @@ import { LAYER_NAMES, SOURCE_NAMES, isService, type LayerName } from "@/lib/laye
 import type { MapLayer } from "@/protocol/protocol";
 
 /** A row of the box. */
-export type LayerId = "tracks" | "aloha" | "grid" | "daynight" | LayerName;
+export type LayerId = "tracks" | "aloha" | "grid" | "daynight" | "satellites" | LayerName;
 
 export interface LayerEntry {
   readonly id: LayerId;
@@ -28,6 +28,7 @@ export const LAYER_TABLE: readonly LayerEntry[] = [
   { id: "aloha", name: "layers.box.aloha", mark: "circle", part: "own", tick: true },
   { id: "grid", name: "layers.box.grid", mark: "grid", part: "own", tick: false },
   { id: "daynight", name: "layers.box.daynight", mark: "daynight", part: "own", tick: false },
+  { id: "satellites", name: "layers.box.satellites", mark: "satellite", part: "own", tick: false },
   { id: "aircraft", name: LAYER_NAMES.aircraft, mark: "airliner", part: "outside", tick: false },
   { id: "ships", name: LAYER_NAMES.ships, mark: "hull", part: "outside", tick: false },
 ];

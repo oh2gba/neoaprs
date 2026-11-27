@@ -6,11 +6,12 @@
 // keep their places (`places`) for the session. Moving a card never moves another: the first move
 // pins every open card where it stands, a closing card leaves the others, and an opened card takes
 // the first free slot. On a phone the one card is a bottom sheet; a swipe down on the folded sheet
-// closes it. A layer card (aircraft or ship) is one more card of the row; on a phone it replaces a
-// station card.
+// closes it. A layer card (aircraft or ship) and the cards of satellites are more cards of the row;
+// on a phone each replaces the others.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import LayerCard from "@/components/LayerCard.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
+import SatelliteCard from "@/components/SatelliteCard.vue";
 import StationCard from "@/components/StationCard.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCardDrag, type Places } from "@/composables/useCardDrag";
@@ -44,8 +45,12 @@ const {
   prefs,
   send,
   traffic,
+  satellites,
 } = useDaemonContext();
 const thing = traffic.card;
+const orbiting = satellites.cards;
+/** The cards of things and satellites, which the row holds beside the stations'. */
+const layerCards = computed(() => (thing.value ? 1 : 0) + orbiting.value.length);
 /**
  * A card asks for its station's packets by the hour when it opens and each minute (kept by call).
  */
@@ -77,9 +82,10 @@ const emit = defineEmits<{
   overflow: [];
 }>();
 
-/** Close all: the station cards and the card of a thing. */
+/** Close all: the station cards, the card of a thing and those of the satellites. */
 function closeAll(): void {
   traffic.close();
+  satellites.closeAll();
   emit("closeAll");
 }
 
@@ -178,7 +184,7 @@ watch(
 onMounted(watchSizes);
 onBeforeUnmount(() => sizes?.disconnect());
 watch(
-  () => props.rows.length + (thing.value ? 1 : 0),
+  () => props.rows.length + layerCards.value,
   () => void nextTick(fit),
 );
 onMounted(() => void nextTick(fit));
@@ -189,7 +195,10 @@ const newest = (): string | undefined => props.rows.at(-1)?.call;
 // thing's do not stand together
 watch(newest, (call) => {
   expanded.value = false;
-  if (call !== undefined && props.size === "phone") traffic.close();
+  if (call !== undefined && props.size === "phone") {
+    traffic.close();
+    satellites.closeAll();
+  }
 });
 watch(
   () => (thing.value ? `${thing.value.layer}:${thing.value.thing.id}` : null),
@@ -197,12 +206,27 @@ watch(
     if (key === null) return;
     expanded.value = false;
     if (props.size === "phone" && props.rows.length > 0) emit("closeAll");
+    if (props.size === "phone") satellites.closeAll();
+  },
+);
+// a satellite's card opened: on a phone it is the one sheet
+watch(
+  () => satellites.opened.value.at(-1),
+  (id, was) => {
+    if (id === undefined || id === was) return;
+    expanded.value = false;
+    if (props.size !== "phone") return;
+    satellites.open(id, true);
+    traffic.close();
+    if (props.rows.length > 0) emit("closeAll");
   },
 );
 
 function apply(move: SheetMove): void {
   const call = newest();
-  if (move === "close" && thing.value && props.size === "phone") traffic.close();
+  const sat = satellites.opened.value.at(-1);
+  if (move === "close" && sat !== undefined && props.size === "phone") satellites.closeCard(sat);
+  else if (move === "close" && thing.value && props.size === "phone") traffic.close();
   else if (move === "close" && call !== undefined) emit("close", call);
   else expanded.value = move === "toggle" ? !expanded.value : move === "expand";
 }
@@ -233,9 +257,9 @@ function tap(): void {
 </script>
 
 <template>
-  <div v-if="rows.length + (thing ? 1 : 0) > 1 && size !== 'phone'" class="cards-actions">
+  <div v-if="rows.length + layerCards > 1 && size !== 'phone'" class="cards-actions">
     <button
-      v-if="thing || rows.some((row) => !isPinned(row.call))"
+      v-if="layerCards > 0 || rows.some((row) => !isPinned(row.call))"
       type="button"
       class="btn cards-closeall"
       @click="closeAll"
@@ -252,7 +276,7 @@ function tap(): void {
     </button>
   </div>
   <div
-    v-if="rows.length > 0 || thing"
+    v-if="rows.length > 0 || layerCards > 0"
     ref="stack"
     class="cardstack"
     :class="{ sheet: size === 'phone', expanded }"
@@ -305,5 +329,12 @@ function tap(): void {
       @signal="askSignal"
     />
     <LayerCard v-if="thing" :open="thing" :now="now" @close="traffic.close()" />
+    <SatelliteCard
+      v-for="card in orbiting"
+      :key="`satellite:${card.id}`"
+      :card="card"
+      :now="satellites.now.value"
+      @close="satellites.closeCard(card.id)"
+    />
   </div>
 </template>

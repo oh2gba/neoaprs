@@ -1,0 +1,162 @@
+// What the card of a satellite says (components/SatelliteCard.vue): before a pass its rise (and how
+// soon), how long it lasts, its set and its highest point; while it is up the time left, the
+// elevation and the Doppler now. Then the frequencies, the mode and the altitude; the path is the
+// card's copyable field, and with a pass a small table gives where to tune at rise, highest point
+// and set. Only what the daemon sent: a frequency, mode or path the list is not sure of never
+// comes. Times in the viewer's own time, the altitude by the page's unit switch.
+import { dayText, formatNumber, t } from "@/i18n";
+import { hourMinuteText, untilText } from "@/lib/format";
+import { rangeText } from "@/lib/units";
+import type { SatelliteCard, SatelliteLookNow, SatelliteTune } from "@/protocol/protocol";
+
+export interface SatelliteRow {
+  label: string;
+  text: string;
+}
+
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+
+/** The names of the modes, which no language translates. */
+const MODE_NAMES: Readonly<Record<NonNullable<SatelliteCard["mode"]>, string>> = {
+  afsk1200: "AFSK 1200",
+  gmsk9600: "GMSK 9600",
+};
+
+/** A frequency in MHz to the kHz, in the language's figures. */
+const mhzText = (hz: number): string => `${formatNumber(hz / 1e6, 3)} MHz`;
+
+const degreesText = (deg: number): string => `${formatNumber(Math.round(deg), 0)}°`;
+
+const sameDay = (a: Date, b: Date): boolean => a.toDateString() === b.toDateString();
+
+/** A time of the pass: the hour and minute, with the day when it is not today. */
+function whenText(iso: string, nowMs: number): string {
+  const time = hourMinuteText(iso);
+  const date = new Date(iso);
+  return sameDay(date, new Date(nowMs)) ? time : t("layers.sat.day_time", { day: dayText(date, false), time });
+}
+
+/** A length of time: seconds under a minute, else whole minutes rounded up. */
+function spanText(ms: number): string {
+  return ms < MINUTE
+    ? t("time.span.s", { n: Math.max(0, Math.ceil(ms / SECOND)) })
+    : t("time.span.min", { n: Math.ceil(ms / MINUTE) });
+}
+
+/** The sample of now, between those the daemon sent; null when none covers it. */
+export function lookAt(looks: readonly SatelliteLookNow[], nowMs: number): SatelliteLookNow | null {
+  for (let i = 1; i < looks.length; i++) {
+    const a = looks[i - 1];
+    const b = looks[i];
+    const ta = Date.parse(a.at);
+    const tb = Date.parse(b.at);
+    if (nowMs >= ta && nowMs <= tb) {
+      const f = tb > ta ? (nowMs - ta) / (tb - ta) : 0;
+      const mix = (x: readonly number[], y: readonly number[]) => x.map((v, j) => v + f * ((y[j] ?? v) - v));
+      return {
+        at: a.at,
+        el_deg: a.el_deg + f * (b.el_deg - a.el_deg),
+        down_hz: mix(a.down_hz, b.down_hz),
+        up_hz: mix(a.up_hz, b.up_hz),
+      };
+    }
+  }
+  return null;
+}
+
+/** Whether the satellite is above the horizon now, in the pass the card has. */
+export function isUp(card: SatelliteCard, nowMs: number): boolean {
+  const seen = card.next_pass;
+  return seen !== null && Date.parse(seen.rise) <= nowMs && nowMs < Date.parse(seen.set);
+}
+
+/** A shift in kHz with its sign: "+8.4 kHz". */
+export const shiftText = (hz: number): string =>
+  `${hz > 0 ? "+" : hz < 0 ? "−" : ""}${formatNumber(Math.abs(hz) / 1000, 1)} kHz`;
+
+/** The pass's rows: before it rise, duration, set and highest point; while it is up time left, elevation, highest point and set. */
+function passRows(card: SatelliteCard, nowMs: number): SatelliteRow[] {
+  const seen = card.next_pass;
+  if (seen === null) return [];
+  const highest = { label: t("layers.sat.highest"), text: degreesText(seen.max_el_deg) };
+  const set = { label: t("layers.sat.set"), text: whenText(seen.set, nowMs) };
+  if (!isUp(card, nowMs)) {
+    return [
+      {
+        label: t("layers.sat.rise"),
+        text: t("layers.sat.when", { time: whenText(seen.rise, nowMs), until: untilText(seen.rise, nowMs) }),
+      },
+      { label: t("layers.sat.duration"), text: spanText(Date.parse(seen.set) - Date.parse(seen.rise)) },
+      set,
+      highest,
+    ];
+  }
+  const now = lookAt(card.looks, nowMs);
+  return [
+    { label: t("layers.sat.left"), text: spanText(Date.parse(seen.set) - nowMs) },
+    { label: t("layers.sat.elevation"), text: now === null ? "–" : degreesText(Math.max(0, now.el_deg)) },
+    ...card.downlinks.map((_, i) => ({
+      label: t("layers.sat.doppler"),
+      text: now?.down_hz[i] === undefined ? "–" : shiftText(now.down_hz[i]),
+    })),
+    highest,
+    set,
+  ];
+}
+
+/** The card's rows, the path aside (the card's copyable field). */
+export function satelliteRows(card: SatelliteCard, nowMs: number): SatelliteRow[] {
+  return [
+    ...passRows(card, nowMs),
+    ...card.downlinks.map((one) => ({ label: t("layers.sat.downlink"), text: mhzText(one.hz) })),
+    ...card.uplinks.map((one) => ({ label: t("layers.sat.uplink"), text: mhzText(one.hz) })),
+    ...(card.mode === null ? [] : [{ label: t("layers.sat.mode"), text: MODE_NAMES[card.mode] }]),
+    { label: t("station.field.altitude"), text: rangeText(card.alt_km) },
+  ];
+}
+
+/**
+ * Every label the card may have: it keeps the room of the widest, so the values stand still as
+ * the pass begins and ends.
+ */
+export const satelliteLabels = (): string[] =>
+  (
+    [
+      "layers.sat.rise",
+      "layers.sat.duration",
+      "layers.sat.set",
+      "layers.sat.highest",
+      "layers.sat.left",
+      "layers.sat.elevation",
+      "layers.sat.doppler",
+      "layers.sat.downlink",
+      "layers.sat.uplink",
+      "layers.sat.mode",
+      "station.field.altitude",
+      "station.field.path",
+    ] as const
+  ).map((id) => t(id));
+
+export interface TuneRow {
+  label: string;
+  /** at rise, highest point and set, in MHz */
+  cells: [string, string, string];
+}
+
+/** The table of where to tune at the next pass, a downlink to hear and an uplink to send on; none without a pass. */
+export function tuneRows(card: SatelliteCard): TuneRow[] {
+  if (card.next_pass === null) return [];
+  const row = (label: string, one: SatelliteTune): TuneRow => ({
+    label,
+    cells: [one.rise_hz, one.max_hz, one.set_hz].map((hz) => (hz === null ? "–" : formatNumber(hz / 1e6, 3))) as [
+      string,
+      string,
+      string,
+    ],
+  });
+  return [
+    ...card.downlinks.map((one) => row(t("layers.sat.downlink"), one)),
+    ...card.uplinks.map((one) => row(t("layers.sat.uplink"), one)),
+  ];
+}

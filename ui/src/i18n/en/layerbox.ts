@@ -5,4 +5,5 @@ export const layerbox = {
   "layers.box.aloha": "ALOHA circle",
   "layers.box.grid": "Locator grid",
   "layers.box.daynight": "Day and night",
+  "layers.box.satellites": "Satellites",
 } as const;

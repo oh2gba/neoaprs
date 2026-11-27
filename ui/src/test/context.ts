@@ -8,6 +8,7 @@ import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useFindRadio } from "@/composables/useFindRadio";
 import { useLayerTables, useLayerThings, type TrafficParts } from "@/composables/useLayerThings";
+import { useSatelliteStore, useSatellites } from "@/composables/useSatellites";
 import { usePanel } from "@/composables/usePanel";
 import { useRadioAsks } from "@/composables/useRadioAsks";
 import { useScopeLooks, type ScopeLooks } from "@/composables/useScopeLooks";
@@ -38,6 +39,7 @@ export type FakeDaemon = {
   send: Mock<(command: Command) => boolean>;
   say: Mock<(text: string) => void>;
   layerTables: ReturnType<typeof useLayerTables>;
+  satelliteStore: ReturnType<typeof useSatelliteStore>;
   replayOpen: Ref<boolean>;
 };
 export type Given = {
@@ -64,7 +66,10 @@ function trafficOf(over: Given, parts: Pick<TrafficParts, "send" | "connection" 
   const replayOpen = shallowRef(false);
   const traffic =
     over.traffic ?? useLayerThings({ ...parts, visible: pageVisible(), replay: replayOpen, store: layerTables });
-  return { layerTables, replayOpen, traffic };
+  const satelliteStore = useSatelliteStore();
+  const satellites =
+    over.satellites ?? useSatellites({ ...parts, visible: pageVisible(), replay: replayOpen, store: satelliteStore });
+  return { layerTables, satelliteStore, replayOpen, traffic, satellites };
 }
 
 /** The topic `radios`: the one a test gave, else radio 1 alone, connected while the context is. */

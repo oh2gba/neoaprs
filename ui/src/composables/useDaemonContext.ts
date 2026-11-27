@@ -9,6 +9,7 @@ import type { FindRadio } from "@/composables/useFindRadio";
 import type { LayerTraffic } from "@/composables/useLayerThings";
 import type { Panel } from "@/composables/usePanel";
 import type { RadioAsks } from "@/composables/useRadioAsks";
+import type { SatelliteLayer } from "@/composables/useSatellites";
 import type { ScopeLooks } from "@/composables/useScopeLooks";
 import type { Settings } from "@/composables/useSettings";
 import type { SetupGuide } from "@/composables/useSetupGuide";
@@ -61,6 +62,7 @@ export interface DaemonContext {
   level: RadioAsks;
   radioLevels: Read<ReadonlyMap<RadioId, number | null>>;
   traffic: LayerTraffic;
+  satellites: SatelliteLayer;
   gps: Read<GpsState | null>;
   igate: Read<IgateState | null>;
   qru: Read<QruState | null>;

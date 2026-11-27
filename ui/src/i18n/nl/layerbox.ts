@@ -8,4 +8,5 @@ export const layerbox: Record<keyof typeof source, Message> = {
   "layers.box.aloha": "ALOHA-cirkel",
   "layers.box.grid": "Locatorraster",
   "layers.box.daynight": "Dag en nacht",
+  "layers.box.satellites": "Satellieten",
 };

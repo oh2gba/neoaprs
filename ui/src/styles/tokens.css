@@ -103,6 +103,7 @@
   --map-plate: rgba(255, 255, 255, 0.88);
   --map-track: #2f80ed;
   --map-layer: #8e24aa; /* the map: an aircraft or a ship (lib/layers/marks.ts) */
+  --map-satellite: #00796b; /* the map: a satellite, its track and its footprint (lib/layers/satellitelayers.ts) */
   --map-twilight: rgba(11, 26, 58, 0.1); /* the map: the shade where the sun is down (Day and night) */
   --map-night: rgba(11, 26, 58, 0.14); /* the map: the shade added where the sun is more than 6 degrees down */
   --map-control-ink: #333333; /* the drawing on the map's own buttons (white in both themes) */
@@ -187,6 +188,7 @@
     --map-internet: #4dc4de;
     --map-range: #6aa9ee;
     --map-layer: #ce93d8;
+    --map-satellite: #4db6ac;
     --map-twilight: rgba(0, 6, 30, 0.25);
     --map-night: rgba(0, 6, 30, 0.45);
     --wx-temp: #ff8a65;

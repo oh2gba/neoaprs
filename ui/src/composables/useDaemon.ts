@@ -24,6 +24,7 @@ import type {
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
 import { useLayerTables } from "@/composables/useLayerThings";
+import { useSatelliteStore } from "@/composables/useSatellites";
 import { useOwnTables } from "@/composables/useOwnTables";
 import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
@@ -54,8 +55,10 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
 function useWholeTopics() {
   const radios = useRadioTopic();
   const layers = useLayerTables();
+  const satellites = useSatelliteStore();
   const refs = {
     layerTables: { told: layers.told, forget: layers.forget },
+    satelliteStore: { told: satellites.told, forget: satellites.forget },
     radios: radios.radios,
     radioAdded: radios.radioAdded,
     radioLevels: radios.radioLevels,
@@ -84,6 +87,7 @@ function useWholeTopics() {
     | "radioAdded"
     | "radioLevel"
     | "layerThings"
+    | "satellites"
   > = {
     replaceConfig: (value) => {
       refs.config.value = value;
@@ -98,6 +102,7 @@ function useWholeTopics() {
     replaceSkeds: (value) => (refs.skeds.value = value),
     ...radios.handlers,
     ...layers.handlers,
+    ...satellites.handlers,
   };
   return { refs, handlers };
 }

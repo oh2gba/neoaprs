@@ -1,5 +1,6 @@
 // The aircraft and ships on the map: their hover box, their card and the kinds of ship (components/LayerCard.vue, lib/layers/card.ts, lib/layers/shipkinds.ts). The rows' words a station's card has already
 // (Kind, Speed, Altitude, Course) are the station's and the object's own ids; the receiver's name is Settings' (layers.receiver.own).
+// The satellites: their card (components/SatelliteCard.vue, lib/layers/satellitecard.ts); Altitude and Path are the station's ids.
 export const layertraffic = {
   "layers.card.ship": "Ship",
   "layers.card.mmsi": "MMSI {id}",
@@ -12,6 +13,19 @@ export const layertraffic = {
   "layers.card.destination": "Destination",
   "layers.card.age": "Age",
   "layers.card.source": "Source",
+  "layers.sat.kind": "Satellite",
+  "layers.sat.rise": "Rise",
+  "layers.sat.set": "Set",
+  "layers.sat.highest": "Highest",
+  "layers.sat.duration": "Duration",
+  "layers.sat.left": "Time left",
+  "layers.sat.elevation": "Elevation",
+  "layers.sat.doppler": "Doppler",
+  "layers.sat.downlink": "Downlink",
+  "layers.sat.uplink": "Uplink",
+  "layers.sat.mode": "Mode",
+  "layers.sat.when": "{time} ({until})",
+  "layers.sat.day_time": "{day} {time}",
   "layers.kind.wing_in_ground": "Wing in ground",
   "layers.kind.fishing": "Fishing",
   "layers.kind.towing": "Towing",

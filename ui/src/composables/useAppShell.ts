@@ -19,6 +19,7 @@ import { useFormEsc } from "@/composables/useFormEsc";
 import { useHeardIndex } from "@/composables/useHeardIndex";
 import { useHome } from "@/composables/useHome";
 import { useLayerThings } from "@/composables/useLayerThings";
+import { useSatellites } from "@/composables/useSatellites";
 import { useLayout } from "@/composables/useLayout";
 import { useMapPicks } from "@/composables/useMapPicks";
 import { useMessagesView } from "@/composables/useMessagesView";
@@ -335,8 +336,14 @@ export function useAppShell() {
     now: derived.now,
     store: daemon.layerTables,
   });
+  const satellites = useSatellites({
+    ...daemon,
+    visible: pageVisible(),
+    replay: overlays.replayOpen,
+    store: daemon.satelliteStore,
+  });
   const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, () =>
-    [overlays.closeOverlays(), traffic.close()].some(Boolean),
+    [overlays.closeOverlays(), traffic.close(), satellites.close()].some(Boolean),
   );
   // The notices, what a Stations table row's menu sends or copies, and the station alerts that
   // fire.
@@ -350,6 +357,7 @@ export function useAppShell() {
     scope,
     level,
     traffic,
+    satellites,
     weatherSeries: daemon.weatherSeriesByCall,
     ...derived,
     guide,

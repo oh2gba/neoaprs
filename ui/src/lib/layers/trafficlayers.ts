@@ -9,7 +9,7 @@
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { paletteColor } from "@/lib/alohalayers";
 import { FONT_REGULAR } from "@/lib/basemapstyle";
-import { MARKS, markBox } from "@/lib/layers/marks";
+import { MARKS, markBox, type MarkName } from "@/lib/layers/marks";
 import { NO_TRAIL } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
 import {
@@ -32,7 +32,7 @@ const NAMES_FROM_ZOOM = 10;
 const HALO = 2;
 
 /** Image pixels per page pixel: the screen density, 2 to 3, read when the marks are made. */
-const pixelRatio = (): number => Math.min(3, Math.max(2, Math.ceil(globalThis.devicePixelRatio || 1)));
+export const pixelRatio = (): number => Math.min(3, Math.max(2, Math.ceil(globalThis.devicePixelRatio || 1)));
 
 /** The name's size in pixels, and the room between the foot of a mark and the top of its name. */
 const NAME_SIZE = 11;
@@ -57,18 +57,22 @@ const NAME_OFFSET: ExpressionSpecification = [
  * an image; null when there is no canvas.
  */
 function drawShape(shape: ThingShape, fill: string, halo: string, ratio: number): ImageData | null {
+  return drawMark(shape, sideOf(shape), fill, halo, ratio);
+}
+
+/** A mark of lib/layers/marks.ts drawn as `drawShape` draws a thing's (lib/layers/satellitelayers.ts too). */
+export function drawMark(name: MarkName, side: number, fill: string, halo: string, ratio: number): ImageData | null {
   if (typeof Path2D === "undefined") return null;
   const canvas = document.createElement("canvas");
-  const side = sideOf(shape);
   canvas.width = Math.round(side * ratio);
   canvas.height = canvas.width;
   const context = canvas.getContext("2d");
   if (!context) return null;
-  const [x, y, width, height] = markBox(MARKS[shape]).split(" ").map(Number) as [number, number, number, number];
+  const [x, y, width, height] = markBox(MARKS[name]).split(" ").map(Number) as [number, number, number, number];
   const scale = side / Math.max(width, height);
   context.scale(ratio * scale, ratio * scale);
   context.translate((Math.max(width, height) - width) / 2 - x, (Math.max(width, height) - height) / 2 - y);
-  const path = new Path2D(MARKS[shape].d);
+  const path = new Path2D(MARKS[name].d);
   context.lineJoin = "round";
   context.lineWidth = HALO / scale;
   context.strokeStyle = halo;

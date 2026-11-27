@@ -21,6 +21,7 @@ import type {
   RadioLevelMessage,
   RadioRow,
   RadioSearchMessage,
+  SatellitesMessage,
   StationAlertMessage,
   StationKey,
   StationPref,
@@ -67,6 +68,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   radio_added: "radioAdded",
   radio_level: "radioLevel",
   layer_things: "layerThings",
+  satellites: "satellites",
 };
 
 type TopicName = keyof TopicValues;
@@ -102,6 +104,8 @@ export interface Store {
    * (`layer_look`).
    */
   layerThings(message: LayerThingsMessage): void;
+  /** The satellites layer of now, sent to a page that looks at it (`satellite_look`). */
+  satellites(message: SatellitesMessage): void;
   /** An alert set on a station fired (sent once to every page, not an answer). */
   stationAlert(message: StationAlertMessage): void;
   /**
