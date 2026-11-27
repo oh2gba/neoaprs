@@ -688,6 +688,8 @@
   {"input": "7.0541 MHz LSB", "ok": true},
   {"input": "3.585 MHz USB", "ok": true},
   {"input": "14.1070 MHz USB", "ok": true},
+  {"input": "28.1400 MHz USB", "ok": true},
+  {"input": "0.1000 MHz USB", "ok": true},
   {"input": "28.18 MHz USB", "ok": false},
   {"input": "7.0541 MHz", "ok": false},
   {"input": "7.0541 MHZ USB", "ok": false},

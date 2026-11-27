@@ -239,7 +239,7 @@ in every command of its box.
 ### `set_config`
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
-left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `station/*` move our own station on the
+left out keeps its value. The answer to a request that carries an `id` is `saved` with that `id`, once the settings are in force (the `config` topic is told again too, to every page), or an `error` that carries it; a request without an `id` is answered by the topic alone. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `station/*` move our own station on the
 map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio
 alone where its driver says so; a radio that is none or removed is refused with `radio.unknown` (a removed one with its `name` and `removed` 1), a key its kind has not with `radio.no_setting` (its `name` and id,
 `radio`), `email/radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`, and the holder's
@@ -249,6 +249,7 @@ radio (`serial/port`, `hf/enabled`) is refused with `setting.unknown`: the radio
 | field | type | | description |
 |---|---|---|---|
 | `values` | { [key: string]: string } |  | key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`) |
+| `id` | integer \| null | optional | the page's own number for this request, which the answer (`saved`, or an `error`) carries back; left out, the page is answered by the topic `config` alone (default `null`; >= 0, <= 2147483648) |
 
 ### `beacon_now`
 
@@ -768,7 +769,7 @@ asks the layer's source and sends the page `layer_things`. Never refused: a look
 
 ## Server to client
 
-23 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+24 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -835,6 +836,15 @@ words of a failure.
 | `code` | string |  | a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code |
 | `params` | { [key: string]: string \| integer \| number } |  | the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none |
 | `text` | string |  | what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) |
+| `id` | integer \| null | optional | the `id` of the request this answers, when the command carried one (`set_config`); the field is left out otherwise (default `null`) |
+
+### `saved`
+
+The answer to a `set_config` that carried an `id`, sent to the page that asked once the settings are in force.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | integer |  | the `id` of the `set_config` this answers |
 
 ### `ports`
 
@@ -2059,7 +2069,7 @@ Why a radio, or its beacon, does not do what it is set to, as a code the page pu
 
 | field | type | | description |
 |---|---|---|---|
-| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.text_lines" \| "radio.incoming_port" \| "radio.write_timeout" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "modem.keying" \| "modem.receive_stalled" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values) |
+| `code` | "radio.not_connected" \| "radio.searching" \| "radio.silent" \| "radio.text_lines" \| "radio.incoming_port" \| "radio.write_timeout" \| "radio.resource_held" \| "modem.not_installed" \| "modem.stopped" \| "modem.network" \| "modem.no_port" \| "modem.not_started" \| "modem.sound_card" \| "modem.keying" \| "modem.receive_stalled" \| "modem.receive_deaf" \| "transmit.off" \| "beacon.not_sent" |  | `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; `modem.receive_deaf` its Mercury modem runs and hears nothing (its receive side stalled) and is started again soon; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values) |
 | `params` | { [key: string]: string \| integer \| number } |  | the values of the sentence, by name; empty for a code that has none |
 
 ### RadioRow
