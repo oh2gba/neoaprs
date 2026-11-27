@@ -774,7 +774,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
   data of the wheel; `neoaprs/samples/` the sample capture.
 - `ui/`: the Vue 3 source of the page; `ui/src/protocol/` is generated.
 - `tests/`: the suite (`tests/README.md`). `tests/support/` is what the tests are built from, `tests/safety/` the tests of the database actor, `tests/fixtures/`
-  the captured frames and streams of the radio and the parser's cases. `tests/realmodems/` runs three daemons with the real modems on virtual cables, in
+  the captured frames and streams of the radio and the parser's cases. `tests/realmodems/` runs five daemons with the real modems on virtual cables, in
   `.github/workflows/realmodems.yml` only (`docs/realmodems.md`).
 - `scripts/`: the tools (the table above).
 - `docs/`: the documents (`docs/README.md` is the index): `docs/manual/` the manual for the person who runs NeoAPRS, `docs/RADIOS.md` the radio guide, this

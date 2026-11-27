@@ -1,7 +1,8 @@
-# Three NeoAPRS daemons with the real Direwolf and the real Mercury on two virtual sound cables
+# Five NeoAPRS daemons with the real Direwolf and the real Mercury on three virtual sound cables
 # (PipeWire null sinks), and a gateway's pair proven through them: messages and acks cross between a
 # station on VHF and one on HF, a WIDE path alone and a message to the gateway stay off HF, a beacon by
-# way of the pair's call is heard on HF (tests/realmodems, docs/realmodems.md). Keying is VOX into a
+# way of the pair's call is heard on HF; two stations at 300 baud exchange a message and its ack
+# (tests/realmodems, docs/realmodems.md). Keying is VOX into a
 # null sink, so nothing is keyed. By hand only, before a release among other times; no secrets.
 name: realmodems
 
@@ -83,7 +84,7 @@ jobs:
         with:
           path: .venv/tools/direwolf
           key: ${{ steps.direwolf.outputs.cache-primary-key }}
-      - name: The three stations and the scenarios
+      - name: The stations and the scenarios
         env:
           NEOAPRS_REAL_MODEMS: "1"
         run: >-

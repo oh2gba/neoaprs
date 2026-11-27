@@ -1,4 +1,4 @@
-"""Three real NeoAPRS daemons with the real Direwolf and Mercury on two virtual sound cables (PipeWire null
+"""Five real NeoAPRS daemons with the real Direwolf and Mercury on three virtual sound cables (PipeWire null
 sinks, tests/realmodems/cables), for .github/workflows/realmodems.yml: the refusal that keeps them off a computer with a
 sound card, the settings of each station, and the page socket each test drives it by. docs/realmodems.md.
 """
@@ -49,7 +49,10 @@ G = Station(
     live={"pair/1/2/enabled": "true", "pair/1/2/ssid": str(PAIR_SSID)},
 )
 B = Station("OH2BB", 61.50, 23.80, (Radio("mercury", "hf_b"),))
-STATIONS = (A, G, B)
+# classic APRS at 300 baud on HF, on a cable of their own
+H1 = Station("OH2HA", 60.45, 22.27, (Radio("direwolf-300", "p300_h1"),))
+H2 = Station("OH2HB", 62.24, 25.75, (Radio("direwolf-300", "p300_h2"),))
+STATIONS = (A, G, B, H1, H2)
 PAIR_CALL = f"{G.call}-{PAIR_SSID}"
 
 
@@ -215,7 +218,7 @@ class StationPage(Page):
 
 
 class World:
-    """The three stations: each daemon on its own data folder under `folder`, its output beside it."""
+    """The stations: each daemon on its own data folder under `folder`, its output beside it."""
 
     def __init__(self, folder: Path) -> None:
         self.folder = folder

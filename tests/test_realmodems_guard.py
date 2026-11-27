@@ -19,7 +19,7 @@ A_CARD = """\
 """
 NULL_SINKS = "".join(
     f"{n}\t{name}\tPipeWire\tfloat32le 1ch 48000Hz\tSUSPENDED\n"
-    for n, name in enumerate(("vhf_a_out", "vhf_g_out", "hf_g_out", "hf_b_out"), 1)
+    for n, name in enumerate(("vhf_a_out", "vhf_g_out", "hf_g_out", "hf_b_out", "p300_h1_out", "p300_h2_out"), 1)
 )
 RUNNER = Machine(NO_CARDS, NULL_SINKS, ASOUNDRC.read_text(encoding="utf-8"), "linux")
 ON = {ENV: "1"}
@@ -27,7 +27,7 @@ ON = {ENV: "1"}
 
 def test_the_cards_and_the_sinks_are_read() -> None:
     assert cards(NO_CARDS) == {} and cards(A_CARD) == {"CODEC": "USB-Audio"}
-    assert sinks(NULL_SINKS) == {"vhf_a_out", "vhf_g_out", "hf_g_out", "hf_b_out"}
+    assert sinks(NULL_SINKS) == {"vhf_a_out", "vhf_g_out", "hf_g_out", "hf_b_out", "p300_h1_out", "p300_h2_out"}
 
 
 def test_the_virtual_cables_alone_let_the_stations_run_with_or_without_alsa_in_the_kernel() -> None:
@@ -65,7 +65,7 @@ def test_each_station_plays_into_its_own_sink_and_hears_only_the_other_end() -> 
     lines = ASOUNDRC.read_text(encoding="utf-8").split("pcm.")[1:]
     ends = {line.split()[0]: line for line in lines}
     assert sorted(ends) == sorted(r.sound_card for s in STATIONS for r in s.radios)
-    for name, other in (("vhf_a", "vhf_g"), ("hf_g", "hf_b")):
+    for name, other in (("vhf_a", "vhf_g"), ("hf_g", "hf_b"), ("p300_h1", "p300_h2")):
         for one, two in ((name, other), (other, name)):
             assert f'playback.pcm {{ type pipewire playback_node "{one}_out" }}' in ends[one]
             assert f'capture.pcm {{ type pipewire capture_node "{two}_in" }}' in ends[one]

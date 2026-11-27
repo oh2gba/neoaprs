@@ -1,16 +1,18 @@
 """Tests for a gateway's pair through the real modems: A (Direwolf) and G share the VHF cable, G (Direwolf
 and Mercury, its pair on) and B (Mercury) the HF cable. Messages and acks cross both ways, a WIDE path
-alone and a message to G itself stay off HF, and a beacon by way of the pair's call reaches B."""
+alone and a message to G itself stay off HF, and a beacon by way of the pair's call reaches B. H1 and H2
+(Direwolf at 300 baud) share a cable of their own: a message and its ack."""
 
 import asyncio
 import os
+import re
 from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
 import pytest_asyncio
 
-from tests.realmodems.stations import A, B, G, PAIR_CALL, StationPage, World, programs, read_machine, refusal
+from tests.realmodems.stations import A, B, G, H1, H2, PAIR_CALL, StationPage, World, programs, read_machine, refusal
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
@@ -105,3 +107,16 @@ async def test_a_beacon_from_a_with_the_pair_call_in_its_path_is_heard_by_b(worl
     after = b.last_packet()
     await a.send({"cmd": "beacon_now"})
     await b.until("B hearing A's beacon over HF", lambda: bool(crossed(b, after, A.call, "position")), CROSS_SEC)
+
+
+async def test_a_message_at_300_baud_on_hf_reaches_the_other_station_and_its_ack_comes_back(world: World) -> None:
+    h1, h2 = world[H1.call], world[H2.call]
+    text = "realmodems H1 to H2"
+    await h1.send({"cmd": "send_message", "to": H2.call, "text": text})
+    await h2.until("H2 receiving the message", lambda: h2.message("in", text) is not None, CROSS_SEC)
+    await h1.until("H2's ack at H1", lambda: h1.state_of(text) == "acked", CROSS_SEC)
+    assert h2.packets(direction="in", sender=H1.call, kind="message"), "heard on H2's own radio"
+    for station in (H1, H2):
+        said = (world.folder / station.call.lower() / "neoaprs.log").read_text(encoding="utf-8")
+        assert "Channel 0: 300 baud" in said, f"{station.call}'s Direwolf runs its 300 baud modem"
+        assert not re.search(r"Line \d+: ", said), f"{station.call}'s Direwolf took the configuration without a word"

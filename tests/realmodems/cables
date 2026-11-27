@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The two virtual cables of tests/realmodems on a GitHub runner, whose kernel has no sound: PipeWire
+# The three virtual cables of tests/realmodems on a GitHub runner, whose kernel has no sound: PipeWire
 # with a null sink for what each end plays and a source remapping it for the other end to record,
 # and tests/realmodems/asoundrc as ~/.asoundrc. For .github/workflows/realmodems.yml only: the
 # servers it starts run until the job ends, and the variables they need go to $GITHUB_ENV.
@@ -22,7 +22,7 @@ nohup pipewire-pulse >"$logs/pipewire-pulse.log" 2>&1 &
 for _ in $(seq 100); do pactl info >/dev/null 2>&1 && break; sleep 0.1; done
 pactl info
 
-for end in vhf_a vhf_g hf_g hf_b; do
+for end in vhf_a vhf_g hf_g hf_b p300_h1 p300_h2; do
     pactl load-module module-null-sink sink_name="${end}_out" rate=48000 channels=1 channel_map=mono
     pactl load-module module-remap-source master="${end}_out.monitor" source_name="${end}_in" channels=1 channel_map=mono
 done

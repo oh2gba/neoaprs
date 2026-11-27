@@ -1,14 +1,15 @@
 # The real modems on virtual cables
 
-`.github/workflows/realmodems.yml` runs three NeoAPRS daemons on one GitHub runner, each starting the Direwolf and the Mercury that NeoAPRS carries, built by the
-scripts the release builds them with (`scripts/build-direwolf --install`, `scripts/build-mercury --install`). The stations are joined by two virtual sound cables
+`.github/workflows/realmodems.yml` runs five NeoAPRS daemons on one GitHub runner, each starting the Direwolf and the Mercury that NeoAPRS carries, built by the
+scripts the release builds them with (`scripts/build-direwolf --install`, `scripts/build-mercury --install`). The stations are joined by three virtual sound cables
 instead of radios, and the tests of `tests/realmodems/` drive them through their page sockets as an operator would.
 
 | station | radios | cable |
 |---|---|---|
-| A `OH2AA` | Sound card (Direwolf, 1200 baud) | VHF |
-| G `OH2GW` | Sound card (Direwolf) and Mercury; the pair of the two on, its call `OH2GW-12` | VHF and HF |
-| B `OH2BB` | Mercury | HF |
+| A `OH2AA` | Packet, sound card, 1200 | VHF |
+| G `OH2GW` | Packet, sound card, 1200 and Mercury, sound card; the pair of the two on, its call `OH2GW-12` | VHF and HF |
+| B `OH2BB` | Mercury, sound card | HF |
+| H1 `OH2HA`, H2 `OH2HB` | Packet, sound card, 300 | HF at 300 baud |
 
 ## What it proves
 
@@ -17,8 +18,10 @@ instead of radios, and the tests of `tests/realmodems/` drive them through their
 - A beacon of A with only `WIDE1-1` in its path is heard by G and nothing of it goes out on G's Mercury or reaches B.
 - A message addressed to G itself is acked by G and is not passed on to HF.
 - A beacon of A with the pair's call in its path is heard by B.
+- A message from H1 reaches H2 at 300 baud and H2's ack comes back, and both Direwolfs take the `MODEM 300` line the daemon writes without a
+  complaint.
 
-All of it runs through the real programs: Direwolf's AFSK 1200 modem and Mercury's DATAC3 modem encode and decode the audio, each on its own ALSA device, with
+All of it runs through the real programs: Direwolf's AFSK 1200 and 300 modems and Mercury's DATAC3 modem encode and decode the audio, each on its own ALSA device, with
 the configuration and command line the daemon writes for them.
 
 ## What it does not prove
@@ -35,7 +38,7 @@ The kernels of GitHub's runners carry no sound modules, so `snd-aloop` cannot be
 kernel with no `linux-modules-extra` package, and the 6.8 Azure kernel of ubuntu-22.04 has the package but no sound in it; ubuntu-26.04 has no `/proc/asound` at
 all. The cables are PipeWire instead (`tests/realmodems/cables`, run by the workflow): PipeWire, WirePlumber and pipewire-pulse as the runner's user, a null sink
 for what each end plays (`vhf_a_out` …) and a source that remaps that sink's monitor (`vhf_a_in` …). `tests/realmodems/asoundrc`, copied to `~/.asoundrc`, gives
-each end an ALSA device of PipeWire's plugin (`vhf_a`, `vhf_g`, `hf_g`, `hf_b`) that plays into its own sink and records the other end's source, so a station
+each end an ALSA device of PipeWire's plugin (`vhf_a`, `vhf_g`, `hf_g`, `hf_b`, `p300_h1`, `p300_h2`) that plays into its own sink and records the other end's source, so a station
 hears the other end and never itself. The workflow plays a tone into one end of the HF cable and checks that it is heard at the other before the stations start.
 
 PulseAudio's ALSA plugin is not enough: Mercury opens its device with mmap access and reads it by `snd_pcm_avail_update` and `snd_pcm_mmap_begin`
@@ -52,7 +55,7 @@ The tests start real modems that would key a real radio on a real card, so they 
 
 - they are collected only with `NEOAPRS_REAL_MODEMS=1` (`tests/realmodems/conftest.py`); a normal run, `scripts/check` included, collects none of them;
 - with the variable set, before any daemon starts, `tests/realmodems/stations.py` (`refusal`) ends the run unless the computer is Linux, has no sound card at all
-  (`/proc/asound/cards` lists none, or the kernel has no sound), `~/.asoundrc` is the file of `tests/realmodems`, the sound server's sinks are its four null sinks
+  (`/proc/asound/cards` lists none, or the kernel has no sound), `~/.asoundrc` is the file of `tests/realmodems`, the sound server's sinks are its six null sinks
   and no other, and every radio of the stations is on one of its devices.
 
 `tests/test_realmodems_guard.py`, in the normal suite, holds the refusal. The daemons run without the no-devices switch (it would refuse the modems), with no serial
@@ -66,6 +69,6 @@ gh run watch <id> --exit-status
 ```
 
 or Actions, realmodems, Run workflow (a workflow that is not on master yet is dispatched by its number: `gh workflow run <workflow id> --ref <branch>`). It
-takes about six minutes with the modems in the cache, the scenarios about two and a half. The folders of the three stations (each daemon's log and output,
+takes about six minutes with the modems in the cache, the scenarios about two and a half. The folders of the five stations (each daemon's log and output,
 the modems' configurations) are the artifact `realmodems-stations` of every run. Run it before a release, and after a change to the pair, the Mercury or
 Direwolf driver, or a modem's pin.
