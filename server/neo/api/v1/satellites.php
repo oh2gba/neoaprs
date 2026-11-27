@@ -9,7 +9,7 @@
  *    "elements": {OMM field: text} | null}]}
  * The list is private/satellites-list.json of the repository (uploaded by server/deploy.sh --site);
  * the elements are CelesTrak's group "amateur" as CSV (OMM fields, which hold catalogue numbers above
- * 99999). Without a readable list the answer is 503 {"ok": false, "reason": "none"}; another method 405.
+ * 99999). Before any file exists the answer is 503 {"ok": false, "reason": "none"}; another method 405.
  *
  * CelesTrak's rules (celestrak.org/usage-policy.php, gp-data-formats.php): one download per update,
  * new data at most every 2 hours, compressed, and no further asking after an answer that is not 200.
@@ -18,7 +18,7 @@
  * 200, no answer, or a body that is not the whole CSV: its header, every line a row, at least
  * MIN_ROWS rows, and no more than one of the listed satellites lost since the last download) not
  * again for 2 hours, then 6, then 24 (the file `failed` holds how many in a row); the old file is
- * served meanwhile, and while another request makes the first file the list without elements. A changed list is merged with the last download (elements.csv) at once,
+ * served meanwhile. A changed list is merged with the last download (elements.csv) at once,
  * without asking CelesTrak. CELESTRAK_URL in the environment replaces the address (the tests). */
 declare(strict_types=1);
 
@@ -209,9 +209,5 @@ if ($method !== 'GET' && $method !== 'HEAD') {
 }
 sats_refresh();
 $body = @file_get_contents(SERVED);
-if ($body === false) {
-    $list = json_decode((string) @file_get_contents(LIST_FILE), true);
-    if (!is_array($list)) sats_answer(503, json_encode(['ok' => false, 'reason' => 'none']) . "\n");
-    $body = sats_merge($list, [], null);  // another request is making the first file
-}
+if ($body === false) sats_answer(503, json_encode(['ok' => false, 'reason' => 'none']) . "\n");
 sats_answer(200, $body);

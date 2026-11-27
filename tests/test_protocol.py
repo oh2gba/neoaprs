@@ -853,14 +853,31 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "layer_things": [
         {
             "type": "layer_things",
+            "at": "2026-10-21T12:00:00Z",
             "layer": "aircraft",
             "source": "adsbfi",
             "away": False,
             "things": [AIRCRAFT],
             "trails": [{"id": AIRCRAFT["id"], "points": [[24.71, 60.22, "2026-10-21T11:58:00Z"]]}],
         },
-        {"type": "layer_things", "layer": "ships", "source": "receiver", "away": True, "things": [SHIP], "trails": []},
-        {"type": "layer_things", "layer": "ships", "source": "none", "away": False, "things": [], "trails": []},
+        {
+            "type": "layer_things",
+            "at": "2026-10-21T12:00:00Z",
+            "layer": "ships",
+            "source": "receiver",
+            "away": True,
+            "things": [SHIP],
+            "trails": [],
+        },
+        {
+            "type": "layer_things",
+            "at": "2026-10-21T12:00:00Z",
+            "layer": "ships",
+            "source": "none",
+            "away": False,
+            "things": [],
+            "trails": [],
+        },
     ],
     "satellites": [
         {
