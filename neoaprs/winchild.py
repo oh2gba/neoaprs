@@ -8,6 +8,7 @@ import ctypes
 import logging
 import re
 import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -59,6 +60,8 @@ _BOOL, _DWORD, _HANDLE = ctypes.c_int, ctypes.c_uint32, ctypes.c_void_p
 CALLS: dict[str, tuple[list[Any], Any]] = {
     "AttachConsole": ([_DWORD], _BOOL),
     "FreeConsole": ([], _BOOL),
+    "GetConsoleWindow": ([], _HANDLE),
+    "GetConsoleProcessList": ([ctypes.POINTER(ctypes.c_uint32), _DWORD], _DWORD),
     "GenerateConsoleCtrlEvent": ([_DWORD, _DWORD], _BOOL),
     "SetConsoleCtrlHandler": ([ctypes.c_void_p, _BOOL], _BOOL),
     "CreateJobObjectW": ([ctypes.c_void_p, ctypes.c_wchar_p], _HANDLE),
@@ -86,10 +89,22 @@ _console = threading.Lock()  # a console is attached to by the whole process
 _handler: Any = None  # kept alive: Windows calls it from a thread of its own
 
 
+# Ctrl-C and Ctrl-Break that reach this process up to this long after it sent one are its own echo.
+ECHO_SEC = 10.0
+_asked_at = -ECHO_SEC  # monotonic time of the latest ask
+
+
+def ours(event: int, now: float | None = None) -> bool:
+    """Return whether a console event is the echo of an ask of this process (it is then taken)."""
+    at = time.monotonic() if now is None else now
+    return event in (CTRL_C_EVENT, CTRL_BREAK_EVENT) and at - _asked_at < ECHO_SEC
+
+
 def _handler_routine() -> Any:
-    """Return a console control handler that says each event was handled."""
+    """Return a console control handler that takes the echo of an ask and passes every other event on
+    (to Python's own, which stops the daemon on a Ctrl-C or Ctrl-Break of its own terminal)."""
     kind = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE)
-    return kind(ctypes.c_int, ctypes.c_uint32)(lambda event: 1)
+    return kind(ctypes.c_int, ctypes.c_uint32)(lambda event: 1 if ours(event) else 0)
 
 
 def _swallow_ctrl_c(k: Any, steps: "Steps | None" = None) -> bool:
@@ -130,35 +145,77 @@ def _step(steps: Steps | None, k: Any, name: str, *args: Any) -> Any:
     return result
 
 
+def console_of_own(k: Any, steps: Steps | None = None) -> tuple[bool, bool]:
+    """Return whether this process is attached to a console, and whether that console has a window."""
+    count = _step(steps, k, "GetConsoleProcessList", (ctypes.c_uint32 * 1)(), 1)
+    window = _step(steps, k, "GetConsoleWindow") if count else None
+    return bool(count), bool(window)
+
+
+def _onto(pid: int, k: Any, steps: Steps | None) -> bool:
+    """Attach to the console of `pid`, letting go of this process's own hidden one first.
+
+    A console with a window is a terminal someone looks at: it is not given up, and no ask is sent.
+    """
+    attached, window = console_of_own(k, steps)
+    if window:
+        if steps is not None:
+            steps.append({"note": "this process has a console window of its own: it is kept, the program is ended"})
+        return False
+    # (a program started from a launcher, a venv's python.exe, gets a hidden console of its own)
+    if attached and not _step(steps, k, "FreeConsole"):
+        return False
+    return bool(_step(steps, k, "AttachConsole", pid))
+
+
+def _note_ask() -> None:
+    global _asked_at
+    _asked_at = time.monotonic()
+
+
+def _leave(k: Any, steps: Steps | None) -> None:
+    """Let go of the program's console; the daemon goes on without one (it needs none)."""
+    _step(steps, k, "FreeConsole")
+    attached, _window = console_of_own(k, steps)
+    if steps is not None:
+        steps.append({"note": f"after: attached to a console: {attached}"})
+
+
 def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None) -> bool:
     """Send Ctrl-C to the console of the program `pid` (its own hidden one); return whether it was sent.
 
-    False when this process has a console of its own: it cannot attach to another. Each call is noted in `steps`.
-    Ctrl-C, not Ctrl-Break: Mercury's Windows build handles SIGINT (it unkeys and ends) but not SIGBREAK.
+    Each call is noted in `steps` and the log. Ctrl-C, not Ctrl-Break: Mercury's Windows build handles
+    SIGINT (it unkeys and ends) but not SIGBREAK. The Ctrl-C reaches this process too, where a handler
+    that says handled takes it.
     """
     k = k if k is not None else kernel32()
     with _console:
-        if not _step(steps, k, "AttachConsole", pid):
+        if not _swallow_ctrl_c(k, steps):
+            return False
+        if not _onto(pid, k, steps):
             return False
         try:
-            # without the handler the Ctrl-C would end this process too
-            return _swallow_ctrl_c(k, steps) and bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_C_EVENT, 0))
+            _note_ask()
+            return bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_C_EVENT, 0))
         finally:
-            _step(steps, k, "FreeConsole")
+            _leave(k, steps)
 
 
 def break_group(group: int, attach: bool, k: Any = None, steps: Steps | None = None) -> bool:
-    """Send Ctrl-Break to the process group `group`, attached to its console or not; for the Windows tests
-    that find which way reaches a child (a program does not unkey on it)."""
+    """Send Ctrl-Break to the process group `group` (a child started with CREATE_NEW_PROCESS_GROUP), on its
+    console or this process's own; for the Windows tests that find which way reaches a child."""
     k = k if k is not None else kernel32()
     with _console:
-        if attach and not _step(steps, k, "AttachConsole", group):
+        if not _swallow_ctrl_c(k, steps):
+            return False
+        if attach and not _onto(group, k, steps):
             return False
         try:
+            _note_ask()
             return bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_BREAK_EVENT, group))
         finally:
             if attach:
-                _step(steps, k, "FreeConsole")
+                _leave(k, steps)
 
 
 # ---- the children's lives tied to the daemon's

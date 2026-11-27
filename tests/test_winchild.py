@@ -23,7 +23,8 @@ class Kernel:
         self.calls: list[tuple[Any, ...]] = []
         self.answers = {"AttachConsole": 1, "SetConsoleCtrlHandler": 1, "GenerateConsoleCtrlEvent": 1}
         self.answers |= {"CreateJobObjectW": 7, "SetInformationJobObject": 1, "OpenProcess": 9}
-        self.answers |= {"AssignProcessToJobObject": 1} | answers
+        self.answers |= {"AssignProcessToJobObject": 1, "GetConsoleProcessList": 1, "GetConsoleWindow": 0}
+        self.answers |= answers
         self.flags: list[int] = []
 
     def __getattr__(self, name: str) -> Any:
@@ -45,24 +46,50 @@ def _fresh(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(winchild, "_job", None)
 
 
-def test_the_ctrl_c_goes_to_the_programs_console_and_this_process_takes_none_of_it() -> None:
+ASK = ["GetConsoleProcessList", "GetConsoleWindow", "FreeConsole", "AttachConsole", "GenerateConsoleCtrlEvent"]
+LEAVE = ["FreeConsole", "GetConsoleProcessList", "GetConsoleWindow"]
+
+
+def test_the_ctrl_c_goes_to_the_programs_console_after_this_process_lets_go_of_its_hidden_one() -> None:
+    """A program started from a launcher (a venv's python.exe) has a hidden console of its own, and
+    AttachConsole refuses a process that has one (ERROR_ACCESS_DENIED)."""
     k = Kernel()
     assert winchild.ask_to_end(1234, k)
-    assert k.names() == ["AttachConsole", "SetConsoleCtrlHandler", "GenerateConsoleCtrlEvent", "FreeConsole"]
-    assert k.calls[0] == ("AttachConsole", 1234) and k.calls[2] == ("GenerateConsoleCtrlEvent", 0, 0)
-    assert k.calls[1][2] is True, "a handler that says handled, not the ignore flag that children inherit"
-    assert winchild.ask_to_end(1234, k)
-    assert k.names()[4:] == ["AttachConsole", "GenerateConsoleCtrlEvent", "FreeConsole"], "the handler is set once"
-
-
-def test_no_ctrl_c_is_sent_without_the_console_or_without_the_handler() -> None:
-    k = Kernel(AttachConsole=0)
-    assert not winchild.ask_to_end(1234, k) and k.names() == ["AttachConsole"], (
-        "a daemon with a console of its own cannot attach: the hard end follows"
+    assert k.names() == ["SetConsoleCtrlHandler", *ASK, *LEAVE]
+    assert ("AttachConsole", 1234) in k.calls and ("GenerateConsoleCtrlEvent", 0, 0) in k.calls
+    assert k.calls[0][2] is True, "a handler, not the ignore flag that children inherit"
+    k = Kernel(GetConsoleProcessList=0)
+    assert winchild.ask_to_end(1234, k) and k.names()[:2] == ["GetConsoleProcessList", "AttachConsole"], (
+        "no console of its own (the installed daemon): nothing to let go of; the handler is set once"
     )
-    k = Kernel(SetConsoleCtrlHandler=0)
+
+
+def test_no_ctrl_c_is_sent_from_a_console_with_a_window_or_without_the_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    k = Kernel(GetConsoleWindow=5)
     assert not winchild.ask_to_end(1234, k)
-    assert k.names() == ["AttachConsole", "SetConsoleCtrlHandler", "FreeConsole"], "the Ctrl-C would end the daemon too"
+    assert "FreeConsole" not in k.names() and "AttachConsole" not in k.names(), (
+        "the terminal someone looks at is kept: the hard end follows"
+    )
+    k = Kernel(AttachConsole=0)
+    assert not winchild.ask_to_end(1234, k) and "GenerateConsoleCtrlEvent" not in k.names()
+    monkeypatch.setattr(winchild, "_handler", None)
+    k = Kernel(SetConsoleCtrlHandler=0)
+    assert not winchild.ask_to_end(1234, k) and k.names() == ["SetConsoleCtrlHandler"], (
+        "the Ctrl-C would end the daemon too"
+    )
+
+
+def test_only_the_echo_of_an_ask_is_taken_and_every_other_event_goes_on_to_pythons_own_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(winchild, "_asked_at", 100.0)
+    assert winchild.ours(winchild.CTRL_C_EVENT, 101.0) and winchild.ours(winchild.CTRL_BREAK_EVENT, 105.0)
+    assert not winchild.ours(winchild.CTRL_C_EVENT, 100.0 + winchild.ECHO_SEC + 1), (
+        "a Ctrl-C of the daemon's own terminal later stops it as before"
+    )
+    assert not winchild.ours(2, 101.0), "a close event is never taken"
 
 
 def test_each_child_goes_into_one_job_that_kills_on_close() -> None:
@@ -170,17 +197,21 @@ def test_each_call_of_the_ask_is_written_down_with_its_result() -> None:
     """One run on a Windows machine then tells which call stops the ask."""
     steps: winchild.Steps = []
     assert not winchild.ask_to_end(1234, Kernel(GenerateConsoleCtrlEvent=0), steps)
-    assert [(s["call"], s["result"]) for s in steps] == [
-        ("AttachConsole", 1),
+    calls = [(s["call"], s["result"]) for s in steps if "call" in s]
+    assert calls[:6] == [
         ("SetConsoleCtrlHandler", 1),
-        ("GenerateConsoleCtrlEvent", 0),
+        ("GetConsoleProcessList", 1),
+        ("GetConsoleWindow", 0),
         ("FreeConsole", 1),
-    ] and all("error" in s for s in steps)
+        ("AttachConsole", 1),
+        ("GenerateConsoleCtrlEvent", 0),
+    ] and all("error" in s for s in steps if "call" in s)
+    assert steps[-1] == {"note": "after: attached to a console: True"}, "the state it is left in"
 
 
-def test_ctrl_break_goes_to_the_group_with_or_without_its_console() -> None:
+def test_ctrl_break_goes_to_the_group_on_its_console_or_on_this_ones() -> None:
     k = Kernel()
     assert winchild.break_group(55, attach=True, k=k)
-    assert k.names() == ["AttachConsole", "GenerateConsoleCtrlEvent", "FreeConsole"] and k.calls[1][1:] == (1, 55)
+    assert k.names() == ["SetConsoleCtrlHandler", *ASK, *LEAVE] and ("GenerateConsoleCtrlEvent", 1, 55) in k.calls
     k = Kernel()
     assert winchild.break_group(55, attach=False, k=k) and k.names() == ["GenerateConsoleCtrlEvent"]
