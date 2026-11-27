@@ -35,8 +35,12 @@ def test_a_hidden_program_is_asked_to_end_by_a_daemon_without_a_console_and_the_
         )
         # no file: the ask ended the asker itself
         told[way] = json.loads(out.read_text()) if out.exists() else {"asker_alive": False}
-    # every way is written down whatever happens: the record says which call stopped which
-    print(json.dumps(told, indent=1))
+    # every way is written down whatever happens, in full: the record says which call stopped which
+    record = tmp_path / "asked.json"
+    record.write_text(json.dumps(told, indent=1))
+    print(f"the record ({record}):")
+    for line in record.read_text().splitlines():
+        print(line)
     assert all(isinstance(t, dict) and t.get("asker_alive") for t in told.values()), (
         f"an ask must never end the daemon that sends it: {json.dumps(told)}"
     )

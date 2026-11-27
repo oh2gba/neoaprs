@@ -44,7 +44,7 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     said = folder / f"{way}.child"
     k = winchild.kernel32()
     before: winchild.Steps = []
-    attached, window = winchild.console_of_own(k, before)
+    sharing, visible = winchild.console_of_own(k, before)
     child = subprocess.Popen([sys.executable, "-c", CHILD, str(said)], creationflags=FLAGS[way])
     deadline = time.monotonic() + WAIT_SEC
     while time.monotonic() < deadline and not (said.exists() and said.read_text() == "up"):
@@ -66,7 +66,7 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     time.sleep(ALIVE_SEC)
     return {
         "child_flags": hex(FLAGS[way]),
-        "asker_console_before": {"attached": attached, "window": window},
+        "asker_console_before": {"processes": sharing, "visible": visible, "steps": before},
         "sent": sent,
         "code": code,
         "child": said.read_text() if said.exists() else "",
