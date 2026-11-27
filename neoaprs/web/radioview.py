@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from neoaprs.cardlevels import CardLevels
 from neoaprs.claims import Claims
 from neoaprs.clock import iso
+from neoaprs.crossrule import slow_channel
 from neoaprs.coded import Param, code_of
 from neoaprs.radiohealth import claimed_value as claimed_value
 from neoaprs.radiohealth import devices as devices
@@ -91,7 +92,11 @@ def radio_row(
         problem=problem_row(health),
         stats=stats_row(LineStats() if line is None else line.stats),
         lines=lines,
-        limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
+        limits={
+            "max_frame": rtype.limits.max_frame,
+            "beacon_min_min": rtype.limits.beacon_min_min,
+            "slow": slow_channel(rtype.limits),
+        },
         allowed=plain(rtype.allowed),
         can=plain(rtype.can),
         choices=_choices(spec, rtype),

@@ -2019,7 +2019,8 @@
    "kind": "fm",
    "limits": {
     "beacon_min_min": 20,
-    "max_frame": null
+    "max_frame": null,
+    "slow": false
    },
    "lines": [
     {
@@ -2124,7 +2125,8 @@
    "kind": "hf",
    "limits": {
     "beacon_min_min": 30,
-    "max_frame": 123
+    "max_frame": 123,
+    "slow": true
    },
    "lines": [],
    "modem": null,
@@ -2212,7 +2214,8 @@
    "kind": "fm",
    "limits": {
     "beacon_min_min": 20,
-    "max_frame": null
+    "max_frame": null,
+    "slow": false
    },
    "lines": [],
    "modem": null,
@@ -2297,7 +2300,8 @@
    "kind": "fm",
    "limits": {
     "beacon_min_min": 20,
-    "max_frame": null
+    "max_frame": null,
+    "slow": false
    },
    "lines": [],
    "modem": null,

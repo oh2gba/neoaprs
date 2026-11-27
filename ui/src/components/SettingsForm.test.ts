@@ -1954,12 +1954,16 @@ describe("the radios that are on", () => {
     const fm = legends(make().wrapper);
     expect(fm).toContain("Digipeater");
     expect(legends(make({}, "settings", FM_OFF).wrapper)).toEqual(
-      fm.filter((l) => l !== "Digipeater").flatMap((l) => (l === "FM radio" ? [l, "Mercury radio"] : [l])),
+      fm
+        .filter((l) => l !== "Digipeater")
+        .flatMap((l) => (l === "FM radio" ? [l, "Mercury radio", "PSK Reporter"] : [l])),
     );
     // one Digipeater Enable for each radio that may repeat, each row with the radio's name when
     // there are several: with both radios on, the one Enable is in the FM radio's box
     expect(legends(make({}, "settings", BOTH).wrapper)).toEqual(
-      fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "Mercury radio"] : [l])),
+      fm.flatMap((l) =>
+        l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "Mercury radio", "PSK Reporter"] : [l],
+      ),
     );
   });
 

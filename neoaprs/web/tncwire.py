@@ -211,6 +211,9 @@ class RadioLimits(_Model):
         ge=1,
         description="the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio",
     )
+    slow: bool = Field(
+        description="a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page)"
+    )
 
 
 class RadioAllowed(_Model):

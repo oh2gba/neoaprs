@@ -94,7 +94,7 @@ async def test_the_topic_has_every_radio_and_a_radio_added_changed_and_removed_i
         row["choices"]
         == {"beacon": True, "status": False, "ask": False, "local_info": False, "path": "", "digipeat": False}
         and row["beacon"]["interval_min"] == 0
-        and row["limits"] == {"max_frame": None, "beacon_min_min": 20}
+        and row["limits"] == {"max_frame": None, "beacon_min_min": 20, "slow": False}
     )
     await page.send({"cmd": "radio_change", "radio": id, "name": "Mobile", "position": 1})
     await page.until(

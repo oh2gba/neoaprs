@@ -464,7 +464,7 @@ RADIO: dict[str, Any] = {
     "problem": None,
     "stats": STATS,
     "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}],
-    "limits": {"max_frame": None, "beacon_min_min": 20},
+    "limits": {"max_frame": None, "beacon_min_min": 20, "slow": False},
     "allowed": {"paths": True, "digipeat": True, "smart_beacon": True, "gateway_heard": True, "shared_channel": True},
     "can": {
         "find": True,

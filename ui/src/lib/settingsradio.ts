@@ -311,7 +311,7 @@ export function digiPlaces(radios: readonly PageRadio[], values: Readonly<Record
         first: boxTitle(pair.first, true),
         second: boxTitle(pair.second, true),
         call: pairCall(pair.ssid, values),
-        slow: [pair.first, pair.second].filter((r) => typeOf(r.row)?.limits.slow).map((r) => boxTitle(r, true)),
+        slow: [pair.first, pair.second].filter((r) => r.row.limits.slow).map((r) => boxTitle(r, true)),
       },
     ]),
   );

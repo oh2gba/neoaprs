@@ -490,7 +490,7 @@ describe("a radio that is off, removed or the only one on", () => {
     const { group } = make({ radios: sixRadios({ 6: { removed: true, enabled: false, state: "stopped" } }) });
     expect(
       group()
-        .findAll("fieldset.subbox > legend")
+        .findAll("fieldset.subbox:not(.pskbox) > legend")
         .map((l) => l.text()),
     ).toEqual(LEGENDS.slice(0, 5));
   });
@@ -785,7 +785,7 @@ describe("the Digipeater group of a station of several radios that may repeat", 
     };
     const { wrapper } = make({ radios: sixRadios({ 5: counted }) });
     const group = digi(wrapper);
-    expect(group?.findAll("fieldset.subbox > legend").map((l) => l.text())).toEqual([
+    expect(group?.findAll("fieldset.subbox:not(.pskbox) > legend").map((l) => l.text())).toEqual([
       "FM radio",
       "Mobile",
       "FM radio 3",
@@ -814,7 +814,7 @@ describe("the Digipeater group of a station of several radios that may repeat", 
     const several = make({ radios: sixRadios({ 1: off, 5: off }) });
     expect(
       digi(several.wrapper)
-        ?.findAll("fieldset.subbox > legend")
+        ?.findAll("fieldset.subbox:not(.pskbox) > legend")
         .map((l) => l.text()),
     ).toEqual(["Mobile"]);
     expect(
@@ -862,7 +862,7 @@ function addRadioPlace(): "after the last box" | "elsewhere" {
 function rowsBefore(id: string): string[] {
   const target = document.getElementById(id);
   if (target === null) throw new Error(`no ${id}`);
-  return [...document.querySelectorAll(".settings .field > label, .settings fieldset.subbox > legend")]
+  return [...document.querySelectorAll(".settings .field > label, .settings fieldset.subbox:not(.pskbox) > legend")]
     .filter((el) => el.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING)
     .map((el) => el.textContent?.trim() ?? "");
 }
@@ -955,7 +955,7 @@ describe("a station whose database has radio 1 alone", () => {
     expect(rows[0]?.matches("fieldset.subbox")).toBe(true);
     expect(
       group()
-        .findAll("fieldset.subbox > legend")
+        .findAll("fieldset.subbox:not(.pskbox) > legend")
         .map((l) => l.text()),
     ).toEqual(["FM radio"]);
     expect(rows.at(-1)?.querySelector("label")?.textContent).toBe("Add radio");
@@ -969,7 +969,7 @@ describe("a station whose database has radio 1 alone", () => {
     const { group } = one({ name: "Car" });
     expect(
       group()
-        .findAll("fieldset.subbox > legend")
+        .findAll("fieldset.subbox:not(.pskbox) > legend")
         .map((l) => l.text()),
     ).toEqual(["FM radio"]);
   });

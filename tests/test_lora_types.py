@@ -209,6 +209,7 @@ async def test_a_lora_tcp_radio_on_the_igate_hears_as_kind_lora_with_the_lists_s
         assert (row["kind"], row["type"], row["dummy"]) == ("lora", "lora-tcp", False) and row["limits"] == {
             "max_frame": 250,
             "beacon_min_min": 30,
+            "slow": True,
         }
         board.air(b"OH2ABC-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>tracker", rssi=-97, snr=6.25)
         await until(lambda: any(s.call == "OH2ABC-7" for s in e.ctl.stationbook.stations()))

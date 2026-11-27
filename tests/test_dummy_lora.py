@@ -438,7 +438,7 @@ async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_be
         1,
         True,
     )
-    assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == {
+    assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30, "slow": True} and row["can"] == {
         **dict.fromkeys(row["can"], False),
         "terminal": True,
         "transmit": True,
