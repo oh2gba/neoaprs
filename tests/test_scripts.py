@@ -1213,3 +1213,13 @@ def test_a_position_never_has_60_minutes() -> None:
         and scene._dm(-60.0, 2, "N", "S") == "6000.00S"
         and scene._dm(60.5, 2, "N", "S") == "6030.00N"
     )
+
+
+def test_the_simulations_first_station_gates_what_it_hears_to_the_stand_in_and_the_others_do_not() -> None:
+    from neoaprs.config import Config
+
+    sim = load_script("mercury-sim")
+    first = Config.checked(Config(), sim.station_settings(0, "SIM1", "127.0.0.1:14580"))
+    assert first.igate_gate and first.igate_enabled and first.igate_server == "127.0.0.1:14580"
+    other = Config.checked(Config(), sim.station_settings(1, "SIM2", "127.0.0.1:14580"))
+    assert not other.igate_gate and not other.igate_enabled

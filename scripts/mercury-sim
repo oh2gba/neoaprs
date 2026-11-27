@@ -75,6 +75,21 @@ def heard_of(page: Page, call: str, kind: str) -> int:
         raise Failure(f"{page.name}: {e}") from None
 
 
+def station_settings(i: int, name: str, igate_server: str) -> dict[str, str]:
+    """The settings of the i-th station; the first is the iGate that gates what it hears."""
+    settings = {
+        "station/call": name,
+        "station/lat": f"{60.0 + 0.1 * i:.2f}",
+        "station/lon": f"{24.0 + 0.1 * i:.2f}",
+        "beacon/interval_min": "0",
+        "station/comment": f"sim station {i + 1}",
+        "messages/alert": "false",
+    }
+    if i == 0:
+        settings.update({"igate/enabled": "true", "igate/gate": "true", "igate/server": igate_server})
+    return settings
+
+
 class Net:
     """The stations of the run: Mercury processes, daemons, pages and the channel between them."""
 
@@ -120,16 +135,7 @@ class Net:
             data = self.folder / name.lower()
             # The first stations have the FM radio too; the KISS hub is their TNC.
             on_fm = i < self.args.fm
-            settings = {
-                "station/call": name,
-                "station/lat": f"{60.0 + 0.1 * i:.2f}",
-                "station/lon": f"{24.0 + 0.1 * i:.2f}",
-                "beacon/interval_min": "0",
-                "station/comment": f"sim station {i + 1}",
-                "messages/alert": "false",
-            }
-            if i == 0:
-                settings.update({"igate/enabled": "true", "igate/server": igate_server, "igate/password": "12345"})
+            settings = station_settings(i, name, igate_server)
             # Radio 1 is the FM radio (on the KISS hub, or off), radio 2 the HF radio of --hf-port.
             radios = (("kiss-tcp", True) if on_fm else ("kiss", False), ("mercury", True))
             write_settings(data, settings, self.daemon_command, radios)
