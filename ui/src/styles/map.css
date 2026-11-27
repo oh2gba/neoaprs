@@ -293,8 +293,10 @@
   display: block;
 }
 /* where to tune a satellite at its pass: a small table of figures under the card's rows */
+/* under the card's fields, in the column of their text */
 .satcard-tune {
-  margin-top: 8px;
+  margin: 0 var(--card-side) 8px;
+  font-size: 13px;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
