@@ -71,7 +71,7 @@ class Others(Mapping[str, str]):
 
 
 def held_elsewhere(claims: Claims | None, holder: RadioId, path: str) -> str:
-    """Return why the radio may not open the port it is set to ("held by FM 2"), else "".
+    """Return why the radio may not open the port it is set to ("held by Packet 2"), else "".
 
     Only what is held counts, or two radios set to one port would wait for each other for ever.
     """

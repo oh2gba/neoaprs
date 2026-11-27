@@ -116,7 +116,7 @@ class Gps:
         self._announce()
 
     def _hold(self, device: str) -> str:
-        """Hold the receiver's port; return why not ("held by FM 2"), or "" if held or moot."""
+        """Hold the receiver's port; return why not ("held by Packet 2"), or "" if held or moot."""
         value = claim_value(device)
         if self._claims is None or value is None:
             return ""

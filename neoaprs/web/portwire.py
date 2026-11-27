@@ -100,7 +100,7 @@ class FindRadio(_Command):
     radio: int | None = Field(
         default=None,
         ge=1,
-        description="the radio the search is for (its id); left out: radio 1, the FM radio of before",
+        description="the radio the search is for (its id); left out: radio 1, the packet radio of before",
     )
 
 
@@ -132,5 +132,5 @@ class RadioSearchMsg(_Message):
         description="the radio the search is for (its id); null for a search that named none (radio 1)"
     )
     radio_type: str = Field(
-        description="for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise"
+        description="for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every Packet type: 1.11's `type`, which the message's own tag takes); empty otherwise"
     )

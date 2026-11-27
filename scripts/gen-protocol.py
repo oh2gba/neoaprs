@@ -310,7 +310,7 @@ def _profiles() -> str:
     ]
     hf = [{"key": p.key, "name": p.name, "transport": p.transport} for p in HF_PROFILES]
     return (
-        "/** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
+        "/** The Packet types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
         f"export const TNC_PROFILES = {_literal(rows)} as const;\n"
         "/** A Mercury radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy Mercury radio (`dummy`). */\n"
         f"export const HF_PROFILES = {_literal(hf)} as const;\n"

@@ -209,7 +209,7 @@ class RadioLimits(_Model):
     )
     beacon_min_min: int = Field(
         ge=1,
-        description="the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio",
+        description="the shortest beacon interval the radio takes, in minutes (Packet 20, Mercury 30): the station's interval is raised to it on this radio",
     )
     slow: bool = Field(
         description="a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page)"
@@ -327,7 +327,7 @@ class RadioRow(_Model):
         description="its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`)"
     )
     name: str = Field(
-        description="the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words"
+        description="the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`Packet`, `Mercury 2`) in its own words"
     )
     number: int = Field(
         ge=1,

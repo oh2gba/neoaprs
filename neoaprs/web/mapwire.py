@@ -112,7 +112,7 @@ class MapState(_Model):
         description="the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there"
     )
     aloha: list[AlohaCircle] = Field(
-        description="the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of "
+        description="the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (Packet) and whose stations heard fill it, in the order of "
         "the boxes; none without a position"
     )
     layers: list[MapLayer] = Field(
