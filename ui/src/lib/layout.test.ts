@@ -82,4 +82,3 @@ describe("defaultPanelWidth", () => {
     expect(PANEL_DEFAULT_WIDE).toBe(760);
   });
 });
-

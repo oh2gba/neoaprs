@@ -3,7 +3,7 @@
 // between its reports). A mouse resting on one shows the hover box, a click opens its card and a
 // click elsewhere closes it (`clicked`). Also gives the per-layer `counts`, the `credits` and
 // whether aircraft are drawn (`shapes`).
-import { computed, watch } from "vue";
+import { computed, watch, type Ref } from "vue";
 import type { MapGeoJSONFeature, MapLayerMouseEvent, Map as MapLibreMap } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { motionNow, type Mover } from "@/composables/useMapMotion";
@@ -24,6 +24,7 @@ import {
   thingShape,
   trafficCounts,
   trafficFeatures,
+  type LayerTables,
   type TrafficCollection,
 } from "@/lib/layers/traffic";
 import { NO_TRAIL, trailKey, trailLines } from "@/lib/layers/trail";
@@ -66,33 +67,46 @@ function useOpenTrail(map: () => MapLibreMap | null): () => TrackCollection {
   return lines;
 }
 
+/** The things' glides, made anew as each table comes (lib/layers/traffic.ts `nextGlides`). */
+function useGlides(tables: Readonly<Ref<LayerTables>>): () => ReadonlyMap<string, Glide> {
+  let glides = new Map<string, Glide>();
+  // When each table came, on the motion's clock.
+  const received = new WeakMap<LayerThingsMessage, number>();
+  watch(
+    tables,
+    (now) => {
+      const at = motionNow();
+      for (const table of now.values()) if (!received.has(table)) received.set(table, at);
+      glides = nextGlides(glides, now.values(), at, (table) => received.get(table) ?? at);
+    },
+    { flush: "sync", immediate: true },
+  );
+  return () => glides;
+}
+
+/** Sets the things on the map, but not when none moved or changed since the last time (true when it set them). */
+function changesOnly() {
+  let shown: TrafficCollection = NO_TRAFFIC;
+  return {
+    set: (to: MapLibreMap, next: TrafficCollection): boolean => {
+      if (samePlaces(shown, next)) return false;
+      shown = next;
+      setTrafficData(to, next);
+      return true;
+    },
+    seen: (data: TrafficCollection): TrafficCollection => (shown = data),
+  };
+}
+
 export function useMapTraffic(map: () => MapLibreMap | null) {
   const page = useDaemonContext();
   let hover: HoverCard | null = null;
   const traffic = page.traffic;
-  let glides = new Map<string, Glide>();
+  const glides = useGlides(traffic.tables);
   let drawn: TrafficCollection = NO_TRAFFIC;
-  // When each table came, on the motion's clock.
-  const received = new WeakMap<LayerThingsMessage, number>();
-  watch(
-    traffic.tables,
-    (tables) => {
-      const now = motionNow();
-      for (const table of tables.values()) if (!received.has(table)) received.set(table, now);
-      glides = nextGlides(glides, tables.values(), now, (table) => received.get(table) ?? now);
-    },
-    { flush: "sync", immediate: true },
-  );
-  const placed = (nowMs: number): TrafficCollection => glidedFeatures(drawn, glides, nowMs);
-  // What the map was last given, so that a step that moves nothing sets nothing.
-  let shown: TrafficCollection = NO_TRAFFIC;
-  const show = (to: MapLibreMap, nowMs: number): boolean => {
-    const next = placed(nowMs);
-    if (samePlaces(shown, next)) return false;
-    shown = next;
-    setTrafficData(to, next);
-    return true;
-  };
+  const placed = (nowMs: number): TrafficCollection => glidedFeatures(drawn, glides(), nowMs);
+  const shown = changesOnly();
+  const show = (to: MapLibreMap, nowMs: number): boolean => shown.set(to, placed(nowMs));
   const draw = (): void => {
     drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
     const to = map();
@@ -171,8 +185,7 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   return {
     add: (to: MapLibreMap): void => {
       drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
-      shown = placed(motionNow());
-      addTrafficLayers(to, shown, trail());
+      addTrafficLayers(to, shown.seen(placed(motionNow())), trail());
     },
     mover,
     listen,

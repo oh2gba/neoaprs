@@ -15,15 +15,7 @@ import TabMenu from "@/components/TabMenu.vue";
 import type { PhoneView } from "@/composables/useLayout";
 import { useTabsFit } from "@/composables/useTabsFit";
 import { t } from "@/i18n";
-import {
-  PANEL_MIN,
-  TAB_IDS,
-  tabTitle,
-  clampWidth,
-  panelMax,
-  type SizeClass,
-  type TabId,
-} from "@/lib/layout";
+import { PANEL_MIN, TAB_IDS, tabTitle, clampWidth, panelMax, type SizeClass, type TabId } from "@/lib/layout";
 import { unreadText } from "@/lib/unread";
 
 const props = withDefaults(
