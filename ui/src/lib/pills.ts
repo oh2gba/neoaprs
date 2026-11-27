@@ -274,22 +274,31 @@ function gpsPill(values: Readonly<Record<string, string>>, gps: GpsState | null)
   };
 }
 
-/** Internet, while Internet stations is enabled and connected. */
+/**
+ * Internet, while APRS-IS is logged in to; its title says which of the two ticks it serves, and a
+ * login that may not send what the radios hear is a warning.
+ */
 function internetPill(igate: IgateState | null): HeaderPill | null {
   const up =
     igate !== null &&
-    igate.enabled &&
+    (igate.enabled || igate.gate) &&
     (igate.state === "connected" || igate.state === "listening" || igate.state === "unverified");
-  return up
-    ? {
-        id: "internet",
-        text: "pill.internet",
-        title: "pill.internet_title",
-        tone: "info",
-        target: "settings",
-        focus: "set-igate-enabled",
-      }
-    : null;
+  if (!up) return null;
+  const refused = igate.gate && igate.state === "unverified";
+  return {
+    id: "internet",
+    text: "pill.internet",
+    title: refused
+      ? "pill.internet_refused_title"
+      : igate.gate
+        ? igate.enabled
+          ? "pill.internet_both_title"
+          : "pill.internet_gate_title"
+        : "pill.internet_title",
+    tone: refused ? "warn" : "info",
+    target: "settings",
+    focus: igate.enabled ? "set-igate-enabled" : "set-igate-gate",
+  };
 }
 
 /**

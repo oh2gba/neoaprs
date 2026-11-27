@@ -467,6 +467,7 @@ export function gpsState(extra: Partial<GpsState> = {}): GpsState {
 export function igateState(extra: Partial<IgateState> = {}): IgateState {
   return {
     enabled: true,
+    gate: true,
     state: "connected",
     server: "T2FINLAND",
     reason: "",
@@ -566,6 +567,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "map/ships_host": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     "igate/enabled": "false",
+    "igate/gate": "false",
     "igate/server": "rotate.aprs2.net:14580",
     "igate/password": "",
     "gps/source": "off",

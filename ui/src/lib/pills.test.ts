@@ -508,3 +508,46 @@ describe("the marks a narrow row hides", () => {
     expect(hidden([mark("radio", "ok")], 10)).toEqual([]);
   });
 });
+
+describe("the Internet mark", () => {
+  const internet = (given: Parameters<typeof igateState>[0]) =>
+    headerPills({}, null, igateState(given)).find((p) => p.id === "internet");
+  const told = (given: Parameters<typeof igateState>[0]) => {
+    const mark = internet(given);
+    return mark && [t(mark.text), t(mark.title), mark.tone, mark.focus];
+  };
+
+  it("says the truth of each of the four states of the two ticks, in the same word so that nothing moves", () => {
+    expect(internet({ enabled: false, gate: false, state: "off" })).toBeUndefined();
+    expect(told({ enabled: true, gate: false, state: "listening" })).toEqual([
+      "Internet",
+      "Internet: APRS-IS stations on the map. Settings → Internet (APRS-IS)",
+      "info",
+      "set-igate-enabled",
+    ]);
+    expect(told({ enabled: false, gate: true })).toEqual([
+      "Internet",
+      "Internet: what your radios hear goes to APRS-IS. Settings → Internet (APRS-IS)",
+      "info",
+      "set-igate-gate",
+    ]);
+    expect(told({ enabled: true, gate: true })).toEqual([
+      "Internet",
+      "Internet: APRS-IS stations on the map, and what your radios hear goes to APRS-IS. Settings → Internet (APRS-IS)",
+      "info",
+      "set-igate-enabled",
+    ]);
+  });
+
+  it("is a warning when what the radios hear is to be sent and the server did not take the login", () => {
+    for (const enabled of [true, false])
+      expect(told({ enabled, gate: true, state: "unverified", reason: "unverified" })?.slice(1, 3)).toEqual([
+        "Internet: APRS-IS does not take what your radios hear. Settings → Internet (APRS-IS)",
+        "warn",
+      ]);
+  });
+
+  it("is not there while the login is not up", () => {
+    for (const gate of [true, false]) expect(internet({ gate, state: "connecting" })).toBeUndefined();
+  });
+});

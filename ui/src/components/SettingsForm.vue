@@ -9,8 +9,8 @@
 // Radius and the Detailed map row with MapFetchButton and MapFetchNotes. The My station Station
 // group starts with where the position comes from (gps/source) and shows the place only for Fixed;
 // the Beacon group has the Beacon choice and, for a moving station, Travelling. Notifications
-// group: BrowserAlerts. The Internet group has the Enable tickbox and a status row, and asks to set
-// the call first. The Web page group has the access key with a New key button and the PhoneCode.
+// group: BrowserAlerts. The Internet group has its two tickboxes, which cannot be ticked until the
+// call is set, and a status row. The Web page group has the access key with a New key button and the PhoneCode.
 // The Encrypted messages group appears only while the daemon runs with --encryption.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -119,8 +119,9 @@ const info = (key: string) => fieldFor(key, draft);
  * changeable).
  */
 const greyed = (key: string): boolean =>
-  props.scope === "beacon" &&
-  disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0);
+  (props.scope === "beacon" &&
+    disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0)) ||
+  (key.startsWith("igate/") && call.value === "");
 /**
  * The network is let in and the daemon has made a key (what is in force, not the switch being
  * changed).
@@ -133,10 +134,7 @@ const network = computed(
  * else the .local name) with the access key in force.
  */
 const phoneLink = computed(() => keyLink(config.value?.urls[0] ?? "", config.value?.values[KEY_KEY] ?? ""));
-/**
- * Our call in force (the iGate logs in as it; the passcode page is told it); the iGate group asks
- * for it first.
- */
+/** Our call in force: APRS-IS is logged in to as it, and the Internet group's ticks need it. */
 const call = computed(() => (config.value?.values["station/call"] ?? "").trim());
 // the answers of the buttons (Test, New key) are said in the toast so that nothing moves; the
 // answer of Check now is in its row
@@ -274,9 +272,8 @@ function typed(key: string, text: string): void {
       :show="needsLook(lookKeys(group))"
     >
       <SettingsRadio v-if="group.id === 'serial'" :settings="settings" :form="form" :defaults="defaults" />
-      <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
-        v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : keysOf(group))"
+        v-for="box in boxesOf(group.id === 'serial' ? [] : keysOf(group))"
         :key="box.id"
         :title="box.sub?.text"
         :hover="box.sub?.title"

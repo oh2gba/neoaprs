@@ -16,7 +16,12 @@ export const fr: Catalogue = {
   "pill.beacon_off": "Balise coupée",
   "pill.beacon_off_title": "Ni balise ni statut automatiques. Onglet Ma station",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet : stations d'APRS-IS sur la carte. Réglages → Stations Internet",
+  "pill.internet_title": "Internet : stations d'APRS-IS sur la carte. Réglages → Internet (APRS-IS)",
+  "pill.internet_gate_title": "Internet : ce que vos radios entendent va sur APRS-IS. Réglages → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet : stations d'APRS-IS sur la carte, et ce que vos radios entendent va sur APRS-IS. Réglages → Internet (APRS-IS)",
+  "pill.internet_refused_title":
+    "Internet : APRS-IS n'accepte pas ce que vos radios entendent. Réglages → Internet (APRS-IS)",
   "pill.map": "Carte {percent} %",
   "pill.map_working": "Carte…",
   "pill.map_title": "Téléchargement de la carte de votre région. Réglages → Carte",
@@ -1419,7 +1424,7 @@ export const fr: Catalogue = {
   "settings.group.encrypt": "Messages chiffrés",
   "settings.group.map": "Carte",
   "settings.group.digi": "Digipeater",
-  "settings.group.igate": "Stations Internet",
+  "settings.group.igate": "Internet (APRS-IS)",
   "settings.group.beacon": "Balise",
   "settings.group.status": "Statut",
   "settings.group.other": "Autres",
@@ -1636,7 +1641,12 @@ export const fr: Catalogue = {
   "settings.enable.label": "Activer",
   "settings.igate.tip_label": "À propos des stations Internet",
   "settings.igate.tip1": "Affiche les stations d'APRS-IS dans le rayon de votre carte.",
-  "settings.igate.set_call": "Définissez d'abord votre indicatif",
+  "settings.igate.show_label": "Afficher les stations Internet",
+  "settings.igate.gate_label": "Envoyer ce que j'entends",
+  "settings.igate.gate_tip_label": "À propos d'Envoyer ce que j'entends",
+  "settings.igate.gate_tip1":
+    "Met sur APRS-IS ce que vos radios entendent : votre station devient alors un iGate pour ses radios.",
+  "settings.igate.gate_tip2": "Ainsi, un message entendu à la radio pour un service comme EMAIL-2 lui parvient.",
   "settings.igate.line.off": "Désactivé",
   "settings.igate.line.connecting": "Connexion à {server}…",
   "settings.igate.line.no_server": "Non connecté : aucun serveur indiqué",
@@ -1645,6 +1655,12 @@ export const fr: Catalogue = {
   "settings.igate.line.offline": "Non connecté : le nom du serveur est introuvable ; y a-t-il une connexion ?",
   "settings.igate.line.not_server": "Non connecté : le serveur n'a pas répondu comme un serveur APRS-IS",
   "settings.igate.line.lost": "Non connecté : la connexion s'est terminée",
+  "settings.igate.line.refused": "Pas d'envoi : le serveur n'a pas accepté la connexion",
+  "settings.igate.line.sending": {
+    one: "{server} · {n} paquet envoyé",
+    other: "{server} · {n} paquets envoyés",
+    "=0": "{server} · rien d'envoyé pour l'instant",
+  },
   "settings.igate.line.receiving": {
     one: "{server} · {n} station dans un rayon de {km} km",
     other: "{server} · {n} stations dans un rayon de {km} km",
@@ -1652,6 +1668,10 @@ export const fr: Catalogue = {
   },
   "settings.igate.fold.server": "Serveur : {server}",
   "settings.igate.fold.filter": "Filtre : stations dans un rayon de {km} km autour de votre position",
+  "settings.igate.fold.sent": {
+    one: "Envoyé : {n} paquet depuis le démarrage de NeoAPRS",
+    other: "Envoyés : {n} paquets depuis le démarrage de NeoAPRS",
+  },
   "settings.igate.fold.named": "{name} ({server})",
 
   "settings.alert.tip1": "Avec « Me prévenir » activé, la commande est lancée quand un message arrive.",

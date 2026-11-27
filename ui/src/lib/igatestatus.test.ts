@@ -8,15 +8,50 @@ const values = { "station/call": "OH2GBA-10", "igate/server": "rotate.aprs2.net:
 afterEach(() => setLocale("en"));
 
 describe("igateLook", () => {
-  it("is connected, in the radio's word and colour, for a login that is up, whatever the daemon says of the login: verified, listening or not accepted", () => {
+  it("is connected, in the radio's word and colour, for a login that only shows the stations and is up, whatever the daemon says of the login: verified, listening or not accepted", () => {
     for (const state of ["connected", "listening", "unverified"] as const) {
-      const look = igateLook(igateState({ state }), values, 42);
+      const look = igateLook(igateState({ state, gate: false }), values, 42);
       expect([look.state, look.tone, look.line], state).toEqual([
         "connected",
         "tnc-connected",
         "rotate.aprs2.net · 42 stations within 50 km",
       ]);
     }
+  });
+
+  it("says what was sent while only Send what I hear is on, and has no filter behind the arrow", () => {
+    const look = igateLook(igateState({ enabled: false, gate: true, gated: 812 }), values, 42);
+    expect([look.state, look.tone, look.line, look.filter, look.sent]).toEqual([
+      "connected",
+      "tnc-connected",
+      "rotate.aprs2.net · 812 packets sent",
+      "",
+      "Sent: 812 packets since NeoAPRS started",
+    ]);
+    expect(igateLook(igateState({ enabled: false, gate: true, gated: 0 }), values, 0).line).toBe(
+      "rotate.aprs2.net · nothing sent yet",
+    );
+  });
+
+  it("says the stations with both on, and what was sent behind the arrow", () => {
+    const look = igateLook(igateState({ gated: 1 }), values, 3);
+    expect([look.line, look.filter, look.sent]).toEqual([
+      "rotate.aprs2.net · 3 stations within 50 km",
+      "Filter: stations within 50 km of your position",
+      "Sent: 1 packet since NeoAPRS started",
+    ]);
+    expect(igateLook(igateState({ gate: false }), values, 3).sent).toBe("");
+  });
+
+  it("is waiting and says nothing is sent when Send what I hear is on and the server did not take the login", () => {
+    for (const enabled of [true, false])
+      expect(
+        igateLook(igateState({ enabled, gate: true, state: "unverified", reason: "unverified" }), values, 3),
+      ).toMatchObject({
+        state: "waiting",
+        tone: "tnc-waiting",
+        line: "Not sending: the server did not accept the login",
+      });
   });
 
   it("counts the stations in the line: one, none yet", () => {
@@ -69,18 +104,21 @@ describe("igateLook", () => {
     expect(igateLook(igateState({ server: "" }), values, 3).server).toBe("Server: rotate.aprs2.net:14580");
   });
 
-  it("never says gated, a passcode or an iGate, in any language", () => {
+  it("never says gated, a passcode or an iGate while only the stations are shown, and never a passcode at all, in any language", () => {
     for (const code of ["en", "de", "es", "fi", "fr", "it", "ja", "nl", "pt-BR"] as const) {
       setLocale(code);
+      const look = (s: ReturnType<typeof igateState>): string => {
+        const it = igateLook(s, values, 2);
+        return `${it.state} ${it.line} ${it.server} ${it.filter} ${it.sent}`;
+      };
       const said = [
-        igateState(),
-        igateState({ state: "unverified" }),
-        igateState({ state: "connecting" }),
-        igateState({ state: "off" }),
-      ].map((s) => {
-        const look = igateLook(s, values, 2);
-        return `${look.state} ${look.line} ${look.server} ${look.filter}`;
-      });
+        igateState({ gate: false }),
+        igateState({ gate: false, state: "unverified" }),
+        igateState({ gate: false, state: "connecting" }),
+        igateState({ gate: false, state: "off" }),
+      ].map(look);
+      const sending = [igateState(), igateState({ state: "unverified" }), igateState({ enabled: false })].map(look);
+      expect(sending.join(" "), code).not.toMatch(/passcode|Passcode|Codice|código|パスコード/i);
       expect(said.join(" "), code).not.toMatch(/gate|passcode|code d|Passcode|Codice|código|パスコード|転送/i);
     }
   });

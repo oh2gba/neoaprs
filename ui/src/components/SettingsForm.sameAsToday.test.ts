@@ -68,7 +68,7 @@ const NOTIFICATIONS = box(
 );
 const only = (title: string, ids: string[]): Box => box(ids, ids.length, [title]);
 const SETTINGS_TAB = {
-  "Internet stations": only("Internet stations", ["set-igate-enabled"]),
+  "Internet (APRS-IS)": only("Internet (APRS-IS)", ["set-igate-enabled", "set-igate-gate"]),
   Digipeater: only("Digipeater", ["set-radio-1-digipeat"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,

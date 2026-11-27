@@ -15,7 +15,12 @@ export const shell: Record<keyof typeof source, Message> = {
   "pill.beacon_off": "Baken uit",
   "pill.beacon_off_title": "Geen automatisch baken of status. Tabblad Mijn station",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: APRS-IS-stations op de kaart. Instellingen → Internetstations",
+  "pill.internet_title": "Internet: APRS-IS-stations op de kaart. Instellingen → Internet (APRS-IS)",
+  "pill.internet_gate_title": "Internet: wat je radio's horen gaat naar APRS-IS. Instellingen → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: APRS-IS-stations op de kaart, en wat je radio's horen gaat naar APRS-IS. Instellingen → Internet (APRS-IS)",
+  "pill.internet_refused_title":
+    "Internet: APRS-IS neemt niet aan wat je radio's horen. Instellingen → Internet (APRS-IS)",
   "pill.map": "Kaart {percent} %",
   "pill.map_working": "Kaart…",
   "pill.map_title": "De kaart van je omgeving wordt gedownload. Instellingen → Kaart",

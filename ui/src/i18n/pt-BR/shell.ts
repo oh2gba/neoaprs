@@ -15,7 +15,12 @@ export const shell: Record<keyof typeof source, Message> = {
   "pill.beacon_off": "Beacon desligado",
   "pill.beacon_off_title": "Sem beacon nem status automáticos. Aba Minha estação",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: estações do APRS-IS no mapa. Ajustes → Estações da Internet",
+  "pill.internet_title": "Internet: estações do APRS-IS no mapa. Ajustes → Internet (APRS-IS)",
+  "pill.internet_gate_title": "Internet: o que os seus rádios ouvem vai para o APRS-IS. Ajustes → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: estações do APRS-IS no mapa, e o que os seus rádios ouvem vai para o APRS-IS. Ajustes → Internet (APRS-IS)",
+  "pill.internet_refused_title":
+    "Internet: o APRS-IS não aceita o que os seus rádios ouvem. Ajustes → Internet (APRS-IS)",
   "pill.map": "Mapa {percent} %",
   "pill.map_working": "Mapa…",
   "pill.map_title": "Baixando o mapa da sua região. Ajustes → Mapa",

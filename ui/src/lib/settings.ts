@@ -303,11 +303,18 @@ const SPECS: Record<string, FieldSpec> = {
   },
   "igate/enabled": {
     name: "settings.igate.name",
-    label: "settings.enable.label",
+    label: "settings.igate.show_label",
     kind: "bool",
     tipLabel: "settings.igate.tip_label",
     tip: ["settings.igate.tip1"],
     picture: "internet",
+  },
+  "igate/gate": {
+    name: "settings.igate.gate_label",
+    label: "settings.igate.gate_label",
+    kind: "bool",
+    tipLabel: "settings.igate.gate_tip_label",
+    tip: ["settings.igate.gate_tip1", "settings.igate.gate_tip2"],
   },
   "messages/alert": {
     name: "settings.browser.mode",
@@ -404,10 +411,11 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(
  */
 const ALERT = ["messages/alert", "messages/alert_command"];
 /**
- * Whether the Internet switch (Enable, in the Internet stations group) is on in these values; off
- * unless they say so.
+ * Whether either tick of the Internet (APRS-IS) group, Show Internet stations or Send what I hear,
+ * is on in these values, so that APRS-IS is logged in to; off unless they say so.
  */
-export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
+export const igateOn = (values: Readonly<Record<string, string>>): boolean =>
+  values["igate/enabled"] === "true" || values["igate/gate"] === "true";
 
 /**
  * Whether a setting that depends on a switch is shown: the alert's command and Test button only

@@ -16,7 +16,13 @@ export const de: Catalogue = {
   "pill.beacon_off": "Bake aus",
   "pill.beacon_off_title": "Keine automatische Bake und kein Status. Reiter Meine Station",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: APRS-IS-Stationen auf der Karte. Einstellungen → Internet-Stationen",
+  "pill.internet_title": "Internet: APRS-IS-Stationen auf der Karte. Einstellungen → Internet (APRS-IS)",
+  "pill.internet_gate_title":
+    "Internet: was deine Funkgeräte hören, geht ins APRS-IS. Einstellungen → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: APRS-IS-Stationen auf der Karte, und was deine Funkgeräte hören, geht ins APRS-IS. Einstellungen → Internet (APRS-IS)",
+  "pill.internet_refused_title":
+    "Internet: APRS-IS nimmt nicht an, was deine Funkgeräte hören. Einstellungen → Internet (APRS-IS)",
   "pill.map": "Karte {percent} %",
   "pill.map_working": "Karte…",
   "pill.map_title": "Die Karte deiner Umgebung wird heruntergeladen. Einstellungen → Karte",
@@ -1482,7 +1488,7 @@ export const de: Catalogue = {
   "settings.group.encrypt": "Verschlüsselte Nachrichten",
   "settings.group.map": "Karte",
   "settings.group.digi": "Digipeater",
-  "settings.group.igate": "Internet-Stationen",
+  "settings.group.igate": "Internet (APRS-IS)",
   "settings.group.beacon": "Bake",
   "settings.group.status": "Status",
   "settings.group.other": "Weitere",
@@ -1701,7 +1707,12 @@ export const de: Catalogue = {
   "settings.enable.label": "Aktivieren",
   "settings.igate.tip_label": "Zu Internet-Stationen",
   "settings.igate.tip1": "Zeigt APRS-IS-Stationen im Radius deiner Karte.",
-  "settings.igate.set_call": "Setze zuerst dein Rufzeichen",
+  "settings.igate.show_label": "Internet-Stationen zeigen",
+  "settings.igate.gate_label": "Gehörtes weiterleiten",
+  "settings.igate.gate_tip_label": "Zu Gehörtes weiterleiten",
+  "settings.igate.gate_tip1":
+    "Stellt ins APRS-IS, was deine Funkgeräte hören: deine Station ist dann ein iGate für ihre Funkgeräte.",
+  "settings.igate.gate_tip2": "So erreicht eine im Funk gehörte Nachricht an einen Dienst wie EMAIL-2 diesen Dienst.",
   "settings.igate.line.off": "Aus",
   "settings.igate.line.connecting": "Verbinde mit {server}…",
   "settings.igate.line.no_server": "Nicht verbunden: kein Server festgelegt",
@@ -1711,6 +1722,12 @@ export const de: Catalogue = {
     "Nicht verbunden: der Name des Servers lässt sich nicht auflösen; gibt es eine Verbindung?",
   "settings.igate.line.not_server": "Nicht verbunden: der Server hat nicht wie ein APRS-IS-Server geantwortet",
   "settings.igate.line.lost": "Nicht verbunden: die Verbindung wurde beendet",
+  "settings.igate.line.refused": "Nichts weitergeleitet: der Server hat die Anmeldung nicht angenommen",
+  "settings.igate.line.sending": {
+    one: "{server} · {n} Paket weitergeleitet",
+    other: "{server} · {n} Pakete weitergeleitet",
+    "=0": "{server} · noch nichts weitergeleitet",
+  },
   "settings.igate.line.receiving": {
     one: "{server} · {n} Station im Umkreis von {km} km",
     other: "{server} · {n} Stationen im Umkreis von {km} km",
@@ -1718,6 +1735,10 @@ export const de: Catalogue = {
   },
   "settings.igate.fold.server": "Server: {server}",
   "settings.igate.fold.filter": "Filter: Stationen im Umkreis von {km} km um deine Position",
+  "settings.igate.fold.sent": {
+    one: "Weitergeleitet: {n} Paket seit dem Start von NeoAPRS",
+    other: "Weitergeleitet: {n} Pakete seit dem Start von NeoAPRS",
+  },
   "settings.igate.fold.named": "{name} ({server})",
 
   "settings.alert.tip1":

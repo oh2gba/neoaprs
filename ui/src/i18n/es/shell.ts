@@ -14,7 +14,11 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "pill.beacon_off": "Baliza apagada",
   "pill.beacon_off_title": "Sin baliza ni estado automáticos. Pestaña Mi estación",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: estaciones de APRS-IS en el mapa. Ajustes → Estaciones de Internet",
+  "pill.internet_title": "Internet: estaciones de APRS-IS en el mapa. Ajustes → Internet (APRS-IS)",
+  "pill.internet_gate_title": "Internet: lo que oyen tus radios va a APRS-IS. Ajustes → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: estaciones de APRS-IS en el mapa, y lo que oyen tus radios va a APRS-IS. Ajustes → Internet (APRS-IS)",
+  "pill.internet_refused_title": "Internet: APRS-IS no acepta lo que oyen tus radios. Ajustes → Internet (APRS-IS)",
   "pill.map": "Mapa {percent} %",
   "pill.map_working": "Mapa…",
   "pill.map_title": "Descargando el mapa de tu zona. Ajustes → Mapa",

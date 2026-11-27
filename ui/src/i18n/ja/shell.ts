@@ -15,7 +15,12 @@ export const shell: Record<keyof typeof source, Message> = {
   "pill.beacon_off": "ビーコン停止",
   "pill.beacon_off_title": "自動のビーコンとステータスは送りません。自局タブ",
   "pill.internet": "Internet",
-  "pill.internet_title": "インターネット:APRS-ISの局を地図に表示。設定 → インターネットの局",
+  "pill.internet_title": "インターネット:APRS-ISの局を地図に表示。設定 → インターネット (APRS-IS)",
+  "pill.internet_gate_title": "インターネット:無線機が受信した内容をAPRS-ISへ送信。設定 → インターネット (APRS-IS)",
+  "pill.internet_both_title":
+    "インターネット:APRS-ISの局を地図に表示し、無線機が受信した内容をAPRS-ISへ送信。設定 → インターネット (APRS-IS)",
+  "pill.internet_refused_title":
+    "インターネット:APRS-ISが無線機の受信内容を受け付けていません。設定 → インターネット (APRS-IS)",
   "pill.map": "地図 {percent}%",
   "pill.map_working": "地図…",
   "pill.map_title": "周辺の地図をダウンロード中。設定 → 地図",

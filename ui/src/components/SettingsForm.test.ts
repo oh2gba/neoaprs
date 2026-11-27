@@ -64,7 +64,7 @@ describe("SettingsForm", () => {
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "Radio",
       "Packet radio", // (the radio's box is in the Radio group)
-      "Internet stations",
+      "Internet (APRS-IS)",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -79,7 +79,7 @@ describe("SettingsForm", () => {
     ]);
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
       "Radio",
-      "Internet stations",
+      "Internet (APRS-IS)",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -99,7 +99,7 @@ describe("SettingsForm", () => {
       "web/port",
       "web/allowed_hosts",
       "igate/server", // (left to the shell: the default suits everyone)
-      "igate/password", // (left to the shell: only a person who gates for the radio sets it)
+      "igate/password", // (left to the shell: the passcode is worked out from the call)
       "map/maxzoom",
       "map/source",
       "map/station_hours", // (the Stations tab has it)

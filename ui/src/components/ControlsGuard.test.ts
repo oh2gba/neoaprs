@@ -106,7 +106,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
     }
   });
 
-  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: Enable (the Packet radio, the Mercury radio, Internet stations, Digipeater), Notify me (on the computer and in the browser)", () => {
+  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: Enable (the Packet radio, the Mercury radio, Digipeater), Show Internet stations (the first of the two of Internet), Notify me (on the computer and in the browser)", () => {
     const groups = (root: Element) =>
       [...root.querySelectorAll("fieldset")].map((f) => ({
         legend: f.querySelector("legend")?.textContent?.replace(/\s*i$/, "").trim() ?? "",
@@ -117,7 +117,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
     for (const [legend, label] of [
       ["Packet radio", "Enable"],
       ["Mercury radio", "Enable"],
-      ["Internet stations", "Enable"],
+      ["Internet (APRS-IS)", "Show Internet stations"],
       ["Digipeater", "Enable"],
       ["On the NeoAPRS computer", "Notify me"],
       ["In this browser", "Notify me"],

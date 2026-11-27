@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The status of the Internet stations group in Settings, shown under its tickbox while ticked: a
-// status row (StatusFold.vue) with the words of lib/igatestatus.ts and the server and filter
-// behind its arrow.
+// The status of the Internet (APRS-IS) group in Settings, shown under its tickboxes while either is
+// ticked: a status row (StatusFold.vue) with the words of lib/igatestatus.ts and the server, the
+// filter and what was sent behind its arrow.
 import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { igateLook } from "@/lib/igatestatus";
@@ -14,6 +14,7 @@ const look = computed(() => igateLook(props.igate, props.values, props.stations)
 <template>
   <StatusFold class="igatestatus" :state="look.state" :tone="look.tone" :line="look.line">
     <p class="igatefold">{{ look.server }}</p>
-    <p class="igatefold">{{ look.filter }}</p>
+    <p v-if="look.filter" class="igatefold">{{ look.filter }}</p>
+    <p v-if="look.sent" class="igatefold">{{ look.sent }}</p>
   </StatusFold>
 </template>

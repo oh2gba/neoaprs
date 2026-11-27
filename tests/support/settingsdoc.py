@@ -218,16 +218,20 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "the address of the version page that the daily update check asks (`http` or `https`; [install.md](install.md#the-update-check))",
     ),
     "igate/enabled": (
-        "Settings tab, Internet",
-        "`true` shows the stations that APRS-IS has within `map/radius_km` of your position, marked as heard over the internet; nothing is sent, and nothing from the internet ever goes on the air ([igate.md](igate.md))",
+        "Settings tab, Internet (APRS-IS), Show Internet stations",
+        "`true` shows the stations that APRS-IS has within `map/radius_km` of your position, marked as heard over the internet; nothing from the internet ever goes on the air ([igate.md](igate.md#show-internet-stations))",
+    ),
+    "igate/gate": (
+        "Settings tab, Internet (APRS-IS), Send what I hear",
+        "`true` puts what every radio hears on APRS-IS, by the iGate's rules, with the passcode worked out from `station/call`; without `igate/enabled` no station of the internet is asked for or kept ([igate.md](igate.md#send-what-i-hear))",
     ),
     "igate/server": (
         DB_ONLY,
-        "`host:port` of the APRS-IS server the Internet switch logs in to. The default `rotate.aprs2.net:14580` is the round-robin name of the volunteer servers and the port of the filtered feed; empty leaves it waiting ([igate.md](igate.md#the-server))",
+        "`host:port` of the APRS-IS server the two ticks of Internet (APRS-IS) log in to. The default `rotate.aprs2.net:14580` is the round-robin name of the volunteer servers and the port of the filtered feed; empty leaves it waiting ([igate.md](igate.md#the-server))",
     ),
     "igate/password": (
         DB_ONLY,
-        "the APRS-IS passcode of `station/call`, digits 0 to 32767: only for a person who lets NeoAPRS put what the radio hears on APRS-IS ([igate.md](igate.md#advanced-putting-what-the-radio-hears-on-aprs-is)). NeoAPRS does not work it out. `-1` is refused; empty is the read-only login of the page. A secret",
+        "an APRS-IS passcode, digits 0 to 32767, used by Send what I hear in place of the one worked out from `station/call` ([igate.md](igate.md#advanced-a-passcode-set-by-hand)). `-1` is refused; empty is the one of the call. A secret",
     ),
     "gps/source": (
         "My station tab, Station (Position)",

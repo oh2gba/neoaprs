@@ -44,7 +44,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.encrypt": "Mensagens criptografadas",
   "settings.group.map": "Mapa",
   "settings.group.digi": "Digipeater",
-  "settings.group.igate": "Estações da Internet",
+  "settings.group.igate": "Internet (APRS-IS)",
   "settings.group.beacon": "Beacon",
   "settings.group.status": "Status",
   "settings.group.other": "Outros",
@@ -255,7 +255,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.enable.label": "Ativar",
   "settings.igate.tip_label": "Sobre as estações da Internet",
   "settings.igate.tip1": "Mostra as estações do APRS-IS dentro do raio do seu mapa.",
-  "settings.igate.set_call": "Defina primeiro o seu indicativo",
+  "settings.igate.show_label": "Mostrar estações da Internet",
+  "settings.igate.gate_label": "Enviar o que ouço",
+  "settings.igate.gate_tip_label": "Sobre Enviar o que ouço",
+  "settings.igate.gate_tip1":
+    "Coloca no APRS-IS o que os seus rádios ouvem: a sua estação passa a ser um iGate para os seus rádios.",
+  "settings.igate.gate_tip2": "Assim, uma mensagem ouvida no rádio para um serviço como o EMAIL-2 chega até ele.",
   "settings.igate.line.off": "Desligado",
   "settings.igate.line.connecting": "Conectando a {server}…",
   "settings.igate.line.no_server": "Não conectado: nenhum servidor definido",
@@ -264,6 +269,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.line.offline": "Não conectado: o nome do servidor não pôde ser encontrado; há conexão?",
   "settings.igate.line.not_server": "Não conectado: o servidor não respondeu como um servidor APRS-IS",
   "settings.igate.line.lost": "Não conectado: a conexão terminou",
+  "settings.igate.line.refused": "Sem envio: o servidor não aceitou o login",
+  "settings.igate.line.sending": {
+    one: "{server} · {n} pacote enviado",
+    other: "{server} · {n} pacotes enviados",
+    "=0": "{server} · nada enviado ainda",
+  },
   "settings.igate.line.receiving": {
     one: "{server} · {n} estação a menos de {km} km",
     other: "{server} · {n} estações a menos de {km} km",
@@ -271,6 +282,10 @@ export const settings: Record<keyof typeof source, Message> = {
   },
   "settings.igate.fold.server": "Servidor: {server}",
   "settings.igate.fold.filter": "Filtro: estações a menos de {km} km da sua posição",
+  "settings.igate.fold.sent": {
+    one: "Enviado: {n} pacote desde que o NeoAPRS iniciou",
+    other: "Enviados: {n} pacotes desde que o NeoAPRS iniciou",
+  },
   "settings.igate.fold.named": "{name} ({server})",
 
   "settings.alert.tip1": "Com Notificar-me ligado, o comando é executado quando chega uma mensagem.",

@@ -15,7 +15,11 @@ export const shell: Record<keyof typeof source, Message> = {
   "pill.beacon_off": "Majakka pois",
   "pill.beacon_off_title": "Ei automaattista majakkaa eikä tilaviestiä. Oma asema -välilehti",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: APRS-IS-asemat kartalla. Asetukset → Internet-asemat",
+  "pill.internet_title": "Internet: APRS-IS-asemat kartalla. Asetukset → Internet (APRS-IS)",
+  "pill.internet_gate_title": "Internet: radioidesi kuulema menee APRS-IS:ään. Asetukset → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: APRS-IS-asemat kartalla, ja radioidesi kuulema menee APRS-IS:ään. Asetukset → Internet (APRS-IS)",
+  "pill.internet_refused_title": "Internet: APRS-IS ei ota vastaan radioidesi kuulemaa. Asetukset → Internet (APRS-IS)",
   "pill.map": "Kartta {percent} %",
   "pill.map_working": "Kartta…",
   "pill.map_title": "Ladataan alueesi karttaa. Asetukset → Kartta",

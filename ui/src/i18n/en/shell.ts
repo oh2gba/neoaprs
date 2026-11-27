@@ -12,7 +12,11 @@ export const shell = {
   "pill.beacon_off": "Beacon off",
   "pill.beacon_off_title": "No automatic beacon or status. My station tab",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: APRS-IS stations on the map. Settings → Internet stations",
+  "pill.internet_title": "Internet: APRS-IS stations on the map. Settings → Internet (APRS-IS)",
+  "pill.internet_gate_title": "Internet: what your radios hear goes to APRS-IS. Settings → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: APRS-IS stations on the map, and what your radios hear goes to APRS-IS. Settings → Internet (APRS-IS)",
+  "pill.internet_refused_title": "Internet: APRS-IS does not take what your radios hear. Settings → Internet (APRS-IS)",
   "pill.map": "Map {percent} %",
   "pill.map_working": "Map…",
   "pill.map_title": "Downloading the map of your area. Settings → Map",

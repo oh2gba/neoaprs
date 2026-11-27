@@ -14,7 +14,13 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
   "pill.beacon_off": "Beacon spento",
   "pill.beacon_off_title": "Nessun beacon né stato automatici. Scheda La mia stazione",
   "pill.internet": "Internet",
-  "pill.internet_title": "Internet: stazioni di APRS-IS sulla mappa. Impostazioni → Stazioni Internet",
+  "pill.internet_title": "Internet: stazioni di APRS-IS sulla mappa. Impostazioni → Internet (APRS-IS)",
+  "pill.internet_gate_title":
+    "Internet: ciò che ricevono le tue radio va su APRS-IS. Impostazioni → Internet (APRS-IS)",
+  "pill.internet_both_title":
+    "Internet: stazioni di APRS-IS sulla mappa, e ciò che ricevono le tue radio va su APRS-IS. Impostazioni → Internet (APRS-IS)",
+  "pill.internet_refused_title":
+    "Internet: APRS-IS non accetta ciò che ricevono le tue radio. Impostazioni → Internet (APRS-IS)",
   "pill.map": "Mappa {percent} %",
   "pill.map_working": "Mappa…",
   "pill.map_title": "Download della mappa della tua zona. Impostazioni → Mappa",

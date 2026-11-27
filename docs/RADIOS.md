@@ -34,7 +34,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 
 Tried on the air: the Kenwood TH-D7 and the Yaesu FTX-1. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
 
-NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such ([Internet stations](manual/igate.md)). Nothing from the internet goes to the radio.
+NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such, and put what your radios hear on APRS-IS ([Internet (APRS-IS)](manual/igate.md)). Nothing from the internet goes to the radio.
 
 ## Kenwood TH-D7 and TM-D700
 
@@ -241,7 +241,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 
 ## Yaesu FTM, TNC in monitor mode (RX only)
 
-Plug in the radio's data cable or the TNC's serial cable, pick *Yaesu FTM, TNC in monitor mode (RX only)* and see what the radio hears on the map; with Internet stations on, the station is a receive-only iGate. NeoAPRS reads the text the device prints of each packet it hears and writes nothing to it, not even a carriage return: the box has no Path, no Digipeater and no beacon tick, and while it is the only radio on, nothing is sent. The text of a TAPR TNC-2, a Kantronics, a PK-232 and a Yaesu FTM is read in every form they print (one line or two, a time stamp, `<UI>`, `cmd:`), and a TNC whose serial line is 7 bits with parity is recognised by itself.
+Plug in the radio's data cable or the TNC's serial cable, pick *Yaesu FTM, TNC in monitor mode (RX only)* and see what the radio hears on the map; with Send what I hear on, the station is a receive-only iGate. NeoAPRS reads the text the device prints of each packet it hears and writes nothing to it, not even a carriage return: the box has no Path, no Digipeater and no beacon tick, and while it is the only radio on, nothing is sent. The text of a TAPR TNC-2, a Kantronics, a PK-232 and a Yaesu FTM is read in every form they print (one line or two, a time stamp, `<UI>`, `cmd:`), and a TNC whose serial line is 7 bits with parity is recognised by itself.
 
 What to set once, at the device (the TNC keeps it over a power cycle):
 

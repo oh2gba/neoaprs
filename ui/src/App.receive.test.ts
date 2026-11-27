@@ -262,7 +262,7 @@ describe("App: RX only elsewhere on the page", () => {
     await say(socket, 1, { [KEY]: "false", "gps/source": "gpsd", "igate/enabled": "true" });
     const marks: [string, string, string][] = [
       [".pill-gps", "set-gps-source", "Station"],
-      [".pill-internet", "set-igate-enabled", "Internet stations"],
+      [".pill-internet", "set-igate-enabled", "Internet (APRS-IS)"],
     ];
     for (const [mark, control, legend] of marks) {
       scrolled.mockClear();

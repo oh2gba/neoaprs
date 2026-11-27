@@ -62,7 +62,7 @@ Each radio has its own:
 - **digipeater tick.** The Digipeater group of the Settings tab has an **Enable** for each packet radio on VHF or UHF that is on. A packet radio on HF, a Mercury or a LoRa radio repeats nothing as a fill-in; a packet reaches one from another radio only through a [pair](beacon.md#passing-a-packet-between-two-radios). Each pair has its own box in the group.
 - **status line, statistics and Terminal**, and what it heard of each station: when, by which route, and the path that reaches it.
 
-The station has once: the call, the position and the symbol, the comment, the beacon interval, the GPS and SmartBeaconing, the status text and its interval, **RX only**, Internet stations (which hear what every radio hears) and the alerts.
+The station has once: the call, the position and the symbol, the comment, the beacon interval, the GPS and SmartBeaconing, the status text and its interval, **RX only**, Internet (APRS-IS) (whose Send what I hear gates what every radio hears) and the alerts.
 
 A message goes on one radio: the one you choose in Route, else the radio that heard the station lately ([messages.md](messages.md#the-radio-of-a-message)). An ack or an answer goes back on the radio the message came in on.
 
@@ -151,7 +151,7 @@ On a Mac there are no *Sound card* types under Packet: run Direwolf yourself ([`
 
 **Choose:** *Yaesu FTM, TNC in monitor mode (RX only)* under Packet, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
-**When it works:** what the radio hears is on the map, and with Internet stations on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the switch at the top right of the page reads **RX only**.
+**When it works:** what the radio hears is on the map, and with Send what I hear on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the switch at the top right of the page reads **RX only**.
 
 ### The Dummy radios
 
@@ -265,7 +265,7 @@ Tick **Enable** in the box **PSK Reporter** at the end of the Mercury radio's bo
 - Only a station heard directly is reported: not one that came through a digipeater, a gateway or the internet, and never your own call.
 - The station is placed where its packet says, or where your radio heard it last; your own place is your station's position. Without a position of your own nothing is reported.
 - A station is reported once every five minutes at most on a band, and the reports go out together every five minutes or so.
-- It works while the station is RX only, and without the Internet stations or the iGate.
+- It works while the station is RX only, and without either tick of Internet (APRS-IS).
 - Untick it, or leave the frequency empty, and nothing is reported.
 
 ## The TNC type

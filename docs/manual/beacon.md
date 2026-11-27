@@ -293,7 +293,7 @@ The general query `?APRS?` is a packet and not the text of a message (a message 
 
 It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: latitude and longitude in degrees (the `V` stands for a space and may be left out; a west or south value has its minus) and the radius in miles. Then you answer only when your position is inside the circle, and a footprint that does not read is not answered.
 
-The general query `?IGATE?` asks the iGates for their capabilities. It is answered only while your iGate puts what the radios hear on APRS-IS: switched on, with a passcode, logged in and verified ([Internet stations](igate.md#answering-igate)).
+The general query `?IGATE?` asks the iGates for their capabilities. It is answered only while your iGate puts what the radios hear on APRS-IS: **Send what I hear** ticked, logged in and verified ([Internet (APRS-IS)](igate.md#answering-igate)).
 
 The answer to `?IGATE?` is one packet, `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812`: no message sent from the internet to the radio (the iGate is receive only), the stations heard direct in the last hour on the radios that may carry a path, Packet and LoRa and the packets put on APRS-IS since NeoAPRS started. It is taken as `?APRS?` is: a packet and not the text of a message, after a random wait of 0 to 120 seconds, not again for 10 minutes (its own 10 minutes, apart from those of `?APRS?`), with the same footprint.
 

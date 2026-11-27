@@ -41,8 +41,8 @@ describe("groupKeys", () => {
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
     // The radios' own fields are in their boxes
     expect(groups[0]?.keys).toEqual(["serial/last_port"]);
-    expect(groups[1]?.title).toBe("Internet stations");
-    expect(groups[1]?.keys).toEqual(["igate/enabled"]); // Igate/server and igate/password are left to the shell
+    expect(groups[1]?.title).toBe("Internet (APRS-IS)");
+    expect(groups[1]?.keys).toEqual(["igate/enabled", "igate/gate"]); // Igate/server and igate/password are left to the shell
     expect(groups[2]?.title).toBe("Digipeater");
     // Its fields are the radios' radio/<id>/digipeat: the form draws it while a radio may repeat.
     expect(groups[2]?.keys).toEqual([]);
