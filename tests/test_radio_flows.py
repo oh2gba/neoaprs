@@ -3,17 +3,21 @@ a restart, a repoint and a hold of one radio never run beside each other."""
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from neoaprs.mercurystall import STALL_SEC
 from neoaprs.radioflows import RadioFlows
-from neoaprs.radiospec import FM_ID
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
-from tests.support.env import Env, until
+from tests.support.env import Env, until, until_started
+from tests.support.modemports import own_ports
+from tests.test_mercury_modem import HF, _alive, modem, stopped
 
 log = logging.getLogger("tests.flows")
 
@@ -106,6 +110,44 @@ async def test_end_all_cancels_every_flow() -> None:
     assert sorted(w.said) == ["a began", "a cancelled", "b began", "b cancelled"]
     assert f.running(1) is None and f.running(2) is None
     await tasks.cancel_all()
+
+
+@pytest.mark.parametrize("last", ["stop", "restart"])
+async def test_a_stall_restart_a_settings_restart_and_a_stop_at_once_end_as_the_last_request_asked_with_no_child_left(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, last: str
+) -> None:
+    own_ports(monkeypatch)
+    f, tasks = flows()
+    m = modem(tmp_path)
+    runs: set[int] = set()
+    m.changed.connect(lambda: runs.add(m.pid) if m.state == "running" and m.pid is not None else None)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        first = m.pid
+        # Mercury's own restart of a stalled receive side: its run is ended in a thread, a start is due
+        end = time.monotonic()
+        for n in range(int(STALL_SEC * 10) + 1):
+            m._capture_full(end - STALL_SEC - 0.1 + n / 10)
+        assert m.stall.restarts == 1 and m.state == "waiting"
+        # and, before that run is gone, a change of the settings and an untick of the same radio
+        changed = replace(HF, mercury_tx_gain_db=-3.0)
+        asks = {"restart": lambda: m.start(changed), "stop": m.stop}
+        order = ["restart", "stop"] if last == "stop" else ["stop", "restart"]
+        for kind in order:
+            done = f.begin(HF_ID, "restart", asks[kind], kind)
+        await done
+        await asyncio.sleep(1.0)  # longer than the back-off of the stall's own start
+        if last == "stop":
+            assert m.state == "stopped" and m.pid is None
+        else:
+            await until_started(lambda: m.state == "running")
+            assert m.pid is not None and m.pid != first
+        alive = {pid for pid in runs | {first} if _alive(pid)}
+        assert alive == ({m.pid} if last == "restart" else set()), "no run of the modem is left but the asked one"
+    finally:
+        await stopped(m)
+        await tasks.cancel_all()
 
 
 async def test_the_controller_ends_a_repoint_under_way_before_find_my_radio_holds_the_radio_and_repoints_no_held_radio(
