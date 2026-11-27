@@ -205,7 +205,7 @@
         },
         "rf_only": {
           "default": true,
-          "description": "RFONLY after the path; left out it is true",
+          "description": "RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may",
           "type": "boolean"
         },
         "radio": {
@@ -1925,14 +1925,15 @@
           ]
         },
         "rf_only": {
+          "default": true,
+          "description": "RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may",
           "type": "boolean"
         }
       },
       "required": [
         "cmd",
         "kind",
-        "path",
-        "rf_only"
+        "path"
       ],
       "title": "GeneralQueryCommand",
       "type": "object"

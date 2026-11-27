@@ -126,7 +126,7 @@ export const HF_PROFILES = [
   {"key": "dummy-hf", "name": "Dummy Mercury radio", "transport": "dummy"},
 ] as const;
 
-/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), its limits, the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */
+/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), its limits (`slow`: a frame holds the shared channel for seconds, HF and LoRa, so what the pairs pass onto it is limited), the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */
 export const RADIO_TYPES = [
   {
     "key": "direwolf",
@@ -136,7 +136,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.direwolf",
     "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": false, "tx_gain": true, "frequencies": false, "transmit": true, "rx_level": true},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -248,7 +248,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.kiss",
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -333,7 +333,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.kenwood_d710",
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -418,7 +418,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.kenwood_tnc2",
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -503,7 +503,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.kantronics",
     "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -588,7 +588,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.kiss_tcp",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -682,7 +682,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.tnc_text",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -713,7 +713,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.dummy",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
-    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
     "fields": [
       {
@@ -780,7 +780,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.mercury",
     "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": true, "tx_gain": true, "frequencies": true, "transmit": true, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
-    "limits": {"max_frame": 123, "beacon_min_min": 30},
+    "limits": {"max_frame": 123, "beacon_min_min": 30, "slow": true},
     "recommended_path": "",
     "fields": [
       {
@@ -892,7 +892,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.dummy_hf",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": true, "transmit": true, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
-    "limits": {"max_frame": 123, "beacon_min_min": 30},
+    "limits": {"max_frame": 123, "beacon_min_min": 30, "slow": true},
     "recommended_path": "",
     "fields": [
       {
@@ -941,7 +941,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.lora_tcp",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
-    "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
     "fields": [
       {
@@ -1017,7 +1017,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.lora_serial",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
-    "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
     "fields": [
       {
@@ -1093,7 +1093,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.lora_console",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
-    "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
     "fields": [
       {
@@ -1124,7 +1124,7 @@ export const RADIO_TYPES = [
     "text": "radio.type.dummy_lora",
     "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
-    "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
     "fields": [
       {
@@ -1416,6 +1416,7 @@ export const LIMITS = {
     queries: { aprs: "?APRS?", igate: "?IGATE?", wx: "?WX?" },
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
+  pass: { slowMax: 4, slowWindowMin: 5 },
   skedPast: { keepDays: 30, maxTests: 20, maxRows: 100 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
   scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },

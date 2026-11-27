@@ -59,7 +59,7 @@ export interface AskQruCommand {
   text: string;
   /** the path the request goes by; left out (or null, or empty) the path of messages to QRU */
   path?: string | null;
-  /** RFONLY after the path; left out it is true */
+  /** RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may */
   rf_only?: boolean;
   /** the one radio the request goes on, its id: the radio a server answered on (`QruServer.radio`), for a request of a group it listed or one asked again; left out: the radios of Local info's Send on. Refused with `radio.unknown` for a radio that is none, `radio.off` for one that is off, `radio.receive_only` for one that only receives and `radio.not_connected` for one that is not connected */
   radio?: number | null;
@@ -469,7 +469,8 @@ export interface GeneralQueryCommand {
   cmd: "general_query";
   kind: "aprs" | "igate" | "wx";
   path: string | null;
-  rf_only: boolean;
+  /** RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may */
+  rf_only?: boolean;
 }
 
 /** The last query of a kind on one radio. */

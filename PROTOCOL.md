@@ -330,7 +330,7 @@ are left, the longest), or the path is no path or too long with RFONLY (`path.*`
 |---|---|---|---|
 | `text` | string |  | (max 32 chars, min 1 chars) |
 | `path` | string \| null | optional | the path the request goes by; left out (or null, or empty) the path of messages to QRU (default `null`; max 256 chars) |
-| `rf_only` | boolean | optional | RFONLY after the path; left out it is true (default `true`) |
+| `rf_only` | boolean | optional | RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may (default `true`) |
 | `radio` | integer \| null | optional | the one radio the request goes on, its id: the radio a server answered on (`QruServer.radio`), for a request of a group it listed or one asked again; left out: the radios of Local info's Send on. Refused with `radio.unknown` for a radio that is none, `radio.off` for one that is off, `radio.receive_only` for one that only receives and `radio.not_connected` for one that is not connected (default `null`; >= 1) |
 
 ### `general_query`
@@ -348,7 +348,7 @@ radios less than 60 seconds ago (`general.too_soon`, with the `seconds` that are
 |---|---|---|---|
 | `kind` | "aprs" \| "igate" \| "wx" |  |  |
 | `path` | string \| null |  | (max 256 chars) |
-| `rf_only` | boolean |  |  |
+| `rf_only` | boolean | optional | RFONLY after the path; left out it is true. The page no longer sends it (the request always goes with RFONLY); a page of an older build may (default `true`) |
 
 ### `message_retry`
 
