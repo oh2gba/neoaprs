@@ -72,10 +72,7 @@ async def test_the_care_of_the_database_and_the_recount_go_on_after_a_round_that
     finally:
         for task in tasks:
             task.cancel()
-    assert (
-        "the care of the database failed" in caplog.text
-        and "the recount of the station book failed" in caplog.text
-    )
+    assert "the care of the database failed" in caplog.text and "the recount of the station book failed" in caplog.text
 
 
 def test_the_database_is_cared_for_every_six_hours_so_that_its_file_gives_room_back_within_the_day() -> None:
