@@ -7,6 +7,7 @@
 - **New:** Services in the Messages tab start a message to APRS Thursday, an ANSRVR group or APRS OTA for you.
 - **Changed:** the kind of radio that was called FM is called Packet, beside Mercury and LoRa.
 - **Changed:** Add radio lists the types in groups: Packet, Mercury, LoRa and Without a radio.
+- **Changed:** a message you have not sent yet stays in its own conversation when you open another.
 - **Fixed:** on a Mac, a NeoAPRS service that refuses to start stays stopped, and `neoaprs service status` says why.
 
 ## 0.24.2
