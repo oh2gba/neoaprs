@@ -1,19 +1,24 @@
-"""A small WebSocket client (RFC 6455) over asyncio streams, for Mercury's UI interface on loopback.
+"""A small WebSocket client (RFC 6455) over asyncio streams: Mercury's UI interface on loopback, and
+AISStream over TLS with permessage-deflate (RFC 7692) for what the server sends.
 
-No extensions, compression or TLS. Tornado has a client but may be imported by neoaprs/web/ only.
-"""
+Tornado has a client but may be imported by neoaprs/web/ only."""
 
 import asyncio
 import base64
 import hashlib
 import os
+import ssl
 import struct
+import zlib
 
 GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 HEADER_MAX = 8192  # the longest reply to the handshake read
 # A longer message is read and dropped (Mercury's longest is 64 KB).
 MAX_MESSAGE = 1 << 20
 CONNECT_SEC = 3.0
+DEFLATE = "permessage-deflate"
+# RFC 7692 7.2.2: the tail a sender removes from each compressed message.
+DEFLATE_TAIL = b"\x00\x00\xff\xff"
 
 CONTINUATION, TEXT, BINARY, CLOSE, PING, PONG = 0x0, 0x1, 0x2, 0x8, 0x9, 0xA
 
@@ -44,21 +49,61 @@ def frame(opcode: int, payload: bytes, mask: bytes | None = None) -> bytes:
     return head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
 
 
+class Inflater:
+    """Undoes permessage-deflate for each message the server sends compressed."""
+
+    def __init__(self, extension: str) -> None:
+        self._fresh = "server_no_context_takeover" in extension
+        self._inflate = zlib.decompressobj(-zlib.MAX_WBITS)
+
+    def message(self, data: bytes) -> bytes | None:
+        """Return the message, or None when it is larger than MAX_MESSAGE."""
+        if self._fresh:
+            self._inflate = zlib.decompressobj(-zlib.MAX_WBITS)
+        out = self._inflate.decompress(data + DEFLATE_TAIL, MAX_MESSAGE + 1)
+        if len(out) > MAX_MESSAGE or self._inflate.unconsumed_tail:
+            self._inflate = zlib.decompressobj(-zlib.MAX_WBITS)  # the rest of its window is lost with it
+            return None
+        return out
+
+
 class WebSocketClient:
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        self._reader, self._writer = reader, writer
+    def __init__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, inflater: Inflater | None = None
+    ) -> None:
+        self._reader, self._writer, self._inflater = reader, writer, inflater
         self.closed = False
+        self.heard = asyncio.get_running_loop().time()  # loop time of the last frame read
 
     @classmethod
-    async def connect(cls, host: str, port: int, path: str = "/", timeout: float = CONNECT_SEC) -> "WebSocketClient":
-        """Open the connection and do the handshake.
+    async def connect(
+        cls,
+        host: str,
+        port: int,
+        path: str = "/",
+        timeout: float = CONNECT_SEC,
+        tls: ssl.SSLContext | None = None,
+        deflate: bool = False,
+        agent: str = "",
+    ) -> "WebSocketClient":
+        """Open the connection and do the handshake; `deflate` offers permessage-deflate.
 
         Raise OSError if the server is not there, WebSocketError or TimeoutError if no upgrade.
         """
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port, ssl=tls, server_hostname=host if tls else None), timeout
+        )
         try:
             key = base64.b64encode(os.urandom(16)).decode("ascii")
-            request = f"GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"
+            default_port = 443 if tls else 80
+            extra = (f"Sec-WebSocket-Extensions: {DEFLATE}\r\n" if deflate else "") + (
+                f"User-Agent: {agent}\r\n" if agent else ""
+            )
+            request = (
+                f"GET {path} HTTP/1.1\r\nHost: {host if port == default_port else f'{host}:{port}'}\r\n"
+                f"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\n"
+                f"Sec-WebSocket-Version: 13\r\n{extra}\r\n"
+            )
             writer.write(request.encode("ascii"))
             head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout)
             lines = head.decode("latin-1").split("\r\n")
@@ -70,15 +115,22 @@ class WebSocketClient:
             }
             if headers.get("sec-websocket-accept") != accept_of(key):
                 raise WebSocketError("the server's answer to the handshake is not the one for this key")
+            extension = headers.get("sec-websocket-extensions", "")
+            if extension and not (deflate and extension.split(";")[0].strip() == DEFLATE):
+                raise WebSocketError(f"the server chose an extension that was not offered: {extension[:80]}")
         except (OSError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, WebSocketError, TimeoutError) as error:
             writer.close()
             if isinstance(error, asyncio.IncompleteReadError | asyncio.LimitOverrunError):
                 raise WebSocketError("the server closed the connection during the handshake") from None
             raise
-        return cls(reader, writer)
+        return cls(reader, writer, Inflater(extension) if extension else None)
 
     async def send_text(self, text: str) -> None:
         self._writer.write(frame(TEXT, text.encode("utf-8"), os.urandom(4)))
+        await self._writer.drain()
+
+    async def ping(self) -> None:
+        self._writer.write(frame(PING, b"", os.urandom(4)))
         await self._writer.drain()
 
     async def recv(self) -> tuple[bool, bytes] | None:
@@ -87,10 +139,10 @@ class WebSocketClient:
         Raise WebSocketError for a disallowed frame. A message over MAX_MESSAGE is skipped.
         """
         parts: list[bytes] = []
-        size, kind, skipping = 0, TEXT, False
+        size, kind, skipping, packed = 0, TEXT, False, False
         while True:
             try:
-                opcode, final, payload = await self._frame()
+                opcode, final, payload, rsv1 = await self._frame()
             except (asyncio.IncompleteReadError, ConnectionError):
                 self.closed = True
                 return None
@@ -104,7 +156,7 @@ class WebSocketClient:
                 self._writer.write(frame(CLOSE, payload[:2], os.urandom(4)))
                 return None
             if opcode in (TEXT, BINARY):
-                parts, size, kind, skipping = [], 0, opcode, False
+                parts, size, kind, skipping, packed = [], 0, opcode, False, rsv1
             elif opcode != CONTINUATION:
                 raise WebSocketError(f"a frame of the type {opcode}")
             size += len(payload)
@@ -112,14 +164,18 @@ class WebSocketClient:
             if not skipping:
                 parts.append(payload)
             if final:
-                if skipping:
+                message: bytes | None = None if skipping else b"".join(parts)
+                if message is not None and packed and self._inflater is not None:
+                    message = self._inflater.message(message)
+                if message is None:
                     parts, size, skipping = [], 0, False
                     continue
-                return kind == TEXT, b"".join(parts)
+                return kind == TEXT, message
 
-    async def _frame(self) -> tuple[int, bool, bytes]:
+    async def _frame(self) -> tuple[int, bool, bytes, bool]:
+        """Return (opcode, final, payload, compressed); only RSV1 of permessage-deflate is allowed."""
         first, second = await self._reader.readexactly(2)
-        if first & 0x70:
+        if first & (0x30 if self._inflater is not None else 0x70):
             raise WebSocketError("a frame with extension bits set")
         size = second & 0x7F
         if size == 126:
@@ -130,9 +186,10 @@ class WebSocketClient:
         if size > 4 * MAX_MESSAGE:
             raise WebSocketError(f"a frame of {size} bytes")
         payload = await self._reader.readexactly(size)
+        self.heard = asyncio.get_running_loop().time()
         if mask is not None:
             payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
-        return first & 0x0F, bool(first & 0x80), payload
+        return first & 0x0F, bool(first & 0x80), payload, bool(first & 0x40)
 
     def close(self) -> None:
         """Close the connection now; a close frame is tried first, with no wait for the answer."""

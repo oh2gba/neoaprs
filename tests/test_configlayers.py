@@ -16,18 +16,19 @@ from neoaprs.web.access import LOCAL_ONLY
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.env import Env
 
-LAYER_KEYS = ("map/aircraft", "map/aircraft_host", "map/ships", "map/ships_host")
+LAYER_KEYS = ("map/aircraft", "map/aircraft_host", "map/ships", "map/ships_host", "map/ships_key")
 KEY = "k7m2-x9pq-4hrt"
 
 
-def test_the_four_settings_come_straight_after_the_maps_source_with_their_defaults() -> None:
+def test_the_five_settings_come_straight_after_the_maps_source_with_their_defaults() -> None:
     at = KEYS.index("map/source")
-    assert KEYS[at + 1 : at + 5] == LAYER_KEYS == tuple(key for _attr, key, _parse in LAYER_ROWS)
+    assert KEYS[at + 1 : at + 6] == LAYER_KEYS == tuple(key for _attr, key, _parse in LAYER_ROWS)
     assert {key: DEFAULTS.to_data()[key] for key in LAYER_KEYS} == {
         "map/aircraft": "none",
         "map/aircraft_host": "",
         "map/ships": "none",
         "map/ships_host": "",
+        "map/ships_key": "",
     }
     assert (DEFAULTS.map_aircraft, DEFAULTS.map_aircraft_host, DEFAULTS.map_ships, DEFAULTS.map_ships_host) == (
         "none",
@@ -41,7 +42,7 @@ def test_the_four_settings_come_straight_after_the_maps_source_with_their_defaul
     ("key", "words"),
     [
         ("map/aircraft", ("none", "adsbfi", "adsblol", "radarcape", "receiver")),
-        ("map/ships", ("none", "fintraffic", "receiver")),
+        ("map/ships", ("none", "fintraffic", "aisstream", "receiver")),
     ],
 )
 def test_a_source_is_one_of_its_layers_words_in_any_case(key: str, words: tuple[str, ...]) -> None:
@@ -165,6 +166,7 @@ def test_a_stored_value_is_read_back_and_a_wrong_one_falls_back_to_its_default()
         "map/aircraft_host": "pi.local:8080",
         "map/ships": "fintraffic",
         "map/ships_host": "ais.local",
+        "map/ships_key": "0123456789abcdef0123456789abcdef01234567",
     }
     config = Config.from_data(rows)
     assert (config.map_aircraft, config.map_aircraft_host, config.map_ships, config.map_ships_host) == (
@@ -229,7 +231,7 @@ async def test_a_page_of_another_device_with_the_key_sets_every_setting_of_the_l
     }
     await page.send({"cmd": "set_config", "values": values})
     await page.until(lambda: e.ctl.config.map_ships_host == "192.168.1.31:10110")
-    assert {key: (await e.ctl.store.settings())[key] for key in LAYER_KEYS} == values
+    assert {key: (await e.ctl.store.settings())[key] for key in values} == values
     assert not page.of("error")
     await e.stop()
 

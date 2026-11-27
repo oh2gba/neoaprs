@@ -1,7 +1,8 @@
 """The map's traffic layers (aircraft and ships): the source in force of each layer, kept in memory.
 
 A source is asked only while a page looks at its layer, as often as its feed allows.
-NEOAPRS_UPDATE_CHECK=0 asks no service; NEOAPRS_LAYERS_URL replaces the services even then."""
+NEOAPRS_UPDATE_CHECK=0 asks no service; NEOAPRS_LAYERS_URL (and NEOAPRS_AISSTREAM_URL for
+AISStream) on this computer replaces the services even then."""
 
 import asyncio
 import logging
@@ -24,6 +25,7 @@ from neoaprs.layerthing import (
     Layer,
     LayerState,
     LayerTable,
+    Problem,
     ReceiverState,
     Source,
     Thing,
@@ -41,15 +43,17 @@ from neoaprs.updatefetch import fetch_feed
 from neoaprs.versions import on_this_computer
 
 from .layerasked import AskedFeed, AskedSource, FetchFeed, LayerSource, SourceContext
+from .layeraisstream import AisStreamShips
 from .layerships import FintrafficShips, ShipReceiver
 from .updatecheck import ENV_SWITCH
 
 log = logging.getLogger("neoaprs.layers")
 
 ENV_URL = "NEOAPRS_LAYERS_URL"
+ENV_STREAM = "NEOAPRS_AISSTREAM_URL"
 RECEIVER_TIMEOUT_SEC = 4.0  # per place tried
 RECEIVER_BACKOFF_MAX_SEC = 60.0  # short, as a receiver on the local network returns soon
-SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic"}
+SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic", "aisstream": "AISStream"}
 NO_WAIT_SEC = 1.0  # pause when another asker took the feed first
 ASK_RETRY_SEC = 30.0  # pause after a round of asking that raised
 
@@ -200,9 +204,11 @@ SOURCES: dict[tuple[Layer, Source], Maker] = {
     ("aircraft", "radarcape"): Radarcape,
     ("aircraft", "receiver"): AircraftReceiver,
     ("ships", "fintraffic"): FintrafficShips,
+    ("ships", "aisstream"): lambda ctx: AisStreamShips(ctx, ctx.config().map_ships_key, ctx.stream),
     ("ships", "receiver"): ShipReceiver,
 }
-# The source in force and, for a receiver, its address; a source is made again when either changes.
+# The source in force and, for a receiver its address, for AISStream its key; a source is made again
+# when either changes.
 Key = tuple[Source, str]
 
 
@@ -210,7 +216,11 @@ def chosen(config: Config, layer: Layer) -> str:
     return config.map_aircraft if layer == "aircraft" else config.map_ships
 
 
-def _address(config: Config, layer: Layer) -> str:
+def _address(config: Config, layer: Layer, source: Source) -> str:
+    if source == "aisstream":
+        return config.map_ships_key
+    if source not in OWN_RECEIVERS:
+        return ""
     return config.map_aircraft_host if layer == "aircraft" else config.map_ships_host
 
 
@@ -238,6 +248,10 @@ class Layers:
         given = environ.get(ENV_URL, "").strip()
         self.base = given if on_this_computer(given) else ""
         self.services_on = environ.get(ENV_SWITCH) != "0" or bool(self.base)
+        stream = environ.get(ENV_STREAM, "").strip()
+        local = stream.startswith(("ws://", "wss://")) and on_this_computer("http" + stream.removeprefix("ws"))
+        self.stream = stream if local else ""
+        self.stream_on = environ.get(ENV_SWITCH) != "0" or bool(self.stream)
         # Emitted when a layer's source, offer or receiver state changes.
         self.changed: Signal[[]] = Signal("layers.changed")
         self.told: Signal[[LayerTable]] = Signal("layers.told")
@@ -262,9 +276,14 @@ class Layers:
             source = in_force(layer, chosen(config, layer), offer)
             held = self._held.get(layer)
             made = held[1] if held is not None and held[0][0] == source else None
+            problem: Problem = getattr(made, "problem", "")
             found.append(
                 LayerState(
-                    layer, source, offer, made.receiver() if made is not None and source in OWN_RECEIVERS else None
+                    layer,
+                    source,
+                    offer,
+                    made.receiver() if made is not None and source in OWN_RECEIVERS else None,
+                    problem,
                 )
             )
         return found
@@ -322,7 +341,7 @@ class Layers:
 
     def _key(self, config: Config, layer: Layer) -> Key:
         source = in_force(layer, chosen(config, layer), offered(layer, self._where(), config.map_radius_km))
-        return source, _address(config, layer) if source in OWN_RECEIVERS else ""
+        return source, _address(config, layer, source)
 
     def _refresh(self) -> None:
         config = self._config()
@@ -357,6 +376,7 @@ class Layers:
             self._retired.remove(old)
 
     def _context(self, layer: Layer, source: Source) -> SourceContext:
+        stream = source == "aisstream"
         return SourceContext(
             layer,
             source,
@@ -367,11 +387,12 @@ class Layers:
             self.platform,
             self._clock,
             self._monotonic,
-            self.services_on,
+            self.stream_on if stream else self.services_on,
             self.base,
             self._feed,
             lambda: self._tell_from(layer, source),
             self._maybe_changed,
+            *([self.stream] if stream and self.stream else []),
         )
 
     def _feed(self, name: str, every_sec: float, stops: bool) -> AskedFeed:

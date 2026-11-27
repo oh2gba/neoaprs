@@ -510,14 +510,18 @@ async def test_the_states_say_the_source_in_force_and_what_is_offered_and_a_stor
             ("none", "adsbfi", "adsblol", "radarcape", "receiver"),
             None,
         )
-        assert (ships.layer, ships.source, ships.offered) == ("ships", "fintraffic", ("none", "fintraffic", "receiver"))
+        assert (ships.layer, ships.source, ships.offered) == (
+            "ships",
+            "fintraffic",
+            ("none", "fintraffic", "aisstream", "receiver"),
+        )
         changed: list[int] = []
         service.changed.connect(lambda: changed.append(1))
         where["at"] = (50.11, 8.68)
         service.moved()
         assert (
             service.states()[1].source == "none"
-            and service.states()[1].offered == ("none", "receiver")
+            and service.states()[1].offered == ("none", "aisstream", "receiver")
             and changed == [1]
         )
         assert service._config().map_ships == "fintraffic", "it stays stored"

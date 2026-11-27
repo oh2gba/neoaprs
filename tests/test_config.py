@@ -85,6 +85,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "map/aircraft_host": "",
         "map/ships": "none",
         "map/ships_host": "",
+        "map/ships_key": "",
         "update/url": "https://neo.oh2gba.eu/version.php",
         "digi/enabled": "false",
         "igate/enabled": "false",

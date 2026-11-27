@@ -14,13 +14,13 @@ from .geo import distance_km
 from .units import NAUTICAL_MILE_KM
 
 Layer = Literal["aircraft", "ships"]
-Source = Literal["none", "adsbfi", "adsblol", "fintraffic", "radarcape", "receiver"]
+Source = Literal["none", "adsbfi", "adsblol", "fintraffic", "aisstream", "radarcape", "receiver"]
 Feed = Literal["adsbfi", "adsblol", "aircraft_receiver", "fintraffic_locations", "fintraffic_vessels"]
 LAYERS: tuple[Layer, ...] = ("aircraft", "ships")
 AIRCRAFT_SOURCES: tuple[Source, ...] = ("none", "adsbfi", "adsblol", "radarcape", "receiver")
-SHIP_SOURCES: tuple[Source, ...] = ("none", "fintraffic", "receiver")
+SHIP_SOURCES: tuple[Source, ...] = ("none", "fintraffic", "aisstream", "receiver")
 SOURCES: dict[Layer, tuple[Source, ...]] = {"aircraft": AIRCRAFT_SOURCES, "ships": SHIP_SOURCES}
-SERVICES: frozenset[Source] = frozenset({"adsbfi", "adsblol", "fintraffic"})
+SERVICES: frozenset[Source] = frozenset({"adsbfi", "adsblol", "fintraffic", "aisstream"})
 OWN_RECEIVERS: frozenset[Source] = frozenset({"radarcape", "receiver"})
 
 # Fintraffic coverage: south, north, west, east (degrees)
@@ -30,6 +30,7 @@ ADSBLOL_URL = "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{nm}"
 FINTRAFFIC_LOCATIONS = "https://meri.digitraffic.fi/api/ais/v1/locations"
 FINTRAFFIC_VESSELS = "https://meri.digitraffic.fi/api/ais/v1/vessels"
 FINTRAFFIC_HEADERS = {"Digitraffic-User": "NeoAPRS"}
+AISSTREAM_URL = "wss://stream.aisstream.io/v0/stream"
 # a request reaches this far beyond the circle so rounding does not lose a thing at the edge
 AREA_MARGIN_KM = 8
 MAX_NM = 250  # the most either aircraft service answers for
@@ -111,12 +112,17 @@ class ReceiverState:
     heard_at: datetime | None
 
 
+# Why a service gives nothing that the operator can mend: AISStream refused the key.
+Problem = Literal["", "key_refused"]
+
+
 @dataclass(frozen=True)
 class LayerState:
     layer: Layer
     source: Source
     offered: tuple[Source, ...]
     receiver: ReceiverState | None
+    problem: Problem = ""
 
 
 @dataclass(frozen=True)

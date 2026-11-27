@@ -7,7 +7,7 @@ from pydantic import Field
 from .wirebase import Iso, _Command, _Message, _Model
 
 LayerName = Literal["aircraft", "ships"]
-SourceName = Literal["none", "adsbfi", "adsblol", "fintraffic", "radarcape", "receiver"]
+SourceName = Literal["none", "adsbfi", "adsblol", "fintraffic", "aisstream", "radarcape", "receiver"]
 
 
 class LayerReceiver(_Model):
@@ -32,10 +32,13 @@ class MapLayer(_Model):
         description="the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row)"
     )
     offered: list[SourceName] = Field(
-        description="the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters"
+        description="the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters; `aisstream` (with the operator's own key, `map/ships_key`) everywhere"
     )
     receiver: LayerReceiver | None = Field(
         description="the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null"
+    )
+    problem: Literal["", "key_refused"] = Field(
+        description="why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise"
     )
 
 

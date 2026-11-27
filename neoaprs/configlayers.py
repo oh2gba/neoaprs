@@ -14,6 +14,10 @@ from .configtypes import web_address, word_among
 from .layerthing import AIRCRAFT_SOURCES as AIRCRAFT_SOURCES, AIS_HOST, AIS_PORT, SHIP_SOURCES as SHIP_SOURCES
 
 MAX_ADDRESS = 500
+MAX_KEY = 200  # an AISStream key is 40 hexadecimal characters
+# A key a page is never sent once saved: it gets MASK in its place, and MASK sent back keeps the key.
+MASKED_KEYS = frozenset({"map/ships_key"})
+MASK = "********"
 # Host name or IPv4 address.
 _NAME = re.compile(r"[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?")
 
@@ -84,6 +88,14 @@ def ais_host_port(value: str) -> tuple[str, int]:
     return host.removeprefix("[").removesuffix("]"), int(port)
 
 
+def service_key(text: str) -> str:
+    """Return a service's key (`map/ships_key`): empty, or printable characters with no blank."""
+    value = text.strip()
+    if len(value) > MAX_KEY or not value.isprintable() or any(c.isspace() for c in value):
+        raise CodedError("that is not a key the service gives", "setting.not_key")
+    return value
+
+
 @dataclass(frozen=True)
 class LayerFields:
     """The `Config` fields of the layer settings."""
@@ -92,6 +104,7 @@ class LayerFields:
     map_aircraft_host: str = ""
     map_ships: str = "none"
     map_ships_host: str = ""
+    map_ships_key: str = ""
 
 
 # (attr, key, parser), in settings form order
@@ -100,4 +113,5 @@ LAYER_ROWS: tuple[tuple[str, str, Callable[[str], Any]], ...] = (
     ("map_aircraft_host", "map/aircraft_host", receiver_address),
     ("map_ships", "map/ships", word_among(SHIP_SOURCES)),
     ("map_ships_host", "map/ships_host", ais_address),
+    ("map_ships_key", "map/ships_key", service_key),
 )

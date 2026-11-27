@@ -16,6 +16,7 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import AT_GATE, Attempt
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, EMAIL_RADIO, KEYS, RADIO_STATION_KEYS, STATION_KEYS, Config
+from neoaprs.configlayers import MASK, MASKED_KEYS
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
 from neoaprs.mercury import MAX_PAYLOAD, MODE
@@ -297,6 +298,7 @@ def config_values(config: Config, urls: list[str], https: dict[str, Any] | None 
         {k: v for k, v in values.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS},
         {k: v for k, v in defaults.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS},
     )
+    values.update({key: MASK if values[key] else "" for key in MASKED_KEYS})
     # an email radio that was removed counts as none
     values[EMAIL_RADIO] = values[EMAIL_RADIO] if config.radio(config.email_choice or 0) in config.live_radios else ""
     radio_values = (

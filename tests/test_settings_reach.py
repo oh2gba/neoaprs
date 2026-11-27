@@ -114,6 +114,7 @@ OTHER_TEXT = frozenset(
         "status/rigctld",  # calls, and host:port pairs checked as such
         # A host or host:port checked as such, which a TCP connection is opened to
         "map/ships_host",
+        "map/ships_key",  # sent only inside AISStream's subscription, as a JSON string
     }
 )
 PROBES = ("spy:///dev/ttyUSB0?file=/tmp/x", "-x", "$(x)", "file:///x", "x://y", "a b", "a\nb", "../x")

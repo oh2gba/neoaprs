@@ -137,8 +137,15 @@ async def test_the_topic_map_says_both_layers_and_a_look_at_a_layer_without_a_so
             "source": "none",
             "offered": ["none", "adsbfi", "adsblol", "radarcape", "receiver"],
             "receiver": None,
+            "problem": "",
         },
-        {"layer": "ships", "source": "none", "offered": ["none", "fintraffic", "receiver"], "receiver": None},
+        {
+            "layer": "ships",
+            "source": "none",
+            "offered": ["none", "fintraffic", "aisstream", "receiver"],
+            "receiver": None,
+            "problem": "",
+        },
     ], "the station of the tests is at Helsinki: Fintraffic is offered"
     await tab.send({"cmd": "layer_look", "layer": "aircraft", "on": True})
     first = await tab.expect("layer_things")

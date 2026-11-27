@@ -46,7 +46,13 @@ def layer_row(state: LayerState) -> dict[str, Any]:
         if state.receiver is None
         else {"state": state.receiver.state, "things": state.receiver.things, "heard_at": iso(state.receiver.heard_at)}
     )
-    return {"layer": state.layer, "source": state.source, "offered": list(state.offered), "receiver": receiver}
+    return {
+        "layer": state.layer,
+        "source": state.source,
+        "offered": list(state.offered),
+        "receiver": receiver,
+        "problem": state.problem,
+    }
 
 
 def map_state(

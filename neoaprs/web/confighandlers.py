@@ -13,6 +13,7 @@ from neoaprs.cli.redaction import shown_value
 from neoaprs import pairsetting
 from neoaprs.coded import CodedError
 from neoaprs.config import BY_KEY, EMAIL_RADIO, Config, SettingError, radio_key_of
+from neoaprs.configlayers import MASK, MASKED_KEYS
 from neoaprs.configradios import flat_moved
 from neoaprs.mercurycards import stable_alsa_id
 from neoaprs.mercuryhelper import alsa_card_names
@@ -253,6 +254,8 @@ def split_values(values: Mapping[str, str]) -> tuple[dict[str, str], dict[str, s
     own: dict[str, str] = {}
     pairs: dict[str, str] = {}
     for key, text in values.items():
+        if key in MASKED_KEYS and text == MASK:
+            continue  # the page sent back what it was shown: the key stays
         (own if radio_key_of(key) is not None else pairs if pairsetting.pair_key_of(key) is not None else flat)[key] = (
             text
         )

@@ -12,7 +12,16 @@ from urllib.parse import urlsplit, urlunsplit
 
 from neoaprs.clock import Clock
 from neoaprs.config import Config
-from neoaprs.layerthing import BACKOFF_MAX_SEC, STOP_CODES, Layer, ReceiverState, Source, Thing, backoff_sec
+from neoaprs.layerthing import (
+    AISSTREAM_URL,
+    BACKOFF_MAX_SEC,
+    STOP_CODES,
+    Layer,
+    ReceiverState,
+    Source,
+    Thing,
+    backoff_sec,
+)
 from neoaprs.updatefetch import FeedAnswer
 
 log = logging.getLogger("neoaprs.layers")
@@ -106,6 +115,7 @@ class SourceContext:
     feed: Callable[[str, float, bool], AskedFeed]
     tell: Callable[[], None]
     changed: Callable[[], None]
+    stream: str = AISSTREAM_URL  # AISStream's address, or a local NEOAPRS_AISSTREAM_URL
 
     def service_url(self, url: str) -> str:
         return through(url, self.base) if self.base else url
