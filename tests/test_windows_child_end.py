@@ -50,13 +50,15 @@ def test_a_hidden_program_is_asked_to_end_by_a_daemon_without_a_console_and_the_
     )
 
 
-def test_the_daemons_stop_of_a_modem_asks_it_to_end_and_it_ends_by_itself(tmp_path: Path) -> None:
-    """The product's path, mercuryhelper.Program's stop, from a process without a console as the daemon."""
+@pytest.mark.parametrize("flags", [DETACHED_PROCESS, 0], ids=["detached", "on_the_tests_console"])
+def test_the_daemons_stop_of_a_modem_asks_it_to_end_and_it_ends_by_itself(tmp_path: Path, flags: int) -> None:
+    """The product's path, mercuryhelper.Program's stop, from a daemon without a console and from one on a
+    console of its own that shows (the test's, as on a runner); the daemon never touches it."""
     out = tmp_path / "stopped.json"
     subprocess.run(
         [sys.executable, "-m", "tests.support.winstop", str(out)],
         cwd=ROOT,
-        creationflags=DETACHED_PROCESS,
+        creationflags=flags,
         timeout=WAIT_SEC,
         check=False,
     )

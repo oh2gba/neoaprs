@@ -323,6 +323,14 @@ class Rig:
         return webshell.run(launch)
 
 
+@pytest.fixture(autouse=True)
+def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """The app's last-resort end of the process, recorded instead (a test that expects it sets its own)."""
+    ended: list[int] = []
+    monkeypatch.setattr(webshell, "HARD_EXIT", ended.append)
+    return ended
+
+
 def until(condition: Any, seconds: float = 10.0) -> None:
     deadline = threading.Event()
     for _ in range(int(seconds / 0.02)):

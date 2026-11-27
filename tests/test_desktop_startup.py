@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import types
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -27,6 +28,14 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 # ---- the loading page
+
+
+@pytest.fixture(autouse=True)
+def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """The app's last-resort end of the process, recorded instead (a test that expects it sets its own)."""
+    ended: list[int] = []
+    monkeypatch.setattr(webshell, "HARD_EXIT", ended.append)
+    return ended
 
 
 def tokens(scheme: str) -> dict[str, str]:
@@ -470,22 +479,109 @@ def test_an_engine_that_comes_after_the_fallback_gets_the_page_and_quit_ends_the
     assert not thread.is_alive() and "destroy" in window.calls and ended == [], "no end of the process needed"
 
 
-def test_quit_while_the_engine_is_still_starting_destroys_the_window_once_it_is_up(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+# ---- the daemon ends (its watch quits the app) at every moment of the window's start
+
+
+def daemon_ends(rig: Rig) -> None:
+    """What the app's watch does when its daemon has ended (session.DaemonWatch -> AppActions)."""
+    until(lambda: rig.ctx.actions is not None)
+    assert rig.ctx.actions is not None
+    rig.ctx.actions.daemon_gone()
+
+
+def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_in_seconds_without_destroying_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
 ) -> None:
+    """The order of an install proof's log: quit (the window hidden), then the window's `shown`, then
+    WebView2's E_ABORT, and pywebview's loop never returns."""
     rig = Rig(tmp_path, monkeypatch)
-    up, ended = late_engine(rig, monkeypatch)
+    up = threading.Event()
+
+    def start(func: Any = None, **kwargs: Any) -> None:
+        rig.toolkits.started.append(kwargs)
+        assert up.wait(30)
+        (window,) = rig.toolkits.windows
+        for handler in list(window.events.shown.handlers):
+            handler()  # the window's `shown`, after the quit
+        func()
+        threading.Event().wait(30)  # E_ABORT: the loop does not return
+
+    monkeypatch.setattr(sys.modules["webview"], "start", start)
     thread = threading.Thread(target=rig.run, daemon=True)
     thread.start()
-    until(lambda: rig.ctx.watch is not None)
-    (window,) = rig.toolkits.windows
-    item = tray_item(rig, "Quit")
-    item.action(rig.toolkits.icons[0], item)
-    until(lambda: rig.ctx.actions is not None and rig.ctx.actions.quitting)
-    assert "destroy" not in window.calls, "destroy would wait for an engine that is not up"
+    daemon_ends(rig)
     up.set()
+    started = time.monotonic()
+    until(lambda: _no_end_of_the_test_process == [0], 10.0)
+    assert time.monotonic() - started < webshell.LEAVE_SEC, "within seconds, not after the long wait"
+    assert "destroy" not in rig.toolkits.windows[0].calls, "a WebView2 in its start is not destroyed"
+    assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"
+
+
+def test_the_daemon_ends_before_the_window_is_made_and_no_window_loop_is_started(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    iconed = webshell.new_icon
+
+    def quit_first(frame: webshell.WebFrame, launch: Launch) -> Any:
+        icon = iconed(frame, launch)
+        frame.quit()  # (the tray icon is made first: the quit comes before the window)
+        return icon
+
+    monkeypatch.setattr(webshell, "new_icon", quit_first)
+    assert rig.run() == 0
+    assert rig.toolkits.windows == [] and rig.toolkits.started == [] and _no_end_of_the_test_process == []
+
+
+def test_the_daemon_ends_between_the_window_and_its_loop_and_the_loop_is_not_started(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    made = webshell.make_window
+
+    def quit_after(frame: webshell.WebFrame, launch: Launch) -> Any:
+        window = made(frame, launch)
+        frame.quit()
+        return window
+
+    monkeypatch.setattr(webshell, "make_window", quit_after)
+    assert rig.run() == 0
+    assert rig.toolkits.started == [] and "destroy" not in rig.toolkits.windows[0].calls
+    assert _no_end_of_the_test_process == [], "the run returns by itself"
+
+
+def test_the_daemon_ends_after_the_window_is_up_and_the_app_ends_the_normal_way(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    thread = threading.Thread(target=rig.run, daemon=True)
+    thread.start()
+    until(lambda: rig.toolkits.started and rig.ctx.watch is not None)
+    daemon_ends(rig)
     thread.join(30)
-    assert not thread.is_alive() and window.calls.count("destroy") == 1 and ended == []
+    assert not thread.is_alive() and "destroy" in rig.toolkits.windows[0].calls
+    assert _no_end_of_the_test_process == [], "the window loop returned: no end of the process needed"
+
+
+def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    up = threading.Event()
+
+    def start(func: Any = None, **kwargs: Any) -> None:
+        rig.toolkits.started.append(kwargs)
+        threading.Event().wait(30)  # an engine that never comes up
+
+    monkeypatch.setattr(sys.modules["webview"], "start", start)
+    thread = threading.Thread(target=rig.run, daemon=True)
+    thread.start()
+    until(lambda: rig.toolkits.icons and rig.toolkits.started)
+    monkeypatch.setattr(rig.toolkits.icons[0], "stop", lambda: up.wait(30))  # pystray's stop that blocks
+    daemon_ends(rig)
+    until(lambda: _no_end_of_the_test_process == [0], 10.0)
+    up.set()
 
 
 def test_quit_pressed_twice_before_the_page_stops_the_daemon_once(

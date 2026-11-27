@@ -189,6 +189,7 @@ LAYERS: dict[str, list[str]] = {
         "selfreplace",
         "childprogram",
         "winchild",
+        "winask",
         "mercuryhelper",
         "mercurystale",
         "mercurycontrol",
@@ -341,6 +342,7 @@ ADAPTER_SIBLINGS: set[tuple[str, str]] = {
     ("neoaprs.mercuryhelper", "neoaprs.childprogram"),
     ("neoaprs.childprogram", "neoaprs.childenv"),
     ("neoaprs.childprogram", "neoaprs.winchild"),
+    ("neoaprs.winask", "neoaprs.winchild"),
     ("neoaprs.mercuryhelper", "neoaprs.winchild"),
     ("neoaprs.mercurymodem", "neoaprs.serialprobe"),
     ("neoaprs.mercurymodem", "neoaprs.mercuryfirewall"),
@@ -677,8 +679,8 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
         "Update now for an AppImage: the new file, whose checksum was checked, is started in the place of this process with the arguments the daemon had, and the desktop app that owned that daemon after it, with its own (neoaprs/desktop/renew.py)",
     ),
     "neoaprs/winchild.py": (
-        "serial",
-        "Windows, after Mercury had to be killed: the radio's own keying port from its setting (only COM and a number), opened with RTS and DTR low and closed, to lower a line the driver may have left up",
+        "program serial",
+        "Windows: the disposable asker, this very program with the asker flag and a process id as a number, to send Ctrl-Break to a modem's group; and after Mercury had to be killed the radio's own keying port from its setting (only COM and a number), opened with RTS and DTR low and closed, to lower a line the driver may have left up",
     ),
     "neoaprs/serialport.py": (
         "serial",

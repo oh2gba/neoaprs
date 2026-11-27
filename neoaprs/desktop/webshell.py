@@ -30,9 +30,12 @@ SYSTEM = sys.platform
 GUI = {"win32": "edgechromium", "linux": "gtk", "darwin": "cocoa"}
 # A window engine not up by then (WebView2 that hangs or failed quietly) leaves the app in the tray.
 ENGINE_WAIT_SEC = 60.0
-# After Quit, how long the window loop has to return before the process is ended; pywebview's
-# destroy waits up to 15 s for a window that never showed.
-LEAVE_SEC = 20.0
+# After Quit, how long the window loop has to return before the process is ended.
+LEAVE_SEC = 5.0
+# A Quit before the engine was up leaves no loop that could end: only this long for `run` to return.
+QUIT_GRACE_SEC = 1.0
+# Each step of the last-resort end (the tray icon, the data folder, the log) gets this long.
+CLEAN_STEP_SEC = 1.0
 QUIT_LABEL = "Quit"
 HARD_EXIT: Callable[[int], object] = os._exit
 
@@ -86,6 +89,7 @@ class WebFrame:
         self.quit_early: Callable[[], None] | None = None
         # a window whose engine is not up: given the page if it comes after the fallback, destroyed if after Quit
         self.parked: Any = None
+        self.before_engine = False  # Quit came before the window engine was up
 
     def show_window(self) -> None:
         """Show the window, un-minimised, and maximized if it was left so.
@@ -117,10 +121,10 @@ class WebFrame:
             self.sizes.stop()
             self.sizes.save()
         with self.lock:
-            window = self.window if self.engine.is_set() else None
-            if window is None and self.window is not None:
-                # destroy waits for an engine that is not up: it is destroyed when the engine comes
-                self.parked = self.window
+            # A window whose engine is not up is never destroyed: destroying WebView2 in the middle of its
+            # start aborts it (E_ABORT) and pywebview's loop then never returns. The process ends instead.
+            self.before_engine = self.window is not None and not self.engine.is_set()
+            window = None if self.before_engine else self.window
         if window is not None:
             window.destroy()  # `run` stops the icon afterwards
         if self.stop_loop is not None:
@@ -413,12 +417,10 @@ def run_window(frame: WebFrame, launch: Launch, failed: list[NoPage]) -> None:
 
     If the engine cannot start, go on as a tray icon; with no tray either the failure propagates."""
     webview = importlib.import_module("webview")
-    returned = threading.Event()
     frame.window.events.shown += _engine_up(frame)
     threading.Thread(target=_session, args=(frame, launch, failed), name="neoaprs-app-session", daemon=True).start()
-    threading.Thread(
-        target=_leave_if_stuck, args=(frame, launch, failed, returned), name="neoaprs-app-leave", daemon=True
-    ).start()
+    if frame.quitting.is_set():
+        return  # Quit came before the loop: it is not started
     try:
         webview.start(_engine_up(frame), **start_options(launch))
     except Exception:
@@ -427,8 +429,6 @@ def run_window(frame: WebFrame, launch: Launch, failed: list[NoPage]) -> None:
         log.exception("the window could not start: going on in the tray, with the page in the browser")
         windowless(frame)
         webdesk.tray_loop(SYSTEM, frame)
-    finally:
-        returned.set()
 
 
 def _engine_up(frame: WebFrame) -> Callable[[], None]:
@@ -443,11 +443,8 @@ def _engine_up(frame: WebFrame) -> Callable[[], None]:
             if late is not None and not frame.quitting.is_set():
                 frame.window, frame.has_window = late, True
         frame.settled.set()
-        if late is None:
-            return
-        if frame.quitting.is_set():
-            late.destroy()  # Quit came first: the window loop can end now
-            return
+        if late is None or frame.quitting.is_set():
+            return  # (after Quit the process ends without the window: _leave_after_quit)
         log.info("window: the engine came after the app went on in the tray: the window takes the page")
         if frame.api.page_url:
             load_page(late, window_url(frame.api.page_url))
@@ -504,19 +501,30 @@ def _session(frame: WebFrame, launch: Launch, failed: list[NoPage]) -> None:
         webdesk.await_tray(frame)
 
 
-def _leave_if_stuck(frame: WebFrame, launch: Launch, failed: list[NoPage], returned: threading.Event) -> None:
-    """End the process after Quit when the window loop does not return (an engine that never came up)."""
+def _leave_after_quit(frame: WebFrame, launch: Launch, failed: list[NoPage], returned: threading.Event) -> None:
+    """End the process after Quit when the window loop does not return: at once when Quit came before the
+    engine was up (its window is not destroyed), else after LEAVE_SEC. Armed on every way of quitting."""
     frame.done.wait()
-    if returned.wait(LEAVE_SEC):
+    if returned.wait(QUIT_GRACE_SEC if frame.before_engine else LEAVE_SEC):
         return
-    log.warning("the window loop did not end in %g s after Quit: the app ends without it", LEAVE_SEC)
-    if frame.icon is not None:
-        with contextlib.suppress(Exception):
-            frame.icon.stop()
+    log.warning(
+        "the window loop %s after Quit: the app ends without it",
+        "is not ended, its engine was not up" if frame.before_engine else f"did not end in {LEAVE_SEC:g} s",
+    )
     code = launch.no_page(failed[0]) if failed else 0
-    launch.close()
-    logging.shutdown()
+    icon = frame.icon
+    for step in ((icon.stop if icon is not None else None), launch.close, logging.shutdown):
+        if step is not None:
+            # each in a thread of its own and bounded: a toolkit call that blocks may not keep the process
+            done = threading.Thread(target=_quietly, args=(step,), name="neoaprs-app-leave-step", daemon=True)
+            done.start()
+            done.join(CLEAN_STEP_SEC)
     HARD_EXIT(code)
+
+
+def _quietly(step: Callable[[], object]) -> None:
+    with contextlib.suppress(Exception):
+        step()
 
 
 def run(launch: Launch) -> int:
@@ -528,12 +536,18 @@ def run(launch: Launch) -> int:
     frame.quit_early = lambda: quit_before_session(frame, launch)
     if launch.ctx is None:
         launch.single.handle(lambda command: early_command(frame, launch, command))
+    returned = threading.Event()
+    threading.Thread(
+        target=_leave_after_quit, args=(frame, launch, failed, returned), name="neoaprs-app-leave", daemon=True
+    ).start()
     try:
-        if launch.window:
+        if launch.window and not frame.quitting.is_set():
             make_window(frame, launch)
             if icon is not None:
                 icon.run_detached()
             run_window(frame, launch, failed)
+        elif launch.window:
+            pass  # Quit before anything was made
         else:
             splash.done()
             try:
@@ -552,6 +566,7 @@ def run(launch: Launch) -> int:
             log.info("the web shell runs (tray only)")
             webdesk.tray_loop(SYSTEM, frame)
     finally:
+        returned.set()
         if icon is not None:
             with contextlib.suppress(Exception):
                 icon.stop()

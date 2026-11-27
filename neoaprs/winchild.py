@@ -1,5 +1,5 @@
-"""Windows calls for the child programs: a console Ctrl-C to ask one to end, a job that ends them with
-the daemon, and a serial keying line lowered after a program that held it had to be killed.
+"""Windows calls for the child programs: a Ctrl-Break, sent by a disposable asker, to ask one to end, a job
+that ends them with the daemon, and a serial keying line lowered after a program that held it had to be killed.
 
 Each function takes kernel32 as an argument, so that the logic is tested with a fake elsewhere.
 """
@@ -7,8 +7,9 @@ Each function takes kernel32 as an argument, so that the logic is tested with a 
 import ctypes
 import logging
 import re
+import subprocess
+import sys
 import threading
-import time
 from collections.abc import Callable
 from typing import Any
 
@@ -60,25 +61,13 @@ _BOOL, _DWORD, _HANDLE = ctypes.c_int, ctypes.c_uint32, ctypes.c_void_p
 CALLS: dict[str, tuple[list[Any], Any]] = {
     "AttachConsole": ([_DWORD], _BOOL),
     "FreeConsole": ([], _BOOL),
-    "GetConsoleWindow": ([], _HANDLE),
-    "GetConsoleProcessList": ([ctypes.POINTER(ctypes.c_uint32), _DWORD], _DWORD),
     "GenerateConsoleCtrlEvent": ([_DWORD, _DWORD], _BOOL),
-    "SetConsoleCtrlHandler": ([ctypes.c_void_p, _BOOL], _BOOL),
     "CreateJobObjectW": ([ctypes.c_void_p, ctypes.c_wchar_p], _HANDLE),
     "SetInformationJobObject": ([_HANDLE, ctypes.c_int, ctypes.c_void_p, _DWORD], _BOOL),
     "AssignProcessToJobObject": ([_HANDLE, _HANDLE], _BOOL),
     "OpenProcess": ([_DWORD, _BOOL, _DWORD], _HANDLE),
     "CloseHandle": ([_HANDLE], _BOOL),
 }
-
-
-def user32() -> Any:
-    """Return user32 with IsWindowVisible typed; raise OSError where there is none."""
-    if not hasattr(ctypes, "WinDLL"):
-        raise OSError("user32 is Windows only")
-    u = ctypes.WinDLL("user32", use_last_error=True)
-    u.IsWindowVisible.argtypes, u.IsWindowVisible.restype = [_HANDLE], _BOOL
-    return u
 
 
 def kernel32() -> Any:
@@ -94,53 +83,12 @@ def kernel32() -> Any:
 
 # ---- asking a program to end
 
-_console = threading.Lock()  # a console is attached to by the whole process
-_handler: Any = None  # kept alive: Windows calls it from a thread of its own
-
-
-# Ctrl-C and Ctrl-Break that reach this process up to this long after it sent one are its own echo.
-ECHO_SEC = 10.0
-_asked_at = -ECHO_SEC  # monotonic time of the latest ask
-
-
-def ours(event: int, now: float | None = None) -> bool:
-    """Return whether a console event is the echo of an ask of this process (it is then taken)."""
-    at = time.monotonic() if now is None else now
-    return event in (CTRL_C_EVENT, CTRL_BREAK_EVENT) and at - _asked_at < ECHO_SEC
-
-
-def _handler_routine() -> Any:
-    """Return a console control handler that takes the echo of an ask and passes every other event on
-    (to Python's own, which stops the daemon on a Ctrl-C or Ctrl-Break of its own terminal)."""
-    kind = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE)
-    return kind(ctypes.c_int, ctypes.c_uint32)(_handled)
-
-
-# the console events this process's handler was given, for the record of the Windows tests
-events_seen: list[int] = []
-
-
-def _handled(event: int) -> int:
-    if len(events_seen) < 64:
-        events_seen.append(event)
-    return 1 if ours(event) else 0
-
-
-def _swallow_ctrl_c(k: Any, steps: "Steps | None" = None) -> bool:
-    """Make this process take no Ctrl-C of a console it attaches to; return whether it is so.
-
-    A handler and not the ignore flag, which every program started later would inherit.
-    """
-    global _handler
-    if _handler is None:
-        handler = _handler_routine()
-        if not _step(steps, k, "SetConsoleCtrlHandler", handler, True):
-            return False
-        _handler = handler
-    return True
-
-
 Steps = list[dict[str, Any]]
+# How long the asker has to say it sent the event (a few calls, but a process start on a slow machine).
+ASKER_SEC = 2.0
+# The asker's exit codes (neoaprs/winask.py)
+SENT, BAD_ARGUMENT, ATTACH_FAILED, EVENT_FAILED = 0, 2, 3, 4
+ASKER_FLAG = "--winask"  # the frozen programs' entry starts the asker on this first argument
 
 
 def _last_error() -> int:
@@ -164,77 +112,54 @@ def _step(steps: Steps | None, k: Any, name: str, *args: Any) -> Any:
     return result
 
 
-PROCESSES_LOOKED_AT = 8  # (GetConsoleProcessList gives the whole count however many fit)
+def send_event(pid: int, event: int, group: int, k: Any = None, steps: Steps | None = None) -> int:
+    """Send a console event to `group` on the console of the program `pid`; return an asker exit code.
 
-
-def console_of_own(k: Any, steps: Steps | None = None, u: Any = None) -> tuple[int, bool]:
-    """Return how many processes share this process's console (0: it has none) and whether its window shows."""
-    count = int(
-        _step(steps, k, "GetConsoleProcessList", (ctypes.c_uint32 * PROCESSES_LOOKED_AT)(), PROCESSES_LOOKED_AT)
-    )
-    if not count:
-        return 0, False
-    window = _step(steps, k, "GetConsoleWindow")
-    return count, bool(window) and bool(_step(steps, u if u is not None else user32(), "IsWindowVisible", window))
-
-
-def _onto(pid: int, k: Any, steps: Steps | None, u: Any = None) -> bool:
-    """Attach to the console of `pid`, letting go of this process's own hidden one first.
-
-    Only a console this process is alone on and whose window does not show is its own (a launcher such as
-    a venv's python.exe gives one); one shared with a shell or a terminal, or one that shows, is kept.
+    For the disposable asker only: it lets go of whatever console it has, which a daemon never may.
     """
-    count, visible = console_of_own(k, steps, u)
-    if count > 1 or visible:
-        if steps is not None:
-            steps.append(
-                {"note": f"a console shared by {count} processes, visible: {visible}: it is kept, the program is ended"}
-            )
-        return False
-    if count and not _step(steps, k, "FreeConsole"):
-        return False
-    return bool(_step(steps, k, "AttachConsole", pid))
-
-
-def _note_ask() -> None:
-    global _asked_at
-    _asked_at = time.monotonic()
-
-
-def _leave(k: Any, steps: Steps | None) -> None:
-    """Let go of the program's console; the daemon goes on without one (it needs none)."""
-    _step(steps, k, "FreeConsole")
-    count = int(
-        _step(steps, k, "GetConsoleProcessList", (ctypes.c_uint32 * PROCESSES_LOOKED_AT)(), PROCESSES_LOOKED_AT)
-    )
-    if steps is not None:
-        steps.append({"note": f"after: attached to a console: {bool(count)}"})
-
-
-def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
-    """Send Ctrl-Break to the program `pid`, started in its own process group with its own hidden console;
-    return whether it was sent. Each call is noted in `steps` and the log.
-
-    Not Ctrl-C: a program that inherits "ignore Ctrl-C" never sees one (design-notes.md, winchild.py).
-    """
-    return break_group(pid, True, k, steps, u)
-
-
-def break_group(group: int, attach: bool, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
-    """Send Ctrl-Break to the process group `group` (a child started with CREATE_NEW_PROCESS_GROUP), on its
-    own console (`attach`) or on this process's; return whether it was sent."""
     k = k if k is not None else kernel32()
-    with _console:
-        if not _swallow_ctrl_c(k, steps):
-            return False
-        if attach and not _onto(group, k, steps, u):
-            return False
-        try:
-            _note_ask()
-            return bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_BREAK_EVENT, group))
-        finally:
-            if attach:
-                _leave(k, steps)
+    _step(steps, k, "FreeConsole")  # (fails harmlessly when there is none)
+    if not _step(steps, k, "AttachConsole", pid):
+        return ATTACH_FAILED
+    try:
+        return SENT if _step(steps, k, "GenerateConsoleCtrlEvent", event, group) else EVENT_FAILED
+    finally:
+        _step(steps, k, "FreeConsole")
+
+
+def asker_argv(pid: int, frozen: bool | None = None, executable: str | None = None) -> list[str]:
+    """Return the command line of the asker for the program `pid`.
+
+    A frozen build has no `-m`: its own program (neoaprsw.exe, neoaprs.exe) takes ASKER_FLAG first.
+    """
+    frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    program = executable or sys.executable
+    return [program, ASKER_FLAG, str(pid)] if frozen else [program, "-m", "neoaprs.winask", str(pid)]
+
+
+def ask_to_end(pid: int, run: Callable[..., Any] | None = None) -> bool:
+    """Ask the program `pid` to end: Ctrl-Break to its own process group, sent by a disposable asker so
+    that this process never touches its own console; return whether the asker sent it.
+
+    The program was started with CREATE_NEW_PROCESS_GROUP and a console of its own (childprogram.py).
+    """
+    try:
+        done = (run or subprocess.run)(
+            asker_argv(pid),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=ASKER_SEC,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.info("the program %d was not asked to end: the asker did not run (%s)", pid, e)
+        return False
+    log.debug(
+        "console ask for %d: exit %s, %s", pid, done.returncode, (done.stdout or b"").decode("utf-8", "replace").strip()
+    )
+    return bool(done.returncode == SENT)
 
 
 # ---- the children's lives tied to the daemon's
