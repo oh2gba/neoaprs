@@ -44,10 +44,28 @@ def test_a_hidden_program_is_asked_to_end_by_a_daemon_without_a_console_and_the_
     assert all(isinstance(t, dict) and t.get("asker_alive") for t in told.values()), (
         f"an ask must never end the daemon that sends it: {json.dumps(told)}"
     )
-    ctrl_c = told["ctrl_c"]
-    assert isinstance(ctrl_c, dict) and (ctrl_c["sent"], ctrl_c["code"], ctrl_c["child"]) == (True, 0, "SIGINT"), (
-        f"the program ends by its own Ctrl-C handler, as Mercury does, not killed: {json.dumps(told)}"
+    asked = told["break_group"]
+    assert isinstance(asked, dict) and (asked["sent"], asked["code"], asked["child"]) == (True, 0, "SIGBREAK"), (
+        f"the program ends by its own Ctrl-Break handler, as the patched Mercury does, not killed: {json.dumps(told)}"
     )
+
+
+def test_the_daemons_stop_of_a_modem_asks_it_to_end_and_it_ends_by_itself(tmp_path: Path) -> None:
+    """The product's path, mercuryhelper.Program's stop, from a process without a console as the daemon."""
+    out = tmp_path / "stopped.json"
+    subprocess.run(
+        [sys.executable, "-m", "tests.support.winstop", str(out)],
+        cwd=ROOT,
+        creationflags=DETACHED_PROCESS,
+        timeout=WAIT_SEC,
+        check=False,
+    )
+    assert out.exists(), "the stop ended the process that made it"
+    told = json.loads(out.read_text())
+    for line in json.dumps(told, indent=1).splitlines():
+        print(line)
+    assert (told["child"], told["code"], told["asker_alive"]) == ("SIGBREAK", 0, True), json.dumps(told)
+    assert any("ended when asked" in line for line in told["log"]), "no hard end was needed"
 
 
 def test_a_program_in_the_daemons_job_ends_when_the_job_is_closed() -> None:

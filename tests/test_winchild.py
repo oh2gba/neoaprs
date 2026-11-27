@@ -65,13 +65,13 @@ ASK = ["GetConsoleProcessList", "GetConsoleWindow", "FreeConsole", "AttachConsol
 LEAVE = ["FreeConsole", "GetConsoleProcessList"]
 
 
-def test_the_ctrl_c_goes_to_the_programs_console_after_this_process_lets_go_of_its_hidden_one() -> None:
+def test_the_ctrl_break_goes_to_the_programs_group_after_this_process_lets_go_of_its_hidden_console() -> None:
     """A program started from a launcher (a venv's python.exe) has a hidden console of its own, and
     AttachConsole refuses a process that has one (ERROR_ACCESS_DENIED)."""
     k = Kernel()
     assert winchild.ask_to_end(1234, k)
     assert k.names() == ["SetConsoleCtrlHandler", *ASK, *LEAVE]
-    assert ("AttachConsole", 1234) in k.calls and ("GenerateConsoleCtrlEvent", 0, 0) in k.calls
+    assert ("AttachConsole", 1234) in k.calls and ("GenerateConsoleCtrlEvent", 1, 1234) in k.calls
     assert k.calls[0][2] is True, "a handler, not the ignore flag that children inherit"
     k = Kernel(GetConsoleProcessList=0)
     assert winchild.ask_to_end(1234, k) and k.names()[:2] == ["GetConsoleProcessList", "AttachConsole"], (
@@ -238,8 +238,9 @@ def test_ctrl_break_goes_to_the_group_on_its_console_or_on_this_ones() -> None:
     assert winchild.break_group(55, attach=False, k=k) and k.names() == ["GenerateConsoleCtrlEvent"]
 
 
-def test_the_attribute_that_children_inherit_is_cleared_with_the_null_handler() -> None:
-    k = Kernel()
-    steps: winchild.Steps = []
-    assert winchild.let_children_take_ctrl_c(k, steps)
-    assert k.calls == [("SetConsoleCtrlHandler", None, False)] and steps[0]["result"] == 1
+def test_mercury_is_started_in_a_group_of_its_own_to_be_asked_and_direwolf_keeps_its_stop() -> None:
+    """Direwolf ends when its input closes (-Q) and cleans up on SIGINT only: a Ctrl-Break would only kill it."""
+    from neoaprs import direwolfprogram
+
+    assert Program.asked_by_break and not direwolfprogram.Program.asked_by_break
+    assert winchild.CTRL_BREAK_EVENT == 1

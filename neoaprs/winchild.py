@@ -113,7 +113,17 @@ def _handler_routine() -> Any:
     """Return a console control handler that takes the echo of an ask and passes every other event on
     (to Python's own, which stops the daemon on a Ctrl-C or Ctrl-Break of its own terminal)."""
     kind = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE)
-    return kind(ctypes.c_int, ctypes.c_uint32)(lambda event: 1 if ours(event) else 0)
+    return kind(ctypes.c_int, ctypes.c_uint32)(_handled)
+
+
+# the console events this process's handler was given, for the record of the Windows tests
+events_seen: list[int] = []
+
+
+def _handled(event: int) -> int:
+    if len(events_seen) < 64:
+        events_seen.append(event)
+    return 1 if ours(event) else 0
 
 
 def _swallow_ctrl_c(k: Any, steps: "Steps | None" = None) -> bool:
@@ -201,41 +211,18 @@ def _leave(k: Any, steps: Steps | None) -> None:
         steps.append({"note": f"after: attached to a console: {bool(count)}"})
 
 
-def let_children_take_ctrl_c(k: Any = None, steps: Steps | None = None) -> bool:
-    """Clear this process's "ignore Ctrl-C" attribute, which every program it starts inherits; return
-    whether it is clear. Call it before starting a program that is to be asked by Ctrl-C.
-
-    A daemon started in a new process group (the Run entry) or from a shell that ignores Ctrl-C has it
-    set, and Mercury's SIGINT handler would never run. The daemon itself does not need the attribute:
-    no console is shared with it but while it asks, and its handler takes that echo.
-    """
-    k = k if k is not None else kernel32()
-    return bool(_step(steps, k, "SetConsoleCtrlHandler", None, False))
-
-
 def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
-    """Send Ctrl-C to the console of the program `pid` (its own hidden one); return whether it was sent.
+    """Send Ctrl-Break to the program `pid`, started in its own process group with its own hidden console;
+    return whether it was sent. Each call is noted in `steps` and the log.
 
-    Each call is noted in `steps` and the log. Ctrl-C, not Ctrl-Break: Mercury's Windows build handles
-    SIGINT (it unkeys and ends) but not SIGBREAK. The Ctrl-C reaches this process too, where a handler
-    that says handled takes it.
+    Not Ctrl-C: a program that inherits "ignore Ctrl-C" never sees one (design-notes.md, winchild.py).
     """
-    k = k if k is not None else kernel32()
-    with _console:
-        if not _swallow_ctrl_c(k, steps):
-            return False
-        if not _onto(pid, k, steps, u):
-            return False
-        try:
-            _note_ask()
-            return bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_C_EVENT, 0))
-        finally:
-            _leave(k, steps)
+    return break_group(pid, True, k, steps, u)
 
 
 def break_group(group: int, attach: bool, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
     """Send Ctrl-Break to the process group `group` (a child started with CREATE_NEW_PROCESS_GROUP), on its
-    console or this process's own; for the Windows tests that find which way reaches a child."""
+    own console (`attach`) or on this process's; return whether it was sent."""
     k = k if k is not None else kernel32()
     with _console:
         if not _swallow_ctrl_c(k, steps):
