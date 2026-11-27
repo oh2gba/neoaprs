@@ -127,8 +127,9 @@ async def test_a_stall_restart_a_settings_restart_and_a_stop_at_once_end_as_the_
         first = m.pid
         # Mercury's own restart of a stalled receive side: its run is ended in a thread, a start is due
         end = time.monotonic()
-        for n in range(int(STALL_SEC * 10) + 1):
-            m._capture_full(end - STALL_SEC - 0.1 + n / 10)
+        # (a few tenths past STALL_SEC: the sum of the tenths may round a hair under it)
+        for n in range(int(STALL_SEC * 10) + 4):
+            m._capture_full(end - STALL_SEC - 0.4 + n / 10)
         assert m.stall.restarts == 1 and m.state == "waiting"
         # and, before that run is gone, a change of the settings and an untick of the same radio
         changed = replace(HF, mercury_tx_gain_db=-3.0)
