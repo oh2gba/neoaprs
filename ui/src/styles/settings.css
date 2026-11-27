@@ -424,11 +424,19 @@ fieldset.composebox > legend {
    where the column has room, under it where not (a phone with the label beside the field); the
    same for Add radio's Add */
 .radioname .field-control,
-.radioadd .field-control {
+.radioadd .field-control,
+.pathfield .field-control {
   flex-wrap: wrap;
 }
 .radioname .field-control .input {
   flex: 1 1 9em;
+}
+/* Add radio's type and the path's choice: the whole chosen text, the buttons under it on a phone */
+.radioadd .field-control > select.input {
+  flex: 1 1 10em;
+}
+.pathfield .field-control > select.input {
+  flex: 1 1 14em;
 }
 .tncstatus {
   flex: 1;

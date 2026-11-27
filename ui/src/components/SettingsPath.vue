@@ -188,6 +188,7 @@ watch(
   <SettingsField
     v-else
     :id="id"
+    class="pathfield"
     :info="field"
     :model-value="shown"
     fallback=""

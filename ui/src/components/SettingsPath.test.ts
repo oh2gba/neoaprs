@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsPath from "@/components/SettingsPath.vue";
 import { FIELDS } from "@/lib/settings";
+import { cssRule } from "@/test/css";
 
 function make(value: string, over: Record<string, unknown> = {}) {
   return mount(SettingsPath, {
@@ -138,5 +139,12 @@ describe("SettingsPath", () => {
     await wrapper.setProps({ modelValue: "BAD CALL", changed: true, error: "BAD is not a call" });
     expect(typed(wrapper).exists()).toBe(true);
     expect(wrapper.find(".field-error").text()).toBe("BAD is not a call");
+  });
+
+  it("shows the whole choice on a phone: the row wraps and the select keeps room for Recommended and its path", () => {
+    const wrapper = make("");
+    expect(wrapper.find(".field").classes()).toContain("pathfield");
+    expect(cssRule(".pathfield .field-control")).toMatch(/flex-wrap:\s*wrap/);
+    expect(cssRule(".pathfield .field-control > select.input")).toMatch(/flex:\s*1 1 14em/);
   });
 });

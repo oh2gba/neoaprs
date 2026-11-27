@@ -12,6 +12,7 @@ import { FIELDS } from "@/lib/settings";
 import { addTypeChoices } from "@/lib/settingsradio";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { status } from "@/test/fixtures";
+import { cssRule } from "@/test/css";
 
 afterEach(() => setLocale("en"));
 
@@ -107,5 +108,10 @@ describe("Add radio's list", () => {
     expect(send.mock.calls).toEqual([[{ cmd: "radio_add", type: "lora-console" }]]);
     expect(wrapper.find<HTMLSelectElement>("select").element.value).toBe("");
     expect(wrapper.emitted("added")).toEqual([["lora-console"]]);
+  });
+
+  it("shows the whole chosen text on a phone: the row wraps and the select keeps room for it", () => {
+    expect(cssRule(".radioadd .field-control")).toMatch(/flex-wrap:\s*wrap/);
+    expect(cssRule(".radioadd .field-control > select.input")).toMatch(/flex:\s*1 1 10em/);
   });
 });
