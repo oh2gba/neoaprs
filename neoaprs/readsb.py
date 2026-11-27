@@ -124,6 +124,12 @@ def _heading(aircraft: dict[str, Any]) -> int | None:
     return None
 
 
+def _track(aircraft: dict[str, Any]) -> int | None:
+    """Return the ground track only: a heading is where the nose points, not where it goes."""
+    degrees = number(aircraft.get("track"))
+    return None if degrees is None else int(round(degrees)) % 360
+
+
 def _altitude_m(aircraft: dict[str, Any]) -> int | None:
     metres = converted(aircraft.get("alt_baro"), FOOT_M, ALTITUDE_M_RANGE)
     if metres is None:
@@ -169,6 +175,7 @@ def _thing(aircraft: Any, base: datetime) -> Thing | None:
         lon=lon,
         at=base - timedelta(seconds=max(seen or 0.0, 0.0)),
         heading_deg=_heading(aircraft),
+        course_deg=_track(aircraft),
         speed_kmh=None if speed is None else round(speed, 1),
         name=text_of(aircraft.get("flight")),
         emergency=_emergency(aircraft),

@@ -91,7 +91,7 @@ class Thing:
     heading_deg: int | None  # 0..359
     speed_kmh: float | None
     name: str = ""  # aircraft: the flight; ship: its name
-    # aircraft only, except ship_type, course_deg and destination
+    # aircraft only, except ship_type and destination (ships only) and course_deg (both)
     emergency: bool = False
     altitude_m: int | None = None
     registration: str = ""

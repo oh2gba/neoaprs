@@ -67,7 +67,7 @@ def test_an_aircraft_of_a_receivers_file_is_read_with_its_place_height_speed_hea
         "feet to metres, knots to km/h, the track rounded"
     )
     assert (plane.name, plane.registration, plane.type, plane.emergency) == ("FIN7AB", "OH-LZA", "AIRBUS A-321", False)
-    assert (plane.ship_type, plane.course_deg, plane.destination) == (None, None, "")
+    assert (plane.ship_type, plane.course_deg, plane.destination) == (None, 225, ""), "the course is the track"
 
 
 def test_the_services_answer_has_its_list_as_ac_and_now_in_milliseconds() -> None:
@@ -136,6 +136,15 @@ def test_the_heading_is_the_track_else_the_true_heading_else_the_magnetic_one_el
         return plane.heading_deg
 
     assert (heading(track=359.7), heading(true_heading=12.2), heading(mag_heading=90.0), heading()) == (0, 12, 90, None)
+
+
+def test_the_course_is_the_ground_track_only_so_an_aircraft_with_only_a_heading_has_no_course_to_glide_on() -> None:
+    def course(**extra: Any) -> int | None:
+        base = {k: v for k, v in flying().items() if k not in ("track", "true_heading", "mag_heading")}
+        (plane,) = read_aircraft(receiver_file({**base, **extra})) or []
+        return plane.course_deg
+
+    assert (course(track=359.7), course(true_heading=12.2), course(mag_heading=90.0), course()) == (0, None, None, None)
 
 
 def test_what_is_not_there_is_empty_or_none_and_a_flight_without_a_name_keeps_its_registration() -> None:

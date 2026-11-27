@@ -38,12 +38,13 @@ def sent(client: Any) -> list[dict[str, Any]]:
 
 def test_a_page_that_looks_is_sent_the_table_at_once_and_every_table_after_it() -> None:
     service = Service()
-    looks = LayerLooks(service)
+    looks = LayerLooks(service, lambda: AT)
     conn, client = page()
     looks.look(conn, "aircraft", True)
     assert sent(client) == [
         {
             "type": "layer_things",
+            "at": "2026-11-18T12:00:00Z",
             "layer": "aircraft",
             "source": "receiver",
             "away": False,
@@ -111,8 +112,9 @@ def test_a_page_that_is_behind_is_sent_no_table_and_one_that_has_closed_is_not_t
 
 
 def test_the_message_of_an_empty_table_has_its_source_and_no_things() -> None:
-    assert table_message(LayerTable("ships", "none", False, ())) == {
+    assert table_message(LayerTable("ships", "none", False, ()), AT) == {
         "type": "layer_things",
+        "at": "2026-11-18T12:00:00Z",
         "layer": "ships",
         "source": "none",
         "away": False,

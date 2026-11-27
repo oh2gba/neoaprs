@@ -4,10 +4,11 @@ A new viewer gets the table at once. A page more than the hub's `BEHIND` bytes b
 the next table brings it up to date.
 """
 
+from datetime import datetime
 from typing import Any, Protocol
 
 from neoaprs.airports import place
-from neoaprs.clock import iso
+from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.layerthing import LAYERS, Layer, LayerTable, Thing
 
 from .hub import BEHIND
@@ -45,9 +46,10 @@ def thing_row(thing: Thing, layer: Layer) -> dict[str, Any]:
     }
 
 
-def table_message(table: LayerTable) -> dict[str, Any]:
+def table_message(table: LayerTable, now: datetime) -> dict[str, Any]:
     return {
         "type": "layer_things",
+        "at": iso(now),
         "layer": table.layer,
         "source": table.source,
         "away": table.away,
@@ -60,8 +62,9 @@ def table_message(table: LayerTable) -> dict[str, Any]:
 
 
 class LayerLooks:
-    def __init__(self, service: Watched) -> None:
+    def __init__(self, service: Watched, clock: Clock = utcnow) -> None:
         self._service = service
+        self._clock = clock
         self._pages: dict[Layer, set[Connection]] = {layer: set() for layer in LAYERS}
 
     def look(self, conn: Connection, layer: Layer, on: bool) -> None:
@@ -76,7 +79,7 @@ class LayerLooks:
         pages.add(conn)
         if first:
             self._service.watch(layer, True)
-        self._send(conn, table_message(self._service.table(layer, trails=True)))
+        self._send(conn, table_message(self._service.table(layer, trails=True), self._clock()))
 
     def _leave(self, conn: Connection, layer: Layer) -> None:
         pages = self._pages[layer]
@@ -97,7 +100,7 @@ class LayerLooks:
         """Send a new table to every page looking at its layer."""
         pages = self._pages[table.layer]
         if pages:
-            message = table_message(table)
+            message = table_message(table, self._clock())
             for conn in list(pages):
                 self._send(conn, message)
 

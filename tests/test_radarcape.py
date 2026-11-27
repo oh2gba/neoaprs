@@ -66,7 +66,7 @@ def test_an_aircraft_is_read_with_its_place_height_speed_heading_names_and_kind(
     assert (plane.type, plane.designator, plane.category) == ("A321", "A321", "A3"), (
         "the type designator is the card's type too; both upper-cased"
     )
-    assert (plane.ship_type, plane.course_deg) == (None, None)
+    assert (plane.ship_type, plane.course_deg) == (None, 225), "the course is the track"
     assert (plane.origin, plane.destination) == ("ESSA", "EFHK")
 
 

@@ -70,7 +70,9 @@ class LayerThing(_Model):
         description="an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known"
     )
     ship_type: int | None = Field(ge=1, le=99, description="a ship's AIS type of ship and cargo; null when not known")
-    course_deg: int | None = Field(ge=0, le=359, description="a ship's course over ground")
+    course_deg: int | None = Field(
+        ge=0, le=359, description="a ship's course over ground, an aircraft's ground track; null when not told (a heading is not a course)"
+    )
     destination: str = Field(
         description="a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known"
     )
@@ -106,6 +108,7 @@ class LayerThingsMsg(_Message):
     when the source in force changes (then with the new `source` and no things)."""
 
     type: Literal["layer_things"]
+    at: Iso = Field(description="the daemon's time when the table was sent; the age of each thing's `at` is told by it, not by the page's clock")
     layer: LayerName
     source: SourceName = Field(description="the source in force that the things are from")
     away: bool = Field(

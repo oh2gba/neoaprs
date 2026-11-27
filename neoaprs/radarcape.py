@@ -75,6 +75,7 @@ def _thing(row: Any, received_at: datetime) -> Thing | None:
         lon=lon,
         at=at,
         heading_deg=None if track is None else int(round(track)) % 360,
+        course_deg=None if track is None else int(round(track)) % 360,
         speed_kmh=None if speed is None else round(speed, 1),
         name=text_of(row.get("fli")),
         emergency=number(row.get("alr")) == PERMANENT_ALERT or _squawk(row.get("squ")) in EMERGENCY_SQUAWKS,
