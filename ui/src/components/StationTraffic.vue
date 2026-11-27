@@ -14,7 +14,6 @@ import { onReopen } from "@/composables/useReopened";
 import { t } from "@/i18n";
 import { PACKETS_TABLE } from "@/lib/layout";
 import { readingText } from "@/lib/signal";
-import { igateOn } from "@/lib/settings";
 import { isTrafficOf, mergeTraffic, nextDeadline, queryState, trafficKey, type QueryState } from "@/lib/stationtraffic";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -48,7 +47,9 @@ watch(
 );
 
 const logged = computed(() => stationTrafficByCall.value.get(props.call)?.packets ?? []);
-const rows = computed(() => mergeTraffic(live.value.values(), logged.value, igateOn(config.value?.values ?? {})));
+const rows = computed(() =>
+  mergeTraffic(live.value.values(), logged.value, config.value?.values["igate/enabled"] === "true"),
+);
 
 /** The time the states are read at, moved on when a query's wait is over. */
 const now = ref(Date.now());

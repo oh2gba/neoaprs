@@ -269,7 +269,7 @@ export function mapStats(input: StatsInput): StatSection[] {
       title: "stats.section.through",
       lines: throughLines(day, {
         repeated: totals?.digipeated ?? 0,
-        gated: igate !== null && igate.enabled ? igate.gated : null,
+        gated: igate !== null && igate.gate ? igate.gated : null,
         digipeater: enabledRadios(radios).some((radio) => radio.row.choices.digipeat === true),
       }),
     },

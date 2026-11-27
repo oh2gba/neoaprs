@@ -265,9 +265,16 @@ describe("the statistics of the map", () => {
       "stats.igates=0",
     ]);
     const quiet = mapStats(
-      input({ igate: igateState({ enabled: false }), packets: new Map([["6", packet(6, { direction: "out" })]]) }),
+      input({
+        igate: igateState({ enabled: false, gate: false }),
+        packets: new Map([["6", packet(6, { direction: "out" })]]),
+      }),
     );
     expect(lines(quiet, "stats.section.through").some((l) => l.startsWith("stats.gated"))).toBe(false);
+    const gating = mapStats(input({ igate: igateState({ enabled: false, gate: true, gated: 42 }) }));
+    expect(lines(gating, "stats.section.through")).toContain("stats.gated=– in the last hour · 42 since the start");
+    const showing = mapStats(input({ igate: igateState({ enabled: true, gate: false, gated: 0 }) }));
+    expect(lines(showing, "stats.section.through").some((l) => l.startsWith("stats.gated"))).toBe(false);
     expect(lines(quiet, "stats.section.packets")).toHaveLength(5);
   });
 

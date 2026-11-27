@@ -121,6 +121,14 @@ describe("the traffic of a station", () => {
     await nextTick();
     expect(lines()).toHaveLength(2);
   });
+
+  it("leaves out the packets from the internet while Send what I hear is on alone", async () => {
+    const internet = position(2, -10, { via: "is", tnc2: "OH2RDG>APRS,TCPIP*,qAC,T2FINLAND:!x" });
+    make([internet, position(1, -20)]);
+    daemon.config.value = configValues({ "igate/enabled": "false", "igate/gate": "true" });
+    await nextTick();
+    expect(lines()).toHaveLength(1);
+  });
 });
 
 describe("a query of ours in the traffic", () => {
