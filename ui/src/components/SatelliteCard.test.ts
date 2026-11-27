@@ -6,7 +6,7 @@ import { forgetLayerTicks } from "@/composables/useMapLayers";
 import type { SizeClass } from "@/lib/layout";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { NOW, ago, station } from "@/test/fixtures";
-import { satelliteCard, satellitesMessage } from "@/test/satellitefixtures";
+import { DURING, satelliteCard, satellitesMessage } from "@/test/satellitefixtures";
 
 const car = station("OH2ZMA-9", { lat: 60.1, lon: 24.8, distance_km: 11, bearing_deg: 126, last_heard: ago(120) });
 
@@ -30,6 +30,7 @@ function make(rows: ReturnType<typeof station>[] = [], size: SizeClass = "deskto
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   document.body.innerHTML = "";
   localStorage.clear();
@@ -90,5 +91,18 @@ describe("SatelliteCard in the cards' row", () => {
     await nextTick();
     expect(page.layer.opened.value).toEqual([59112]);
     expect(page.wrapper.emitted("overflow")).toBeUndefined();
+  });
+
+  it("shows the Doppler now, the time left and the elevation while the satellite is up in its pass", async () => {
+    vi.useFakeTimers({ now: DURING });
+    const page = make();
+    page.layer.open(25544);
+    await page.tell(25544);
+    const rows = Object.fromEntries(
+      page.wrapper
+        .findAll(".satcard dt:not(.layercard-room)")
+        .map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent ?? ""]),
+    );
+    expect(rows).toMatchObject({ Doppler: "+8.4 kHz", Elevation: "4°", "Time left": "9 min" });
   });
 });
