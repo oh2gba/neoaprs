@@ -68,7 +68,7 @@ def test_bulletins_and_group_bulletins_get_4_hours_and_announcements_72_and_the_
     with caplog.at_level("INFO"):
         migrated = opened(path, FixedClock(T0))
     fresh = opened(tmp_path / "fresh.sqlite", FixedClock(T0))
-    assert migrated.version() == SCHEMA_VERSION and [(r[0], r[1], r[2]) for r in migrated.history()][-1] == (
+    assert migrated.version() == SCHEMA_VERSION and [(r[0], r[1], r[2]) for r in migrated.history()][35] == (
         36,
         "_v36",
         GOLDEN[36],

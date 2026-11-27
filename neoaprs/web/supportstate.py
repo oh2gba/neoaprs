@@ -26,7 +26,7 @@ from .processmeter import resident_mb
 from .secureside import SecureSide
 from .updatewire import UpdateState
 from .tncwire import stats_row
-from .views import LINES_MAX, NO_PLAN, gps_state, modem_state
+from .views import LINES_MAX, NO_PLAN, gps_state, igate_state, modem_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -134,6 +134,7 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
             None if moving is None else moving.next_due,
         ),
         "beacon": beacon_state(server),
+        "igate": igate_state(ctl.config, ctl.igate),
         "rig": {"state": rig.rig_state, "last_text": rig.last_text, "last_sent": iso(rig.last_sent_at)},
         "map": map_state(ctl.mapfetch.status(), ctl.aloha.radii),
         "layers": ctl.layers.support_rows(),

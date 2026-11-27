@@ -64,6 +64,7 @@ GOLDEN = {
     34: "ae4ad4d217638373cd5bb3195798d202a801afb6243e50254537f07e8aef2784",
     35: "dc4f36a4f56d86dc8bf1299f416ea82bd07198a9a5adfeb505bd4e8ebc39e1a3",
     36: "c6333392c7370fe153b42e6c5de476082f16391e6a914a4f4bc7f1947ff28628",
+    37: "40969465acac7d7f520251996c2090206f4fbd4e354f8e452703d9ea5cc5d405",
 }
 
 
@@ -107,6 +108,12 @@ GOLDEN_USED = {
     "_v36": {
         "_ANNOUNCEMENT36": "8722616204217eddb39e7df969e0698aed8e599ba62ed2de1ce49b03ade0fede",
         "_BULLETIN36": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+    },
+    "_v37": {
+        "_GATE37": "357c5fff0460ca34743f703e6e181c262b8162fdf24c95b25e808977ab573239",
+        "_PASSWORD37": "a5616e5c99582b60bd9e6205d12482e33229dc6e850e65390ba334b28cfb4cf7",
+        "_SHOW37": "24d3a79b82793dbc14c58e9a65ee4a2dfccb37879c44d49d6071e225be6ca0b2",
+        "_TRUE37": "2903545dd56c033b3f0962fa48660f7136a4656b920d5ff309b7f5cb810ebbb4",
     },
     "_v34": {
         "_CHOSEN_BY_ROW34": "22046b5183e59ddac3bffe3f625e4e05860f1a059cd2edf36a02bc4c483e86c5",
@@ -993,6 +1000,7 @@ def test_history_records_when_and_what_and_flags_a_migration_that_was_edited_sin
         (34, "_v34", GOLDEN[34], clock.now, ""),
         (35, "_v35", GOLDEN[35], clock.now, ""),
         (36, "_v36", GOLDEN[36], clock.now, ""),
+        (37, "_v37", GOLDEN[37], clock.now, ""),
     ]
     s.close()
     caplog.set_level(logging.WARNING, MIGRATION_LOG)
@@ -1123,7 +1131,8 @@ def test_a_database_of_version_one_gets_the_packet_and_station_tables_and_keeps_
         (34, "_v34"),
         (35, "_v35"),
         (36, "_v36"),
-    ] and [r[2] for r in migrated.history()] == [GOLDEN[n] for n in range(1, 37)]
+        (37, "_v37"),
+    ] and [r[2] for r in migrated.history()] == [GOLDEN[n] for n in range(1, 38)]
     assert (
         migrated.db.execute("SELECT COUNT(*) FROM packet").fetchone()[0] == 0
         and migrated.db.execute("SELECT COUNT(*) FROM station").fetchone()[0] == 0
@@ -1447,6 +1456,7 @@ def test_a_database_of_version_three_gets_station_pref_in_place_of_station_path_
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     # And the new table takes what the old one could not hold
     say(migrated.db, "OH2NEW", None, 0, STAMP)
@@ -1673,6 +1683,7 @@ def test_a_database_of_version_five_gets_the_route_column_empty_for_every_messag
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     migrated.db.execute(
         "INSERT INTO message (at, direction, from_call, to_call, text, state, route) VALUES (?, 'in', 'OH2RDG', 'OH2GBA', 'hi', 'received', 'via OH2RCH-1 \u2192 OH2RCH-3')",
@@ -1778,6 +1789,7 @@ def test_a_database_of_version_six_gets_the_empty_bulletin_table_and_keeps_the_r
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     # And the new table takes what the program produces
     migrated.db.execute(BULLETIN_INSERT, ("OH2XYZ", "BLN3HAMS", "HAMS", "Club net tonight", STAMP, LATER, 3))
@@ -1919,6 +1931,7 @@ def test_a_database_of_version_seven_gets_the_empty_weather_table_and_keeps_the_
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     # And the new table takes what the program produces
     migrated.db.execute(WEATHER_INSERT, GOOD_WEATHER)
@@ -2149,6 +2162,7 @@ def test_a_database_of_version_nine_takes_unconfirmed_messages_and_keeps_every_m
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     # And the new table takes the state
     migrated.db.execute(INSERT_MESSAGE, GOOD[:6] + ("unconfirmed",) + GOOD[7:])
@@ -2279,6 +2293,7 @@ def test_a_database_of_version_ten_gets_the_empty_attempt_and_hop_tables_and_kee
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     for opened_ in (migrated, fresh):
         opened_.close()

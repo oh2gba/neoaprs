@@ -43,6 +43,7 @@ class IWorld:
             **{  # type: ignore[arg-type]
                 "station_call": "OH2GBA-10",
                 "igate_enabled": True,
+                "igate_gate": True,
                 "igate_server": server.address,
                 "igate_password": "19628",
                 **changes,

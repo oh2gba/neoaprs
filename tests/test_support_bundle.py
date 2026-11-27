@@ -166,6 +166,50 @@ def test_the_summary_says_on_which_radios_each_thing_goes_one_line_each_objects_
     assert section(without, "Send on").startswith("  Beacon:"), "one radio: everything on it"
 
 
+@pytest.mark.parametrize(
+    ("rows", "said"),
+    [
+        ({}, ["Show Internet stations: off", "Send what I hear: off"]),
+        (
+            {"igate/enabled": "true"},
+            [
+                "Show Internet stations: on",
+                "Send what I hear: off",
+                "Server: rotate.aprs2.net:14580",
+                "State: listening",
+            ],
+        ),
+        (
+            {"igate/gate": "true"},
+            [
+                "Show Internet stations: off",
+                "Send what I hear: on, the passcode of the call",
+                "Server: rotate.aprs2.net:14580",
+                "State: connected, 12 packets gated since the start",
+            ],
+        ),
+        (
+            {"igate/enabled": "true", "igate/gate": "true", "igate/password": "31415"},
+            [
+                "Show Internet stations: on",
+                "Send what I hear: on, the passcode set by hand",
+                "Server: rotate.aprs2.net:14580",
+                "State: connected, 12 packets gated since the start",
+            ],
+        ),
+    ],
+)
+def test_the_summary_says_which_of_the_two_internet_ticks_is_on_and_the_state_of_the_login(
+    tmp_path: Path, rows: dict[str, str], said: list[str]
+) -> None:
+    data = fake_folder(tmp_path, settings={"station/call": "OH2GBA", **rows})
+    state = "listening" if rows.get("igate/gate") != "true" else "connected"
+    live = {"daemon": {"uptime_sec": 60}, "radios": [], "igate": {"state": state, "reason": "", "gated": 12}}
+    summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
+    assert [" ".join(line.split()) for line in section(summary, "Internet (APRS-IS)").splitlines()] == said
+    assert "31415" not in summary
+
+
 def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_screen(tmp_path: Path) -> None:
     summary = made(tmp_path)[1]["summary.txt"]
     assert "NeoAPRS:" in summary and VERSION in summary

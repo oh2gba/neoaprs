@@ -207,10 +207,11 @@ SETTINGS: tuple[Setting, ...] = (
     *(Setting(*row) for row in LAYER_ROWS),
     Setting("update_url", "update/url", web_address),
     Setting("digi_enabled", "digi/enabled", boolean),
-    # A receive-only iGate: nothing from the internet goes on the air.
+    # Show the stations of APRS-IS; gate what the radios hear to it. Nothing from the internet goes on the air.
     Setting("igate_enabled", "igate/enabled", boolean),
+    Setting("igate_gate", "igate/gate", boolean),
     Setting("igate_server", "igate/server", aprsis_server),
-    # -1 (read-only login) is refused.
+    # Empty: the passcode of station/call. -1 (read-only login) is refused.
     Setting("igate_password", "igate/password", passcode),
     Setting("units_non_metric", "units/non_metric", boolean),
     Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),
@@ -277,6 +278,7 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     map_source: str = ""
     update_url: str = UPDATE_URL
     igate_enabled: bool = False
+    igate_gate: bool = False
     igate_server: str = "rotate.aprs2.net:14580"
     igate_password: str = ""
     units_non_metric: bool = False
@@ -357,6 +359,11 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     @property
     def igate_address(self) -> tuple[str, int] | None:
         return _host_port(self.igate_server)
+
+    @property
+    def internet_on(self) -> bool:
+        """Return whether APRS-IS is logged in to: to show its stations, to gate to it, or both."""
+        return self.igate_enabled or self.igate_gate
 
     def path_calls(self, radio: RadioId) -> tuple[str, ...]:
         """Return the calls of the radio's path (the recommended one if empty; none for DIRECT)."""

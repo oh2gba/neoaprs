@@ -97,6 +97,7 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
         (36, "_v36", GOLDEN[36]),
+        (37, "_v37", GOLDEN[37]),
     ]
     # And the new column takes it
     migrated.db.execute(

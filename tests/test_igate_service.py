@@ -122,7 +122,7 @@ async def test_a_packet_heard_while_the_igate_is_not_logged_in_is_counted_and_no
 
 async def test_the_igate_that_is_off_connects_to_nothing_and_counts_nothing() -> None:
     server = await fake_aprsis()
-    w = await iworld(server, wait=False, igate_enabled=False)
+    w = await iworld(server, wait=False, igate_enabled=False, igate_gate=False)
     w.hear()
     await idle_for(0.2)
     assert (
@@ -146,11 +146,11 @@ async def test_what_the_server_sends_is_read_by_the_connection_and_is_nothing_to
 # ---- the state
 
 
-async def test_an_igate_without_a_passcode_listens_only_gates_nothing_sends_no_position_and_a_passcode_makes_it_gate() -> (
+async def test_an_igate_without_send_what_i_hear_listens_only_gates_nothing_sends_no_position_and_the_tick_makes_it_gate() -> (
     None
 ):
     server = await fake_aprsis(verified=False)
-    w = await iworld(server, igate_password="")
+    w = await iworld(server, igate_gate=False, igate_password="")
     assert (
         w.igate.state == "listening"
         and w.igate.problem == ""
@@ -163,7 +163,7 @@ async def test_an_igate_without_a_passcode_listens_only_gates_nothing_sends_no_p
         "(nothing gated, nothing counted, our position not sent)"
     )
     server.verified = True
-    w.save(igate_password="19628")
+    w.save(igate_gate=True)
     await until(lambda: w.igate.state == "connected")
     assert w.igate.problem == "" and server.connections == 2 and "pass 19628" in server.logins[1]
     await until(lambda: server.packets == [OWN_LINE])
@@ -197,11 +197,11 @@ async def test_a_new_password_logs_in_again_and_the_switch_disconnects() -> None
     await until(lambda: len(server.logins) == 2)
     assert "pass 12345" in server.logins[1]
     await until(lambda: w.igate.state == "connected")
-    w.save(igate_enabled=False)
+    w.save(igate_enabled=False, igate_gate=False)
     await until(lambda: w.igate.state == "off" and not w.link.verified)
     w.hear()
     assert w.igate.gated == 0
-    w.save(igate_enabled=True)
+    w.save(igate_gate=True)
     await until(lambda: w.igate.state == "connected")
 
 
@@ -418,7 +418,10 @@ async def test_the_log_has_the_login_and_each_gated_packet_and_never_the_passwor
     await w.igate.stop()
     assert "31415" not in caplog.text and "27182" not in caplog.text
     text = caplog.text
-    assert "igate: on, a receive-only iGate; logging in to 127.0.0.1" in text and "as OH2GBA-10" in text
+    assert (
+        "igate: on, showing the internet's stations and gating what the radios hear; logging in to 127.0.0.1" in text
+        and "as OH2GBA-10" in text
+    )
     assert any(r.levelno == logging.INFO and "logged in as OH2GBA-10, verified" in r.message for r in caplog.records)
     assert any(r.levelno == logging.DEBUG and r.message == f"igate: gated {LINE}" for r in caplog.records)
     assert any(r.levelno == logging.INFO and "connected to 127.0.0.1" in r.message for r in caplog.records)

@@ -1,4 +1,4 @@
-"""The settings of the receive-only iGate (`igate/enabled`, `igate/server`, `igate/password`): their
+"""The settings of the login to APRS-IS (`igate/enabled`, `igate/gate`, `igate/server`, `igate/password`): their
 defaults, what each accepts and refuses with the code the page goes by, the address, and a password
 that is in no line of the log."""
 
@@ -15,14 +15,26 @@ def refused(key: str, text: str) -> SettingError:
     return raised.value
 
 
-def test_the_igate_is_off_with_the_round_robin_server_and_no_passcode() -> None:
-    assert (DEFAULTS.igate_enabled, DEFAULTS.igate_server, DEFAULTS.igate_password) == (
+def test_both_ticks_are_off_with_the_round_robin_server_and_no_passcode() -> None:
+    assert (DEFAULTS.igate_enabled, DEFAULTS.igate_gate, DEFAULTS.igate_server, DEFAULTS.igate_password) == (
+        False,
         False,
         "rotate.aprs2.net:14580",
         "",
     )
-    assert DEFAULTS.igate_address == ("rotate.aprs2.net", 14580)
-    assert [k for k in KEYS if k.startswith("igate/")] == ["igate/enabled", "igate/server", "igate/password"]
+    assert DEFAULTS.igate_address == ("rotate.aprs2.net", 14580) and not DEFAULTS.internet_on
+    assert [k for k in KEYS if k.startswith("igate/")] == [
+        "igate/enabled",
+        "igate/gate",
+        "igate/server",
+        "igate/password",
+    ]
+
+
+@pytest.mark.parametrize(("show", "gate"), [(False, False), (True, False), (False, True), (True, True)])
+def test_the_ticks_are_independent_and_either_logs_in(show: bool, gate: bool) -> None:
+    c = Config.from_data({"igate/enabled": str(show).lower(), "igate/gate": str(gate).lower()})
+    assert (c.igate_enabled, c.igate_gate, c.internet_on) == (show, gate, show or gate)
 
 
 @pytest.mark.parametrize(

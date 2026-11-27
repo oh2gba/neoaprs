@@ -1,6 +1,6 @@
-"""The iGate: what the radio hears goes to APRS-IS, and nothing from APRS-IS is ever put on the air.
+"""The APRS-IS login: it shows the internet's stations, gates what the radios hear, or both.
 
-Without a valid passcode it only listens. Packets heard on the air go through igaterules.py. Our
+Nothing from APRS-IS is ever put on the air. Packets heard on the air go through igaterules.py. Our
 position goes out as `OURCALL>APZNEO,TCPIP*:`, the only path a client may use (aprs-is.net).
 """
 
@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Literal, NamedTuple
 
 from neoaprs import TOCALL, ax25
-from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, range_filter
+from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, passcode_of, range_filter
 from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import Config
 from neoaprs.geo import distance_km
@@ -50,11 +50,21 @@ def _dummy(spec: RadioSpec) -> bool:
 
 
 class Wanted(NamedTuple):
-    enabled: bool
+    show: bool
+    gate: bool
     host: str
     port: int
     call: str
     password: str
+
+
+def _doing(wanted: Wanted) -> str:
+    """The log's words for what the login is for."""
+    if wanted.show and wanted.gate:
+        return "showing the internet's stations and gating what the radios hear"
+    if wanted.gate:
+        return "gating what the radios hear, showing nothing of the internet"
+    return "showing the internet's stations, gating nothing"
 
 
 class Igate:
@@ -137,7 +147,9 @@ class Igate:
     def _wanted(self) -> Wanted:
         c = self._config()
         host, port = c.igate_address or ("", 0)
-        return Wanted(c.igate_enabled, host, port, c.station_call, c.igate_password)
+        # a read-only login unless it gates; a passcode set by hand wins over the call's
+        password = (c.igate_password or passcode_of(c.station_call)) if c.igate_gate else ""
+        return Wanted(c.igate_enabled, c.igate_gate, host, port, c.station_call, password)
 
     async def _apply(self, previous: "asyncio.Task[None] | None", wanted: Wanted) -> None:
         if previous is not None:
@@ -145,10 +157,10 @@ class Igate:
         await self._link.stop()
         self._was_verified = False
         self._read_mark = (0, 0)
-        if wanted.enabled:
+        if wanted.show or wanted.gate:
             log.info(
                 "igate: on, %s; logging in to %s:%d as %s",
-                "a receive-only iGate" if wanted.password else "listening only, no passcode",
+                _doing(wanted),
                 wanted.host,
                 wanted.port,
                 wanted.call or "(no call set)",
@@ -172,20 +184,21 @@ class Igate:
                 None if t is None else t + step for t in (self._summary_due, self._position_due, self._position_sent)
             )
         now = self.clock()
-        if self._config().igate_enabled:
+        if self._config().internet_on:
             self._refresh_filter()
         if self._position_due is not None and now >= self._position_due and not self._config().mobile:
             self._send_position(now)
         if self._summary_due is not None and now >= self._summary_due:
             self._summary_due = now + timedelta(seconds=self.summary_sec)
-            if self._config().igate_enabled:
+            if self._config().igate_gate:
                 log.info("%s", self.summary())
+            if self._config().internet_on:
                 self._log_read()
             self._hour_gated, self._hour_dropped = 0, Counter()
 
     @property
     def state(self) -> IgateStateName:
-        if not self._config().igate_enabled:
+        if not self._config().internet_on:
             return "off"
         if self._link.unverified:
             return "unverified"
@@ -222,7 +235,13 @@ class Igate:
         self.changed.emit()
 
     def _refresh_filter(self) -> None:
-        """Set the range filter when our position is known and after a move over FILTER_MOVE_KM."""
+        """Set the range filter when our position is known and after a move over FILTER_MOVE_KM.
+
+        Without Show Internet stations there is none: on a filtered port the server then sends nothing."""
+        if not self._config().igate_enabled:
+            self._filter_at = None
+            self._link.set_filter("")
+            return
         here, km = self._where(), self._config().map_radius_km
         if here is None or (
             self._filter_at is not None
@@ -282,9 +301,8 @@ class Igate:
         self.changed.emit()
 
     def _wanted_to_gate(self) -> bool:
-        """Whether it gates at all: on, with a passcode the server has not refused."""
-        c = self._config()
-        return c.igate_enabled and c.igate_password != "" and not self._link.unverified
+        """Whether it gates at all: Send what I hear on, with a passcode the server has not refused."""
+        return self._config().igate_gate and not self._link.unverified
 
     def _drop(self, reason: str) -> None:
         self.dropped[reason] += 1

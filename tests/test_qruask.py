@@ -675,7 +675,7 @@ async def test_the_dummy_radio_has_a_qru_server_and_nothing_of_it_reaches_the_in
         "station/lon": "24.7152",
         "igate/enabled": "true",
         "igate/server": server.address,
-        "igate/password": "19628",
+        "igate/gate": "true",
     }
     e = await quick_start(tmp_path, messaging=True, unpaced=True, radio=False, settings=settings)
     await until(lambda: e.ctl.igate.state == "connected")

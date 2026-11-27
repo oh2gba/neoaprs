@@ -90,6 +90,7 @@ async def test_the_state_of_the_running_parts_is_in_the_bundle(tmp_path: Path) -
         state["gps"]["state"] == "off"
         and state["beacon"]["interval_min"] == 0
         and state["beacon"]["transmit_blocked"] is None
+        and (state["igate"]["enabled"], state["igate"]["gate"], state["igate"]["state"]) == (False, False, "off")
     )
     assert (
         state["daemon"]["pages_open"] == 0
@@ -105,6 +106,7 @@ async def test_the_state_of_the_running_parts_is_in_the_bundle(tmp_path: Path) -
         "radios",
         "gps",
         "beacon",
+        "igate",
         "rig",
         "map",
         "update",

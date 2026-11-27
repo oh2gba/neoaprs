@@ -65,7 +65,7 @@ async def packet_stats(ctx: Ctx, cmd: PacketStats) -> None:
             "packets": counted.packets,
             "frames": counted.frames,
             "repeated_hour": counted.repeated_hour,
-            "gated_hour": igate.gated_hour.count(ctx.ctl.clock()) if config.igate_enabled else None,
+            "gated_hour": igate.gated_hour.count(ctx.ctl.clock()) if config.igate_gate else None,
         }
     )
 

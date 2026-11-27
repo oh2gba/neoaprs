@@ -22,7 +22,7 @@ FILTER = "r/60.17/24.94/150"
 
 
 def igate_settings(server: FakeAprsIs) -> dict[str, str]:
-    return {"igate/enabled": "true", "igate/server": server.address, "igate/password": PASSWORD}
+    return {"igate/enabled": "true", "igate/gate": "true", "igate/server": server.address}
 
 
 async def started(tmp_path: Path, server: FakeAprsIs, **options: object) -> Env:
@@ -116,7 +116,7 @@ async def test_without_a_passcode_the_daemon_logs_in_read_only_gates_nothing_sen
     tmp_path: Path,
 ) -> None:
     server = await fake_aprsis(verified=False)
-    e = Env(tmp_path, settings={**igate_settings(server), "igate/password": ""})
+    e = Env(tmp_path, settings={**igate_settings(server), "igate/gate": "false"})
     await e.start()
     await e.until_usable()
     await until(lambda: e.ctl.igate.state == "listening")
@@ -195,6 +195,7 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     assert page.topics["igate"] == {
         "enabled": False,
+        "gate": False,
         "state": "off",
         "server": "",
         "reason": "",
@@ -205,6 +206,7 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
     values = page.topics["config"]["values"]
     assert (
         values["igate/enabled"] == "false"
+        and values["igate/gate"] == "false"
         and values["igate/server"] == "rotate.aprs2.net:14580"
         and values["igate/password"] == ""
     )
@@ -214,12 +216,13 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
         page.topics["igate"]["server"] == server.name
         and page.topics["igate"]["reason"] == ""
         and page.topics["igate"]["enabled"] is True
+        and page.topics["igate"]["gate"] is True
     )
     e.feed(on_air("OH2RDG-7", b"!6010.00N/02456.00E>x"))
     e.feed(on_air("OH2RDG-8", b"!6010.00N/02456.00E>y", path="TCPIP*"))
     await page.until(lambda: page.topics["igate"]["gated"] == 1 and page.topics["igate"]["dropped"] == {"tcpip": 1})
     assert page.topics["igate"]["last_gated_at"] is not None
-    await page.send({"cmd": "set_config", "values": {"igate/enabled": "false"}})
+    await page.send({"cmd": "set_config", "values": {"igate/enabled": "false", "igate/gate": "false"}})
     await page.until(lambda: page.topics["igate"]["state"] == "off")
     await until(lambda: not e.ctl.aprsis.verified)
     await e.stop()

@@ -60,6 +60,17 @@ def range_filter(lat: float, lon: float, km: int) -> str:
     return f"r/{lat:.2f}/{lon:.2f}/{km}"
 
 
+def passcode_of(call: str) -> str:
+    """Return the APRS-IS passcode of a call, its SSID left out: the servers' hash of the base call."""
+    base = call.strip().upper().split("-")[0]
+    code = 0x73E2
+    for i in range(0, len(base), 2):
+        code ^= ord(base[i]) << 8
+        if i + 1 < len(base):
+            code ^= ord(base[i + 1])
+    return str(code & 0x7FFF)
+
+
 def login_line(call: str, password: str, filter_spec: str = "") -> bytes:
     """Return the login line, the only place the password becomes text; none means `pass -1`."""
     text = f"user {call} pass {password or READ_ONLY} vers {PROGRAM} {VERSION}" + (

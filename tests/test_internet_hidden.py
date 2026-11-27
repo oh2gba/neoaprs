@@ -30,7 +30,7 @@ async def start(tmp_path: Path, enabled: bool = True) -> tuple[Env, WsClient]:
     e = Env(
         tmp_path,
         web=True,
-        settings={"igate/enabled": str(enabled).lower(), "igate/server": server.address, "igate/password": "19628"},
+        settings={"igate/enabled": str(enabled).lower(), "igate/server": server.address, "igate/gate": "true"},
     )
     await e.start()
     page = await e.ws()
@@ -41,7 +41,10 @@ async def start(tmp_path: Path, enabled: bool = True) -> tuple[Env, WsClient]:
     later = e.now() + timedelta(minutes=5)
     e.ctl.hear_internet(from_internet("OH2BT", NET_AT, later))
     e.ctl.hear_internet(from_internet("OH2NET", NET_AT, later))
-    await until(lambda: e.ctl.stationbook.get("OH2NET") is not None)
+    if enabled:
+        await until(lambda: e.ctl.stationbook.get("OH2NET") is not None)
+    else:
+        await e.settled()
     return e, page
 
 
@@ -98,27 +101,25 @@ async def test_turning_the_internet_off_hides_what_only_it_knows_and_leaves_the_
     await e.stop()
 
 
-async def test_a_packet_that_comes_while_the_internet_is_hidden_is_not_shown_and_the_window_keeps_the_radios_packets_the_internet_would_push_out(
+async def test_a_packet_that_comes_while_the_internet_is_hidden_is_neither_shown_nor_kept_and_the_radios_packets_stay(
     tmp_path: Path,
 ) -> None:
     e, page = await start(tmp_path, enabled=False)
     await page.until(lambda: len(page.topics["packets"]) == 2 and "OH2BT" in page.topics["stations"])
     assert set(page.topics["stations"]) == {"OH2GBA", "OH2BT", "OH2AIR"} and len(page.topics["packets"]) == 2
-    e.ctl.hear_internet(from_internet("OH2NET", NET_AT, e.now() + timedelta(minutes=9)))
-    await e.settled()
-    await page.send({"cmd": "ping"})
-    await page.expect("pong")
-    assert "OH2NET" not in page.topics["stations"] and len(page.topics["packets"]) == 2
     window = e.server.api.topics.window  # type: ignore[union-attr]
     for n in range(window.size + 5):
         e.ctl.hear_internet(from_internet(f"OH2X{n:02d}", NET_AT, e.now() + timedelta(minutes=10, seconds=n)))
     await e.settled()
-    assert len(window.rows) <= 2 * window.size and len(window.whole()) == 2, (
-        "the internet's packets are kept for showing them again, the radio's are not pushed out"
-    )
+    await page.send({"cmd": "ping"})
+    await page.expect("pong")
+    assert "OH2NET" not in page.topics["stations"] and len(page.topics["packets"]) == 2
+    assert e.ctl.stationbook.get("OH2NET") is None and e.ctl.stationbook.get("OH2X00") is None
+    assert {p.via for p in await e.packets()} == {RF} and len(window.whole()) == 2, "nothing of the internet was kept"
     await switch(page, True)
-    await page.until(lambda: len(page.topics["packets"]) == window.size)
-    assert {r["via"] for r in page.topics["packets"].values()} == {IS}
+    await page.send({"cmd": "ping"})
+    await page.expect("pong")
+    assert len(page.topics["packets"]) == 2 and "OH2NET" not in page.topics["stations"]
     await e.stop()
 
 

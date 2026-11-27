@@ -266,7 +266,7 @@ async def test_the_replay_shows_the_internet_only_while_internet_stations_is_on(
     e = Env(
         tmp_path,
         web=True,
-        settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"},
+        settings={"igate/enabled": "true", "igate/server": server.address, "igate/gate": "true"},
     )
     await e.start()
     page = await e.ws()

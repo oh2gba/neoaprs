@@ -20,6 +20,7 @@ from tests.support.env import Env, idle_for, quick_start, until
 from tests.support.fakeaprsis import fake_aprsis
 
 POSITION = b"=6012.34N/02456.78E-from the internet"
+SHOWN = {"igate/enabled": "true"}
 
 
 def parts_of(e: Env) -> dict[str, Any]:
@@ -182,6 +183,7 @@ def test_a_packet_from_the_internet_is_one_line_of_the_log_at_debug_and_one_of_t
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     e = Env(tmp_path, radio=False)
+    e.ctl.config = replace(e.ctl.config, igate_enabled=True)
     with caplog.at_level(logging.DEBUG, logger="neoaprs.packets"):
         packet = from_internet("OH2ABC", POSITION, e.now())
         e.ctl.hear_internet(packet)
@@ -194,6 +196,7 @@ def test_a_packet_from_the_internet_is_one_line_of_the_log_at_debug_and_one_of_t
 
 def test_hear_internet_takes_a_packet_from_the_internet_only(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
+    e.ctl.config = replace(e.ctl.config, igate_enabled=True)
     taken: list[Packet] = []
     e.ctl.internet_packet.connect(taken.append)
     packet = from_internet("OH2ABC", POSITION, e.now())
@@ -202,6 +205,18 @@ def test_hear_internet_takes_a_packet_from_the_internet_only(tmp_path: Path) -> 
     with pytest.raises(ValueError, match="only a packet received from the internet"):
         e.ctl.hear_internet(replace(packet, via="rf"))
     assert taken == [packet]
+
+
+def test_hear_internet_keeps_nothing_while_the_internet_s_stations_are_not_shown(tmp_path: Path) -> None:
+    e = Env(tmp_path, radio=False)
+    e.ctl.config = replace(e.ctl.config, igate_enabled=False, igate_gate=True, station_call="OH2GBA")
+    taken: list[Packet] = []
+    e.ctl.internet_packet.connect(taken.append)
+    e.ctl.hear_internet(from_internet("OH2ABC", POSITION, e.now()))
+    e.ctl.hear_internet(from_internet("OH2ABC", message_info(e.ctl.config.station_call, "Moi!", "12"), e.now()))
+    assert taken == [] and e.ctl.stationbook.get("OH2ABC") is None
+    with pytest.raises(ValueError, match="only a packet received from the internet"):
+        e.ctl.hear_internet(replace(from_internet("OH2ABC", POSITION, e.now()), via="rf"))
 
 
 def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refused_by_every_part_that_acts(
@@ -231,7 +246,8 @@ def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refus
 async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(
     tmp_path: Path,
 ) -> None:
-    e = Env(tmp_path, settings={"digi/enabled": "true"})
+    server = await fake_aprsis(verified=False)
+    e = Env(tmp_path, settings={"digi/enabled": "true", **SHOWN, "igate/server": server.address})
     await e.start()
     await e.until_usable()
     now = e.now()
@@ -278,23 +294,23 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
     await e.stop()
 
 
-@pytest.mark.parametrize("passcode", ["19628", ""])
+@pytest.mark.parametrize("gate", [True, False])
 async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(
-    tmp_path: Path, passcode: str
+    tmp_path: Path, gate: bool
 ) -> None:
-    server = await fake_aprsis(verified=bool(passcode))
+    server = await fake_aprsis(verified=gate)
     e = Env(
         tmp_path,
         settings={
             "digi/enabled": "true",
             "igate/enabled": "true",
+            "igate/gate": str(gate).lower(),
             "igate/server": server.address,
-            "igate/password": passcode,
         },
     )
     await e.start()
     await e.until_usable()
-    await until(lambda: e.ctl.igate.state == ("connected" if passcode else "listening"))
+    await until(lambda: e.ctl.igate.state == ("connected" if gate else "listening"))
     ours = e.ctl.config.station_call
     path = "TCPIP*,qAC,T2TEST"
     asks = [
@@ -340,7 +356,7 @@ async def test_the_page_is_told_the_packets_from_the_internet_and_the_stations_t
     e = Env(
         tmp_path,
         web=True,
-        settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"},
+        settings={"igate/enabled": "true", "igate/server": server.address, "igate/gate": "true"},
     )
     await e.start()
     page = await e.ws()
@@ -368,7 +384,8 @@ async def test_the_page_is_told_the_packets_from_the_internet_and_the_stations_t
 
 
 async def test_a_restart_finds_the_stations_by_channel_and_the_routes_only_of_the_radio(tmp_path: Path) -> None:
-    first = Env(tmp_path)
+    server = await fake_aprsis(verified=False)
+    first = Env(tmp_path, settings={**SHOWN, "igate/server": server.address})
     await first.start()
     await first.play()
     first.ctl.hear_internet(from_internet("OH2RDG", b">also on the net", first.now()))
@@ -415,7 +432,7 @@ async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_fo
         "station/lon": "24.7152",
         "igate/enabled": "true",
         "igate/server": server.address,
-        "igate/password": "19628",
+        "igate/gate": "true",
     }
     e = await quick_start(tmp_path, messaging=True, unpaced=True, radio=False, settings=settings)
     await until(lambda: e.ctl.igate.state == "connected")

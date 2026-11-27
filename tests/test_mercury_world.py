@@ -134,7 +134,7 @@ async def test_a_station_that_gates_puts_what_it_hears_over_mercury_on_aprs_is_a
             "OH2C-10",
             lat=60.4,
             lon=22.3,
-            **{"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"},
+            **{"igate/enabled": "true", "igate/server": server.address, "igate/gate": "true"},
         )
         await w.start()
         await until(lambda: gate.ctl.igate.state in ("connected", "listening"), 5.0)

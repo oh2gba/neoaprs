@@ -299,6 +299,24 @@ def _gps(f: Facts, c: Config) -> list[tuple[str, str]]:
     return [("GPS state", "off" if c.gps_source == "off" else NO_DAEMON)]
 
 
+def _internet(f: Facts, c: Config) -> list[tuple[str, str]]:
+    """Return the two ticks of APRS-IS, the server and the login's state while either is on."""
+    passcode = "the passcode set by hand" if c.igate_password else "the passcode of the call"
+    rows = [
+        ("Show Internet stations", "on" if c.igate_enabled else "off"),
+        ("Send what I hear", f"on, {passcode}" if c.igate_gate else "off"),
+    ]
+    if not c.internet_on:
+        return rows
+    igate = (f.live or {}).get("igate")
+    if not isinstance(igate, dict):
+        return [*rows, ("Server", c.igate_server), ("State", NO_DAEMON)]
+    state = str(igate.get("state", "?")) + (f" ({igate['reason']})" if igate.get("reason") else "")
+    if c.igate_gate:
+        state += f", {igate.get('gated', 0)} packets gated since the start"
+    return [*rows, ("Server", c.igate_server), ("State", state)]
+
+
 def _web(f: Facts, c: Config) -> str:
     web = (f.live or {}).get("web", {})
     bind = web.get("address") or ("every interface" if c.web_network else "127.0.0.1")
@@ -370,6 +388,7 @@ def sections(f: Facts) -> list[Section]:
         elif not f.radios_problem:
             out.append(("Send on", _send_on(f, c)))
         out.append(("GPS", _gps(f, c)))
+        out.append(("Internet (APRS-IS)", _internet(f, c)))
         if layers := _layers(f):
             out.append(("Map layers", layers))
         out.append(("Web page", [("Listens", _web(f, c))]))

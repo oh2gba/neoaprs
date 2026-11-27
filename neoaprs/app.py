@@ -358,13 +358,15 @@ class Services:
         self.reexec: list[str] | None = None
 
     def hear_internet(self, packet: Packet) -> None:
-        """Admit a packet received from APRS-IS and emit it on `internet_packet`.
+        """Admit a packet received from APRS-IS and emit it on `internet_packet`, while its stations are shown.
 
         Raise ValueError for anything but an `is` packet; radio packets use the Tnc's signal.
         """
         if packet.via != IS or packet.direction != "in":
             raise ValueError("only a packet received from the internet (Packet.via is) enters here")
-        self.internet_packet.emit(packet)
+        # a login that only gates still gets messages to our call; nothing of it is kept
+        if self.config.igate_enabled:
+            self.internet_packet.emit(packet)
 
     def kept_change(self, before: Config, after: Config) -> tuple[Config, Kept]:
         """Return `after` with its ticks put in, and what the change keeps in force."""

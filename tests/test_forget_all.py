@@ -21,7 +21,7 @@ async def world(tmp_path: Path) -> Env:
         messaging=True,
         own=True,
         unpaced=True,
-        settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"},
+        settings={"igate/enabled": "true", "igate/server": server.address, "igate/gate": "true"},
     )
     e.feed(on_air("OH2RDG", b"=6012.34N/02456.78E-radio"))
     e.feed(on_air("OH2WX", WEATHER))

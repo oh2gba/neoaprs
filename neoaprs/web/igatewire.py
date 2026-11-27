@@ -8,13 +8,16 @@ from .wirebase import Iso, _Model
 
 
 class IgateState(_Model):
-    """The iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon
-    started. Told whole as it changes, at most once a second."""
+    """The login to APRS-IS (neoaprs/services/igate.py): it shows the internet's stations (`igate/enabled`), puts what the radios hear on APRS-IS (`igate/gate`, the iGate), or both, and nothing from APRS-IS is
+    ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second."""
 
-    enabled: bool = Field(description="`igate/enabled` as in force")
+    enabled: bool = Field(description="`igate/enabled` (Show Internet stations) as in force")
+    gate: bool = Field(
+        description="`igate/gate` (Send what I hear) as in force: what the radios hear is put on APRS-IS while `state` is `connected`"
+    )
     state: Literal["off", "connecting", "connected", "listening", "unverified"] = Field(
-        description="`off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; "
-        "`listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated "
+        description="`off`: both ticks are off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; "
+        "`listening`: logged in without a passcode (`gate` is off), so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated "
         "(the connection reads, as `listening` does) and the login is not tried again with another until the settings change"
     )
     server: str = Field(description="the name the server gave at the login (`T2FINLAND`); empty until it has answered")

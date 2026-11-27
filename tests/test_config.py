@@ -88,6 +88,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "update/url": "https://neo.oh2gba.eu/version.php",
         "digi/enabled": "false",
         "igate/enabled": "false",
+        "igate/gate": "false",
         "igate/server": "rotate.aprs2.net:14580",
         "igate/password": "",
         "gps/source": "off",

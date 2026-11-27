@@ -144,5 +144,5 @@ class PacketStatsMsg(_Message):
     )
     repeated_hour: int = Field(ge=0, description="the copies the digipeater sent in the last 60 minutes")
     gated_hour: int | None = Field(
-        description="the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off"
+        description="the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/gate` (Send what I hear) is off"
     )

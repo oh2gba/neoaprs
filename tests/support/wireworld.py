@@ -457,11 +457,12 @@ class FakeIgate:
 
 
 def igate_rows(views: Any) -> list[dict[str, Any]]:
-    """The `igate` topic: off, connected with packets gated and not gated, not connected, listening
-    only, and a passcode the server did not accept."""
+    """The `igate` topic: off, gating with packets gated and not gated (with the stations shown, and
+    without), not connected, listening only, and a passcode the server did not accept."""
     from neoaprs.config import DEFAULTS
 
-    on = replace(DEFAULTS, igate_enabled=True, station_call="OH2GBA")
+    on = replace(DEFAULTS, igate_enabled=True, igate_gate=True, station_call="OH2GBA")
+    show = replace(on, igate_gate=False)
     return [
         views.igate_state(DEFAULTS, FakeIgate()),
         views.igate_state(
@@ -475,8 +476,9 @@ def igate_rows(views: Any) -> list[dict[str, Any]]:
                 T0 - timedelta(seconds=12),
             ),
         ),
+        views.igate_state(replace(on, igate_enabled=False), FakeIgate("connected", "", "T2FINLAND", 7)),
         views.igate_state(on, FakeIgate("connecting", "unreachable")),
-        views.igate_state(on, FakeIgate("listening", "", "T2FINLAND")),
+        views.igate_state(show, FakeIgate("listening", "", "T2FINLAND")),
         views.igate_state(on, FakeIgate("unverified", "unverified", "T2FINLAND")),
     ]
 

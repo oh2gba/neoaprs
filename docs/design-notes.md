@@ -1011,9 +1011,12 @@ is far enough from the map row, at a limited rate.
 ## neoaprs/services/igate.py
 
 The service has no radio: it takes the connection, the settings and functions giving our position
-bytes and location. It knows of the radios only whether an enabled radio is a Dummy type. With a
-passcode it gates what the radio hears; without one, or one the server rejects, it logs in
-read-only. The connection filter is the map radius around our position, resent when the station
+bytes and location. It knows of the radios only whether an enabled radio is a Dummy type. With
+`igate/gate` it logs in with the passcode of the call (or the one set by hand) and gates what the
+radios hear; without it, or with a passcode the server rejects, it logs in read-only. A change of
+either tick logs in again, so that the login line carries the filter and passcode it needs. Without
+`igate/enabled` no filter is set: on the filtered port the server then sends nothing but messages to
+the login call, and `hear_internet` drops what comes. The connection filter is the map radius around our position, resent when the station
 moves more than a set distance or the radius changes. Packets are also not gated while the
 connection is unverified, nor when the same source, destination without SSID and information
 field was gated within the duplicate window (servers drop such copies anyway; the window can be 0).
@@ -1606,7 +1609,7 @@ local browser opening the page by name connects; the name is not resolved, so no
 
 ## neoaprs/web/topics.py
 
-While `igate/enabled` is off the internet is hidden, nothing is deleted: a station known only from
+While `igate/enabled` is off the internet is hidden, nothing is deleted (and nothing new is kept): a station known only from
 APRS-IS is absent from the stations topic and one heard both ways shows its radio side only. The
 packet window then shows the latest 200 non-internet packets. A change of that setting, or of the
 radios in force (id, kind, type, Enable, place, removed, email radio choice, own calls), sends the
