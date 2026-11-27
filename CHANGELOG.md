@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **New:** a Satellites layer on the map: the ISS and the APRS satellites where they are now, with the next pass, the frequencies and the Doppler.
+- **New:** each open satellite card draws its footprint and its track ahead on the map.
+- **New:** Settings, Internet (APRS-IS) has two ticks: Show Internet stations, and Send what I hear.
+- **New:** Send what I hear makes your station an iGate for its radios, with no passcode to type.
+- **New:** ships from AISStream anywhere, with a free key of your own and a Get a key link beside its field.
+- **Changed:** aircraft glide on the map between their reports instead of jumping, and ships that report course and speed too.
+- **Changed:** aircraft are drawn in the yellow of the flight-tracking maps.
+- **Changed:** choosing a source for aircraft or ships switches that layer on in the browser you chose it in.
+- **Changed:** HF tests are always shown, with or without an HF radio.
+- **Changed:** a station that gated with a passcode set by hand goes on gating.
+- **Fixed:** the trails of aircraft and ships stay when you come back to the page from another tab or program.
+
 ## 0.25.0
 
 - **New:** classic APRS on HF at 300 baud with a sound card: the radio type Sound card, 300 (HF).
