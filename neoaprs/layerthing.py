@@ -4,10 +4,10 @@ Plain values and rules, no I/O. A thing is never a station and never reaches the
 """
 
 import heapq
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from math import ceil
+from math import ceil, cos, hypot, radians
 from typing import Literal
 
 from .geo import distance_km
@@ -131,6 +131,12 @@ TRAIL_MAX_AGE_SEC = 1800
 TRAIL_MAX_POINTS = 400
 
 TrailPoint = tuple[float, float, datetime]  # lon, lat, when
+# What a page is handed is thinner: the newest TRAIL_WHOLE_SEC whole, older points at most one every
+# TRAIL_STEP_SEC, and of those only where the way bends by more than TRAIL_BEND_KM (Douglas-Peucker).
+TRAIL_WHOLE_SEC = 60
+TRAIL_STEP_SEC = 60
+TRAIL_BEND_KM = 0.05
+_KM_PER_DEGREE = 111.195
 
 
 @dataclass(frozen=True)
@@ -170,11 +176,49 @@ class TrailBook:
             newest = heapq.nlargest(LIMIT, self._trails.items(), key=lambda item: item[1][-1][2])
             self._trails = dict(newest)
 
-    def trails(self) -> tuple[ThingTrail, ...]:
-        return tuple(ThingTrail(key, tuple(points)) for key, points in self._trails.items())
+    def trails(self, ids: Collection[str] | None = None, now: datetime | None = None) -> tuple[ThingTrail, ...]:
+        """Return every trail, or with `ids` and `now` those things' trails thinned for a page."""
+        if ids is None or now is None:
+            return tuple(ThingTrail(key, tuple(points)) for key, points in self._trails.items())
+        return tuple(ThingTrail(key, thinned(self._trails[key], now)) for key in ids if key in self._trails)
 
     def clear(self) -> None:
         self._trails.clear()
+
+
+def _off_km(point: TrailPoint, a: TrailPoint, b: TrailPoint) -> float:
+    """Return how far the point is from the line a-b, on a plane local to them."""
+    scale = cos(radians(a[1]))
+    ax, ay, bx, by = a[0] * scale, a[1], b[0] * scale, b[1]
+    px, py = point[0] * scale, point[1]
+    dx, dy = bx - ax, by - ay
+    length = hypot(dx, dy)
+    if length == 0:
+        return hypot(px - ax, py - ay) * _KM_PER_DEGREE
+    return abs(dx * (ay - py) - dy * (ax - px)) / length * _KM_PER_DEGREE
+
+
+def _bends(points: list[TrailPoint]) -> list[TrailPoint]:
+    """Douglas-Peucker: the points where the way bends by more than TRAIL_BEND_KM, ends kept."""
+    if len(points) <= 2:
+        return points
+    far, at = max((_off_km(p, points[0], points[-1]), i) for i, p in enumerate(points[1:-1], 1))
+    if far <= TRAIL_BEND_KM:
+        return [points[0], points[-1]]
+    return _bends(points[: at + 1])[:-1] + _bends(points[at:])
+
+
+def thinned(points: list[TrailPoint], now: datetime) -> tuple[TrailPoint, ...]:
+    """Return a trail as a page is handed it (see TRAIL_WHOLE_SEC)."""
+    old = [p for p in points if (now - p[2]).total_seconds() > TRAIL_WHOLE_SEC]
+    new = points[len(old) :]
+    spaced: list[TrailPoint] = []
+    for point in old:
+        if not spaced or (point[2] - spaced[-1][2]).total_seconds() >= TRAIL_STEP_SEC:
+            spaced.append(point)
+    if old and spaced[-1] is not old[-1]:
+        spaced.append(old[-1])
+    return tuple(_bends(spaced) + new)
 
 
 def reaches_box(

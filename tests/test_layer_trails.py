@@ -3,6 +3,7 @@
 LOOK_GRACE_SEC): a page that comes back from another tab, is reloaded or opened on a second device
 starts with the trail."""
 
+import math
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -114,3 +115,42 @@ async def test_nothing_is_asked_once_the_grace_has_passed(tmp_path: Path, look_g
     await tab.quiet(1.0)
     assert len(receiver.paths()) == asked
     await e.stop()
+
+
+def test_a_page_is_handed_only_the_trails_of_the_things_in_its_table_thinned_where_the_way_is_straight() -> None:
+    book = TrailBook()
+    now = T0 + timedelta(seconds=1795)
+    for i in range(360):  # every 5 s for half an hour: straight east, then a turn north at the end
+        at = T0 + timedelta(seconds=5 * i)
+        lat = 60.3 + (0.0 if i < 300 else (i - 300) * 0.002)
+        book.grow([thing("a", 24.0 + i * 0.002, at, lat), thing("gone", 20.0 + i * 0.002, at)], at)
+    [trail] = book.trails(["a"], now)
+    assert trail.id == "a"
+    whole = [p for p in trail.points if (now - p[2]).total_seconds() <= layerthing.TRAIL_WHOLE_SEC]
+    assert len(whole) == 13, "the last minute whole"
+    older = trail.points[: len(trail.points) - len(whole)]
+    assert len(older) <= 4, "a straight leg is its two ends and the bend"
+    assert older[0][2] == T0, "the trail still begins where it began"
+
+
+def test_the_first_table_for_three_hundred_aircraft_after_half_an_hour_is_bounded() -> None:
+    import json
+
+    from neoaprs.web.layerfeed import table_message
+
+    book = TrailBook()
+    now = T0 + timedelta(seconds=1795)
+    for i in range(360):
+        at = T0 + timedelta(seconds=5 * i)
+        # every aircraft circling: the worst case for the bends
+        book.grow(
+            [
+                thing(f"{n:06x}", 24.0 + 0.2 * math.cos(i / 20 + n), at, 60.0 + 0.1 * math.sin(i / 20 + n))
+                for n in range(LIMIT)
+            ],
+            at,
+        )
+    things = tuple(thing(f"{n:06x}", 24.0, now) for n in range(LIMIT))
+    table = layerthing.LayerTable("aircraft", "receiver", False, things, book.trails([t.id for t in things], now))
+    size = len(json.dumps(table_message(table, now)))
+    assert size < 750_000, size

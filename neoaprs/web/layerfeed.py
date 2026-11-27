@@ -55,7 +55,7 @@ def table_message(table: LayerTable, now: datetime) -> dict[str, Any]:
         "away": table.away,
         "things": [thing_row(thing, table.layer) for thing in table.things],
         "trails": [
-            {"id": trail.id, "points": [[round(lon, 6), round(lat, 6), iso(at)] for lon, lat, at in trail.points]}
+            {"id": trail.id, "points": [[round(lon, 5), round(lat, 5), iso(at)] for lon, lat, at in trail.points]}
             for trail in table.trails
         ],
     }

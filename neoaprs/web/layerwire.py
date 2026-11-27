@@ -71,7 +71,9 @@ class LayerThing(_Model):
     )
     ship_type: int | None = Field(ge=1, le=99, description="a ship's AIS type of ship and cargo; null when not known")
     course_deg: int | None = Field(
-        ge=0, le=359, description="a ship's course over ground, an aircraft's ground track; null when not told (a heading is not a course)"
+        ge=0,
+        le=359,
+        description="a ship's course over ground, an aircraft's ground track; null when not told (a heading is not a course)",
     )
     destination: str = Field(
         description="a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known"
@@ -108,7 +110,9 @@ class LayerThingsMsg(_Message):
     when the source in force changes (then with the new `source` and no things)."""
 
     type: Literal["layer_things"]
-    at: Iso = Field(description="the daemon's time when the table was sent; the age of each thing's `at` is told by it, not by the page's clock")
+    at: Iso = Field(
+        description="the daemon's time when the table was sent; the age of each thing's `at` is told by it, not by the page's clock"
+    )
     layer: LayerName
     source: SourceName = Field(description="the source in force that the things are from")
     away: bool = Field(
@@ -116,5 +120,5 @@ class LayerThingsMsg(_Message):
     )
     things: list[LayerThing]
     trails: list[LayerTrail] = Field(
-        description="only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first"
+        description="only in the first table a page gets on `layer_look`, else empty: the way each thing of `things` went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), oldest first: the last minute whole, older points at most one a minute and only where the way bends by more than 50 m"
     )

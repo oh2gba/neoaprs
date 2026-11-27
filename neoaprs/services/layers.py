@@ -322,12 +322,13 @@ class Layers:
         if made is None:
             return LayerTable(layer, source, False, ())
         now, limit = self._clock(), max_age_sec(layer, source)
+        things = tuple(thing for thing in made.things() if (now - thing.at).total_seconds() <= limit)
         return LayerTable(
             layer,
             source,
             made.away,
-            tuple(thing for thing in made.things() if (now - thing.at).total_seconds() <= limit),
-            self._trails[layer].trails() if trails else (),
+            things,
+            self._trails[layer].trails([thing.id for thing in things], now) if trails else (),
         )
 
     def watch(self, layer: Layer, on: bool) -> None:
