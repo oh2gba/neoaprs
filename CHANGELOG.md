@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **New:** HF tests that are over stay listed as past tests, in the app and on the website.
+- **New:** each pair of radios has an (i) that shows, with a picture, how a packet is passed between them.
+- **New:** PSK Reporter has a box of its own in a Mercury radio's settings.
+- **Changed:** the suggested Mercury frequencies open from one row in the radio's box.
+- **Changed:** Ask around and Local info have no RF only tick; both are sent RF only, as before.
+- **Changed:** Send logs says that the e-mail address is optional and that you can write in any language.
+
 ## 0.24.1
 
 - **Fixed:** a tune tone or keying test on a Mercury radio can always be stopped.
