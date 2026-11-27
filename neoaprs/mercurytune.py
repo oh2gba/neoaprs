@@ -17,6 +17,8 @@ log = logging.getLogger("neoaprs.mercury")
 NOT_RUNNING = "the Mercury radio is not running"
 # TUNE has no length: a TUNE OFF that is not written keeps the radio keyed until Mercury's own minute.
 OFF_UNSENT = "the tone could not be ended on Mercury's control port, so Mercury is started again"
+# How long an owed TUNE OFF waits for the control port (its back-off is 1, 2, 5 s) before the run is ended.
+OFF_DEADLINE_SEC = 15.0
 
 
 class Tuning:
@@ -32,6 +34,7 @@ class Tuning:
     _test_task: asyncio.Task[None] | None
     # a TUNE OFF is owed to Mercury: the tone may still key the radio
     _off_owed: bool
+    _off_deadline: asyncio.Task[None] | None = None
 
     @property
     def running(self) -> bool:
@@ -127,7 +130,9 @@ class Tuning:
         """
         if not self._write(TUNE_OFF):
             self._off_owed = True
-            log.info("Mercury: TUNE OFF waits for the control port")
+            if self._off_deadline is None or self._off_deadline.done():
+                log.info("Mercury: TUNE OFF waits for the control port, at most %g s", OFF_DEADLINE_SEC)
+                self._off_deadline = self._tasks.spawn(self._off_overdue(self._generation), "mercury-tune-off")
             return False
         self._off_owed = False
         if self.test:
@@ -135,6 +140,19 @@ class Tuning:
         self.test = ""
         self.changed.emit()
         return True
+
+    async def _off_overdue(self, generation: int) -> None:
+        """End the run when the owed TUNE OFF could not be written in time: that drops the keying."""
+        await asyncio.sleep(OFF_DEADLINE_SEC)
+        if generation != self._generation or not self._off_owed:
+            return
+        if self._end_run(OFF_UNSENT):
+            log.warning("Mercury: %s", OFF_UNSENT)
+            return
+        # a Mercury run elsewhere: its own minute ends the tone; the radio is not held for it longer
+        log.warning("Mercury: TUNE OFF could not be written in %g s; the test is over here", OFF_DEADLINE_SEC)
+        self._forget_test()
+        self.changed.emit()
 
     def _pay_off(self) -> None:
         """Write an owed TUNE OFF; the control port is up again."""

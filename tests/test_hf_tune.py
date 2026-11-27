@@ -292,3 +292,58 @@ async def test_the_radios_stop_writes_an_owed_tune_off(tmp_path: Path) -> None:
     finally:
         await m.stop()
         await air.aclose()
+
+
+async def test_an_owed_tune_off_that_cannot_be_written_in_time_ends_the_run_and_frees_the_radio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without the deadline the radio stayed held as transmitting for good: no beacon, Stop on the page."""
+    from tests.support import fakemercury
+    from tests.support.modemports import own_ports
+
+    own_ports(monkeypatch)
+    monkeypatch.setattr(mercurytune, "TUNE_SEC", 0.2)
+    monkeypatch.setattr(mercurytune, "OFF_DEADLINE_SEC", 0.5)
+    m = Mercury(
+        tmp_path,
+        finder=fakemercury.program,
+        backoff=Backoff([0.1]),
+        control_backoff=Backoff([0.05]),
+        **of_radio(tmp_path),
+    )
+    m.ports = lambda: []
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        first = m.pid
+        await m.tune()
+        # the control line goes and does not come back
+        control, m._control = m._control, None
+        assert control is not None
+        await control.stop()
+        m._control_state(False, "gone")
+        await until_started(lambda: m.pid not in (None, first) and m.state == "running")
+        assert m.test == "" and m.hold() == "", "the radio is usable again"
+    finally:
+        await m.stop()
+
+
+async def test_an_owed_tune_off_written_before_the_deadline_restarts_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mercurytune, "TUNE_SEC", 0.2)
+    monkeypatch.setattr(mercurytune, "OFF_DEADLINE_SEC", 3.0)
+    air = Air(frame_sec=0.2)
+    m, station = await attached(tmp_path, air, reconnect_sec=0.5)
+    try:
+        await m.tune()
+        await until_started(lambda: station.tuned == ["TUNE -15"])
+        station.drop_control()
+        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and m.test == "")
+        await asyncio.sleep(mercurytune.OFF_DEADLINE_SEC + 0.5)
+        assert station.tuned == ["TUNE -15", "TUNE OFF"] and m.state == "running" and m.problem == "", (
+            "sent once, and the deadline passed with nothing to do"
+        )
+    finally:
+        await m.stop()
+        await air.aclose()

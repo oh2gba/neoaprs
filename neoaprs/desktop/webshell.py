@@ -84,6 +84,8 @@ class WebFrame:
         # Quit before the session: the session is not attached, the quit takes it from there
         self.leaving = False
         self.quit_early: Callable[[], None] | None = None
+        # a window whose engine is not up: given the page if it comes after the fallback, destroyed if after Quit
+        self.parked: Any = None
 
     def show_window(self) -> None:
         """Show the window, un-minimised, and maximized if it was left so.
@@ -114,8 +116,13 @@ class WebFrame:
         if self.sizes is not None:
             self.sizes.stop()
             self.sizes.save()
-        if self.window is not None:
-            self.window.destroy()  # `run` stops the icon afterwards
+        with self.lock:
+            window = self.window if self.engine.is_set() else None
+            if window is None and self.window is not None:
+                # destroy waits for an engine that is not up: it is destroyed when the engine comes
+                self.parked = self.window
+        if window is not None:
+            window.destroy()  # `run` stops the icon afterwards
         if self.stop_loop is not None:
             self.stop_loop()
 
@@ -330,8 +337,10 @@ def attach(frame: WebFrame, ctx: ShellContext) -> AppActions | None:
 def quit_before_session(frame: WebFrame, launch: Launch) -> None:
     """Quit from the tray or `--quit` while the page is not there: stop an owned daemon once it is up, then end."""
     with frame.lock:
-        actions = frame.actions
+        actions, already = frame.actions, frame.leaving
         frame.leaving = actions is None
+    if already:
+        return  # one stop, however often Quit is pressed
     if actions is not None:
         actions.run(QUIT)
         return
@@ -423,19 +432,37 @@ def run_window(frame: WebFrame, launch: Launch, failed: list[NoPage]) -> None:
 
 
 def _engine_up(frame: WebFrame) -> Callable[[], None]:
+    """Return the call for the engine being up (pywebview's start callback, the window's `shown`)."""
+
     def started() -> None:
-        if frame.settled.is_set() and not frame.engine.is_set():
-            log.info("window: the engine came after the app went on in the tray; the tray stays")
-            return
-        frame.engine.set()
+        with frame.lock:
+            if frame.engine.is_set():
+                return
+            frame.engine.set()
+            late, frame.parked = frame.parked, None
+            if late is not None and not frame.quitting.is_set():
+                frame.window, frame.has_window = late, True
         frame.settled.set()
+        if late is None:
+            return
+        if frame.quitting.is_set():
+            late.destroy()  # Quit came first: the window loop can end now
+            return
+        log.info("window: the engine came after the app went on in the tray: the window takes the page")
+        if frame.api.page_url:
+            load_page(late, window_url(frame.api.page_url))
+        frame.refresh()
 
     return started
 
 
-def windowless(frame: WebFrame) -> None:
-    """Go on with the tray and the browser: Open shows the page there, Quit destroys no window."""
+def windowless(frame: WebFrame, park: bool = False) -> None:
+    """Go on with the tray and the browser: Open shows the page there, Quit destroys no window.
+
+    With `park` the window is kept for an engine that may still come."""
     with frame.lock:
+        if park and not frame.engine.is_set():
+            frame.parked = frame.window
         frame.has_window = False
         frame.window = None
     splash.done()
@@ -463,7 +490,7 @@ def _session(frame: WebFrame, launch: Launch, failed: list[NoPage]) -> None:
             "window: the engine did not come up in %g s: going on in the tray, with the page in the browser",
             ENGINE_WAIT_SEC,
         )
-        windowless(frame)
+        windowless(frame, park=True)
     if frame.quitting.is_set():
         return
     if not frame.engine.is_set() or frame.window is None:

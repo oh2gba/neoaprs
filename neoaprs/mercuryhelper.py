@@ -15,6 +15,7 @@ import time
 from collections import deque
 from collections.abc import Callable, Collection, Sequence
 from pathlib import Path
+from typing import Any
 
 from . import childprogram, nodevices, winchild
 from .bundled import tools_dir
@@ -324,9 +325,11 @@ class Program(childprogram.Program):
         ):
             self.kill(process)
 
-    def _end_windows(self, process: subprocess.Popen[str], k: object = None) -> None:
-        # Mercury's second request on Windows exits with the keying as it stands, so only one is sent
-        if not (winchild.ask_to_end(process.pid, k) and childprogram.waited(process, STOP_WAIT_SEC)):
-            _end_tree(process)
+    def _end_windows(self, process: subprocess.Popen[str], k: object = None, port: Any = None) -> None:
+        # Mercury's second request on Windows exits with the keying as it stands, so only one is sent.
+        # Asked and gone, it unkeyed itself; only a killed one may leave its keying line up.
+        if winchild.ask_to_end(process.pid, k) and childprogram.waited(process, STOP_WAIT_SEC):
+            return
+        _end_tree(process)
         if self.keying and not nodevices.refused("the keying line is not opened to lower it"):
-            winchild.drop_line(self.keying, k)
+            winchild.drop_line(self.keying, port)

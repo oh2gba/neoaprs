@@ -425,3 +425,83 @@ def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_th
     thread.join(30)
     assert not thread.is_alive() and "destroy" not in rig.toolkits.windows[0].calls
     assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"
+
+
+def late_engine(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> tuple[threading.Event, list[int]]:
+    """pywebview whose engine comes up only when the test says (then its start callback runs), and an
+    end of the process that is recorded, not made."""
+    up = threading.Event()
+    ended: list[int] = []
+
+    def start(func: Any = None, **kwargs: Any) -> None:
+        rig.toolkits.started.append(kwargs)
+        assert up.wait(30)
+        func()
+        assert rig.toolkits.windows[0].destroyed.wait(30), "the window loop runs until the window is destroyed"
+
+    monkeypatch.setattr(sys.modules["webview"], "start", start)
+    monkeypatch.setattr(webshell, "HARD_EXIT", ended.append)
+    return up, ended
+
+
+def tray_item(rig: Rig, text: str) -> Any:
+    items = rig.toolkits.icons[0].menu.items()  # type: ignore[attr-defined]
+    return next(i for i in items if i != FakeMenu.SEPARATOR and i.text.startswith(text))
+
+
+def test_an_engine_that_comes_after_the_fallback_gets_the_page_and_quit_ends_the_app_the_normal_way(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(webshell, "ENGINE_WAIT_SEC", 0.3)
+    rig = Rig(tmp_path, monkeypatch)
+    up, ended = late_engine(rig, monkeypatch)
+    thread = threading.Thread(target=rig.run, daemon=True)
+    thread.start()
+    until(lambda: rig.browser == [PAGE] and rig.ctx.watch is not None)  # the fallback, at "60 s"
+    (window,) = rig.toolkits.windows
+    up.set()  # at "61 s"
+    until(lambda: window.loaded == [PAGE + "#app"])
+    item = tray_item(rig, OPEN_LABEL)
+    item.action(rig.toolkits.icons[0], item)
+    assert "show" in window.calls and rig.browser == [PAGE], "Open shows the window now, not a second tab"
+    item = tray_item(rig, "Quit")
+    item.action(rig.toolkits.icons[0], item)
+    thread.join(30)
+    assert not thread.is_alive() and "destroy" in window.calls and ended == [], "no end of the process needed"
+
+
+def test_quit_while_the_engine_is_still_starting_destroys_the_window_once_it_is_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    up, ended = late_engine(rig, monkeypatch)
+    thread = threading.Thread(target=rig.run, daemon=True)
+    thread.start()
+    until(lambda: rig.ctx.watch is not None)
+    (window,) = rig.toolkits.windows
+    item = tray_item(rig, "Quit")
+    item.action(rig.toolkits.icons[0], item)
+    until(lambda: rig.ctx.actions is not None and rig.ctx.actions.quitting)
+    assert "destroy" not in window.calls, "destroy would wait for an engine that is not up"
+    up.set()
+    thread.join(30)
+    assert not thread.is_alive() and window.calls.count("destroy") == 1 and ended == []
+
+
+def test_quit_pressed_twice_before_the_page_stops_the_daemon_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    gate = OwnedGate(rig.data)
+    assert rig.single.acquire()
+    launch = Launch(rig.data, Opening(rig.data, gate).start(), False, True, rig.auto, rig.single, rig.daemon)
+    thread = threading.Thread(target=lambda: webshell.run(launch), daemon=True)
+    thread.start()
+    until(lambda: rig.toolkits.started)
+    for _ in range(2):
+        item = tray_item(rig, "Quit")
+        item.action(rig.toolkits.icons[0], item)
+    gate.open.set()
+    thread.join(30)
+    assert not thread.is_alive() and rig.daemon.stopped == [rig.data], "one stop, not two"
+    launch.close()
