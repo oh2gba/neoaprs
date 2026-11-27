@@ -37,8 +37,11 @@
   color: var(--muted);
   font-size: 12px;
 }
+/* the select as wide as its longest entry, whichever is chosen; Write goes under it where the
+   column is narrower */
 .convlist-services {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -48,8 +51,8 @@
   font-size: 12px;
 }
 .convlist-services select {
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 auto;
+  max-width: 100%;
 }
 .convs {
   flex: 1;
@@ -318,7 +321,9 @@
 }
 .convo-empty p {
   margin: 0;
+  padding: 0 16px;
   font-size: 15px;
+  text-align: center;
 }
 .xbtn {
   display: inline-flex;

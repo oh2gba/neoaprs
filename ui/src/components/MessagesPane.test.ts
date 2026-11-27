@@ -19,6 +19,7 @@ import {
   table,
 } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
+import { cssRule } from "@/test/css";
 
 const rows = [
   message(1, { to_call: "OH2RDG", text: "Hello Pekka", state: "acked", attempts: 2 }),
@@ -743,5 +744,10 @@ describe("MessagesPane, with more than one radio", () => {
       wrapper.find(".convlist").exists(),
       wrapper.find(".convo-radio .tag").text(),
     ]).toEqual([expect.arrayContaining(["wide"]), true, "Mobile"]);
+  });
+
+  it("keeps the words of the empty pane off its edges", () => {
+    expect(cssRule(".convo-empty p")).toMatch(/padding:\s*0 16px/);
+    expect(cssRule(".convo-empty p")).toMatch(/text-align:\s*center/);
   });
 });

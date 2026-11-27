@@ -6,6 +6,7 @@ import { MESSAGES_WIDE } from "@/lib/layout";
 import { SERVICES } from "@/lib/services";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { stubWidth } from "@/test/width";
+import { cssRule } from "@/test/css";
 
 let width: ReturnType<typeof stubWidth>;
 beforeEach(() => {
@@ -114,5 +115,11 @@ describe("Services in the Messages tab", () => {
     expect(box(wrapper).value).toBe("hello Pekka");
     await wrapper.setProps({ selected: "OH2XYZ" });
     expect(box(wrapper).value).toBe("");
+  });
+
+  it("is as wide as its longest entry whichever is chosen, and Write goes under it where the column is narrower", () => {
+    expect(cssRule(".convlist-services select")).toMatch(/flex:\s*1 0 auto/);
+    expect(cssRule(".convlist-services select")).not.toMatch(/min-width:\s*0/);
+    expect(cssRule(".convlist-services")).toMatch(/flex-wrap:\s*wrap/);
   });
 });
