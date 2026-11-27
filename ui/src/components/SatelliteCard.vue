@@ -18,7 +18,7 @@ const emit = defineEmits<{ close: [] }>();
 
 const rows = computed(() => satelliteRows(props.card, props.now));
 const labels = computed(() => satelliteLabels());
-const tunes = computed(() => tuneRows(props.card));
+const tunes = computed(() => tuneRows(props.card, props.now));
 </script>
 
 <template>

@@ -1,4 +1,4 @@
-// What the card of a satellite says (components/SatelliteCard.vue): before a pass its rise (and how
+// What the card of a satellite says (components/SatelliteCard.vue): the next pass's rise (and how
 // soon), how long it lasts, its set and its highest point; while it is up the time left, the
 // elevation and the Doppler now. Then the frequencies, the mode and the altitude; the path is the
 // card's copyable field, and with a pass a small table gives where to tune at rise, highest point
@@ -75,33 +75,55 @@ export function isUp(card: SatelliteCard, nowMs: number): boolean {
 export const shiftText = (hz: number): string =>
   `${hz > 0 ? "+" : hz < 0 ? "−" : ""}${formatNumber(Math.abs(hz) / 1000, 1)} kHz`;
 
-/** The pass's rows: before it rise, duration, set and highest point; while it is up time left, elevation, highest point and set. */
+/** Where a value does not apply. */
+const DASH = "–";
+
+/** Whether the card's pass is over: shown as none until a new one comes. */
+const isOver = (card: SatelliteCard, nowMs: number): boolean =>
+  card.next_pass !== null && nowMs >= Date.parse(card.next_pass.set);
+
+/** The labels of a card's downlinks, Doppler rows and uplinks: numbered where there are several. */
+function linkLabels(card: SatelliteCard) {
+  const several = card.downlinks.length > 1;
+  return {
+    down: (i: number): string => (several ? t("layers.sat.downlink_n", { n: i + 1 }) : t("layers.sat.downlink")),
+    doppler: (i: number): string => (several ? t("layers.sat.doppler_n", { n: i + 1 }) : t("layers.sat.doppler")),
+    up: (i: number): string =>
+      card.uplinks.length > 1 ? t("layers.sat.uplink_n", { n: i + 1 }) : t("layers.sat.uplink"),
+  };
+}
+
+/**
+ * The pass's rows, the same before, during and after it so that nothing moves: rise, duration,
+ * set, highest point, time left, elevation and a Doppler row for each downlink, a dash where a
+ * value does not apply; all dashes once the pass is over.
+ */
 function passRows(card: SatelliteCard, nowMs: number): SatelliteRow[] {
   const seen = card.next_pass;
   if (seen === null) return [];
-  const highest = { label: t("layers.sat.highest"), text: degreesText(seen.max_el_deg) };
-  const set = { label: t("layers.sat.set"), text: whenText(seen.set, nowMs) };
-  if (!isUp(card, nowMs)) {
-    return [
-      {
-        label: t("layers.sat.rise"),
-        text: t("layers.sat.when", { time: whenText(seen.rise, nowMs), until: untilText(seen.rise, nowMs) }),
-      },
-      { label: t("layers.sat.duration"), text: spanText(Date.parse(seen.set) - Date.parse(seen.rise)) },
-      set,
-      highest,
-    ];
-  }
-  const now = lookAt(card.looks, nowMs);
+  const over = isOver(card, nowMs);
+  const up = isUp(card, nowMs);
+  const now = up ? lookAt(card.looks, nowMs) : null;
+  const ahead = (text: string): string => (over ? DASH : text);
+  const labels = linkLabels(card);
   return [
-    { label: t("layers.sat.left"), text: spanText(Date.parse(seen.set) - nowMs) },
-    { label: t("layers.sat.elevation"), text: now === null ? "–" : degreesText(Math.max(0, now.el_deg)) },
+    {
+      label: t("layers.sat.rise"),
+      text: ahead(
+        up
+          ? whenText(seen.rise, nowMs)
+          : t("layers.sat.when", { time: whenText(seen.rise, nowMs), until: untilText(seen.rise, nowMs) }),
+      ),
+    },
+    { label: t("layers.sat.duration"), text: ahead(spanText(Date.parse(seen.set) - Date.parse(seen.rise))) },
+    { label: t("layers.sat.set"), text: ahead(whenText(seen.set, nowMs)) },
+    { label: t("layers.sat.highest"), text: ahead(degreesText(seen.max_el_deg)) },
+    { label: t("layers.sat.left"), text: up ? spanText(Date.parse(seen.set) - nowMs) : DASH },
+    { label: t("layers.sat.elevation"), text: now === null ? DASH : degreesText(Math.max(0, now.el_deg)) },
     ...card.downlinks.map((_, i) => ({
-      label: t("layers.sat.doppler"),
-      text: now?.down_hz[i] === undefined ? "–" : shiftText(now.down_hz[i]),
+      label: labels.doppler(i),
+      text: now?.down_hz[i] === undefined ? DASH : shiftText(now.down_hz[i]),
     })),
-    highest,
-    set,
   ];
 }
 
@@ -109,8 +131,8 @@ function passRows(card: SatelliteCard, nowMs: number): SatelliteRow[] {
 export function satelliteRows(card: SatelliteCard, nowMs: number): SatelliteRow[] {
   return [
     ...passRows(card, nowMs),
-    ...card.downlinks.map((one) => ({ label: t("layers.sat.downlink"), text: mhzText(one.hz) })),
-    ...card.uplinks.map((one) => ({ label: t("layers.sat.uplink"), text: mhzText(one.hz) })),
+    ...card.downlinks.map((one, i) => ({ label: linkLabels(card).down(i), text: mhzText(one.hz) })),
+    ...card.uplinks.map((one, i) => ({ label: linkLabels(card).up(i), text: mhzText(one.hz) })),
     ...(card.mode === null ? [] : [{ label: t("layers.sat.mode"), text: MODE_NAMES[card.mode] }]),
     { label: t("station.field.altitude"), text: rangeText(card.alt_km) },
   ];
@@ -136,7 +158,11 @@ export const satelliteLabels = (): string[] =>
       "station.field.altitude",
       "station.field.path",
     ] as const
-  ).map((id) => t(id));
+  )
+    .map((id) => t(id))
+    .concat(
+      (["layers.sat.downlink_n", "layers.sat.doppler_n", "layers.sat.uplink_n"] as const).map((id) => t(id, { n: 2 })),
+    );
 
 export interface TuneRow {
   label: string;
@@ -144,19 +170,22 @@ export interface TuneRow {
   cells: [string, string, string];
 }
 
-/** The table of where to tune at the next pass, a downlink to hear and an uplink to send on; none without a pass. */
-export function tuneRows(card: SatelliteCard): TuneRow[] {
+/**
+ * The table of where to tune at the next pass, a downlink to hear and an uplink to send on; none
+ * without a pass, and dashes for a pass that is over.
+ */
+export function tuneRows(card: SatelliteCard, nowMs: number): TuneRow[] {
   if (card.next_pass === null) return [];
+  const over = isOver(card, nowMs);
+  const labels = linkLabels(card);
   const row = (label: string, one: SatelliteTune): TuneRow => ({
     label,
-    cells: [one.rise_hz, one.max_hz, one.set_hz].map((hz) => (hz === null ? "–" : formatNumber(hz / 1e6, 3))) as [
-      string,
-      string,
-      string,
-    ],
+    cells: [one.rise_hz, one.max_hz, one.set_hz].map((hz) =>
+      hz === null || over ? DASH : formatNumber(hz / 1e6, 3),
+    ) as [string, string, string],
   });
   return [
-    ...card.downlinks.map((one) => row(t("layers.sat.downlink"), one)),
-    ...card.uplinks.map((one) => row(t("layers.sat.uplink"), one)),
+    ...card.downlinks.map((one, i) => row(labels.down(i), one)),
+    ...card.uplinks.map((one, i) => row(labels.up(i), one)),
   ];
 }
