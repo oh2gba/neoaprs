@@ -148,25 +148,36 @@ function trackAhead(card: SatelliteCard, here: Position, nowMs: number): Positio
   return [here, ...ahead];
 }
 
+/** Every satellite's mark where it is at `nowMs`, between its points. */
+export function satelliteMarks(
+  marks: readonly SatelliteMark[],
+  cards: readonly SatelliteCard[],
+  nowMs: number,
+): SatelliteFeatures["marks"] {
+  const open = new Set(cards.map((card) => card.id));
+  const features: SatelliteFeatures["marks"]["features"] = [];
+  for (const mark of marks) {
+    const at = positionAt(mark.points, nowMs);
+    if (!at) continue;
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: at },
+      properties: { id: mark.id, name: mark.name, open: open.has(mark.id) },
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+
 /** What the map draws now: every mark, and the track and footprint of each open card. */
 export function satelliteFeatures(
   marks: readonly SatelliteMark[],
   cards: readonly SatelliteCard[],
   nowMs: number,
 ): SatelliteFeatures {
-  const open = new Set(cards.map((card) => card.id));
-  const here = new Map<number, Position>();
-  const markFeatures: SatelliteFeatures["marks"]["features"] = [];
-  for (const mark of marks) {
-    const at = positionAt(mark.points, nowMs);
-    if (!at) continue;
-    here.set(mark.id, at);
-    markFeatures.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: at },
-      properties: { id: mark.id, name: mark.name, open: open.has(mark.id) },
-    });
-  }
+  const drawn = satelliteMarks(marks, cards, nowMs);
+  const here = new Map<number, Position>(
+    drawn.features.map((feature) => [feature.properties.id, feature.geometry.coordinates]),
+  );
   const tracks: SatelliteFeatures["tracks"]["features"] = [];
   const footprints: SatelliteFeatures["footprints"]["features"] = [];
   for (const card of cards) {
@@ -187,7 +198,7 @@ export function satelliteFeatures(
     });
   }
   return {
-    marks: { type: "FeatureCollection", features: markFeatures },
+    marks: drawn,
     tracks: { type: "FeatureCollection", features: tracks },
     footprints: { type: "FeatureCollection", features: footprints },
   };

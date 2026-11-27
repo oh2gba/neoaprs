@@ -1,15 +1,30 @@
 // The aircraft and ships layer of the map: redrawn when a table arrives and as the clock moves
-// (marks fade by age). A mouse resting on one shows the hover box, a click opens its card and a
+// (marks fade by age), and moved at every step of the map's motion (`mover`, gliding each thing
+// between its reports). A mouse resting on one shows the hover box, a click opens its card and a
 // click elsewhere closes it (`clicked`). Also gives the per-layer `counts`, the `credits` and
 // whether aircraft are drawn (`shapes`).
 import { computed, watch } from "vue";
 import type { MapGeoJSONFeature, MapLayerMouseEvent, Map as MapLibreMap } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import type { Mover } from "@/composables/useMapMotion";
+import type { Glide } from "@/lib/layers/glide";
 import type { HoverCard, HoverContent } from "@/lib/hovercard";
 import { hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { isService, type LayerName, type ServiceName } from "@/lib/layers/sources";
 import { MARKS, MARK_SIZE, markBox } from "@/lib/layers/marks";
-import { kindShape, liveThings, sideOf, thingShape, trafficCounts, trafficFeatures } from "@/lib/layers/traffic";
+import {
+  NO_TRAFFIC,
+  glidedFeatures,
+  kindShape,
+  liveThings,
+  nextGlides,
+  sideOf,
+  thingKey,
+  thingShape,
+  trafficCounts,
+  trafficFeatures,
+  type TrafficCollection,
+} from "@/lib/layers/traffic";
 import { NO_TRAIL, trailKey, trailLines } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
 import { TRAFFIC_LAYER, addTrafficLayers, setTrafficData, setTrailData } from "@/lib/layers/trafficlayers";
@@ -53,12 +68,27 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   const page = useDaemonContext();
   let hover: HoverCard | null = null;
   const traffic = page.traffic;
+  let glides = new Map<string, Glide>();
+  let drawn: TrafficCollection = NO_TRAFFIC;
+  watch(traffic.tables, (tables) => void (glides = nextGlides(glides, tables.values(), Date.now())), {
+    flush: "sync",
+    immediate: true,
+  });
+  const placed = (nowMs: number): TrafficCollection => glidedFeatures(drawn, glides, nowMs);
   const draw = (): void => {
+    drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
     const to = map();
-    if (to) setTrafficData(to, trafficFeatures(traffic.tables.value.values(), page.now.value));
+    if (to) setTrafficData(to, placed(Date.now()));
   };
   watch([traffic.tables, page.now], draw);
   const trail = useOpenTrail(map);
+  const mover: Mover = {
+    active: () => traffic.looked.value.length > 0,
+    draw: (nowMs) => {
+      const to = map();
+      if (to && drawn.features.length > 0) setTrafficData(to, placed(nowMs));
+    },
+  };
 
   function content(layer: LayerName, id: string): HoverContent | null {
     const table = traffic.tables.value.get(layer);
@@ -76,7 +106,9 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   function boxOf(to: MapLibreMap, layer: LayerName, id: string): DOMRect {
     const thing = traffic.tables.value.get(layer)?.things.find((one) => one.id === id);
     const frame = to.getContainer().getBoundingClientRect();
-    const at = thing ? to.project([thing.lon, thing.lat]) : { x: 0, y: 0 };
+    const key = thingKey(layer, id);
+    const here = placed(Date.now()).features.find((one) => one.properties.key === key)?.geometry.coordinates;
+    const at = here ? to.project(here) : { x: 0, y: 0 };
     const side = thing ? sideOf(thingShape(layer, thing)) : MARK_SIZE;
     return new DOMRect(frame.left + at.x - side / 2, frame.top + at.y - side / 2, side, side);
   }
@@ -118,8 +150,11 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   }
 
   return {
-    add: (to: MapLibreMap): void =>
-      addTrafficLayers(to, trafficFeatures(traffic.tables.value.values(), page.now.value), trail()),
+    add: (to: MapLibreMap): void => {
+      drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
+      addTrafficLayers(to, placed(Date.now()), trail());
+    },
+    mover,
     listen,
     clicked,
     counts: computed(() => trafficCounts(traffic.tables.value, page.now.value)),

@@ -82,3 +82,8 @@ export function setSatelliteData(map: MapLibreMap, data: SatelliteFeatures): voi
   void map.getSource<GeoJSONSource>(TRACKS_SOURCE)?.setData(data.tracks);
   void map.getSource<GeoJSONSource>(MARKS_SOURCE)?.setData(data.marks);
 }
+
+/** Move the marks only (the map's motion between the drawings of every second). */
+export function setSatelliteMarks(map: MapLibreMap, marks: SatelliteFeatures["marks"]): void {
+  void map.getSource<GeoJSONSource>(MARKS_SOURCE)?.setData(marks);
+}

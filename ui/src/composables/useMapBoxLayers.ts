@@ -2,13 +2,14 @@
 // `place`), and the layers drawn under its ticks. `add` makes the day and night shade and the
 // locator grid first, so that they lie under everything, then the circles, the aircraft and
 // ships, and the satellites over them; a click is a satellite's before a thing's. `tracks` says whether
-// every track is drawn or only the open cards' own.
+// every track is drawn or only the open cards' own. One motion moves the things' and the satellites' marks.
 import { ref } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useMapCircles } from "@/composables/useMapCircles";
 import { useMapDayNight } from "@/composables/useMapDayNight";
 import { useMapGrid } from "@/composables/useMapGrid";
 import { useMapLayers } from "@/composables/useMapLayers";
+import { useMapMotion } from "@/composables/useMapMotion";
 import { useMapSatellites } from "@/composables/useMapSatellites";
 import { useMapTraffic } from "@/composables/useMapTraffic";
 import type { HoverCard } from "@/lib/hovercard";
@@ -21,6 +22,7 @@ export function useMapBoxLayers(map: () => MapLibreMap | null, selected: () => s
   const circles = useMapCircles(map, selected, () => layers.ticked("aloha"));
   const traffic = useMapTraffic(map);
   const satellites = useMapSatellites(map);
+  useMapMotion([traffic.mover, satellites.mover]);
   const place = ref<HTMLElement | null>(null);
   return {
     place,

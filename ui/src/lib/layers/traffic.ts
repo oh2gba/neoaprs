@@ -9,6 +9,7 @@ import { aircraftShape } from "@/lib/layers/aircraftkinds";
 import { AIRCRAFT_SHAPES, type AircraftShape } from "@/lib/layers/aircraftshapes";
 import { MARK_SIZE } from "@/lib/layers/marks";
 import { ageSeconds } from "@/lib/format";
+import { glidePosition, nextGlide, type Glide, type Report } from "@/lib/layers/glide";
 import { isOwn, type LayerName, type SourceName } from "@/lib/layers/sources";
 import { LIMITS } from "@/protocol/lists";
 import type { LayerThing, LayerThingsMessage } from "@/protocol/protocol";
@@ -69,7 +70,7 @@ export const imageName = (shape: ThingShape, emergency: boolean): string =>
   `traffic-${shape}${emergency ? "-bad" : ""}`;
 
 /** The key of a thing: its layer and id. */
-const thingKey = (layer: LayerName, id: string): string => `${layer}:${id}`;
+export const thingKey = (layer: LayerName, id: string): string => `${layer}:${id}`;
 
 interface ThingProperties {
   key: string;
@@ -130,4 +131,49 @@ export function trafficCounts(tables: LayerTables, nowMs: number): Partial<Recor
   const counts: Partial<Record<LayerName, number | null>> = {};
   for (const [layer, table] of tables) counts[layer] = table.away ? null : liveThings(table, nowMs).length;
   return counts;
+}
+
+/** How long a thing glides on after its report: a few of its layer's report intervals. */
+export const GLIDE_STOP_SEC: Readonly<Record<LayerName, number>> = { aircraft: 20, ships: 120 };
+
+/** A thing's report as it glides: an aircraft goes its track, a ship its course over ground. */
+export const reportOf = (layer: LayerName, thing: LayerThing): Report => ({
+  lon: thing.lon,
+  lat: thing.lat,
+  atMs: Date.parse(thing.at),
+  courseDeg: layer === "ships" ? thing.course_deg : thing.heading_deg,
+  speedKmh: thing.speed_kmh,
+});
+
+/** The glides by thing key after the tables come at `nowMs`; a thing no longer in them is forgotten. */
+export function nextGlides(
+  was: ReadonlyMap<string, Glide>,
+  tables: Iterable<LayerThingsMessage>,
+  nowMs: number,
+): Map<string, Glide> {
+  const next = new Map<string, Glide>();
+  for (const table of tables) {
+    for (const thing of table.things) {
+      const key = thingKey(table.layer, thing.id);
+      next.set(key, nextGlide(was.get(key), reportOf(table.layer, thing), nowMs, GLIDE_STOP_SEC[table.layer]));
+    }
+  }
+  return next;
+}
+
+/** The things where they are drawn at `nowMs`: each moved along its glide. */
+export function glidedFeatures(
+  drawn: TrafficCollection,
+  glides: ReadonlyMap<string, Glide>,
+  nowMs: number,
+): TrafficCollection {
+  return {
+    type: "FeatureCollection",
+    features: drawn.features.map((feature) => {
+      const glide = glides.get(feature.properties.key);
+      if (!glide) return feature;
+      const at = glidePosition(glide, nowMs, GLIDE_STOP_SEC[feature.properties.layer]);
+      return { ...feature, geometry: { type: "Point", coordinates: at } };
+    }),
+  };
 }

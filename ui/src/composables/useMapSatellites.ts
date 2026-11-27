@@ -1,11 +1,12 @@
 // The satellites layer of the map: drawn again at every second of the layer's own clock and when the
-// daemon tells, the marks moved between their points. A click on a mark opens its card (`clicked`);
+// daemon tells; between those the map's motion (`mover`) moves the marks along their points. A click on a mark opens its card (`clicked`);
 // a click elsewhere on the map closes them, as it closes the stations' and the thing's.
 import { watch } from "vue";
 import type { MapGeoJSONFeature, Map as MapLibreMap } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { NO_SATELLITES, satelliteFeatures, type SatelliteFeatures } from "@/lib/layers/satellite";
-import { SATELLITE_LAYER, addSatelliteLayers, setSatelliteData } from "@/lib/layers/satellitelayers";
+import type { Mover } from "@/composables/useMapMotion";
+import { NO_SATELLITES, satelliteFeatures, satelliteMarks, type SatelliteFeatures } from "@/lib/layers/satellite";
+import { SATELLITE_LAYER, addSatelliteLayers, setSatelliteData, setSatelliteMarks } from "@/lib/layers/satellitelayers";
 
 // Pixels each way round a click or tap.
 const REACH = 8;
@@ -31,6 +32,15 @@ export function useMapSatellites(map: () => MapLibreMap | null) {
     setSatelliteData(to, features());
     drawn = shown;
   });
+
+  const mover: Mover = {
+    active: () => satellites.told.value !== null,
+    draw: (nowMs) => {
+      const to = map();
+      const told = satellites.told.value;
+      if (to && told) setSatelliteMarks(to, satelliteMarks(told.satellites, satellites.cards.value, nowMs));
+    },
+  };
 
   function listen(to: MapLibreMap): void {
     to.on("mouseenter", SATELLITE_LAYER, () => (to.getCanvas().style.cursor = "pointer"));
@@ -61,5 +71,5 @@ export function useMapSatellites(map: () => MapLibreMap | null) {
     return true;
   }
 
-  return { add: (to: MapLibreMap): void => addSatelliteLayers(to, features()), listen, clicked };
+  return { add: (to: MapLibreMap): void => addSatelliteLayers(to, features()), listen, clicked, mover };
 }

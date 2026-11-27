@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   FADE_OPACITY,
+  GLIDE_STOP_SEC,
+  glidedFeatures,
+  nextGlides,
+  reportOf,
   THING_SHAPES,
   fadeOpacity,
   kindShape,
@@ -179,5 +183,52 @@ describe("traffic: the count of the Layers box", () => {
     expect(trafficCounts(tables, NOW)).toEqual({ aircraft: 1, ships: null });
     expect(trafficCounts(new Map([["ships", layerThings("ships", [])]]), NOW)).toEqual({ ships: 0 });
     expect(trafficCounts(new Map(), NOW)).toEqual({});
+  });
+});
+
+describe("traffic: the things glide between their reports", () => {
+  const at = new Date(NOW).toISOString();
+  const coordinates = (
+    tables: Parameters<typeof trafficFeatures>[0],
+    glides: ReturnType<typeof nextGlides>,
+    ms: number,
+  ) => glidedFeatures(trafficFeatures(tables, NOW), glides, ms).features.map((one) => one.geometry.coordinates);
+
+  it("moves an aircraft along its track and a ship along its course over ground, not its heading", () => {
+    expect(reportOf("aircraft", aircraft({ heading_deg: 225 })).courseDeg).toBe(225);
+    expect(reportOf("ships", ship({ heading_deg: 182, course_deg: 170 })).courseDeg).toBe(170);
+    expect(reportOf("ships", ship({ course_deg: null })).courseDeg).toBeNull();
+  });
+
+  it("carries an aircraft on from its report and stops it after a few report intervals", () => {
+    const tables = [layerThings("aircraft", [aircraft({ at, heading_deg: 0, speed_kmh: 360 })])];
+    const glides = nextGlides(new Map(), tables, NOW);
+    const [start] = coordinates(tables, glides, NOW);
+    const [later] = coordinates(tables, glides, NOW + 10_000);
+    expect(later[1] - start[1]).toBeCloseTo(1 / 111.195, 4);
+    const stop = GLIDE_STOP_SEC.aircraft * 1000;
+    expect(coordinates(tables, glides, NOW + stop + 60_000)).toEqual(coordinates(tables, glides, NOW + stop));
+  });
+
+  it("does not move a ship that reports no course", () => {
+    const tables = [layerThings("ships", [ship({ at, course_deg: null })])];
+    const glides = nextGlides(new Map(), tables, NOW);
+    expect(coordinates(tables, glides, NOW + 30_000)).toEqual([[24.9601, 60.1512]]);
+  });
+
+  it("goes on from where it is drawn when the next report comes, and forgets a thing that left", () => {
+    const first = [layerThings("aircraft", [aircraft({ at, heading_deg: 90, speed_kmh: 720 })])];
+    const glides = nextGlides(new Map(), first, NOW);
+    const [before] = coordinates(first, glides, NOW + 5000);
+    const next = [
+      layerThings("aircraft", [
+        aircraft({ at: new Date(NOW + 4000).toISOString(), lon: 24.99, heading_deg: 90, speed_kmh: 720 }),
+      ]),
+    ];
+    const after = nextGlides(glides, next, NOW + 5000);
+    const [now] = coordinates(next, after, NOW + 5000);
+    expect(now[0]).toBeCloseTo(before[0], 9);
+    expect(now[1]).toBeCloseTo(before[1], 9);
+    expect(nextGlides(after, [layerThings("aircraft", [])], NOW + 6000).size).toBe(0);
   });
 });
