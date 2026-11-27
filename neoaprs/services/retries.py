@@ -161,15 +161,17 @@ class Retries:
         self._told_down.discard(key)
         span = self._down.pop(key, None)
         if span is not None and span[1] > span[0]:
-            log.info(
+            moved = self._move_on(span[1] - span[0], key)
+            log.log(
+                logging.INFO if moved else logging.DEBUG,
                 "the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time",
                 radio_word(radio),
                 (span[1] - span[0]).total_seconds(),
             )
-            self._move_on(span[1] - span[0], key)
 
-    def _move_on(self, away: timedelta, key: RadioId) -> None:
-        """Extend the waits of messages on the radio by the time it was away."""
+    def _move_on(self, away: timedelta, key: RadioId) -> int:
+        """Extend the waits of messages on the radio by the time it was away; return how many."""
+        moved = 0
         for number, due in self._due.items():
             record = self._host.get(number)
             if record is None or record.attempts == 0:
@@ -177,3 +179,5 @@ class Retries:
             radio = self._host.radio_of(record)
             if radio is not None and radio.id == key:
                 self._due[number] = due + away
+                moved += 1
+        return moved

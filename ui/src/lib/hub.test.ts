@@ -98,6 +98,7 @@ function memory() {
   const store: Store = {
     connection: (c) => seen.connection.push(c),
     hello: () => seen.hello++,
+    saved: () => undefined,
     status: () => seen.statuses++,
     error: (e) => seen.errors.push(e),
     packetHistory: () => undefined,

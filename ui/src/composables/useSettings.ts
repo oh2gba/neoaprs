@@ -9,7 +9,7 @@
 import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { RadioNames } from "@/i18n/errortext";
-import { useSettingsAnswers } from "@/composables/useSettingsAnswers";
+import { useSettingsAnswers, type SettingsLink } from "@/composables/useSettingsAnswers";
 import { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import { useSettingsQueue, type Request } from "@/composables/useSettingsQueue";
 import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
@@ -20,6 +20,7 @@ export function useSettings(
   config: Ref<ConfigValues | null>,
   lastError: Ref<Toast | null>,
   send: (command: Command) => boolean,
+  link: SettingsLink,
   radios?: RadioNames,
 ) {
   const draft = reactive<Record<string, string>>({});
@@ -88,6 +89,7 @@ export function useSettings(
   useSettingsAnswers(
     whole,
     lastError,
+    link,
     draft,
     queue,
     feedback,

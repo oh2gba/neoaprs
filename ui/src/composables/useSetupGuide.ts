@@ -14,7 +14,7 @@ import type { Toast } from "@/composables/useDaemon";
 import type { Connection } from "@/lib/hub";
 import { LAST_STEP, RADIO_STEP } from "@/lib/setup";
 import { portsAsks } from "@/lib/radios";
-import type { Command, ConfigValues, RadioRow } from "@/protocol/protocol";
+import type { Command, ConfigValues, RadioRow, SavedMessage } from "@/protocol/protocol";
 
 export function useSetupGuide(
   config: Ref<ConfigValues | null>,
@@ -22,6 +22,7 @@ export function useSetupGuide(
   send: (command: Command) => boolean,
   radios: Readonly<Ref<ReadonlyMap<string, RadioRow> | null>> | null = null,
   connection?: Readonly<Ref<Connection>>,
+  saved?: Readonly<Ref<SavedMessage | null>>,
 ) {
   const open = ref(false);
   const step = ref(0);
@@ -41,7 +42,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish } = useSetupSave(answers, config, lastError, send, step, done, connection);
+  const { saving, finish } = useSetupSave(answers, config, lastError, send, step, done, connection, saved);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 

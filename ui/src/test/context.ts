@@ -2,7 +2,7 @@
 // there, quiet, and a test gives the parts it cares about (a value, or a ref it changes later).
 // `send` records the commands, `say` the toast; `withDaemon(context)` is the `global` option of a
 // mount.
-import { computed, isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
+import { computed, isRef, nextTick, shallowReactive, shallowRef, watch, type Ref } from "vue";
 import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -25,6 +25,7 @@ import type {
   PacketRow,
   RadioRow,
   RadioSearchMessage,
+  SavedMessage,
   StationKey,
   StationPref,
   StationRow,
@@ -91,8 +92,21 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const status = part(over.status, null);
   const connected = part(over.connected, true);
   const sender = (over.send as typeof send | undefined) ?? send;
-  const settings = over.settings ?? useSettings(config, lastError, sender);
   const connection = part(over.connection, "open" as const);
+  // The components' tests read the commands sent without the number of a save (the queue's own tests
+  // have it) and let the daemon accept a save by telling the settings.
+  const saved = shallowRef<SavedMessage | null>(null);
+  let out: number | null = null;
+  const unnumbered = (command: Command): boolean => {
+    if (command.cmd !== "set_config") return sender(command);
+    out = command.id ?? null;
+    return sender({ cmd: command.cmd, values: command.values });
+  };
+  watch(config, () => {
+    if (out !== null) saved.value = { type: "saved", id: out };
+    out = null;
+  });
+  const settings = over.settings ?? useSettings(config, lastError, unnumbered, { saved, connection });
   const radios = radiosPart(over.radios, connected);
   const now = part(over.now, NOW);
   const layers = trafficOf(over, { send: sender, connection, map, now });
@@ -167,7 +181,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
     keys: over.keys ?? useStationKeys(shallowReactive(new Map<string, StationKey>()), status, sender),
     settings,
-    guide: over.guide ?? useSetupGuide(config, lastError, sender, radios, connection),
+    guide: over.guide ?? useSetupGuide(config, lastError, unnumbered, radios, connection, saved),
     panel: over.panel ?? usePanel(),
   };
   // The browser alert listens to the window: it is made when a pane asks for it.

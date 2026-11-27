@@ -114,13 +114,15 @@ class Dispatcher:
                 params={"name": name[:40]},
             )
             return
+        asked = raw.get("id")
+        request = asked if type(asked) is int else None
         try:
             cmd = COMMANDS.validate_python(raw)
         except ValidationError as e:
             text = describe_errors(name, e.errors(include_url=False, include_input=False))
             # Only a page that is not this daemon's own sends such a command.
             log.warning("a command that does not fit its model: %s", text)
-            conn.error(text, name, "invalid")
+            conn.error(text, name, "invalid", id=request)
             return
         try:
             await self._call(conn, name, cmd)
@@ -129,11 +131,11 @@ class Dispatcher:
                 # A refusal the operator cannot act on: the page shows plain words, the log the
                 # sentence.
                 log.warning("%s", e)
-            conn.error(str(e), name, e.code, e.key, e.params)
+            conn.error(str(e), name, e.code, e.key, e.params, request)
         except Exception:
             log.exception("command %s failed", name)
             # The page words it from the code; the exception goes to the log only.
-            conn.error(f"{name}: {FAILED}", name, code="failed")
+            conn.error(f"{name}: {FAILED}", name, code="failed", id=request)
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
         await self.registry[name].fn(

@@ -17,7 +17,6 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
 from neoaprs.policy import DIGI_DUPLICATE_SEC
-from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
 from neoaprs.services.common import ConfigSource, OldAir, Paths, Radio, our_frame
@@ -253,5 +252,5 @@ def air_of(radio: AirRadio | Radio, config: ConfigSource) -> AirRadio:
 
 
 def radio_word(radio: AirRadio) -> str:
-    """The radio's name for log text: its kind for the first FM and HF radios, else its name."""
-    return radio.kind if radio.id in (FM_ID, HF_ID) else radio.name
+    """The radio's name for log text."""
+    return radio.name

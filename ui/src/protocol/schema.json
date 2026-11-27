@@ -1495,6 +1495,18 @@
         "text": {
           "description": "what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)",
           "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the `id` of the request this answers, when the command carried one (`set_config`); the field is left out otherwise"
         }
       },
       "required": [
@@ -5777,7 +5789,7 @@
       "description": "Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told).",
       "properties": {
         "code": {
-          "description": "`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values)",
+          "description": "`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; `modem.receive_deaf` its Mercury modem runs and hears nothing (its receive side stalled) and is started again soon; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values)",
           "enum": [
             "radio.not_connected",
             "radio.searching",
@@ -5794,6 +5806,7 @@
             "modem.sound_card",
             "modem.keying",
             "modem.receive_stalled",
+            "modem.receive_deaf",
             "transmit.off",
             "beacon.not_sent"
           ],
@@ -6404,6 +6417,26 @@
       "title": "RouteMarkValues",
       "type": "object"
     },
+    "Saved": {
+      "additionalProperties": false,
+      "description": "The answer to a `set_config` that carried an `id`, sent to the page that asked once the settings are in force.",
+      "properties": {
+        "type": {
+          "const": "saved",
+          "type": "string"
+        },
+        "id": {
+          "description": "the `id` of the `set_config` this answers",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "title": "SavedMessage",
+      "type": "object"
+    },
     "SendKey": {
       "additionalProperties": false,
       "description": "Sends our public key to a station as an ordinary message (`seal` `key`), so that it can encrypt to us; our key pair is made the first time it is needed. Nothing is ever announced by itself: a station that is to read our\nlocked messages gets our key this way, by hand, and we read its when it has sent its key the same way. Refused while the daemon was started without `--encryption` (`lock.off`). Answered as `send_message` is.",
@@ -6458,7 +6491,7 @@
     },
     "SetConfig": {
       "additionalProperties": false,
-      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `station/*` move our own station on the\nmap. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio\nalone where its driver says so; a radio that is none or removed is refused with `radio.unknown` (a removed one with its `name` and `removed` 1), a key its kind has not with `radio.no_setting` (its `name` and id,\n`radio`), `email/radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`, and the holder's\nid `held_by`, 0 for the GPS receiver), and the last radio that is on switched off with `radio.last_enabled` (the radio's id, `radio`), each with the key. A key of a radio's setting that does not name the\nradio (`serial/port`, `hf/enabled`) is refused with `setting.unknown`: the radio's own key is `radio/<id>/<key>`, its type and Enable are `radio_change`'s. A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.",
+      "description": "Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is\nleft out keeps its value. The answer to a request that carries an `id` is `saved` with that `id`, once the settings are in force (the `config` topic is told again too, to every page), or an `error` that carries it; a request without an `id` is answered by the topic alone. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `station/*` move our own station on the\nmap. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio\nalone where its driver says so; a radio that is none or removed is refused with `radio.unknown` (a removed one with its `name` and `removed` 1), a key its kind has not with `radio.no_setting` (its `name` and id,\n`radio`), `email/radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`, and the holder's\nid `held_by`, 0 for the GPS receiver), and the last radio that is on switched off with `radio.last_enabled` (the radio's id, `radio`), each with the key. A key of a radio's setting that does not name the\nradio (`serial/port`, `hf/enabled`) is refused with `setting.unknown`: the radio's own key is `radio/<id>/<key>`, its type and Enable are `radio_change`'s. A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.",
       "properties": {
         "cmd": {
           "const": "set_config",
@@ -6471,6 +6504,20 @@
           "description": "key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`)",
           "maxProperties": 64,
           "type": "object"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "maximum": 2147483648,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the page's own number for this request, which the answer (`saved`, or an `error`) carries back; left out, the page is answered by the topic `config` alone"
         }
       },
       "required": [
@@ -9469,6 +9516,7 @@
           "radio_level": "#/$defs/RadioLevelMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
           "release_notes": "#/$defs/ReleaseNotesMsg",
+          "saved": "#/$defs/Saved",
           "signal_series": "#/$defs/SignalSeriesMsg",
           "speed_series": "#/$defs/SpeedSeriesMsg",
           "state": "#/$defs/StateMsg",
@@ -9493,6 +9541,9 @@
         },
         {
           "$ref": "#/$defs/Error"
+        },
+        {
+          "$ref": "#/$defs/Saved"
         },
         {
           "$ref": "#/$defs/PortsMsg"

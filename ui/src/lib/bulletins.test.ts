@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   POST_KINDS,
   canPost,
-  charsLeft,
   freeSlot,
   groupOf,
   groupOk,
@@ -215,7 +214,6 @@ describe("posting", () => {
       textOk("åäö"),
       textOk("a\tb"),
     ]).toEqual(Array<boolean>(8).fill(false));
-    expect([charsLeft(""), charsLeft("x".repeat(60)), charsLeft("x".repeat(70))]).toEqual([67, 7, -3]);
   });
 
   it("is ready with a text that fits, for a group bulletin a group, and a free slot among fewer than the most of ours", () => {

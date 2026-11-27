@@ -4,12 +4,21 @@ import {
   SUN_DOWN,
   TWILIGHT_END,
   dayNightFeatures,
-  sunAltitude,
   sunAt,
   type DayNightCollection,
+  type Sun,
 } from "@/lib/layers/daynight";
 
 const at = (month: number, day: number, hour = 0, minute = 0): number => Date.UTC(2026, month - 1, day, hour, minute);
+
+/** The sun's altitude above the horizon at a place, the check of the shape of the night. */
+function sunAltitude(sun: Sun, lat: number, lon: number): number {
+  const rad = Math.PI / 180;
+  const sinAlt =
+    Math.sin(lat * rad) * Math.sin(sun.lat * rad) +
+    Math.cos(lat * rad) * Math.cos(sun.lat * rad) * Math.cos((lon - sun.lon) * rad);
+  return Math.asin(Math.max(-1, Math.min(1, sinAlt))) * (180 / Math.PI);
+}
 type Ring = number[][];
 const rings = (collection: DayNightCollection, depth: "twilight" | "night"): Ring[] =>
   collection.features

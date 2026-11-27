@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { nextTick, ref } from "vue";
+import { nextTick, ref, shallowRef } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { Connection } from "@/lib/hub";
 import { useSetupGuide } from "@/composables/useSetupGuide";
-import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
+import type { Command, ConfigValues, PortsMessage, SavedMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
@@ -23,9 +23,17 @@ function setUp(initial: ConfigValues | null = fresh()) {
   const portList = ref<PortsMessage | null>(null);
   const sent: Command[] = [];
   const send = vi.fn((command: Command) => (sent.push(command), true));
-  const guide = useSetupGuide(config, lastError, send);
-  /** The daemon sends the settings again, as after a save. */
-  const told = async (extra: Record<string, string> = {}) => {
+  // The commands are read without the number of a save; `told` answers the one out with `saved`.
+  const saved = shallowRef<SavedMessage | null>(null);
+  let out: number | null = null;
+  const numbered = (command: Command): boolean => {
+    if (command.cmd !== "set_config" || command.id === undefined) return send(command);
+    out = command.id;
+    return send({ cmd: command.cmd, values: command.values });
+  };
+  const guide = useSetupGuide(config, lastError, numbered, null, undefined, saved);
+  /** The daemon sends the settings again, as after a save, and then `saved` (unless `answer` is false). */
+  const told = async (extra: Record<string, string> = {}, answer = true) => {
     const now = config.value ?? fresh();
     config.value = {
       ...configValues({ ...now.values, ...extra }),
@@ -35,18 +43,26 @@ function setUp(initial: ConfigValues | null = fresh()) {
       https: now.https,
     };
     await nextTick();
-  };
-  const fail = async (text: string, code = "other", params: Record<string, string | number> = {}) => {
-    lastError.value = toastOf(text, code, params, (lastError.value?.n ?? 0) + 1);
+    if (answer && out !== null) saved.value = { type: "saved", id: out };
     await nextTick();
   };
+  const fail = async (
+    text: string,
+    code = "other",
+    params: Record<string, string | number> = {},
+    id: number | null = null,
+  ) => {
+    lastError.value = { ...toastOf(text, code, params, (lastError.value?.n ?? 0) + 1), ...(id === null ? {} : { id }) };
+    await nextTick();
+  };
+  const outId = (): number | null => out;
   /** The first four steps answered. */
   const fill = (extra: Record<string, string> = {}) => {
     guide.edit("call", extra.call ?? "oh2abc");
     guide.edit("lat", "60.17");
     guide.edit("lon", "24.94");
   };
-  return { guide, config, lastError, portList, sent, send, told, fail, fill };
+  return { guide, config, lastError, portList, sent, send, saved, told, fail, fill, outId };
 }
 const setConfigs = (sent: Command[]) => sent.filter((c) => c.cmd === "set_config");
 
@@ -369,6 +385,45 @@ describe("useSetupGuide: Finish", () => {
     guide.go(3);
     guide.next();
     expect(guide.saving).toBe(false);
+  });
+
+  it("takes only the answer with its own number: another page's change of the settings and another save's answer are none", async () => {
+    const { guide, saved, told, fail, fill, outId } = setUp();
+    guide.show();
+    fill();
+    guide.go(3);
+    guide.next();
+    const own = outId();
+    expect(own).not.toBeNull();
+    await told({ "station/call": "OH2ABC", "station/lat": "60.17" }, false);
+    expect(guide.saving).toBe(true);
+    saved.value = { type: "saved", id: (own ?? 0) + 1000 };
+    await nextTick();
+    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", {}, (own ?? 0) + 1000);
+    expect(guide.saving).toBe(true);
+    expect(guide.open).toBe(true);
+    expect(guide.problems).toEqual({});
+    saved.value = { type: "saved", id: own ?? 0 };
+    await nextTick();
+    expect(guide.saving).toBe(false);
+    expect(guide.open).toBe(false);
+  });
+
+  it("shows a refusal with its own number under the field it names", async () => {
+    const { guide, fail, fill, outId } = setUp();
+    guide.show();
+    fill();
+    guide.go(3);
+    guide.next();
+    await fail(
+      "set_config: station/lat: 95 is not between -90 and 90",
+      "setting.range",
+      { value: 95, min: -90, max: 90 },
+      outId(),
+    );
+    expect(guide.saving).toBe(false);
+    expect(guide.step).toBe(1);
+    expect(guide.problems.lat).toBe("95 is not between -90 and 90");
   });
 });
 

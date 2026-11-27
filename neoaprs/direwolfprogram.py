@@ -115,16 +115,20 @@ class Program(childprogram.Program):
         self._on_line = on_line
         self.level_now = LevelNow()
 
-    def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
+    def _heard(self, line: str, post: childprogram.Post) -> None:
         if (level := level_now_of(line)) is not None:
-            _on_loop(loop, self.level_now.said, level)
+            post(self.level_now.said, level)
         elif self._on_line is not None:
-            loop.call_soon_threadsafe(self._on_line, line)
+            post(self._on_line, line)
 
     def _read(
-        self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None
+        self,
+        process: subprocess.Popen[str],
+        loop: asyncio.AbstractEventLoop,
+        pid_file: Path | None = None,
+        run: childprogram.Run | None = None,
     ) -> None:
-        super()._read(process, loop, pid_file)
+        super()._read(process, loop, pid_file, run)
         # A finished run has no level, but an older run's reader must not clear the current one.
         if self._process in (None, process):
             _on_loop(loop, self.level_now.said, None)

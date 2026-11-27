@@ -21,3 +21,11 @@ WINDOWS_ALERT_COMMAND = (
     "[System.Media.SystemSounds]::Asterisk.Play()"
 )
 DEFAULT_ALERT_COMMAND = WINDOWS_ALERT_COMMAND if sys.platform == "win32" else LINUX_ALERT_COMMAND
+
+# Windows PowerShell decodes a redirected standard input in the console's OEM code page, so the
+# operator's command (a user folder or a file name with accents) goes in the environment, which is
+# UTF-16, and the one line on standard input is ASCII. Its output is UTF-8, as it is read.
+SCRIPT_VARIABLE = "NEOAPRS_SCRIPT"
+POWERSHELL_RUN = (
+    "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);. ([scriptblock]::Create($env:NEOAPRS_SCRIPT))\n"
+)

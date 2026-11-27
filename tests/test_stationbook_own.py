@@ -144,6 +144,10 @@ def test_a_copy_of_ours_that_comes_back_makes_no_object_and_moves_only_the_time_
     count = len(b)
     changed.clear()
     later = T0 + timedelta(minutes=5)
+    sent = Packet(
+        T0, "out", b"", "OH2GBA", "APZNEO", (), b"", ObjectReport("LEADER", True, Position(60.3, 25.0, "/", ">"))
+    )
+    assert b.take(sent) is None
     back = Packet(
         later,
         "in",

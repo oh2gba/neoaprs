@@ -1,12 +1,18 @@
-// Sends `set_config` one request at a time. The daemon's answer (the topic `config` again, or an
-// `error`) carries no id, so the next request waits for the one out, and each answer belongs to
-// exactly one request. A request the daemon does not answer in time is given up, so the queue
-// cannot stay stuck.
+// Sends `set_config` one request at a time, each with a number of its own that the daemon's answer
+// (`saved`, or an `error`) carries back, so an answer belongs to exactly one request and another
+// page's save or any other change of the settings is none. A request the daemon does not answer in
+// time, or that is out when the socket closes, is given up, so the queue cannot stay stuck.
 import { computed, ref, shallowRef } from "vue";
 import { t } from "@/i18n";
 import type { Command } from "@/protocol/protocol";
 
 export const ANSWER_MS = 20000;
+
+let numbered = 0;
+/** The number of a new `set_config`: one count for the whole page, so that no two askers share one. */
+export function saveId(): number {
+  return ++numbered;
+}
 
 export interface Request {
   values: Record<string, string>;
@@ -33,14 +39,16 @@ export function useSettingsQueue(
   const inflight = shallowRef<Request | null>(null);
   const saving = computed(() => inflight.value !== null || queue.value.length > 0);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let out = 0;
 
   function pump(): void {
     const next = queue.value[0];
     if (inflight.value || !next) return;
     queue.value.shift();
     inflight.value = next;
+    out = saveId();
     timer = setTimeout(() => give(next, t("settings.no_answer")), ANSWER_MS);
-    if (!send({ cmd: "set_config", values: { ...next.values } })) give(next, t("settings.not_sent"));
+    if (!send({ cmd: "set_config", values: { ...next.values }, id: out })) give(next, t("settings.not_sent"));
   }
 
   function give(request: Request, reason: string): void {
@@ -55,6 +63,17 @@ export function useSettingsQueue(
     const request = inflight.value;
     inflight.value = null;
     return request;
+  }
+
+  /** The request in flight, released, if `id` is its number (or the answer has none); null for another's. */
+  function settle(id: number | null | undefined): Request | null {
+    return inflight.value !== null && (id === undefined || id === null || id === out) ? release() : null;
+  }
+
+  /** Refuse the request in flight with the reason; each waiting one is then sent, and refused the same way. */
+  function giveUp(reason: string): void {
+    const request = inflight.value;
+    if (request) give(request, reason);
   }
 
   /**
@@ -78,5 +97,5 @@ export function useSettingsQueue(
 
   const waiting = (key: string): boolean => queue.value.some((request) => key in request.values);
 
-  return { saving, inflight, enqueue, pump, release, expected, waiting, dispose: () => clearTimeout(timer) };
+  return { saving, inflight, enqueue, pump, settle, giveUp, expected, waiting, dispose: () => clearTimeout(timer) };
 }

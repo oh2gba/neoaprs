@@ -343,7 +343,7 @@ def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigter
         "the station's radio, which --port names for this run"
     )
     proc = start(data, "--port", path)
-    wait_for(data / "neoaprs.log", "tnc: opened", proc)
+    wait_for(data / "neoaprs.log", "FM (radio 1): opened", proc)
     server.settimeout(20)
     connection, _ = server.accept()
     connection.sendall(fixture_bytes("kiss/thd7-2026-10-21.bin"))

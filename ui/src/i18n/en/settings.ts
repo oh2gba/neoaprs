@@ -128,7 +128,6 @@ export const settings = {
   "settings.port.other": "Other...",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "Port path",
-  "settings.port.found": "found: {port}",
   "settings.port.refresh": "Refresh",
 
   "settings.baud.name": "Speed",
@@ -141,7 +140,6 @@ export const settings = {
   "settings.tcp_host.tip1": "The computer where your Direwolf or soundmodem runs: 127.0.0.1 is this computer.",
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf listens on 8001 and soundmodem on 8100, unless you changed it.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "The address of the board on your network, as its own web page shows it.",
   "settings.board_port.tip1": "The KISS port of the board: 8001 unless you changed it there.",
   "settings.board_host.label": "Address",
@@ -447,6 +445,7 @@ export const settings = {
   "settings.tnc.text_lines": "The board sends text lines: set it to KISS",
   "settings.tnc.incoming_port": "{port} is the computer's incoming Bluetooth port: choose the device's other port",
   "settings.tnc.write_timeout": "The port takes no data: nothing went through in {seconds} s",
+  "settings.tnc.hf.receive_deaf": "Mercury hears nothing (its receive side stalled): it is started again shortly",
   "settings.tnc.hf.receive_stalled": "Mercury hears nothing, even after restarts: switch the radio off and on again",
   "settings.tnc.hf.not_installed": "This installation does not carry this radio's modem",
   "settings.tnc.hf.stopped": "Not running",

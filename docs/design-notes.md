@@ -82,7 +82,9 @@ card and the listening ports. A port that is already listened on is not free for
 every foreign listener found after the program started belongs to the program. A repeated warning is
 logged at INFO only the 1st, 10th, 100th, 1000th... time because a stuck sound device repeats
 one line millions of times; one more line when
-it has stopped for a minute says how many times it came, so that its end is in the log too. The bundled ALSA library needs ALSA_CONFIG_PATH when a shipped
+it has stopped for a minute says how many times it came, so that its end is in the log too. What a run said and the
+callbacks of its reader belong to that run: a callback that reaches the loop after a new run started is
+dropped, and a relaunch waits until a run ended in a thread is gone, since it holds the sound card. The bundled ALSA library needs ALSA_CONFIG_PATH when a shipped
 alsa.conf exists, because a machine without ALSA lacks /usr/share/alsa/alsa.conf.
 
 ## neoaprs/claims.py
@@ -232,6 +234,13 @@ objects belong to the main thread, so tray calls are queued with `PyObjCTools.Ap
 On Linux, GTK's show does not raise a minimised or covered window and maximize does not bring it
 back from the taskbar, whereas pywebview's restore does and keeps a maximized window maximized.
 Restore alone would un-maximize a maximized window on Windows and macOS.
+
+Nothing that ends or controls the app waits for the window engine: the session is attached in a
+thread of its own, the tray has a Quit and a second app's `show` and `quit` are answered before the
+page is there, since WebView2 can take half a minute to start or fail without a word. An engine not
+up after a minute leaves the app in the tray with the page in the browser. A Quit before the page
+stops the daemon the app started once it is up. After Quit the process ends even if pywebview's loop
+never returns.
 
 ## neoaprs/desktop/winplace.py
 
@@ -385,7 +394,9 @@ With one radio the system default device is right if the radio is the only sound
 Mercury output. Mercury prefixes each log line with a time and run time (common/hermes_log.c):
 `HH:MM:SS.mmm [+s] `, preceded by a date from 1.9.22 and followed by `Z` when `log_utc` is set;
 older versions and the test fake print none. When the sound card cannot be opened Mercury keeps
-running, deaf and mute, so the daemon ends it. Another station's program may send a station message
+running, deaf and mute, so the daemon ends it. A card that goes while it runs (unplugged, a USB codec that reset) is the
+same: Mercury tries it for ever, deaf and mute, so its lines saying so (mercuryhelper.py) end the run
+and the radio waits for the card through the back-off of a start. Another station's program may send a station message
 besides APRS (Mercury 1.9.23 and later, modem/framer.h PACKET_TYPE_STATION), handed to the broadcast
 client whole under KISS command 0x03 instead of 0x00; it is not a packet and is passed over.
 
@@ -409,7 +420,7 @@ The control port serves one host at a time. Newer Mercury versions close a secon
 
 ## neoaprs/mercuryhelper.py
 
-The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line.
+The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line. On Windows Mercury's second request exits with the keying as it stands, so it is asked once, by a Ctrl-C to its hidden console, then ended with taskkill, and NeoAPRS itself lowers a serial keying line afterwards, since some drivers keep a line where an ended program left it. The Ctrl-C needs a daemon without a console of its own (the installed one); a daemon run in a console window ends Mercury at once.
 
 ## neoaprs/mercurymodem.py
 
@@ -433,6 +444,8 @@ Mercury listens on this computer only. A Mercury that something else runs is onl
 control port 200 above its KISS port; `serial/port` is never the sign of one. As the speaker of the
 Dummy radio the program keys nothing and plays through the system's player; the Tnc is not connected
 to it.
+On Windows Mercury writes a log file of its own beside its program unless `-L` names one, and an
+install for all users cannot write there, so it is given the radio's folder; Mercury rotates the file.
 
 ## neoaprs/mercuryscope.py
 
@@ -502,6 +515,9 @@ progress"), so following a gain change means ending the tone and beginning it ag
 silence in which the radio unkeys and keys again. The hold stays on throughout. Mercury unkeys by
 itself after a minute. The keying test sends almost no audio where keying is a line (RTS, DTR, CM108)
 and the tune tone where the radio keys on audio (VOX; a silent test would leave it in receive).
+TUNE has no length, so a TUNE OFF that cannot be written while the control port is down is owed: the
+test stays on the page with its Stop, and the owed TUNE OFF is the first line written when the port is
+back and at the radio's stop. Stop pressed while the port is down ends the program, which drops the keying.
 
 ## neoaprs/mercuryui.py
 
@@ -1380,7 +1396,8 @@ the desktop app) wait while it is fresh; one left by a kill goes stale by itself
 A write that times out (pyserial's SerialTimeoutException: the device took no data within the
 write timeout, as the incoming Bluetooth port of Windows does) is its own reason. The line is opened
 again with the usual back-off, but the row says `waiting` with `radio.write_timeout` until a write
-goes through or a byte comes: a bare reopen proves nothing. Frames still go to the port meanwhile,
+goes through, a byte comes, or the port has stayed open for the watchdog's probe interval with no
+failed write (a quiet radio that is sent nothing): a bare reopen proves nothing. Frames still go to the port meanwhile,
 since only a write that goes through can show that it works, and a quiet channel is no evidence.
 
 A Kenwood TH-D7 TNC starts in command mode: it prints heard packets as TNC2 text and answers a carriage return with "cmd:".
@@ -1396,6 +1413,13 @@ Where the radio is not searched for among the ports (Windows, macOS), a replugge
 or /dev/cu device. The adapter behind the named port is remembered by serial number, or by vendor and product ids when unique,
 and the new port is opened if the named one cannot be. The memory is made after the line is open, in a task, because reading the
 system's port list in a thread can be slow and nothing may be awaited while an open port has no owner.
+
+## neoaprs/tnchealth.py
+
+A usable TNC line is reported as `connected` even before its first KISS frame, since a Kenwood or
+Kantronics TNC is silent in KISS mode until it hears a packet. A connected line whose Mercury runs
+and hears nothing (its stall watch) has the problem `modem.receive_deaf` until the warning stops or
+the modem is restarted.
 
 ## neoaprs/tncsearch.py
 
@@ -1527,11 +1551,6 @@ nothing when both are the attacker's; the Host is therefore checked in `prepare(
 permessage-deflate (RFC 7692) because the station table is large, repetitive JSON; Tornado keeps a
 deflate state of a few hundred kilobytes per direction per socket, so connections are capped.
 
-## neoaprs/web/radioview.py
-
-A usable TNC line is reported as `connected` even before its first KISS frame, since a Kenwood or
-Kantronics TNC is silent in KISS mode until it hears a packet.
-
 ## neoaprs/web/scopefeed.py
 
 A page that starts looking first gets the rows the modem keeps (the last two minutes), then every row
@@ -1566,6 +1585,14 @@ resent whole, at most every 30 seconds while the GPS moves; our own row follows 
 Rate limits of topics: radios, map and update at most four times a second; gps and igate once a
 second. Two messages are no topic: `station_alert`, sent to every open page, and `layer_things`,
 sent to the pages looking at that layer.
+
+## neoaprs/winchild.py
+
+On Windows every child program is put into one job object of the daemon, made with kill-on-close, so
+that a daemon that dies however it dies takes its Mercury and Direwolf with it instead of leaving them
+holding the sound card, the ports and the install folder's files. The daemon swallows the Ctrl-C it
+sends to a child's console with a handler, not with the ignore flag, which every program started later
+would inherit.
 
 ## neoaprs/winmm.py
 

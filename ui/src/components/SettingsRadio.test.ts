@@ -355,7 +355,6 @@ describe("the Mercury radio's box in the Radio group", () => {
     expect(card.element.value).toBe("plughw:1,0");
     const keying = group.find<HTMLSelectElement>("#set-radio-2-keying");
     expect([...card.element.options, ...keying.element.options].map((o) => o.text)).not.toContain("find automatically");
-    expect(hf(group).findAll(".port-found")).toHaveLength(0);
     expect(
       hf(group)
         .findAll("button")
@@ -646,6 +645,9 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
     expect(dial(group).element.value).toBe("other");
     expect(number(group).element.nextElementSibling?.outerHTML).toBe('<span class="unit muted">MHz USB</span>');
     await number(group).setValue("28,2");
+    await number(group).trigger("keydown", { key: "Enter", isComposing: true });
+    await number(group).trigger("keydown", { key: "Enter", keyCode: 229 });
+    expect(sets(send), "the Enter that ends an IME composition commits nothing").toEqual([{ "radio/2/psk_dial": "" }]);
     await number(group).trigger("keydown", { key: "Enter" });
     expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "28.2000 MHz USB" });
     await answer("28.2000 MHz USB");

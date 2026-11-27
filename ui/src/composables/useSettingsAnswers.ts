@@ -1,14 +1,16 @@
-// What the daemon answers about the settings: the topic `config`, sent again after every save, is
-// the answer to the request in flight and the new value of every untouched field; an `error` of
-// `set_config` is an answer too and names the key it refused.
+// What the daemon answers about the settings: `saved` with the number of the request in flight, or
+// an `error` of `set_config` that carries it and names the key it refused. The topic `config` is
+// never an answer: it is the new value of every field that is not being edited, whoever changed it.
 import { watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { RadioNames } from "@/i18n/errortext";
 import type { useSettingsFeedback } from "@/composables/useSettingsFeedback";
 import type { Request, useSettingsQueue } from "@/composables/useSettingsQueue";
+import { t } from "@/i18n";
 import { refusalFor } from "@/lib/settinglinks";
 import { pairFieldOf } from "@/lib/settingspair";
-import type { ConfigValues } from "@/protocol/protocol";
+import type { Connection } from "@/lib/hub";
+import type { ConfigValues, SavedMessage } from "@/protocol/protocol";
 
 /**
  * Drop keys of a pair the daemon does not send any more (radio removed, type changed); edited
@@ -27,59 +29,61 @@ function dropGonePairs(
   }
 }
 
+/** What the page hears of the daemon besides the settings. */
+export interface SettingsLink {
+  saved: Ref<SavedMessage | null>;
+  connection: Ref<Connection>;
+}
+
 export function useSettingsAnswers(
   config: Ref<ConfigValues | null>,
   lastError: Ref<Toast | null>,
+  link: SettingsLink,
   draft: Record<string, string>,
   queue: ReturnType<typeof useSettingsQueue>,
   feedback: ReturnType<typeof useSettingsFeedback>,
   refuse: (request: Request, reason: string, key: string) => void,
   radios?: RadioNames,
 ): void {
-  // The answer carries no id, so a settings update for another reason also releases the request
-  // in flight. An update that changed none of its keys may be such a one: keep the request as
-  // `unsure`, so that a later refusal of it still reaches its field.
-  let unsure: Request | null = null;
-  // An untouched value follows the daemon; one being edited or queued does not.
+  // The request that was just saved: the settings the daemon tells next may carry its keys written
+  // the daemon's way (`oh2gba` as `OH2GBA`).
+  let landed: Request | null = null;
+  // An untouched value follows the daemon; one being edited or queued keeps what was typed, unless
+  // the daemon's value of the key I saved changed, which is what my save made of it.
   watch(
     config,
     (now, before) => {
       if (!now) return;
-      const request = queue.release();
-      const changed = (r: Request): boolean =>
-        r.keys.some((key) => (now.values[key] ?? "") !== (before?.values[key] ?? ""));
-      if (request !== null) unsure = changed(request) ? null : request;
-      else if (unsure !== null && changed(unsure)) unsure = null;
+      const request = queue.inflight.value ?? landed;
+      landed = null;
+      const moved = (key: string): boolean => (now.values[key] ?? "") !== (before?.values[key] ?? "");
       for (const [key, text] of Object.entries(now.values)) {
-        const own = request !== null && draft[key] === request.values[key];
+        const own = request !== null && draft[key] === request.values[key] && moved(key);
         if (!(key in draft) || (!queue.waiting(key) && (draft[key] === before?.values[key] || own))) draft[key] = text;
       }
       dropGonePairs(draft, now.values, before?.values, queue, request);
-      if (request) feedback.saved();
-      queue.pump();
     },
     { immediate: true },
   );
 
+  watch(link.saved, (message) => {
+    if (!message) return;
+    const request = queue.settle(message.id);
+    if (request === null) return;
+    landed = request;
+    feedback.saved();
+    queue.pump();
+  });
+
   watch(lastError, (toast) => {
     if (!toast || toast.cmd !== "set_config") return;
-    const request = queue.inflight.value;
-    const earlier = unsure;
-    // A refusal naming a key of that request and none of the one in flight goes to its field.
-    if (
-      earlier !== null &&
-      toast.key !== null &&
-      earlier.keys.includes(toast.key) &&
-      !request?.keys.includes(toast.key)
-    ) {
-      unsure = null;
-      refuse(earlier, refusalFor(toast, earlier.keys, radios).reason, toast.key);
-      return;
-    }
-    if (!request) return;
+    const request = queue.settle(toast.id);
+    if (request === null) return;
     const where = refusalFor(toast, request.keys, radios);
-    queue.release();
     refuse(request, where.reason, where.key);
     queue.pump();
   });
+
+  // The daemon forgets a request whose socket closed: refuse what was out, keeping what was typed.
+  watch(link.connection, (state) => state !== "open" && queue.giveUp(t("settings.not_sent")));
 }

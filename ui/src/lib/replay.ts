@@ -7,7 +7,7 @@
 // days up to the week the daemon keeps.
 import { t } from "@/i18n";
 import { eastOf, wrapLon } from "@/lib/dateline";
-import { pad2 } from "@/lib/format";
+import { pad2, timeOfDay } from "@/lib/format";
 import { fadingLines, type TrackCollection } from "@/lib/tracks";
 import { STATION_HOURS, trailOpacity } from "@/lib/aging";
 import { LIMITS } from "@/protocol/lists";
@@ -151,7 +151,7 @@ export const CLOCK_NONE = "--:--:--";
  */
 export function replayClock(t: number, start: number, end: number): string {
   const d = new Date(t);
-  const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  const time = timeOfDay(d);
   return new Date(start).toDateString() === new Date(end).toDateString()
     ? time
     : `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${time}`;

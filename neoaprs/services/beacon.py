@@ -11,7 +11,7 @@ from neoaprs import ax25, coded, pause
 from neoaprs.aprsposition import uncompressed_position as uncompressed_position  # re-export
 from neoaprs.beaconrule import beacon_interval, beacon_radios, ticked
 from neoaprs.clock import Clock, StepWatch, utcnow
-from neoaprs.config import BEACON_SENT, Config, radio_state_key
+from neoaprs.config import BEACON_SENT, Config, can_transmit, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
 from neoaprs.radiospec import RadioId, transmits
@@ -89,6 +89,8 @@ class Beacon:
         self._slot: datetime | None = None
         self._anchor: datetime | None = None
         self.problem = ""
+        # what makes `problem` go when it is gone: "interlock", "send_on", "radio", or "" (the next send)
+        self._cause = ""
         self._started: datetime | None = None
         self._steps = StepWatch()
         self._up = False
@@ -135,10 +137,12 @@ class Beacon:
         An interval of 0 does not stop this; the interlock and `goes_out` do.
         """
         if refusal := self._interlock.refused("beacon"):
-            return self._failed(refusal)
+            return self._failed(refusal, cause="interlock")
         if not self.goes_out:
             spec = self._config().radio(self._radio.id)
-            return self._failed(ONLY_RECEIVES if spec is not None and not transmits(spec) else NOT_ON_THIS_RADIO)
+            return self._failed(
+                ONLY_RECEIVES if spec is not None and not transmits(spec) else NOT_ON_THIS_RADIO, cause="send_on"
+            )
         try:
             frame, fix = self._frames.position_and_fix(self._radio)
         except NoFix as e:
@@ -146,10 +150,16 @@ class Beacon:
         except BeaconError as e:
             return self._failed(coded.Reason.of(e, f"the settings make no beacon: {e}"), warn=True)
         if not self._radio.usable:
-            return self._failed(self._radio.why_unusable())
+            return self._failed(self._radio.why_unusable(), cause="radio")
         if not self._radio.send_frame(frame):
             return self._failed(NOT_TAKEN.but(radio=self._radio.id, name=self._radio.name), warn=True)
-        self.last_sent, self.last_reason, self.problem, self._skip_told = self.clock(), reason, "", False
+        self.last_sent, self.last_reason, self.problem, self._cause, self._skip_told = (
+            self.clock(),
+            reason,
+            "",
+            "",
+            False,
+        )
         self._anchor = self._anchor_of(self.last_sent, reason)
         self._refused, self._retry_at = 0, None
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
@@ -161,8 +171,8 @@ class Beacon:
         self._plan_after_send(smart)
         return True
 
-    def _failed(self, problem: str, warn: bool = False) -> bool:
-        self.problem = problem
+    def _failed(self, problem: str, warn: bool = False, cause: str = "") -> bool:
+        self.problem, self._cause = problem, cause
         if warn:
             log.warning("no beacon sent: %s", problem)
         return False
@@ -172,7 +182,7 @@ class Beacon:
             return
         now = self.clock()
         self._earlier = await self._remembered.get_time(self._memory_key, now)
-        self._started, self._up = now, False
+        self._started, self._up, self.problem = now, False, ""
         self._steps.forward(self.clock)
         if (spec := self._config().radio(self._radio.id)) is not None:
             ticked(spec, say=True)  # logs an invalid stored Send on once
@@ -186,10 +196,21 @@ class Beacon:
 
     def settings_changed(self) -> None:
         """Replan at once if the interval or fixed/mobile mode changed; else keep the schedule."""
+        self._recheck()
         if self._started is not None and (
             self.interval_min != self._planned_min or self._mobile(self._config()) != self._planned_mobile
         ):
             self._plan(self.interval_min)
+
+    def _recheck(self) -> None:
+        """Drop the problem when its cause is gone: transmit is allowed, Send on is ticked, the radio takes frames."""
+        cause = self._cause
+        if (
+            (cause == "interlock" and can_transmit(self._config()) is None)
+            or (cause == "send_on" and self.goes_out)
+            or (cause == "radio" and self._radio.usable)
+        ):
+            self.problem, self._cause = "", ""
 
     @property
     def running(self) -> bool:
@@ -302,17 +323,22 @@ class Beacon:
         self._hold_first(now, usable)
         if usable:
             self._skip_told = False
+        self._recheck()
         reason = self._due_reason(now)
         if reason is None:
             return
         if refusal := self._interlock.refused("beacon"):
-            self.problem = refusal
+            self.problem, self._cause = refusal, "interlock"
             return
         if not usable:
             # a connected radio that is unusable is settling after KISS ON: wait quietly
             if not self._skip_told and self._radio.state is not Source.State.CONNECTED:
                 self._skip_told = True
-                log.warning("the beacon is due and %s: it goes out when the radio is back", self._radio.why_unusable())
+                log.warning(
+                    "the beacon of %s is due and the radio takes no frame (%s): it goes out when the radio is back",
+                    f"the {self._radio.name} radio" if self._radio.name else "this radio",
+                    self._radio.why_unusable(),
+                )
             return
         if self._retry_at is not None and now < self._retry_at:
             return

@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, time, timedelta, timezone
 import pytest
 
 
-from neoaprs.clock import at, days, from_unix, iso, monotonic_of, since_boot, to_unix, utc, utcnow
+from neoaprs.clock import StepWatch, at, days, from_unix, iso, monotonic_of, since_boot, to_unix, utc, utcnow
 from tests.support.clock import FixedClock
 
 
@@ -76,3 +76,19 @@ def test_the_system_monotonic_time_of_the_step_watch_counts_time_asleep() -> Non
         pytest.skip("CLOCK_BOOTTIME is Linux's")
     boot = time_module.clock_gettime(time_module.CLOCK_BOOTTIME)
     assert monotonic_of(utcnow) is since_boot and abs(since_boot() - boot) < 1
+
+
+def test_the_step_watch_tells_a_step_either_way_and_only_beyond_the_monotonic_time() -> None:
+    clock = FixedClock()
+    watch = StepWatch()
+    assert watch.moved(clock) == timedelta(0)
+    clock.advance(600)
+    assert watch.moved(clock) == timedelta(0), "time passing is no step"
+    clock.step(3600)
+    assert watch.moved(clock) == timedelta(hours=1)
+    clock.step(-7200)
+    assert watch.moved(clock) == timedelta(hours=-2)
+    clock.step(-3600)
+    assert watch.forward(clock) == timedelta(0), "forward tells a step forward alone"
+    clock.step(2)
+    assert watch.moved(clock) == timedelta(0), "a step under a few seconds is none"

@@ -11,6 +11,7 @@ import signal
 import socket
 import subprocess
 import sys
+import types
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -838,6 +839,65 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
         await stopped(m)
 
 
+# Mercury 1.9.25 on Windows, after the radio's USB sound card went while it ran (a support file)
+LOST_LINES = (
+    "[ERR] [audio-cap] capture reopen failed (attempt 1): IMMDevice_Activate: (0x88890004) AUDCLNT_E_DEVICE_INVALIDATED",
+    "[ERR] [audio-play] playback reopen failed (attempt 96): IMMDevice_Activate: (0x88890004) AUDCLNT_E_DEVICE_INVALIDATED",
+    "[ERR] [audio-cap] the capture device delivers no audio: 2 reopens in a row brought nothing (unplugged, or its USB codec reset?) -- still trying it",
+    "[ERR] [audio-play] the playback device takes no audio: 3 reopens in a row brought nothing (unplugged, or its USB codec reset?) -- still trying it",
+    "[WRN] [audio-cap] capture device 'Mic (USB Audio CODEC )' ({0.0.1.00000000}.{00000000-0000-0000-0000-000000000000}) is no longer listed: unplugged? -- waiting for it",
+)
+# what it says on the way, before it knows: a reopen that may well work
+NOT_LOST = (
+    "[WRN] [audio-cap] capture stalled 2000 ms, reopening device (reopen #1)",
+    "[WRN] [audio-play] playback took no audio for 1016 ms, reopening device (reopen #1)",
+    "[ERR] [audio-cap] ffaudio.read: IAudioCaptureClient_GetBuffer: (0x88890004) AUDCLNT_E_DEVICE_INVALIDATED (error 1)",
+    "[WRN] [audio-cap] Buffer full in capture buffer!",
+)
+
+
+def test_the_lines_of_a_sound_card_gone_while_mercury_runs_are_known_and_a_reopen_on_the_way_is_not() -> None:
+    stamp = "2026-11-24 16:44:47.187 [+1034.694s] "
+    assert all(mercuryhelper.audio_lost(stamp + line) for line in LOST_LINES)
+    assert not any(mercuryhelper.audio_lost(stamp + line) for line in NOT_LOST)
+    assert fakemercury.AUDIO_LOST_LINE in LOST_LINES
+
+
+async def test_a_sound_card_gone_while_mercury_runs_ends_the_run_and_is_the_radios_problem_until_it_starts_again(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Mercury keeps trying a card that went, deaf and mute, while the page said connected and beacons
+    were counted as sent."""
+    m = Mercury(
+        tmp_path,
+        finder=lambda: fakemercury.program(audio_lost=True),
+        backoff=Backoff([0.5, 0.5]),
+        control_backoff=Backoff([0.05, 0.05]),
+        **of_radio(tmp_path),
+    )
+    m.ports = lambda: []
+    await m.start(HF)
+    tnc = Tnc(
+        f"socket://127.0.0.1:{m.broadcast_port}",
+        profile=MERCURY,
+        check_sec=0.0,
+        backoff=Backoff([0.05, 0.05]),
+        fallback_probe=False,
+    )
+    tnc.modem = m
+    await tnc.start()
+    try:
+        first = m.pid
+        await until_started(lambda: m.reason == "sound_card" and m.problem == SOUND_CARD_FAILED)
+        assert "lost its sound card" in caplog.text
+        await until_started(lambda: not _alive(first))
+        await until_started(lambda: tnc.problem == SOUND_CARD_FAILED and not tnc.usable)
+        await until_started(lambda: m.starts >= 2)
+    finally:
+        await tnc.stop()
+        await stopped(m)
+
+
 # ---- the ports across a relaunch (the HF Tnc waits on its given port, so a restarted program is
 # where the dead one was), and where the program listens
 
@@ -1287,3 +1347,19 @@ def test_the_sound_cards_mercury_lists_are_read_as_utf_8_whatever_the_locale() -
         "  id: '{0.0.1.00000000}.{b97fd3c9}'\\n\".encode('utf-8'))"
     )
     assert [c.name for c in list_sound_cards([sys.executable, "-c", script])] == ["Micrófono (Logi C525 HD WebCam)"]
+
+
+async def test_on_windows_mercurys_own_log_goes_into_the_radios_folder_not_the_install_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An install for all users cannot write its own folder, where Mercury logs without -L."""
+    m = modem(tmp_path)
+    started: list[list[str]] = []
+    monkeypatch.setattr(mercurymodem, "sys", types.SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(m._program, "start", lambda argv, cwd, pid_file=None: started.append(argv))
+    try:
+        await m.start(HF)
+        await until_started(lambda: started)
+        assert started[0][-2:] == ["-L", str(m.home / mercurymodem.ENGINE_LOG)]
+    finally:
+        await stopped(m)

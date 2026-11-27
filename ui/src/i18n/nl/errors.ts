@@ -129,12 +129,11 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "‘{value}’ is geen manier om de PTT te bedienen: vox, cm108, rts:POORT of dtr:POORT",
   "error.setting.not_among": "{value} hoort niet bij {choices}",
   "error.setting.not_direction": "‘{value}’ is niet omni of een van N NE E SE S SW W NW",
-  "error.setting.not_globs":
-    "‘{value}’ bestaat niet uit een of meer absolute patronen, gescheiden door spaties, zoals /dev/ttyUSB*",
+  "error.setting.not_globs": "‘{value}’ bestaat niet uit een of meer absolute patronen, gescheiden door spaties",
   "error.setting.not_host": "‘{value}’ is geen adres of naam",
-  "error.setting.not_hostport": "‘{value}’ is geen host:poort (4532 is de poort van rigctld)",
+  "error.setting.not_hostport": "‘{value}’ is geen host:poort",
   "error.setting.not_receiver": "‘{value}’ is niet het adres van een ontvanger",
-  "error.setting.not_server": "‘{value}’ is geen host:poort (14580 is de gangbare poort van een APRS-IS-server)",
+  "error.setting.not_server": "‘{value}’ is geen host:poort",
   "error.setting.not_dial": "‘{value}’ is geen afstemfrequentie zoals 28.1800 MHz USB",
   "error.setting.not_passcode": "de passcode van je roepnaam is een getal van 0 tot {max}",
   "error.setting.passcode_read_only":
@@ -154,8 +153,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} verbindt via TCP (tcp/host en tcp/port), niet met de seriële poort {port}: maak serial/port leeg of kies een seriële TNC",
   "error.setting.range": "{value} ligt niet tussen {min} en {max}",
-  "error.setting.status_needs_rigctld":
-    "de radio heeft status/rigctld nodig (host:poort van een rigctld, 127.0.0.1:4532)",
+  "error.setting.status_needs_rigctld": "de radio heeft status/rigctld nodig (host:poort van een rigctld)",
   "error.setting.status_source":
     "‘{value}’ is niet off, text of rig (leeg: zoals status/rigctld en station/status zeggen)",
   "error.setting.template_field": "{{{field}}} is geen veld van het sjabloon (de velden zijn {{freq}} en {{mode}})",

@@ -430,6 +430,7 @@ class PacketLog(DbLog):
         )
         self._history.clear()
         self.stats.clear()
+        await self.give_back_room()
         return gone
 
     async def prune(self, keep_days: int, internet_keep_days: int | None = None) -> int:
@@ -450,4 +451,5 @@ class PacketLog(DbLog):
                 removed += gone
                 if gone < PRUNE_SLICE:
                     break
+        await self.give_back_room()
         return removed

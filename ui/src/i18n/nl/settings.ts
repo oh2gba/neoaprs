@@ -133,7 +133,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.other": "Anders…",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "Pad van de poort",
-  "settings.port.found": "gevonden: {port}",
   "settings.port.refresh": "Vernieuwen",
 
   "settings.baud.name": "Snelheid",
@@ -148,7 +147,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_host.tip1": "De computer waarop je Direwolf of soundmodem draait: 127.0.0.1 is deze computer.",
   "settings.tcp_port.label": "Poort",
   "settings.tcp_port.tip1": "Direwolf luistert op 8001 en soundmodem op 8100, tenzij je dat hebt veranderd.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "Het adres van het board op je netwerk, zoals de eigen webpagina ervan het toont.",
   "settings.board_port.tip1": "De KISS-poort van het board: 8001, tenzij je dat daar hebt veranderd.",
   "settings.board_host.label": "Adres",
@@ -460,6 +458,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.incoming_port":
     "{port} is de inkomende Bluetooth-poort van de computer: kies de andere poort van het apparaat",
   "settings.tnc.write_timeout": "De poort neemt geen data aan: in {seconds} s ging er niets door",
+  "settings.tnc.hf.receive_deaf": "Mercury hoort niets (de ontvangst hangt): het wordt zo opnieuw gestart",
   "settings.tnc.hf.receive_stalled": "Mercury hoort niets, ook niet na herstarten: zet de radio uit en weer aan",
   "settings.tnc.hf.not_installed": "Deze installatie bevat het modem van deze radio niet",
   "settings.tnc.hf.stopped": "Draait niet",

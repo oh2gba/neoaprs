@@ -363,6 +363,8 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
                 shown(key, was.settings.get(field, default)),
             )
     log_pair_changes(before, after)
+    if cmd.id is not None:
+        ctx.conn.send({"type": "saved", "id": cmd.id})
 
 
 @command(AlertTest)

@@ -658,3 +658,14 @@ def test_a_bluetooth_port_of_windows_says_whether_it_reaches_the_device_or_is_th
     assert lines[2].endswith(
         "(the computer's incoming Bluetooth port: it reaches no device, and NeoAPRS does not offer it)"
     )
+
+
+def test_an_installer_install_is_told_to_tick_start_at_sign_in_not_to_install_a_daemon_only_service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`neoaprs service install` writes a daemon-only entry over the app's own one, with no tray."""
+    finding = doctor.check_service(tmp_path, "windows-installer")
+    assert finding.fix == doctor.APP_START_FIX and "Start at sign-in" in finding.fix
+    assert doctor.check_service(tmp_path, "wheel").fix == "neoaprs service install"
+    monkeypatch.setenv("NEOAPRS_INSTALL_KIND", "windows-installer")
+    assert doctor.check_service(tmp_path).fix == doctor.APP_START_FIX, "found from the install itself"

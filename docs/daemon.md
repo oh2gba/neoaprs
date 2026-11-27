@@ -324,7 +324,7 @@ when the row is made.
 station, under the call as written, in the row `{path, rf_only, alert}` of the topic `station_prefs` (the path null where none is set, a `path` of `""` is
 direct, the alert null where none is set; an entry with no path, `rf_only` false and no alert is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
 and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. Messaging is given
-`path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map as many hours after its last position as the setting `map/station_hours` says (1, 3, 6, 12 or 24, 3 by default; the page does that, the daily prune keeps
+`path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map as many hours after its last position as the setting `map/station_hours` says (1, 3, 6, 12 or 24, 3 by default; the page does that, the prune every 6 hours keeps
 packets and stations 7 days, packets from the internet 2: `policy.INTERNET_KEEP_DAYS`, they being the bulk of the file). Migration 17 cleared the timeouts that earlier versions stored (the column `station_pref.hide_after_min` is always null and not read).
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
@@ -412,7 +412,7 @@ The weather is `Weather` of `neoaprs/aprsweather.py`: metric values, each `None`
 
 **The table `weather`** (migration 8; `station`, `at`, `wind_dir`, `wind_kmh`, `gust_kmh`, `temp_c`, `humidity`, `pressure_hpa`, `rain_1h_mm`, `rain_24h_mm`,
 `rain_today_mm`, `luminosity`, `raw`; STRICT with named checks, an index on station and time) is appended without waiting (`neoaprs/weatherlog.py`). `at` is
-when the packet was heard. Rows are pruned after 7 days.
+when the packet was heard. A station that sends the same values again within a minute of its last kept observation is kept once. Rows are pruned after 7 days; the pruning of packets and weather gives the file the room the deleted rows leave (`neoaprs/walcare.py`: the file is rewritten once, at an open, with `auto_vacuum` incremental, when the disk has the room for it, and later slices of free pages are taken off its end).
 
 **At the start.** When the weather table is empty, the weather packets of the last 7 days are read from the packet table (found by what the parser decoded: a
 weather packet, or a position, object or item with the weather symbol; a third-party packet is the sender inside it), decoded and written in one transaction,

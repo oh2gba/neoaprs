@@ -3,6 +3,7 @@ it, never for "the radio" of a station with two. Covers the retry ticker (servic
 the registry's radios.
 """
 
+import logging
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -445,3 +446,26 @@ async def test_an_object_on_fm_repeats_by_the_net_cycle_of_its_path_one_on_hf_al
     assert objects._due("BOTHWAYS") == clock() + timedelta(seconds=1800), (
         "on both: the longer of FM's twenty and HF's floor"
     )
+
+
+def test_a_radio_that_comes_back_with_no_message_waiting_on_it_is_not_told_above_debug(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    config = replace(BOTH, hf_enabled=False)
+    pick = StubPick(
+        [LineAir(StubTnc(), lambda: config), LineAir(StubTnc(), lambda: config, id=3, name="FM 2")], chosen={"OH2C": 3}
+    )
+    clock = FixedClock()
+    host = Host(pick, [record(1, "OH2B", clock())])
+    retries = Retries(host, pick, lambda: config, Interlock(lambda: config), clock, lambda: 1.0)
+    for r in host.records.values():
+        retries.plan(r)
+    pick.lines[3].state = Source.State.SILENT
+    retries.tick()
+    clock.advance(20)
+    retries.tick()
+    pick.lines[3].state = Source.State.CONNECTED
+    with caplog.at_level("DEBUG", logger="neoaprs.messaging"):
+        retries.tick()
+    [told] = [r for r in caplog.records if "takes frames again" in r.getMessage()]
+    assert told.levelno == logging.DEBUG, "no wait of a message was moved: nothing for the operator"

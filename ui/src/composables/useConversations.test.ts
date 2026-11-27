@@ -151,6 +151,23 @@ describe("useConversations", () => {
   });
 });
 
+describe("the seen marks of stations that have no message left", () => {
+  it("are forgotten once the messages are all there, and the others stay", () => {
+    localStorage.setItem("NeoAPRS.read.OH2RDG", "2");
+    localStorage.setItem("NeoAPRS.read.OH2GONE", "9");
+    localStorage.setItem("NeoAPRS.panel.width", "300");
+    const loaded = ref(false);
+    useConversations(table(incoming(2, "OH2RDG")), ref(false), ref(false), loaded);
+    expect(localStorage.getItem("NeoAPRS.read.OH2GONE")).toBe("9");
+    loaded.value = true;
+    return flushPromises().then(() => {
+      expect(localStorage.getItem("NeoAPRS.read.OH2GONE")).toBeNull();
+      expect(localStorage.getItem("NeoAPRS.read.OH2RDG")).toBe("2");
+      expect(localStorage.getItem("NeoAPRS.panel.width")).toBe("300");
+    });
+  });
+});
+
 describe("useReadMarks in two windows of one browser", () => {
   it("never writes a mark lower than the one another window stored, and takes it up", () => {
     const a = useReadMarks();

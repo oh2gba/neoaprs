@@ -1,7 +1,7 @@
 """The tasks a part starts, shared by every part that runs on the loop.
 
 `cancel_all` ends tasks and waits for each, `TaskSet` is the tasks one owner starts, `every` is the
-loop of a timer.
+loop of a timer, `Failures` is what a loop that must not die tells of its rounds that failed.
 """
 
 import asyncio
@@ -61,6 +61,25 @@ async def _round(fn: Round, what: str) -> None:
             await result
     except Exception:
         log.exception("%s failed", what)
+
+
+class Failures:
+    """The failures of a loop that goes on after a failed round: one is logged when it differs from the last."""
+
+    def __init__(self, what: str) -> None:
+        self._what = what
+        self._last = ""
+
+    def failed(self, error: Exception) -> None:
+        words = f"{type(error).__name__}: {error}"
+        if words != self._last:
+            self._last = words
+            log.error("%s failed: %s", self._what, words, exc_info=error)
+        else:
+            log.debug("%s failed again: %s", self._what, words)
+
+    def worked(self) -> None:
+        self._last = ""
 
 
 def _log_failure(logger: logging.Logger, words: str, task: asyncio.Task[Any]) -> None:

@@ -21,7 +21,7 @@ from .mercurydriver import MercuryDriver
 from .mercurymodem import Mercury
 from .packet import Packet
 from .radiodriver import RadioDriver, RunOverrides
-from .radiospec import FM_ID, HF_ID, RadioId, RadioSpec, live, log_name, transmits
+from .radiospec import RadioId, RadioSpec, live, log_label, log_name, transmits
 from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
 from .signal import Signal
 from .source import Source
@@ -51,6 +51,8 @@ DRIVERS: dict[
 }
 # Whether this installation carries the driver's program; an unlisted driver needs none.
 CARRIED: dict[str, Callable[[], bool]] = {"direwolf": lambda: direwolfprogram.find() is not None}
+# The `why` of a radio that the settings no longer have, and of one they have newly.
+REMOVED, NEW = "it is removed", "it is new"
 # Log names of line settings whose field name does not say enough.
 _SHOWN = {"skip": "ports to skip", "pattern": "search pattern", "fallback_probe": "search when the port fails"}
 
@@ -214,8 +216,13 @@ class LiveRadio(Generic[B]):
 
     @property
     def name(self) -> str:
-        """The name used in the log (radiospec.log_name)."""
+        """The name the page shows and log texts use (radiospec.log_name)."""
         return log_name(self.spec, self._specs())
+
+    @property
+    def told(self) -> str:
+        """The radio as the log's lines of its life say it: "the LoRa 2 radio (radio 9)"."""
+        return f"the {self.name} radio (radio {self.id})"
 
     # ---- what its line says
     @property
@@ -287,6 +294,11 @@ class RadioRegistry(StationChoices, Generic[B]):
     def _of(self, id: RadioId | None) -> LiveRadio[B] | None:
         return None if id is None else self._radios.get(id)
 
+    def told_of(self, id: RadioId) -> str:
+        """Return `LiveRadio.told` of the radio, one leaving included."""
+        radio = self._radios.get(id) or self._leaving.get(id)
+        return radio.told if radio is not None else f"radio {id}"
+
     def name_of(self, id: RadioId) -> str:
         """Return the log name of the radio, one leaving included."""
         radio = self._radios.get(id) or self._leaving.get(id)
@@ -332,19 +344,19 @@ class RadioRegistry(StationChoices, Generic[B]):
         self.why = {}
         for id in [id for id in self._radios if id not in wanted]:
             self._leaving[id] = self._radios.pop(id)
-            self.why[id] = "it is removed"
+            self.why[id] = REMOVED
         for id, spec in wanted.items():
             radio = self._radios.get(id)
             if radio is None:
                 # A radio dropped and back before its restart ran is the same radio, with its line.
                 self._radios[id] = self._leaving.pop(id) if id in self._leaving else self._made(spec)
-                self.why[id] = "it is new"
+                self.why[id] = NEW
             elif (reason := self._change(radio, before.radio(id) or radio.spec, before, spec, config, run)) is not None:
                 self.why[id] = reason
         for id, spec in wanted.items():
             self._radios[id]._made_as = spec
             # the prefix of the line's log lines
-            self._radios[id].line.radio_name = "" if id in (FM_ID, HF_ID) else log_name(spec, config.radios)
+            self._radios[id].line.radio_name = log_label(spec, config.radios)
         return list(self.why)
 
     def _runs(self, spec: RadioSpec) -> bool:
@@ -402,10 +414,10 @@ class RadioRegistry(StationChoices, Generic[B]):
         self._of_its_type(radio)
         radio.driver.configure(spec, config, run)
         if spec.enabled:
-            log.info("the %s radio is started: %s", radio.name, radio.driver.words(spec, config, run))
+            log.info("%s is started: %s", radio.told, radio.driver.words(spec, config, run))
             await radio.driver.start()
         else:
-            log.info("the %s radio is off in the settings", radio.name)
+            log.info("%s is off in the settings", radio.told)
 
     def _of_its_type(self, radio: LiveRadio[B]) -> None:
         """Give a stopped radio a new driver if its type needs another."""
@@ -413,12 +425,16 @@ class RadioRegistry(StationChoices, Generic[B]):
             radio.driver, radio.driver_key = self._make_driver(radio.spec), driver_key(radio.spec)
             self.wire(radio)
 
-    async def repoint(self, id: RadioId) -> None:
-        """Restart only the line, after its modem restarted on other ports."""
+    async def repoint(self, id: RadioId, *, unless_connected: bool = False) -> None:
+        """Restart only the line, after its modem restarted on other ports; an unticked radio's stays."""
         radio = self._radios.get(id)
-        if radio is None:
+        if radio is None or not radio.spec.enabled:
+            return
+        if unless_connected and radio.line.state is Source.State.CONNECTED:
             return
         await radio.line.stop()
+        if self._radios.get(id) is not radio or not radio.spec.enabled:
+            return
         radio.driver.configure(radio.spec, self._config(), self._run())
         await radio.line.start()
 

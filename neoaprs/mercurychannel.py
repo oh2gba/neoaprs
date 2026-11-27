@@ -117,13 +117,17 @@ class Channel:
             )
         self.busy, self._busy_at = on, now
 
+    def keyed_now(self, now: float) -> bool:
+        """Return whether the radio is keyed as far as it is believed (`now` monotonic)."""
+        return self.keyed and now - self._keyed_at < KEYED_MAX_SEC
+
     def hold(self) -> str:
         """Return why no frame may go now (keyed, or recently busy), or ""."""
         now = time.monotonic()
         # The spectrum may stop without the link reporting it.
         if self._auto_at and not self.auto_live(now):
             self.auto_lost(now)
-        if self.test or (self.keyed and now - self._keyed_at < KEYED_MAX_SEC):
+        if self.test or self.keyed_now(now):
             return TRANSMITTING
         if self.busy and now - self._busy_at < BUSY_HOLD_MAX_SEC:
             return CHANNEL_BUSY

@@ -8,6 +8,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 
 from . import nodevices, pairsetting, radioedits, wiring
@@ -23,17 +24,18 @@ from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
 from .packetlog import STATION_FLUSH_SEC
-from .radioregistry import is_dummy
+from .radioregistry import NEW, REMOVED, is_dummy
+from .radioflows import RadioFlows
 from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId, RadioSpec, enabled
 from .sendonrule import Kept
 from .store import DB_NAME, Store
-from .tasks import cancel_all, every
+from .tasks import every
 from .tnc import Tnc
 from .versions import PLAIN_INSTALL, InstallInfo
 
 log = logging.getLogger("neoaprs.controller")
 
-PRUNE_EVERY_SEC = 24 * 3600.0
+PRUNE_EVERY_SEC = 6 * 3600.0
 # Sweep backup/ again after the start: a copy killed just before leaves a temporary file.
 BACKUP_SWEEP_FIRST_SEC = LITTER_AGE_SEC + 60.0
 RECOUNT_EVERY_SEC = 60.0  # the station book's hour of packets advances by minutes
@@ -80,8 +82,7 @@ class Controller(Services):
         self._web_factory = web
         self.check_sec = check_sec
         self.busy_ms = busy_ms
-        self._starts: dict[RadioId, asyncio.Task[None]] = {}
-        self._held: set[RadioId] = set()  # radios Find my radio holds: none is started meanwhile
+        self.flows = RadioFlows(self.tasks.spawn)
         self._implied: set[str] = set()  # settings implied by an older row, stored at the first save
         wiring.wire(self)
 
@@ -131,7 +132,7 @@ class Controller(Services):
         for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers, self.pskreporter):
             await asks.start()
         self.pskreporter.settings_changed(self.config)
-        self.tasks.spawn(self._prune_daily(), "prune")
+        self.tasks.spawn(self._prune_often(), "prune")
         self.tasks.spawn(self._sweep_backup(), "backup-sweep")
         self.tasks.spawn(self._recount_minutely(), "recount")
         self.tasks.spawn(self._flush_stations(), "station-flush")
@@ -228,15 +229,15 @@ class Controller(Services):
 
     def start_radio(self, id: RadioId) -> None:
         """(Re)start one radio and its modem in a task: finding a port can take 20 s per port."""
-        if id in self._held:
-            log.info("the %s radio is started once Find my radio lets go of it", self.radios.name_of(id))
+        if id in self.flows.held:
+            log.info("%s is started once Find my radio lets go of it", self.radios.told_of(id))
             return
-        self._starts[id] = self.tasks.spawn(self._restart(id, self._starts.get(id)), TASK_NAMES.get(id, f"radio-{id}"))
+        self.flows.begin(id, "restart", lambda: self._restart(id), TASK_NAMES.get(id, f"radio-{id}"))
 
-    async def _restart(self, id: RadioId, previous: "asyncio.Task[None] | None") -> None:
-        if previous is not None:
-            await cancel_all([previous])
+    async def _restart(self, id: RadioId) -> None:
         await self.radios.restart(id)
+        if self.flows.take_owed(id):
+            await self.radios.repoint(id, unless_connected=True)
         if self.running:
             await self.radios.beacons_as_set()
 
@@ -269,28 +270,29 @@ class Controller(Services):
     def repoint(self, radio: RadioId) -> None:
         """Point the radio's line at the ports its modem was restarted on, in a task."""
         found = self.radios.get(radio)
-        if self.running and found is not None and found.spec.enabled:
-            self.tasks.spawn(self.radios.repoint(radio), "hf-tnc" if radio == HF_ID else f"repoint-{radio}")
+        if not self.running or found is None or not found.spec.enabled or radio in self.flows.held:
+            return
+        if not self.flows.owe_repoint(radio):
+            name = "hf-tnc" if radio == HF_ID else f"repoint-{radio}"
+            self.flows.begin(radio, "repoint", lambda: self.radios.repoint(radio), name)
 
     async def hold_radio(self, id: RadioId) -> None:
         """Stop one radio so a search can open the ports; it stays stopped until `release_radio`."""
-        self._held.add(id)
-        start = self._starts.pop(id, None)
-        if start is not None:
-            await cancel_all([start])
+        await self.flows.hold(id, lambda: self._stop_one(id), f"hold-{id}")
+
+    async def _stop_one(self, id: RadioId) -> None:
         radio = self.radios.get(id)
         if radio is not None:
             await radio.driver.stop()
 
     def release_radio(self, id: RadioId) -> None:
         """Restart the radio, if the daemon runs, with the settings as they are now."""
-        self._held.discard(id)
+        self.flows.release(id)
         if self.running:
             self.start_radio(id)
 
     async def _stop_radios(self) -> None:
-        tasks, self._starts = list(self._starts.values()), {}
-        await cancel_all(tasks)
+        await self.flows.end_all()
         await self.radios.stop_all()
 
     # ---- the settings
@@ -325,29 +327,46 @@ class Controller(Services):
         return True
 
     def _in_force(self, config: Config) -> None:
-        """Put stored settings in force: restart the changed radios, tell the parts."""
-        restart = self.radios.sync(config)
+        """Put stored settings in force: restart the changed radios, tell the parts.
+
+        A part that fails is logged with its name and the others are told all the same: the
+        settings are stored, so they are the ones in force.
+        """
+        names = {radio.id: radio.told for radio in self.radios.all()}
+        restart: list[RadioId] = []
+        self._tell("the radios", lambda: restart.extend(self.radios.sync(config)))
         previous, self.config = self.config, config
         now_dummy = {spec.id for spec in enabled(config.radios) if is_dummy(spec)}
-        wiring.place_me(self)
-        self.gps.settings_changed()
+        self._tell("our station in the book", lambda: wiring.place_me(self))
+        self._tell("the GPS", self.gps.settings_changed)
         for radio in self.radios.all():
-            radio.beacon.settings_changed()
-        self.igate.settings_changed()
+            self._tell(f"the beacon of {radio.told}", radio.beacon.settings_changed)
+        self._tell("the iGate", self.igate.settings_changed)
         for id in restart:
-            log.info(
-                "the %s radio is restarted because its settings changed: %s",
-                self.radios.name_of(id),
-                self.radios.why[id],
-            )
+            self._tell_restart(names.get(id) or self.radios.told_of(id), self.radios.why[id])
             self.start_radio(id)
         for was in enabled(previous.radios):
             if is_dummy(was) and was.id not in now_dummy:
-                self._leave_dummy(was)
+                self._tell("the made-up stations", partial(self._leave_dummy, was))
         self.config_changed.emit(config)
-        self.mapauto.settings_changed(previous)
-        if self.web is not None:
-            self.web.settings_changed(config)
+        self._tell("the automatic map", lambda: self.mapauto.settings_changed(previous))
+        if (web := self.web) is not None:
+            self._tell("the page", lambda: web.settings_changed(config))
+
+    @staticmethod
+    def _tell(part: str, fn: Callable[[], object]) -> None:
+        try:
+            fn()
+        except Exception:
+            log.exception("the settings are stored and in force, but %s could not take them", part)
+
+    @staticmethod
+    def _tell_restart(told: str, why: str) -> None:
+        """Log why the radio is started again: removed, new (its start says it) or its settings."""
+        if why == REMOVED:
+            log.info("%s is removed", told)
+        elif why != NEW:
+            log.info("%s is restarted because its settings changed: %s", told, why)
 
     # ---- the radios the operator adds, changes and removes
     async def add_radio(self, type: str, name: str = "", *, enabled: bool = True) -> RadioId | None:
@@ -392,7 +411,6 @@ class Controller(Services):
             spec = radioedits.removable(self.config, id)
             if not await self.store.remove_radio(id):
                 return False
-            log.info("the %s radio (radio %d) is removed", self.radios.name_of(id), id)
             self.forget_radio(id)
             self._in_force(radioedits.removed(self.config, spec, self.clock()))
             await self.prefbook.load()
@@ -420,8 +438,8 @@ class Controller(Services):
         log.info("forgot %d stations with the packets heard", count)
         return count
 
-    async def _prune_daily(self) -> None:
-        await every(PRUNE_EVERY_SEC, self.prune, "the daily care of the database", at_start=True)
+    async def _prune_often(self) -> None:
+        await every(PRUNE_EVERY_SEC, self.prune, "the care of the database", at_start=True)
 
     async def _sweep_backup(self) -> None:
         await every(

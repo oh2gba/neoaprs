@@ -219,12 +219,6 @@ fieldset.composebox > legend {
 .action-row > .action-notes:has(> .help-result:empty) {
   display: none;
 }
-.field-control .port-found {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .field-control .unit {
   flex: none;
   min-width: 2.5em;

@@ -411,7 +411,7 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
                 "status/source",
                 "setting.status_needs_rigctld",
                 {},
-                "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
+                "status/source: the radio needs status/rigctld (host:port of a rigctld)",
             )
         if (set_now := [key for key in ("fm/enabled", "hf/enabled") if key in parsed]) and (
             refusal := config.radio_refusal(set_now[0])

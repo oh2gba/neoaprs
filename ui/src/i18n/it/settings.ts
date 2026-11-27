@@ -129,7 +129,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.port.other": "Altra...",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "Percorso della porta",
-  "settings.port.found": "trovata: {port}",
   "settings.port.refresh": "Aggiorna",
 
   "settings.baud.name": "Velocità",
@@ -143,7 +142,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tcp_host.tip1": "Il computer dove gira il tuo Direwolf o soundmodem: 127.0.0.1 è questo computer.",
   "settings.tcp_port.label": "Porta",
   "settings.tcp_port.tip1": "Direwolf ascolta sulla 8001 e soundmodem sulla 8100, a meno che tu non li abbia cambiati.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "L’indirizzo della scheda nella tua rete, come lo mostra la sua pagina web.",
   "settings.board_port.tip1": "La porta KISS della scheda: 8001, a meno che tu non l’abbia cambiata lì.",
   "settings.board_host.label": "Indirizzo",
@@ -456,6 +454,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.incoming_port":
     "{port} è la porta Bluetooth in entrata del computer: scegli l’altra porta del dispositivo",
   "settings.tnc.write_timeout": "La porta non accetta dati: niente è passato in {seconds} s",
+  "settings.tnc.hf.receive_deaf": "Mercury non sente nulla (la ricezione si è bloccata): viene riavviato a breve",
   "settings.tnc.hf.receive_stalled": "Mercury non sente nulla, nemmeno dopo i riavvii: spegni e riaccendi la radio",
   "settings.tnc.hf.not_installed": "Questa installazione non include il modem di questa radio",
   "settings.tnc.hf.stopped": "Non in esecuzione",

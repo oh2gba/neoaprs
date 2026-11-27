@@ -23,13 +23,15 @@ from .reading import NO_READING, Reading
 from .policy import TNC_CHECK_SEC
 from .serialport import HeldError, NotChosenError, SerialError, is_socket
 from .signal import Signal
-from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
+from .source import Backoff, Source, minutes_between
 from .tncentry import KissEntry
 from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, packet_of, printable as _printable, read_frame
 from .tncport import Modem, TncPort
-from .tnctextreader import RX_ONLY, accepts, reader_for
+from .tnctextreader import accepts, reader_for
+from .tnchealth import COMMAND_MODE as COMMAND_MODE
+from .tnchealth import takes_frames, why_unusable
 from .tnc2line import text_of
 from .tncsearch import PortSearch, hold_port, may_open, release_port, taken
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
@@ -38,7 +40,6 @@ from .coded import Reason, code_of
 
 log = logging.getLogger("neoaprs.tnc")
 
-COMMAND_MODE = Reason("the TNC is in command mode (KISS ON is sent again)", "radio.command_mode")
 ENTER_KISS = KENWOOD_TNC2.enter[0][0]  # the default profile's entry, for the tests
 
 
@@ -77,18 +78,6 @@ def _describe(tnc: "Tnc") -> str:
         else ("entering KISS" if tnc.entering_kiss else "listening")
     )
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
-
-
-def _why_unusable(tnc: "Tnc") -> str:
-    if tnc.profile.framing == "text":
-        return RX_ONLY
-    if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
-        return CHECKING
-    if tnc.state is Source.State.CONNECTED and tnc._reader.command_mode_unanswered():
-        return COMMAND_MODE
-    if tnc.state is Source.State.CONNECTED and (quiet := tnc._reader.board_quiet() or tnc._held()):
-        return quiet
-    return unusable_because(tnc.state)
 
 
 def _until_settings_change(tnc: "Tnc", problem: str) -> None:
@@ -194,12 +183,16 @@ class Tnc(TimedSource):
         try:
             found = await self._find_line(reopen, named, generation)
         except SerialError as e:
+            if generation != self._generation:
+                return  # stopped meanwhile: no retry
             self.write_stuck = None  # the open failed: that is the problem now
             self._probe_next = named and self.fallback_probe and self._search.possible and not isinstance(e, HeldError)
             said = e.args[0] if e.args and isinstance(e.args[0], Reason) else str(e)
             self._wait(said, again=not isinstance(e, NotChosenError))
             return
         except Exception:
+            if generation != self._generation:
+                return
             log.exception("%s: connecting failed", self.label)
             self._wait("the radio could not be opened; the log says why")
             return
@@ -281,6 +274,14 @@ class Tnc(TimedSource):
         if heard and self.profile.detect_command_mode and ModeDetector().feed(heard) is Mode.MONITOR:
             self._reader.enter_kiss(port, "the search found the TNC in command mode")
         self._start_watchdog()
+        if self.write_stuck is not None:
+            self._spawn(self._unstuck_after(port))
+
+    async def _unstuck_after(self, port: TncPort | DummyPort) -> None:
+        """A line open for a probe's interval with no failed write takes data again (a quiet radio writes nothing)."""
+        await asyncio.sleep(self.watchdog.probe_sec)
+        if port is self._port and self.write_stuck is not None:
+            self._took_data(f"open for {self.watchdog.probe_sec:g} s and no write failed")
 
     def _wait(self, problem: str, again: bool = True) -> None:
         """Go WAITING and retry after the back-off; with `again` False, only new settings retry."""
@@ -295,6 +296,11 @@ class Tnc(TimedSource):
 
     def _modem(self) -> Modem | None:
         return self.modem if self.profile.transport == "modem" else None
+
+    @property
+    def modem_in_use(self) -> Modem | None:
+        """The modem program behind the line, for a type that has one."""
+        return self._modem()
 
     def _held(self) -> str:
         """Return why the modem wants no frame now (transmitting, channel busy), else ""."""
@@ -396,18 +402,9 @@ class Tnc(TimedSource):
 
     @property
     def usable(self) -> bool:
-        return (
-            not self.profile.writes_nothing
-            and self.state is Source.State.CONNECTED
-            and self.confirmed
-            and not self._reader.looking
-            and not self._reader.command_mode_unanswered()
-            and asyncio.get_running_loop().time() >= self._reader.settle_until
-            and not self._held()
-            and not self._reader.board_quiet()
-        )
+        return takes_frames(self)
 
-    describe, why_unusable = _describe, _why_unusable
+    describe, why_unusable = _describe, why_unusable
     _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)
     entering_kiss = property(
         lambda self: self._port is not None and self._reader.entered and not self._reader.kiss_seen

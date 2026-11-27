@@ -13,17 +13,25 @@ from neoaprs.coded import Param
 
 
 def error_message(
-    text: str, cmd: str = "", code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None
+    text: str,
+    cmd: str = "",
+    code: str = "other",
+    key: str | None = None,
+    params: Mapping[str, Param] | None = None,
+    id: int | None = None,
 ) -> dict[str, Any]:
     """Return the `error` message; `cmd` is empty for a frame that was no command.
 
-    A non-finite float, which JSON cannot carry, is sent as its text.
+    A non-finite float, which JSON cannot carry, is sent as its text. `id` is the request's, left out when it had none.
     """
     shown = {
         name: (f"{value:g}" if isinstance(value, float) and not math.isfinite(value) else value)
         for name, value in (params or {}).items()
     }
-    return {"type": "error", "cmd": cmd, "key": key, "code": code, "params": shown, "text": text}
+    message: dict[str, Any] = {"type": "error", "cmd": cmd, "key": key, "code": code, "params": shown, "text": text}
+    if id is not None:
+        message["id"] = id
+    return message
 
 
 class Client(Protocol):
@@ -64,8 +72,9 @@ class Connection:
         code: str = "other",
         key: str | None = None,
         params: Mapping[str, Param] | None = None,
+        id: int | None = None,
     ) -> None:
-        self.send(error_message(text, cmd, code, key, params))
+        self.send(error_message(text, cmd, code, key, params, id))
 
     # Link interface used by the state hub.
     def send_text(self, text: str) -> None:

@@ -42,6 +42,10 @@ class StallWatch:
         self.last_stall_at = at
         return True
 
+    def deaf(self, now: float) -> bool:
+        """Return whether the modem hears nothing now: stalled, the warning still coming, and not given up."""
+        return self.stalled and not self.given_up and now - self._last_seen <= GAP_SEC
+
     def pause(self) -> None:
         """The radio transmits: warnings meanwhile count for nothing, and a run starts afresh after."""
         self.stalled, self._run_from = False, None

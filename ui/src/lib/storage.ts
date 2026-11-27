@@ -28,6 +28,20 @@ export function removeStored(key: string): void {
   }
 }
 
+/** The keys (without the page's prefix) that start with `prefix`. */
+export function storedKeys(prefix: string): string[] {
+  try {
+    const found: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(STORE_PREFIX + prefix)) found.push(key.slice(STORE_PREFIX.length));
+    }
+    return found;
+  } catch {
+    return [];
+  }
+}
+
 /** The stored text of `key` as a number within [min, max], else `fallback`. */
 export function readStoredNumber(key: string, fallback: number, min: number, max: number): number {
   const text = readStored(key);

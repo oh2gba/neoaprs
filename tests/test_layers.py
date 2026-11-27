@@ -645,3 +645,44 @@ async def test_the_loop_is_not_held_while_a_receiver_answers_some_16_megabytes()
     # any loop waiting for a moment, so the best of three goes counts.)
     best = min([await held() for _ in range(3)])
     assert best < 0.25, f"the loop was held {best * 1000:.0f} ms"
+
+
+@pytest.mark.expects_errors
+async def test_a_question_that_raises_is_logged_once_and_asked_again() -> None:
+    async with virtual_time():
+        calls: list[str] = []
+
+        def answer(url: str) -> FeedAnswer | None:
+            calls.append(url)
+            if len(calls) <= 2:
+                raise RuntimeError("a source that cannot be read")
+            return FeedAnswer(200, sky(plane("461f2a")))
+
+        service = await layers(Net(answer), Settings(map_aircraft="adsbfi"))
+        told = tables(service)
+        service.watch("aircraft", True)
+        await asyncio.sleep(200)
+        assert len(calls) >= 3 and told and [t.id for t in told[-1].things] == ["461f2a"]
+
+
+@pytest.mark.expects_errors
+async def test_the_ageing_pass_goes_on_after_a_failed_round(monkeypatch: pytest.MonkeyPatch) -> None:
+    async with virtual_time():
+        answers = [FeedAnswer(200, sky(plane("aaaaaa")))]
+        service = await layers(Net(lambda url: answers.pop(0) if answers else None), Settings(map_aircraft="adsbfi"))
+        told = tables(service)
+        service.watch("aircraft", True)
+        await asyncio.sleep(1)
+        real = service.table
+        raised: list[int] = []
+
+        def table(layer: Any) -> LayerTable:
+            if not raised:
+                raised.append(1)
+                raise RuntimeError("one bad round")
+            return real(layer)
+
+        monkeypatch.setattr(service, "table", table)
+        await asyncio.sleep(400)
+        assert raised and told[-1].things == (), "the things aged out, and the pages were told"
+        assert any(t.get_name() == "layers-ageing" and not t.done() for t in service._tasks)

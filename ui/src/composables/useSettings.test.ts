@@ -1,19 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { nextTick, ref } from "vue";
+import { nextTick, ref, shallowRef } from "vue";
 import { ANSWER_MS } from "@/composables/useSettingsQueue";
 import { useSettings } from "@/composables/useSettings";
 import type { Toast } from "@/composables/useDaemon";
-import type { Command, ConfigValues } from "@/protocol/protocol";
+import type { Connection } from "@/lib/hub";
+import type { Command, ConfigValues, SavedMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
 import { pairField } from "@/lib/settingspair";
 
 function setUp(extra: Record<string, string> = {}) {
   const config = ref<ConfigValues | null>(configValues(extra));
   const lastError = ref<Toast | null>(null);
-  const send = vi.fn((_command: Command) => true);
-  const settings = useSettings(config, lastError, send);
+  const connection = ref<Connection>("open");
+  const send = vi.fn((_command: Command) => connection.value === "open");
+  const saved = shallowRef<SavedMessage | null>(null);
+  const settings = useSettings(config, lastError, send, { saved, connection });
   let errors = 0;
-  /** The daemon accepts the request in flight: it sends the settings again with these values. */
+  /** The number the page gave the request sent last. */
+  const lastId = () => (send.mock.calls.at(-1)?.[0] as { id: number }).id;
+  /** The daemon accepts the request in flight: it sends the settings again with these values, and `saved`. */
   const answer = async (changes: Record<string, string> = {}) => {
     const own = (radio: boolean) =>
       Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("radio/") === radio));
@@ -22,14 +27,16 @@ function setUp(extra: Record<string, string> = {}) {
       { ...config.value?.radio_values, ...own(true) },
     );
     await nextTick();
+    if (send.mock.calls.length > 0) saved.value = { type: "saved", id: lastId() };
+    await nextTick();
   };
   /** The daemon refuses the request in flight. */
   const refuse = async (text: string, code = "other", params: Record<string, string | number> = {}) => {
-    lastError.value = toastOf(text, code, params, ++errors);
+    lastError.value = { ...toastOf(text, code, params, ++errors), id: lastId() };
     await nextTick();
   };
   const sets = () => send.mock.calls.map(([command]) => (command as { values: Record<string, string> }).values);
-  return { config, send, settings, answer, refuse, sets };
+  return { config, send, settings, answer, refuse, sets, saved, connection, lastId, lastError };
 }
 
 beforeEach(() => vi.useFakeTimers());
@@ -223,7 +230,10 @@ describe("useSettings: one save at a time", () => {
 
   it("says so under the field when the command could not be sent, and does not wait for an answer", () => {
     const config = ref<ConfigValues | null>(configValues());
-    const settings = useSettings(config, ref(null), () => false);
+    const settings = useSettings(config, ref(null), () => false, {
+      saved: shallowRef(null),
+      connection: ref<Connection>("open"),
+    });
     settings.change({ "radio/1/digipeat": "true" });
     expect(settings.errors["radio/1/digipeat"]).toContain("no connection");
     expect(settings.saving.value).toBe(false);
@@ -439,23 +449,104 @@ describe("useSettings: the keys of a pair that is gone", () => {
   });
 });
 
-describe("useSettings: a tell of the settings for another reason", () => {
-  it("leaves a later refusal of the request it released at that request's field, and the next one waiting", async () => {
-    const config = ref<ConfigValues | null>(configValues());
-    const lastError = ref<Toast | null>(null);
-    const send = vi.fn((_c: Command) => true);
-    const settings = useSettings(config, lastError, send);
+describe("useSettings: the answer of a request is the one that carries its number", () => {
+  it("sends each request with a number of its own", async () => {
+    const { settings, send, answer, lastId } = setUp();
+    settings.change({ "radio/1/digipeat": "true" });
+    const first = lastId();
+    await answer({ "radio/1/digipeat": "true" });
+    settings.change({ "map/radius_km": "200" });
+    expect(lastId()).not.toBe(first);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("is not answered by a tell of the settings for another reason, whoever saved", async () => {
+    const { settings, config, send, answer } = setUp();
     settings.edit("station/comment", "Hello A");
     settings.commit(["station/comment"]);
     settings.edit("status/text", "Text B");
     settings.commit(["status/text"]);
-    config.value = configValues({ ...config.value?.values, "web/key": "newkey" }); // (another device saved its own)
+    config.value = configValues({ ...config.value?.values, "web/key": "newkey" }); // another device saved its own
     await nextTick();
-    expect(send).toHaveBeenCalledTimes(2);
-    lastError.value = toastOf("set_config: station/comment: too long", "other", {}, 1);
-    await nextTick();
-    expect(settings.errors["station/comment"]).toBeDefined();
-    expect(settings.errors["status/text"]).toBeUndefined();
+    expect(send).toHaveBeenCalledTimes(1);
     expect(settings.saving.value).toBe(true);
+    expect(settings.announcement.value.text).toBe("");
+    expect(settings.draft["station/comment"]).toBe("Hello A");
+    await answer({ "station/comment": "Hello A" });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps what was typed when the daemon tells the old value again while the save is out", async () => {
+    const { settings, config } = setUp();
+    settings.edit("station/comment", "Hello A");
+    settings.commit(["station/comment"]);
+    config.value = configValues({ ...config.value?.values });
+    await nextTick();
+    expect(settings.draft["station/comment"]).toBe("Hello A");
+  });
+
+  it("takes the daemon's way of writing a saved value, whether the settings or `saved` come first", async () => {
+    const first = setUp();
+    first.settings.edit("station/call", "oh2xyz");
+    first.settings.commit(["station/call"]);
+    first.config.value = configValues({ ...first.config.value?.values, "station/call": "OH2XYZ" });
+    await nextTick();
+    first.saved.value = { type: "saved", id: first.lastId() };
+    await nextTick();
+    expect(first.settings.draft["station/call"]).toBe("OH2XYZ");
+    expect(first.settings.saving.value).toBe(false);
+
+    const second = setUp();
+    second.settings.edit("station/call", "oh2xyz");
+    second.settings.commit(["station/call"]);
+    second.saved.value = { type: "saved", id: second.lastId() };
+    await nextTick();
+    second.config.value = configValues({ ...second.config.value?.values, "station/call": "OH2XYZ" });
+    await nextTick();
+    expect(second.settings.draft["station/call"]).toBe("OH2XYZ");
+  });
+
+  it("ignores a `saved` of a request it gave up, and refuses a request only by its own number", async () => {
+    const { settings, saved, lastError, sets, lastId } = setUp();
+    settings.change({ "radio/1/digipeat": "true" });
+    const old = lastId();
+    vi.advanceTimersByTime(ANSWER_MS + 1);
+    settings.change({ "map/radius_km": "200" });
+    saved.value = { type: "saved", id: old };
+    await nextTick();
+    expect(settings.saving.value).toBe(true);
+    lastError.value = { ...toastOf("set_config: map/radius_km: bad", "setting.range", {}, 1), id: old };
+    await nextTick();
+    expect(settings.errors["map/radius_km"]).toBeUndefined();
+    expect(sets()).toHaveLength(2);
+  });
+
+  it("refuses the request in flight when the socket leaves open, keeps the typed text and announces nothing", async () => {
+    const { settings, connection, send } = setUp();
+    settings.edit("station/comment", "Hello A");
+    settings.commit(["station/comment"]);
+    settings.change({ "radio/1/digipeat": "true" });
+    connection.value = "closed";
+    await nextTick();
+    expect(settings.errors["station/comment"]).toContain("no connection");
+    expect(settings.draft["station/comment"]).toBe("Hello A");
+    expect(settings.announcement.value.text).toBe("");
+    expect(settings.saving.value).toBe(false);
+    expect(send).toHaveBeenCalledTimes(2);
+    connection.value = "open";
+    await nextTick();
+    expect(settings.draft["station/comment"]).toBe("Hello A");
+  });
+
+  it("does not paint the old value over the typed text when the socket comes back with the settings", async () => {
+    const { settings, connection, config } = setUp();
+    settings.edit("station/comment", "Hello A");
+    settings.commit(["station/comment"]);
+    connection.value = "closed";
+    await nextTick();
+    connection.value = "open";
+    config.value = configValues({ ...config.value?.values });
+    await nextTick();
+    expect(settings.draft["station/comment"]).toBe("Hello A");
   });
 });

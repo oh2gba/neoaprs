@@ -19,7 +19,7 @@ from typing import Any
 from neoaprs import VERSION, nodevices
 from neoaprs.aprslocator import grid_of
 from neoaprs.callsign import CallsignError, call_problem, parse_call
-from neoaprs.clock import Clock, utcnow
+from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import Config
 from neoaprs.packet import DUMMY, RF, Packet, Position
 from neoaprs.pskreport import TEMPLATES, Receiver, Report, Template, datagram, fitting
@@ -157,11 +157,23 @@ class PskReporter:
         self._no_position_at: datetime | None = None
         self._reporting = False
         self._dropping = False
+        self._steps = StepWatch()
         self._tasks = TaskSet(log, "PSK Reporter")
 
     async def start(self) -> None:
         if not self._tasks:
+            self._steps.moved(self._clock)
             self._tasks.spawn(self._run(), "pskreporter")
+
+    def _follow_steps(self) -> None:
+        """A stepped clock moves what waits by the step, so each wait keeps its length; the reports keep their time."""
+        if not (step := self._steps.moved(self._clock)):
+            return
+        self._due, self._last_sent, self._templates_at, self._no_position_at = (
+            None if t is None else t + step
+            for t in (self._due, self._last_sent, self._templates_at, self._no_position_at)
+        )
+        self._reported = {key: at + step for key, at in self._reported.items()}
 
     async def stop(self) -> None:
         await self._tasks.cancel_all()
@@ -209,6 +221,7 @@ class PskReporter:
             log.exception("PSK Reporter: the packet %s could not be taken", packet.source)
 
     def _take(self, packet: Packet) -> None:
+        self._follow_steps()
         config = self._config()
         hz = reporting_dial(config.radio(packet.radio_id) if packet.radio_id is not None else None)
         if hz is None or not heard_directly(packet):
@@ -255,6 +268,7 @@ class PskReporter:
     async def _run(self) -> None:
         while True:
             await asyncio.sleep(self.tick_sec)
+            self._follow_steps()
             now = self._clock()
             if self._due is None or now < self._due:
                 continue

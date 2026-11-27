@@ -50,7 +50,7 @@ def _params(call: ast.Call) -> dict[str, str]:
                 {k.value: _same(v) for k, v in zip(d.keys, d.values, strict=True) if isinstance(k, ast.Constant)}
             )
     found.update(
-        {kw.arg: _same(kw.value) for kw in call.keywords if kw.arg and kw.arg not in ("code", "params", "key")}
+        {kw.arg: _same(kw.value) for kw in call.keywords if kw.arg and kw.arg not in ("code", "params", "key", "id")}
     )
     return found
 

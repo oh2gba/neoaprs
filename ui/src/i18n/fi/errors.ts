@@ -128,12 +128,11 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "'{value}' ei ole tapa avaintaa radiota: vox, cm108, rts:PORTTI tai dtr:PORTTI",
   "error.setting.not_among": "{value} ei ole mikään näistä: {choices}",
   "error.setting.not_direction": "'{value}' ei ole omni eikä mikään näistä: N NE E SE S SW W NW",
-  "error.setting.not_globs":
-    "'{value}' ei ole yksi tai useampi välilyönnein erotettu absoluuttinen kuvio, kuten /dev/ttyUSB*",
+  "error.setting.not_globs": "'{value}' ei ole yksi tai useampi välilyönnein erotettu absoluuttinen kuvio",
   "error.setting.not_host": "'{value}' ei ole osoite eikä nimi",
-  "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti (4532 on rigctld:n portti)",
+  "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti",
   "error.setting.not_receiver": "'{value}' ei ole vastaanottimen osoite",
-  "error.setting.not_server": "'{value}' ei ole muotoa palvelin:portti (14580 on APRS-IS-palvelimen tavallinen portti)",
+  "error.setting.not_server": "'{value}' ei ole muotoa palvelin:portti",
   "error.setting.not_dial": "'{value}' ei ole viritystaajuus muotoa 28.1800 MHz USB",
   "error.setting.not_passcode": "kutsusi pääsykoodi on luku väliltä 0–{max}",
   "error.setting.passcode_read_only": "-1 on pelkän lukemisen pääsykoodi; iGate tarvitsee kutsunsa pääsykoodin",
@@ -151,8 +150,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} yhdistää TCP:n kautta (tcp/host ja tcp/port), ei sarjaporttiin {port}: tyhjennä serial/port tai valitse sarjaportin TNC",
   "error.setting.range": "{value} ei ole välillä {min}–{max}",
-  "error.setting.status_needs_rigctld":
-    "radio tarvitsee asetuksen status/rigctld (rigctld:n palvelin:portti, 127.0.0.1:4532)",
+  "error.setting.status_needs_rigctld": "radio tarvitsee asetuksen status/rigctld (rigctld:n palvelin:portti)",
   "error.setting.status_source":
     "'{value}' ei ole off, text eikä rig (tyhjä: kuten status/rigctld ja station/status sanovat)",
   "error.setting.template_field": "{{{field}}} ei ole mallin kenttä (kentät ovat {{freq}} ja {{mode}})",

@@ -19,7 +19,8 @@ FREQUENCIES_ROW = "update/frequencies"
 SUPPORT_URL = "https://neo.oh2gba.eu/support/send.php"
 MAX_MESSAGE = 200
 # an HF dial as the page names it: "7.0541 MHz USB"
-_DIAL = re.compile(r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$", re.ASCII)
+DIAL_PATTERN = r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$"
+_DIAL = re.compile(DIAL_PATTERN, re.ASCII)
 _BAND = re.compile(r"^\d{1,3} m$", re.ASCII)
 MAX_FREQUENCIES = 5
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$", re.ASCII)
@@ -78,7 +79,7 @@ def parse_update(body: bytes | str) -> Update | None:
     if not _VERSION.match(version):
         return None
     return Update(
-        version, url if url.startswith("https://") else "", message[:MAX_MESSAGE], dial if _DIAL.match(dial) else ""
+        version, url if url.startswith("https://") else "", message[:MAX_MESSAGE], dial if is_dial(dial) else ""
     )
 
 
@@ -158,12 +159,7 @@ def parse_frequencies(body: bytes | str) -> list[Frequency] | None:
             text.strip() if isinstance(entry, dict) and isinstance(text := entry.get(key), str) else ""
             for key in ("band", "dial")
         )
-        if (
-            _BAND.match(band)
-            and _DIAL.match(dial)
-            and all(f.band != band for f in found)
-            and len(found) < MAX_FREQUENCIES
-        ):
+        if _BAND.match(band) and is_dial(dial) and all(f.band != band for f in found) and len(found) < MAX_FREQUENCIES:
             found.append(Frequency(band, dial))
     # the file adds a band at its end, where an older copy's limit leaves it out
     return sorted(found, key=lambda f: -int(f.band.split()[0])) or None

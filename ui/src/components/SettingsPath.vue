@@ -16,6 +16,7 @@ import { t } from "@/i18n";
 import { pathRows, radioValueOf } from "@/lib/beaconstatus";
 import { DIRECT, callListText } from "@/lib/calls";
 import { problemOf } from "@/lib/fieldcheck";
+import { confirms } from "@/lib/ime";
 import { fieldId, recommendedFor } from "@/lib/radios";
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo } from "@/lib/settings";
@@ -138,7 +139,9 @@ function leave(event: FocusEvent): void {
   edited.value = false;
 }
 
-function enter(): void {
+function enter(event: KeyboardEvent): void {
+  if (!confirms(event)) return;
+  event.preventDefault();
   if (edited.value) emit("commit", null);
   edited.value = false;
 }
@@ -207,7 +210,7 @@ watch(
         :aria-label="t('settings.path.custom_label')"
         @input="type"
         @blur="leave"
-        @keydown.enter.prevent="enter"
+        @keydown.enter="enter"
         @keydown.esc="escape"
       />
       <PathBuilder

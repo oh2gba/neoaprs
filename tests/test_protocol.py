@@ -653,6 +653,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         },
     ],
     "pong": [{"type": "pong", "now": NOW}],
+    "saved": [{"type": "saved", "id": 3}],
     "ports": [
         {
             "type": "ports",
@@ -1195,7 +1196,9 @@ def test_every_message_type_has_examples_that_validate_and_every_example_is_of_a
         for example in examples:
             message = MESSAGES.validate_json(json.dumps(example))
             assert message.type == kind
-            assert json.loads(message.model_dump_json()) == example, "what is read is what was written"
+            assert json.loads(message.model_dump_json(exclude_unset=True)) == example, (
+                "what is read is what was written"
+            )
 
 
 def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
@@ -1377,6 +1380,10 @@ def test_the_limits_of_the_commands() -> None:
         COMMANDS.validate_python({"cmd": "set_config", "values": {"a": 1}})
     with pytest.raises(ValidationError):
         COMMANDS.validate_python({"cmd": "set_config", "values": {f"k{n}": "v" for n in range(65)}})
+    for bad_id in (-1, "1", 1.5, True):
+        with pytest.raises(ValidationError):
+            COMMANDS.validate_python({"cmd": "set_config", "values": {}, "id": bad_id})
+    assert COMMANDS.validate_python({"cmd": "set_config", "values": {}, "id": 4}).id == 4  # type: ignore[attr-defined]
     for bad in (
         {"cmd": "send_message", "to": "", "text": "x"},
         {"cmd": "send_message", "to": "X" * 65, "text": "x"},

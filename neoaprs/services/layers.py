@@ -36,7 +36,7 @@ from neoaprs.layerthing import (
     within,
 )
 from neoaprs.signal import Signal
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import Failures, TaskSet, every
 from neoaprs.updatefetch import fetch_feed
 from neoaprs.versions import on_this_computer
 
@@ -51,6 +51,7 @@ RECEIVER_TIMEOUT_SEC = 4.0  # per place tried
 RECEIVER_BACKOFF_MAX_SEC = 60.0  # short, as a receiver on the local network returns soon
 SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic"}
 NO_WAIT_SEC = 1.0  # pause when another asker took the feed first
+ASK_RETRY_SEC = 30.0  # pause after a round of asking that raised
 
 
 Reader = Callable[[bytes, datetime], list[Thing] | None]
@@ -399,14 +400,20 @@ class Layers:
 
     async def _asking(self, layer: Layer, made: LayerSource) -> None:
         """Ask the source as often as its feed allows, until it reports nothing to wait for."""
+        failures = Failures(f"asking the {layer} layer")
         while (wait := made.wait_sec()) is not None:
             if wait > 0:
                 await asyncio.sleep(wait)
-            if await made.ask():
-                self._tell(layer)
-                self._maybe_changed()
-            elif wait == 0:
-                await asyncio.sleep(NO_WAIT_SEC)
+            try:
+                if await made.ask():
+                    self._tell(layer)
+                    self._maybe_changed()
+                elif wait == 0:
+                    await asyncio.sleep(NO_WAIT_SEC)
+                failures.worked()
+            except Exception as e:
+                failures.failed(e)
+                await asyncio.sleep(ASK_RETRY_SEC)
 
     async def _start_source(self, layer: Layer, made: LayerSource) -> None:
         await made.start()
@@ -429,12 +436,10 @@ class Layers:
             self._states = states
             self.changed.emit()
 
-    async def _ageing(self) -> None:
-        while True:
-            await asyncio.sleep(AGE_CHECK_SEC)
-            for layer in list(self._watched):
-                if len(self.table(layer).things) < self._counts.get(layer, 0):
-                    self._tell(layer)
+    def _age(self) -> None:
+        for layer in list(self._watched):
+            if len(self.table(layer).things) < self._counts.get(layer, 0):
+                self._tell(layer)
 
     # ---- the daemon
     async def start(self) -> None:
@@ -446,7 +451,7 @@ class Layers:
             if made is not None:
                 self._tasks.spawn(self._start_source(layer, made), f"layers-start-{layer}")
         self._refresh()
-        self._tasks.spawn(self._ageing(), "layers-ageing")
+        self._tasks.spawn(every(AGE_CHECK_SEC, self._age, "the ageing of the layers' things"), "layers-ageing")
 
     async def stop(self) -> None:
         self.running = False
