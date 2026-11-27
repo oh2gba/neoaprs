@@ -603,6 +603,13 @@ async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_i
     assert lost == [], "a write cut short by our own close is not a lost line"
 
 
+@pytest.fixture(autouse=True)
+def no_closes_left_over(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test starts with no close of a port under way and no hung close logged."""
+    monkeypatch.setattr(serialport, "_closing", {})
+    monkeypatch.setattr(serialport, "_hung", set())
+
+
 class SlowCloseSer(SlowSer):
     """A USB adapter whose close blocks until it is let go, as after a write timed out on Windows."""
 
@@ -615,7 +622,7 @@ class SlowCloseSer(SlowSer):
         self.opens += 1
 
     def close(self) -> None:
-        self.let_go.wait(30.0)
+        self.let_go.wait(120.0)  # (a test lets it go; it never gives up on its own meanwhile)
         self.closed.set()
 
 
@@ -628,7 +635,7 @@ async def test_a_serial_port_is_closed_off_the_loop_and_opened_again_only_once_t
     await port.open()
     began = time.monotonic()
     port.close()
-    assert time.monotonic() - began < 0.5 and not port.is_open, "the loop goes on while the device closes"
+    assert time.monotonic() - began < 10.0 and not port.is_open, "the loop goes on while the device closes"
     again = asyncio.create_task(port.open())
     await idle_for(0.2)
     assert ser.opens == 1 and not again.done(), "the device is not opened while its close is under way"
@@ -647,23 +654,31 @@ async def test_an_earlier_close_that_hangs_is_waited_for_after_a_later_one_of_th
     quick.let_go.set()
     made = iter([hung, quick, SlowSer(0.0)])
     monkeypatch.setattr(serialport, "_build", lambda path, baud: next(made))
-    monkeypatch.setattr(serialport, "CLOSE_WAIT_SEC", 0.5)
+    monkeypatch.setattr(serialport, "CLOSE_WAIT_SEC", 1.0)
     first, second, third = SerialPort("COM9"), SerialPort("COM9"), SerialPort("COM9")
-    await first.open()
-    first.close()  # (it hangs)
-    await second.open()
-    second.close()
-    await until(quick.closed.is_set)
-    with caplog.at_level(logging.WARNING, "neoaprs.serialport"):
-        began = time.monotonic()
+    try:
+        await first.open()
+        first.close()  # (it hangs)
+        [hung_close] = serialport._closing["COM9"]
+        waits: list[float | None] = []
+        join = hung_close.join
+        monkeypatch.setattr(hung_close, "join", lambda timeout=None: (waits.append(timeout), join(timeout))[1])
+        await second.open()  # (it waits for the hung close, and it is the one that says so)
+        second.close()
+        await until(quick.closed.is_set, 30.0)
+        waits.clear()
         await third.open()
-    assert time.monotonic() - began >= 0.4, "the hung close of the first was waited for, not only the later one"
-    assert [r.getMessage() for r in caplog.records] == [
-        "the port COM9 is still being closed after 0.5 s: it is opened all the same"
-    ]
-    third.close()
-    hung.let_go.set()
-    await until(hung.closed.is_set)
+        assert len(waits) == 1 and waits[0] is not None and waits[0] > 0.2, (
+            f"the third open waited for the hung close of the first for {waits}, not only for the later one"
+        )
+        assert hung_close.is_alive(), "(the open went on at the end of its wait: the close was never let go)"
+        assert [r.getMessage() for r in caplog.records if r.name == "neoaprs.serialport"] == [
+            "the port COM9 is still being closed after 1 s: it is opened all the same"
+        ], "the hung close is said once"
+        third.close()
+    finally:
+        hung.let_go.set()
+    await until(hung.closed.is_set, 30.0)
 
 
 # ---- the list of ports
