@@ -58,8 +58,21 @@ const groupConnected = computed(() =>
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
 const wide = computed(() => width.value >= MESSAGES_WIDE);
-const draft = ref("");
+/** The unsent text of each conversation, by its call: a box keeps its own text when another
+ * conversation is opened. */
+const drafts = ref(new Map<string, string>());
+const draft = computed({
+  get: () => (props.selected === null ? "" : (drafts.value.get(props.selected) ?? "")),
+  set: (text: string) => {
+    if (props.selected !== null) setDraft(props.selected, text);
+  },
+});
 const groupDraft = ref("");
+
+function setDraft(call: string, text: string): void {
+  if (text === "") drafts.value.delete(call);
+  else drafts.value.set(call, text);
+}
 
 /** Whether a conversation or the group compose is shown (on a narrow page: instead of the list). */
 const isOpen = computed(() => props.selected !== null || props.group !== null);
@@ -87,15 +100,15 @@ function onEsc(event: KeyboardEvent): void {
 }
 
 /** A ready-made message to a service: its conversation opens with the start of the text in the
- * box and the cursor after it. */
+ * box and the cursor at the end. A box that already holds text keeps it. */
 async function write(to: string, text: string): Promise<void> {
   emit("update:group", null);
   emit("select", to);
-  draft.value = text;
+  if (!drafts.value.has(to)) setDraft(to, text);
   await nextTick();
   const box = root.value?.querySelector<HTMLInputElement>("#msg-text");
   box?.focus();
-  box?.setSelectionRange(text.length, text.length);
+  box?.setSelectionRange(box.value.length, box.value.length);
 }
 
 /** A text sent from the group compose goes out and the view closes; no conversation is opened. */

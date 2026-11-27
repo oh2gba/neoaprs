@@ -190,11 +190,17 @@ describe("MessagesPane, wide", () => {
     expect(wrapper.find(".compose input").attributes("placeholder")).toBe("Message");
   });
 
-  it("keeps the text being written when another conversation is picked", async () => {
+  it("keeps the text being written in its own conversation: another one has its own box", async () => {
     const wrapper = await pane();
+    const box = () => wrapper.find<HTMLInputElement>("#msg-text").element;
     await wrapper.find("#msg-text").setValue("half a message");
     await wrapper.setProps({ selected: "OH2XYZ" });
-    expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("half a message");
+    expect(box().value).toBe("");
+    await wrapper.find("#msg-text").setValue("73");
+    await wrapper.setProps({ selected: "OH2RDG" });
+    expect(box().value).toBe("half a message");
+    await wrapper.setProps({ selected: "OH2XYZ" });
+    expect(box().value).toBe("73");
   });
 });
 

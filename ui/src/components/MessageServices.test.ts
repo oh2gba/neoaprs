@@ -47,6 +47,29 @@ describe("MessageServices", () => {
   });
 });
 
+async function tab(selected: string | null = null): Promise<VueWrapper> {
+  const wrapper: VueWrapper = mount(MessagesPane, {
+    props: {
+      conversations: [],
+      selected,
+      thread: [],
+      showOverheard: false,
+      onSelect: (call: string | null) => void wrapper.setProps({ selected: call }),
+    },
+    global: withDaemon(fakeDaemon({ connected: true })),
+    attachTo: document.body,
+  });
+  await flushPromises();
+  return wrapper;
+}
+
+const box = (wrapper: VueWrapper) => wrapper.find("#msg-text").element as HTMLInputElement;
+
+async function write(wrapper: VueWrapper): Promise<void> {
+  await wrapper.find(".convlist-services button").trigger("click");
+  await flushPromises();
+}
+
 describe("Services in the Messages tab", () => {
   it("opens the service's conversation with the start of the text in the box, the cursor after it", async () => {
     const daemon = fakeDaemon({ connected: true });
@@ -70,5 +93,25 @@ describe("Services in the Messages tab", () => {
     expect(document.activeElement).toBe(box);
     expect(box.selectionStart).toBe("CQ HOTG ".length);
     expect(daemon.send.mock.calls.filter(([c]) => c.cmd === "send_message")).toEqual([]);
+  });
+
+  it("leaves the text of the service's conversation alone when its box holds some, and puts the cursor after it", async () => {
+    const wrapper = await tab("ANSRVR");
+    await wrapper.find("#msg-text").setValue("CQ NET 73");
+    await write(wrapper);
+    expect(wrapper.find(".convo-title").text()).toBe("ANSRVR");
+    expect(box(wrapper).value).toBe("CQ NET 73");
+    expect(box(wrapper).selectionStart).toBe("CQ NET 73".length);
+  });
+
+  it("keeps what was typed in another conversation, and the service's text stays in its own", async () => {
+    const wrapper = await tab("OH2RDG");
+    await wrapper.find("#msg-text").setValue("hello Pekka");
+    await write(wrapper);
+    expect(box(wrapper).value).toBe("CQ HOTG ");
+    await wrapper.setProps({ selected: "OH2RDG" });
+    expect(box(wrapper).value).toBe("hello Pekka");
+    await wrapper.setProps({ selected: "OH2XYZ" });
+    expect(box(wrapper).value).toBe("");
   });
 });

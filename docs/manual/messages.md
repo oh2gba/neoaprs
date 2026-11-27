@@ -94,7 +94,7 @@ Resize the panel and the layout follows, with the same conversation open.
 
 ### Messages to services
 
-Pick a service in **Services** at the top of the list and press **Write**: the conversation with the service's station opens with the fixed start of the text in the box, and you complete it and press Send. It is an ordinary message, acked like any other. The choice is remembered.
+Pick a service in **Services** at the top of the list and press **Write**: the conversation with the service's station opens with the fixed start of the text in the box, and you complete it and press Send. When that box already holds text, Write leaves it as it is. It is an ordinary message, acked like any other. The choice is remembered.
 
 | entry | to | the text starts with | what you add |
 |---|---|---|---|
@@ -116,7 +116,7 @@ Pick a service in **Services** at the top of the list and press **Write**: the c
 - Each message of yours has a mark: a clock while it is being sent or is queued; a check once it is acked (the title has the time of the ack and the SNR of the ack, when the radio measured it); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
 - The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the radio the messages go on is not connected (its title says "The TNC is not connected", or "Mercury: not connected" with the radio's name while several are on), or the text is empty or too long. There is no To field: the conversation is the station.
 - An overheard pair has no box to write in and no Route, only the bubbles, since the messages are not yours to answer.
-- What you typed stays when you go back to the list or open another conversation.
+- What you typed stays in its own conversation when you go back to the list or open another one, and is there again when you come back.
 - **Esc** deselects the open conversation, on a wide tab as on a narrow one. The Route box, if it is open, takes the first Esc. A text box with text in it keeps the text and the conversation; with it empty, Esc goes through.
 - The **trash can** on a row deletes the whole conversation after two clicks ("sure?" for 5 seconds). On an overheard pair it deletes every overheard message of the pair. A single message has no delete button.
 
