@@ -61,6 +61,8 @@ export default defineConfig({
     },
   },
   build: {
+    // The browsers the page is built for, named in docs/development.md (tests/test_page_browsers.py).
+    target: ["es2020", "edge88", "firefox78", "chrome87", "safari14"],
     outDir: process.env.NEOAPRS_OUT || "dist",
     emptyOutDir: true,
     sourcemap: false,

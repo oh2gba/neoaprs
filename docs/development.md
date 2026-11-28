@@ -324,6 +324,10 @@ the base map and every request that is not a GET are never touched.
 test holds the page to the Content-Security-Policy of `neoaprs/web/headers.py`: no inline script, no eval, and MapLibre's worker is a file of
 `neoaprs/page/assets`, because it would make one from a blob otherwise, which the policy forbids.
 
+**The browsers.** The page is built for Chrome and Edge 87, Firefox 78 and Safari 14 or newer: `build.target` in `ui/vite.config.ts`
+is `es2020, edge88, firefox78, chrome87, safari14`. The desktop app's window is well inside it: Qt WebEngine 6.12 (Linux and macOS) is Chromium 140, and
+WebView2 on Windows follows Edge. `tests/test_page_browsers.py` holds the three together.
+
 **The assets.** The symbol sheets are in `ui/public/symbols/` (three sprite sheets, 48 px a symbol), with `SOURCE.txt` and `COPYRIGHT.txt` beside them;
 `src/lib/symbols.ts` is the one file that knows their layout. The glyph files for the map labels are in `ui/public/fonts/` with `OFL.txt`. The credits shown in
 the map's (i) are in [the manual](manual/page.md#credits).
