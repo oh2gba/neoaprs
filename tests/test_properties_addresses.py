@@ -54,9 +54,12 @@ REAL_V6 = _table(AF_INET6, [("::1", 8100, 4321), ("::", 8002, 0)])
 def test_a_table_of_listeners_reads_back(v4: list[tuple[str, int, int]], v6: list[tuple[str, int, int]]) -> None:
     """parse_table of a table of rows gives each row's port, address and owner."""
     assert tcplisten.parse_table(_table(AF_INET, v4), AF_INET) == [Listener(p, a, pid) for a, p, pid in v4]
-    assert tcplisten.parse_table(_table(AF_INET6, v6), AF_INET6) == [
-        Listener(p, str(ipaddress.ip_address(a)), pid) for a, p, pid in v6
+    read = [
+        (r.port, ipaddress.ip_address(r.address), r.pid) for r in tcplisten.parse_table(_table(AF_INET6, v6), AF_INET6)
     ]
+    assert read == [
+        (p, ipaddress.ip_address(a), pid) for a, p, pid in v6
+    ]  # Windows writes ::ffff:0:0 for ::ffff:0.0.0.0
 
 
 @given(
