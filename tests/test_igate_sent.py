@@ -7,6 +7,8 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 from neoaprs import ax25
 from neoaprs.services.igate import SENT_KEPT
 from neoaprs.tncmode import packet_of
@@ -82,6 +84,7 @@ async def test_nothing_of_the_login_or_the_server_or_a_packet_not_gated_is_ever_
     assert sum(s.radio == 2 for s in w.igate.sent) == 1
 
 
+@pytest.mark.slow("the link logs in again after its session was dropped")
 async def test_a_line_queued_but_never_written_to_the_server_is_not_in_the_ring() -> None:
     server = await fake_aprsis()
     w = await quiet(server)
