@@ -316,6 +316,14 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.igate.gate_tip_label",
     tip: ["settings.igate.gate_tip1", "settings.igate.gate_tip2"],
   },
+  "igate/show_gated": {
+    name: "settings.igate.show_gated_label",
+    label: "settings.igate.show_gated_label",
+    kind: "bool",
+    tipLabel: "settings.igate.show_gated_tip_label",
+    tip: ["settings.igate.show_gated_tip1"],
+    picture: "gated",
+  },
   "messages/chat_alert": {
     name: "settings.chat_alert.name",
     label: "settings.chat_alert.name",

@@ -46,6 +46,7 @@ from .packetsql import (
 )
 from .radiospec import RadioHeard, RadioId
 from .route import route_of
+from .shown import Shown
 from .station import Station
 from .stationbook import RouteGroup, route_groups
 
@@ -211,7 +212,7 @@ class PacketLog(DbLog):
         # stations changed since the last flush, by call
         self._dirty: dict[str, Station] = {}
         # (since, internet) -> (when counted, counts) for all stations
-        self._history: dict[tuple[datetime, bool], tuple[datetime, dict[datetime, int]]] = {}
+        self._history: dict[tuple[datetime, bool, bool], tuple[datetime, dict[datetime, int]]] = {}
         self.stats = PacketCounts(db, clock)
 
     def use(self, db: Db) -> None:
@@ -272,12 +273,12 @@ class PacketLog(DbLog):
         return [parse_stamp(row) for row in rows]
 
     async def heard_by_hour(
-        self, since: datetime, source: str | None = None, internet: bool = True
+        self, since: datetime, source: str | None = None, internet: bool = True, gated: bool = True
     ) -> dict[datetime, int]:
         """Return heard packets per UTC hour since `since`, keyed by hour start; empty hours absent.
 
         The all-stations count is cached for FRESH_SEC, as it scans a day of the log."""
-        key = (since, internet)
+        key = (since, internet, gated)
         now = self.clock()
         if (
             source is None
@@ -286,7 +287,9 @@ class PacketLog(DbLog):
         ):
             return dict(self._history[key][1])
         text = stamp(since)
-        rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source, internet), [])
+        rows: list[tuple[str, int]] = await self._read(
+            lambda conn: heard_by_hour(conn, text, source, internet, gated), []
+        )
         counted = {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
         if source is None:
             # drop stale entries
@@ -294,22 +297,29 @@ class PacketLog(DbLog):
             self._history[key] = (now, counted)
         return dict(counted)
 
-    async def traffic(self, call: str, own_call: str, count: int, internet: bool = True) -> list[tuple[int, Packet]]:
+    async def traffic(
+        self, call: str, own_call: str, count: int, internet: bool = True, gated: bool = True
+    ) -> list[tuple[int, Packet]]:
         """Return (log number, packet) of the station's latest `count` packets, newest first.
 
         Packets it sent (also inside third-party ones) and messages sent to it under `own_call`."""
         rows: list[Row] = await self._read(
-            lambda conn: station_traffic(conn, call, own_call, count, THIRD_PARTY_SEEN, internet), []
+            lambda conn: station_traffic(conn, call, own_call, count, THIRD_PARTY_SEEN, internet, gated), []
         )
         found = self._decoded(rows, lambda row: (int(row[0]), packet_of(PacketRow(*row[1:]))), "packet")
+        shown = Shown(internet, gated, own_call)
         return [
-            (number, packet) for number, packet in found if packet.source in (call, own_call) or packet.sender == call
+            (number, packet)
+            for number, packet in found
+            if (packet.source in (call, own_call) or packet.sender == call) and shown.packet(packet)
         ]
 
-    async def speeds(self, source: str, since: datetime, internet: bool = True) -> list[tuple[datetime, float]]:
+    async def speeds(
+        self, source: str, since: datetime, internet: bool = True, gated: bool = True
+    ) -> list[tuple[datetime, float]]:
         """Return (when, km/h) of each position from `source` since `since` with a speed."""
         text = stamp(since)
-        rows: list[Row] = await self._read(lambda conn: station_positions(conn, source, text, internet), [])
+        rows: list[Row] = await self._read(lambda conn: station_positions(conn, source, text, internet, gated), [])
         found: list[tuple[datetime, float]] = []
         for packet in self._packets(rows):
             d = packet.decoded
@@ -363,6 +373,7 @@ class PacketLog(DbLog):
         thinning: Callable[[], Thinning],
         count: int = HISTORY_READ,
         internet: bool = True,
+        gated: bool = True,
     ) -> History:
         """Return the station tracks since `since` for the map replay, thinned as they are read.
 
@@ -370,10 +381,10 @@ class PacketLog(DbLog):
         text = stamp(since)
 
         def read(conn: Connection) -> History:
-            cut = located_from(conn, text, own_call, count, internet)
+            cut = located_from(conn, text, own_call, count, internet, gated)
             tracks: dict[str, Thinning] = {}
             first: str | None = None
-            for heard_at, source, name, lat, lon, raw, via in located_since(conn, text, own_call, cut, internet):
+            for heard_at, source, name, lat, lon, raw, via in located_since(conn, text, own_call, cut, internet, gated):
                 first = first or str(heard_at)
                 try:
                     station = str(name) if name else _sender(str(source), raw, str(via))

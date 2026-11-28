@@ -107,11 +107,19 @@ def route_of(path: tuple[str, ...], gate: str = "") -> Route:
     return Route(hops, None if last == UNKNOWN else last, not hops and not gate, hops.count(UNKNOWN), gate, written)
 
 
+INTERNET_MARK = " (internet)"  # after the iGate of a third-party packet in a route text
+
+
 def route_text(route: Route) -> str:
     """Return the route as text: "direct", "via A → B", "via GATE (internet) → B"."""
     if route.direct:
         return "direct"
-    return "via " + " → ".join(([f"{route.gate} (internet)"] if route.gate else []) + list(route.hops))
+    return "via " + " → ".join(([f"{route.gate}{INTERNET_MARK}"] if route.gate else []) + list(route.hops))
+
+
+def through_gateway(text: str) -> bool:
+    """Return whether a route text (`route_text`) is of a packet an iGate put on the air from the internet."""
+    return text.startswith("via ") and text[4:].split(" → ")[0].endswith(INTERNET_MARK)
 
 
 def received_text(path: tuple[str, ...], gate: str = "") -> str:

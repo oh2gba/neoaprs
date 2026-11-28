@@ -145,6 +145,7 @@ LAYERS: dict[str, list[str]] = {
         "station",
         "stationnotes",
         "stationbook",
+        "shown",
         "aloha",
         "ownobject",
         "ownbulletin",

@@ -28,6 +28,7 @@ export const PICTURE_NAMES = [
   "mercury",
   "scope",
   "tworadios",
+  "gated",
 ] as const;
 
 export type PictureName = (typeof PICTURE_NAMES)[number];

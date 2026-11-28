@@ -38,6 +38,7 @@
     "igate/gate": "false",
     "igate/password": "",
     "igate/server": "rotate.aprs2.net:14580",
+    "igate/show_gated": "true",
     "map/aircraft": "none",
     "map/aircraft_host": "",
     "map/maxzoom": "12",
@@ -162,6 +163,7 @@
     "igate/gate": "false",
     "igate/password": "",
     "igate/server": "rotate.aprs2.net:14580",
+    "igate/show_gated": "true",
     "map/aircraft": "none",
     "map/aircraft_host": "",
     "map/maxzoom": "12",
@@ -213,6 +215,7 @@
     "igate/gate": "false",
     "igate/password": "",
     "igate/server": "rotate.aprs2.net:14580",
+    "igate/show_gated": "true",
     "map/aircraft": "none",
     "map/aircraft_host": "",
     "map/maxzoom": "12",
@@ -339,6 +342,7 @@
     "igate/gate": "false",
     "igate/password": "",
     "igate/server": "rotate.aprs2.net:14580",
+    "igate/show_gated": "true",
     "map/aircraft": "none",
     "map/aircraft_host": "",
     "map/maxzoom": "12",
@@ -434,6 +438,7 @@
    "last_gated_at": null,
    "reason": "",
    "server": "",
+   "show_gated": true,
    "state": "off"
   },
   {
@@ -448,6 +453,7 @@
    "last_gated_at": "2026-10-21T11:59:48Z",
    "reason": "",
    "server": "T2FINLAND",
+   "show_gated": true,
    "state": "connected"
   },
   {
@@ -458,6 +464,7 @@
    "last_gated_at": null,
    "reason": "",
    "server": "T2FINLAND",
+   "show_gated": true,
    "state": "connected"
   },
   {
@@ -468,6 +475,7 @@
    "last_gated_at": null,
    "reason": "unreachable",
    "server": "",
+   "show_gated": true,
    "state": "connecting"
   },
   {
@@ -478,6 +486,7 @@
    "last_gated_at": null,
    "reason": "",
    "server": "T2FINLAND",
+   "show_gated": true,
    "state": "listening"
   },
   {
@@ -488,6 +497,7 @@
    "last_gated_at": null,
    "reason": "unverified",
    "server": "T2FINLAND",
+   "show_gated": true,
    "state": "unverified"
   }
  ],

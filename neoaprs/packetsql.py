@@ -64,10 +64,13 @@ def station_columns() -> tuple[str, ...]:
 
 HEARD = "direction = 'in'"  # heard, not sent by us
 NOT_INTERNET = "via != 'is'"  # not from APRS-IS; iGate third-party packets stay
+NOT_GATED = "via != 'rf-gated'"  # not put on the air from the internet by an iGate
+# not gated, or a message or ack, which may be to us (neoaprs/shown.py decides)
+NOT_GATED_BUT_MESSAGES = f"({NOT_GATED} OR kind = 'message')"
 
 
-def heard(internet: bool = True) -> str:
-    return HEARD if internet else f"{HEARD} AND {NOT_INTERNET}"
+def heard(internet: bool = True, gated: bool = True) -> str:
+    return HEARD + ("" if internet else f" AND {NOT_INTERNET}") + ("" if gated else f" AND {NOT_GATED}")
 
 
 def insert_packet(db: sqlite3.Connection, row: Sequence[object]) -> None:
@@ -79,13 +82,11 @@ def recent_packets(db: sqlite3.Connection, count: int) -> list[Row]:
 
 
 def window_packets(db: sqlite3.Connection, count: int) -> list[Row]:
-    """Return the latest `count` packets plus the latest `count` non-internet ones, newest first."""
+    """Return the latest `count` packets of each view of the window (neoaprs/web/packetwindow.py), newest first."""
+    views = ("1", NOT_INTERNET, NOT_GATED_BUT_MESSAGES, f"{NOT_INTERNET} AND {NOT_GATED_BUT_MESSAGES}")
+    chosen = " OR ".join(f"id IN (SELECT id FROM packet WHERE {view} ORDER BY id DESC LIMIT ?)" for view in views)
     return rows(
-        db.execute(
-            f"SELECT {PACKET_LIST} FROM packet WHERE id IN (SELECT id FROM packet ORDER BY id DESC LIMIT ?) "
-            f"OR id IN (SELECT id FROM packet WHERE {NOT_INTERNET} ORDER BY id DESC LIMIT ?) ORDER BY id DESC",
-            (limit(count), limit(count)),
-        )
+        db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE {chosen} ORDER BY id DESC", (limit(count),) * len(views))
     )
 
 
@@ -106,7 +107,7 @@ def heard_times(db: sqlite3.Connection, source: str, stamp: str) -> list[str]:
 
 
 def heard_by_hour(
-    db: sqlite3.Connection, stamp: str, source: str | None = None, internet: bool = True
+    db: sqlite3.Connection, stamp: str, source: str | None = None, internet: bool = True, gated: bool = True
 ) -> list[tuple[str, int]]:
     """Return (hour as "YYYY-MM-DDTHH", count) of heard packets since `stamp`, oldest first.
 
@@ -115,24 +116,26 @@ def heard_by_hour(
         return [
             (str(r[0]), int(r[1]))
             for r in db.execute(
-                f"SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE {heard(internet)} AND heard_at >= ? GROUP BY hour ORDER BY hour",
+                f"SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE {heard(internet, gated)} AND heard_at >= ? GROUP BY hour ORDER BY hour",
                 (stamp,),
             )
         ]
     return [
         (str(r[0]), int(r[1]))
         for r in db.execute(
-            f"SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE source = ? AND {heard(internet)} AND heard_at >= ? GROUP BY hour ORDER BY hour",
+            f"SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE source = ? AND {heard(internet, gated)} AND heard_at >= ? GROUP BY hour ORDER BY hour",
             (source, stamp),
         )
     ]
 
 
-def station_positions(db: sqlite3.Connection, source: str, stamp: str, internet: bool = True) -> list[Row]:
+def station_positions(
+    db: sqlite3.Connection, source: str, stamp: str, internet: bool = True, gated: bool = True
+) -> list[Row]:
     """Return the position packets heard from `source` since `stamp`, oldest first."""
     return rows(
         db.execute(
-            f"SELECT {PACKET_LIST} FROM packet WHERE source = ? AND {heard(internet)} AND kind = 'position' AND heard_at >= ? ORDER BY id",
+            f"SELECT {PACKET_LIST} FROM packet WHERE source = ? AND {heard(internet, gated)} AND kind = 'position' AND heard_at >= ? ORDER BY id",
             (source, stamp),
         )
     )
@@ -152,19 +155,21 @@ def station_readings(db: sqlite3.Connection, source: str, stamp: str, count: int
 
 
 def station_traffic(
-    db: sqlite3.Connection, call: str, own: str, count: int, span: int, internet: bool = True
+    db: sqlite3.Connection, call: str, own: str, count: int, span: int, internet: bool = True, gated: bool = True
 ) -> list[Row]:
     """Return (id, packet columns) of the latest `count` packets of station `call`, newest first.
 
-    Includes messages from `own` to it and third-party packets among the latest `span`."""
-    net = "" if internet else f" AND {NOT_INTERNET}"
+    Includes messages from `own` to it and third-party packets among the latest `span`; without
+    `gated`, of the third-party packets only messages and acks."""
+    net = ("" if internet else f" AND {NOT_INTERNET}") + ("" if gated else f" AND {NOT_GATED_BUT_MESSAGES}")
+    inner = "" if gated else " AND kind = 'message'"
     needle = b"}" + call.encode() + b">"
     return rows(
         db.execute(
             f"SELECT id, {PACKET_LIST} FROM packet WHERE id IN ("
             f"SELECT id FROM (SELECT id FROM packet WHERE source = ?{net} ORDER BY id DESC LIMIT ?) "
             "UNION SELECT id FROM (SELECT id FROM packet WHERE source = ? AND direction = 'out' AND kind = 'message' AND json_extract(decoded, '$.addressee') = ? ORDER BY id DESC LIMIT ?) "
-            "UNION SELECT id FROM (SELECT id FROM packet WHERE id > (SELECT coalesce(max(id), 0) FROM packet) - ? AND via = 'rf-gated' AND instr(raw, ?) > 0 ORDER BY id DESC LIMIT ?)"
+            f"UNION SELECT id FROM (SELECT id FROM packet WHERE id > (SELECT coalesce(max(id), 0) FROM packet) - ? AND via = 'rf-gated'{inner} AND instr(raw, ?) > 0 ORDER BY id DESC LIMIT ?)"
             ") ORDER BY id DESC LIMIT ?",
             (call, limit(count), own, call, limit(count), limit(span), needle, limit(count), limit(count)),
         )
@@ -204,24 +209,31 @@ def radio_position_packets(db: sqlite3.Connection, stamp: str, count: int) -> li
 _LOCATED = f"({HEARD} OR source = ?) AND kind IN ('position', 'object', 'item') AND heard_at >= ?"
 
 
-def _located(internet: bool) -> str:
+def _located(internet: bool, gated: bool) -> str:
     """Return the condition for position packets heard or sent under our call."""
-    return _LOCATED if internet else f"{_LOCATED} AND {NOT_INTERNET}"
+    return _LOCATED + ("" if internet else f" AND {NOT_INTERNET}") + ("" if gated else f" AND {NOT_GATED}")
 
 
-def located_from(db: sqlite3.Connection, stamp: str, own: str, count: int, internet: bool = True) -> str | None:
+def located_from(
+    db: sqlite3.Connection, stamp: str, own: str, count: int, internet: bool = True, gated: bool = True
+) -> str | None:
     """Return the time of the position packet just before the latest `count` since `stamp`, or None.
 
     Reads the time index newest first, so a short span does not scan the whole log."""
     row = db.execute(
-        f"SELECT heard_at FROM packet WHERE {_located(internet)} ORDER BY heard_at DESC LIMIT 1 OFFSET ?",
+        f"SELECT heard_at FROM packet WHERE {_located(internet, gated)} ORDER BY heard_at DESC LIMIT 1 OFFSET ?",
         (own, stamp, limit(count)),
     ).fetchone()
     return None if row is None else str(row[0])
 
 
 def located_since(
-    db: sqlite3.Connection, stamp: str, own: str, after: str | None = None, internet: bool = True
+    db: sqlite3.Connection,
+    stamp: str,
+    own: str,
+    after: str | None = None,
+    internet: bool = True,
+    gated: bool = True,
 ) -> sqlite3.Cursor:
     """Return a cursor of (heard_at, source, name, lat, lon, raw, via) of positions since `stamp`.
 
@@ -232,7 +244,7 @@ def located_since(
         "CASE kind WHEN 'position' THEN json_extract(decoded, '$.lat') ELSE json_extract(decoded, '$.position.lat') END AS lat, "
         "CASE kind WHEN 'position' THEN json_extract(decoded, '$.lon') ELSE json_extract(decoded, '$.position.lon') END AS lon, "
         "CASE WHEN instr(raw, x'03f07d') > 0 OR instr(raw, x'3a7d') > 0 THEN raw END AS raw, via "
-        f"FROM packet WHERE {_located(internet)} AND heard_at > ? AND coalesce(json_extract(decoded, '$.alive'), 1) = 1 ORDER BY heard_at",
+        f"FROM packet WHERE {_located(internet, gated)} AND heard_at > ? AND coalesce(json_extract(decoded, '$.alive'), 1) = 1 ORDER BY heard_at",
         (own, stamp, after or ""),
     )
 

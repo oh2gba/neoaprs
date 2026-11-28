@@ -28,13 +28,15 @@ SENT_KINDS = ("repeated", "beacon", "object", "ack", "message", "other")
 _INFO = "substr(raw, instr(raw, x'03f0') + 2)"
 
 
-def heard_hours(db: sqlite3.Connection, start: str, end: str | None, internet: bool = True) -> list[Row]:
+def heard_hours(
+    db: sqlite3.Connection, start: str, end: str | None, internet: bool = True, gated: bool = True
+) -> list[Row]:
     """Return (hour, radio, count) of heard packets in the span, by radio id (null: internet).
 
-    APRS-IS packets are excluded when `internet` is false."""
+    APRS-IS packets are excluded when `internet` is false, those an iGate put on the air when `gated` is."""
     return rows(
         db.execute(
-            f"SELECT substr(heard_at, 1, 13) AS hour, radio, count(*) FROM packet WHERE {heard(internet)} AND {_SPAN} GROUP BY hour, radio ORDER BY hour",
+            f"SELECT substr(heard_at, 1, 13) AS hour, radio, count(*) FROM packet WHERE {heard(internet, gated)} AND {_SPAN} GROUP BY hour, radio ORDER BY hour",
             (start, end or _OPEN),
         )
     )

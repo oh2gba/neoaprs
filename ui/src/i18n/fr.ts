@@ -1672,6 +1672,10 @@ export const fr: Catalogue = {
   "settings.igate.gate_tip1":
     "Met sur APRS-IS ce que vos radios entendent : votre station devient alors un iGate pour ses radios.",
   "settings.igate.gate_tip2": "Ainsi, un message entendu à la radio pour un service comme EMAIL-2 lui parvient.",
+  "settings.igate.show_gated_label": "Afficher les paquets Internet entendus à la radio",
+  "settings.igate.show_gated_tip_label": "À propos des paquets Internet entendus à la radio",
+  "settings.igate.show_gated_tip1":
+    "Certains iGates mettent sur les ondes des paquets venus d'Internet. Décoché, ils sont laissés de côté, sauf un message pour vous.",
   "settings.igate.line.off": "Désactivé",
   "settings.igate.line.connecting": "Connexion à {server}…",
   "settings.igate.line.no_server": "Non connecté : aucun serveur indiqué",
@@ -2202,6 +2206,8 @@ export const fr: Catalogue = {
     "Une station lointaine émet ; la chute d'eau montre sa trame comme un bloc dans la bande marquée, le plus récent en haut, et la barre du niveau de réception reste dans sa bonne plage.",
   "help.picture.tworadios":
     "Votre station avec deux radios : la radio packet atteint la voiture et le digipeater proches au ras du sol, la radio Mercury atteint une station lointaine par le signal qui monte et redescend.",
+  "help.picture.gated":
+    "Trois chemins par lesquels un paquet atteint votre radio : directement d'une station, par un digipeater, et depuis Internet par un iGate, celui que cette case laisse de côté.",
   "help.picture.dummy":
     "Des stations inventées dans un cadre en pointillés répondent à votre station, et ce qu'elle envoie ne sort pas : les ondes sont barrées.",
   "help.picture.notifications":

@@ -48,6 +48,8 @@ export const help = {
     "A distant station sends; the waterfall shows its frame as a block in the marked band, the newest at the top, and the receive level bar below stands in its good range.",
   "help.picture.tworadios":
     "Your station with two radios: the packet radio reaches the car and the digipeater nearby along the ground, the Mercury radio reaches a distant station by the signal that goes up and comes down.",
+  "help.picture.gated":
+    "Three ways a packet reaches your radio: straight from a station, through a digipeater, and from the Internet through an iGate, the one this tick leaves out.",
   "help.picture.dummy":
     "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
   "help.picture.notifications":

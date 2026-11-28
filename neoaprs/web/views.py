@@ -346,6 +346,7 @@ def igate_state(config: Config, igate: IgateSource) -> dict[str, Any]:
     return IgateState.row(
         None,
         enabled=config.igate_enabled,
+        show_gated=config.igate_show_gated,
         gate=config.igate_gate,
         state=igate.state,
         server=igate.server_name,

@@ -121,7 +121,7 @@ const info = (key: string) => fieldFor(key, draft);
 const greyed = (key: string): boolean =>
   (props.scope === "beacon" &&
     disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0)) ||
-  (key.startsWith("igate/") && call.value === "");
+  (key.startsWith("igate/") && key !== "igate/show_gated" && call.value === "");
 /**
  * The network is let in and the daemon has made a key (what is in force, not the switch being
  * changed).

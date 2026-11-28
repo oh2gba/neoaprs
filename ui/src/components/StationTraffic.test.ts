@@ -129,6 +129,24 @@ describe("the traffic of a station", () => {
     await nextTick();
     expect(lines()).toHaveLength(1);
   });
+
+  it("leaves out what an iGate put on the air while Show Internet packets heard by radio is off, but a message to us", async () => {
+    const gated = { source: "OH7JHF-1", sender: "OH2RDG", via: "rf-gated", gate: "OH7JHF-1" } as const;
+    const toUs = position(3, -5, {
+      ...gated,
+      tnc2: "OH7JHF-1>APRS:}OH2RDG>APRS,TCPIP,OH7JHF-1*::OH2GBA   :hi",
+      decoded: { type: "message", addressee: "OH2GBA", text: "hi", msg_id: null, ack_id: null, rej_id: null },
+    });
+    make([
+      toUs,
+      position(2, -10, { ...gated, tnc2: "OH7JHF-1>APRS:}OH2RDG>APRS,TCPIP,OH7JHF-1*:!x" }),
+      position(1, -20),
+    ]);
+    expect(lines()).toHaveLength(3);
+    daemon.config.value = configValues({ "igate/show_gated": "false" });
+    await nextTick();
+    expect(lines()).toHaveLength(2);
+  });
 });
 
 describe("a query of ours in the traffic", () => {

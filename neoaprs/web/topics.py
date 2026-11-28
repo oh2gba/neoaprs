@@ -23,7 +23,8 @@ from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.pref import Fired, Pref
 from neoaprs.radiospec import RadioId
-from neoaprs.route import digipeaters
+from neoaprs.route import digipeaters, through_gateway
+from neoaprs.shown import Shown
 from neoaprs.signal import Signal
 from neoaprs.station import Station
 from neoaprs.stationbook import carries_path
@@ -109,7 +110,7 @@ class Topics:
         # monotonic time stations were last told whole because we moved
         self._distances_at = float("-inf")
         self._config = ctl.config  # the settings the stations were last told with
-        self.window.internet = ctl.config.igate_enabled
+        self._follow_ticks(ctl.config)
         self.station_radios = StationRadios(self._radio_choice, self._radio_now, self._paths_of, self._replies_of)
         hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
@@ -122,9 +123,7 @@ class Topics:
                 self._station_pref,
             )
         )
-        hub.add(
-            Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message)
-        )
+        hub.add(Topic("messages", self._messages, self._message))
         hub.add(
             Topic(
                 "station_keys",
@@ -195,9 +194,10 @@ class Topics:
     def _row(self, station: Station) -> dict[str, Any] | None:
         """Return the station's row as the page is shown it.
 
-        With the iGate off, an internet-only station has none and others show their radio side.
+        With the iGate off, an internet-only station has none and others show their radio side; so
+        with what an iGate put on the air when that is not shown.
         """
-        shown = station if self.ctl.config.igate_enabled else station.radio_view()
+        shown = Shown.of(self.ctl.config).station(station)
         return None if shown is None else station_row(self.ctl.stationbook, shown, self.station_radios)
 
     # What a station's row says of the radios; the daemon decides, the page works none of it out.
@@ -282,9 +282,16 @@ class Topics:
     def _own_bulletin_row(self, bulletin: OwnBulletin) -> dict[str, Any]:
         return own_bulletin_row(bulletin, self.ctl.ownbulletins.next_at(bulletin.slot))
 
+    def _messages(self) -> dict[str, Any]:
+        return {str(m.id): self._message_row(m) for m in self.ctl.messaging.records() if self._shown_message(m)}
+
     def _message(self, key: str) -> dict[str, Any] | None:
         record = self.ctl.messaging.get(int(key)) if key.isdigit() else None
-        return None if record is None else self._message_row(record)
+        return None if record is None or not self._shown_message(record) else self._message_row(record)
+
+    def _shown_message(self, record: MessageRecord) -> bool:
+        """Return whether the message is shown: one overheard as an iGate put it on the air is not while those are not."""
+        return self.ctl.config.igate_show_gated or record.state != "overheard" or not through_gateway(record.route)
 
     def _message_row(self, record: MessageRecord) -> dict[str, Any]:
         sending = record.direction == "out" and record.state == "sending"
@@ -300,7 +307,7 @@ class Topics:
         """Load the packet window from the database and connect the signals."""
         self.window.load(await self.ctl.packetlog.window(PACKETS_KEPT))
         self._config = self.ctl.config
-        self.window.internet = self._config.igate_enabled
+        self._follow_ticks(self._config)
         self.connect()
 
     def _followed(self) -> list[tuple[Signal[...], Callable[..., None]]]:
@@ -484,6 +491,13 @@ class Topics:
         if self._tell is not None:
             self._tell(station_alert_message(fired))
 
+    def _follow_ticks(self, config: Config) -> None:
+        self.window.internet, self.window.gated, self.window.own = (
+            config.igate_enabled,
+            config.igate_show_gated,
+            config.station_call,
+        )
+
     def _config_changed(self, config: Config) -> None:
         keys = self._config.changed(config)
         moved = any(key in PLACE_KEYS for key in keys)
@@ -506,10 +520,12 @@ class Topics:
             self.hub.changed("own_objects")  # a removed radio left the objects' radios
             for key in on_their_way(self.ctl.messaging.records()):
                 self.hub.changed("messages", key)  # the radio each goes on next
-        if "igate/enabled" in keys:
-            self.window.internet = config.igate_enabled
+        self._follow_ticks(config)
+        if "igate/enabled" in keys or "igate/show_gated" in keys:
             self.hub.changed("packets")
             moved = True  # tell the stations whole: the internet ones appear or go
+        if "igate/show_gated" in keys:
+            self.hub.changed("messages")
         self.hub.changed("config")
         self.hub.changed("gps")
         self.hub.changed("igate")

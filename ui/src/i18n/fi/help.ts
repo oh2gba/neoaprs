@@ -47,6 +47,8 @@ export const help: Record<keyof typeof source, Message> = {
     "Kaukainen asema lähettää; vesiputous näyttää sen kehyksen lohkona merkityllä kaistalla, uusin ylimpänä, ja vastaanottotason palkki on alla hyvällä alueella.",
   "help.picture.tworadios":
     "Asemasi kahdella radiolla: packet-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, Mercury-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
+  "help.picture.gated":
+    "Kolme tietä, joita paketti tulee radioosi: suoraan asemalta, digipeaterin kautta ja Internetistä iGaten kautta, jonka tämä rasti jättää pois.",
   "help.picture.dummy":
     "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
   "help.picture.notifications":

@@ -48,6 +48,8 @@ def note_heard(
     station.packets += 1
     station.last_heard = packet.heard_at
     station.hour.note(packet.heard_at)
+    if packet.via == RF_GATED:
+        station.hour_gated.note(packet.heard_at)
     note_route_mark(station, packet)
     if packet.via == IS:
         station.hour_is.note(packet.heard_at)
@@ -175,6 +177,8 @@ def _note_hour(station: Station, packet: Packet) -> None:
     station.hour.note(packet.heard_at)
     if packet.via == IS:
         station.hour_is.note(packet.heard_at)
+    elif packet.via == RF_GATED:
+        station.hour_gated.note(packet.heard_at)
 
 
 def expire_hours(stations: Iterable[Station], now: datetime, changed: Callable[[Station], None]) -> None:

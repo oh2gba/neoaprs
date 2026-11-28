@@ -15,6 +15,7 @@ from neoaprs.pref import Alert, Fired, Pref
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.prefbook import PrefBook
 from neoaprs.signal import Signal
+from neoaprs.shown import Shown
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
 
@@ -56,13 +57,13 @@ class StationAlerts:
         self.clock = clock
         self._alerts: dict[str, Alert] = {}
         self._seen: dict[str, _Seen] = {}
-        # `igate/enabled` when the starting points were taken; a change retakes them
-        self._internet = False
+        # `igate/enabled` and `igate/show_gated` when the starting points were taken; a change retakes them
+        self._ticks_then = (True, True)
         self.fired: Signal[[Fired]] = Signal("stationalerts.fired")
 
     def load(self) -> None:
         """Load the alerts at start; stations as they are then become the starting points."""
-        self._internet = self._config().igate_enabled
+        self._ticks_then = self._ticks()
         for call, pref in self._prefs.all().items():
             self.pref_changed(call, pref)
 
@@ -164,16 +165,20 @@ class StationAlerts:
     def settings_changed(self, config: Config) -> None:
         self._follow_internet()
 
+    def _ticks(self) -> tuple[bool, bool]:
+        config = self._config()
+        return config.igate_enabled, config.igate_show_gated
+
     def _follow_internet(self) -> None:
-        """When `igate/enabled` changed, restart every alert from the stations as they are now."""
-        internet = self._config().igate_enabled
-        if internet != self._internet:
-            self._internet = internet
+        """When either tick changed, restart every alert from the stations as they are now."""
+        ticks = self._ticks()
+        if ticks != self._ticks_then:
+            self._ticks_then = ticks
             self._seen = {call: self._start(call, alert) for call, alert in self._alerts.items()}
 
     def _view(self, station: Station) -> Station | None:
-        """Return the station as alerts see it: whole with the internet shown, else radio side."""
-        return station if self._config().igate_enabled else station.radio_view()
+        """Return the station as alerts see it: as the page is shown it."""
+        return Shown(*self._ticks()).station(station)
 
     def _fire(self, fired: Fired) -> None:
         log.info("station alert: %s", fired.text)

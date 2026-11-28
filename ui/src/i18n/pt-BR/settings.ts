@@ -261,6 +261,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.gate_tip1":
     "Coloca no APRS-IS o que os seus rádios ouvem: a sua estação passa a ser um iGate para os seus rádios.",
   "settings.igate.gate_tip2": "Assim, uma mensagem ouvida no rádio para um serviço como o EMAIL-2 chega até ele.",
+  "settings.igate.show_gated_label": "Mostrar pacotes da Internet ouvidos no rádio",
+  "settings.igate.show_gated_tip_label": "Sobre pacotes da Internet ouvidos no rádio",
+  "settings.igate.show_gated_tip1":
+    "Alguns iGates transmitem no rádio pacotes da Internet. Desmarcado, eles ficam de fora, exceto uma mensagem para você.",
   "settings.igate.line.off": "Desligado",
   "settings.igate.line.connecting": "Conectando a {server}…",
   "settings.igate.line.no_server": "Não conectado: nenhum servidor definido",

@@ -5,6 +5,7 @@ import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
 import { configValues, igateState, station, table } from "@/test/fixtures";
 
 const LEGEND = "Internet (APRS-IS)";
+const THREE = ["Show Internet stations", "Send what I hear", "Show Internet packets heard by radio"];
 
 function make(extra: Record<string, string> = {}, more: Given = {}) {
   const daemon = fakeDaemon({ config: configValues(extra), ...more });
@@ -18,14 +19,14 @@ function make(extra: Record<string, string> = {}, more: Given = {}) {
 }
 
 describe("the Internet (APRS-IS) group of the Settings tab", () => {
-  it("is after the Radio group and has two ticks, Show Internet stations and Send what I hear, each with its (i): no passcode, no server, no note", () => {
+  it("is after the Radio group and has three ticks, Show Internet stations, Send what I hear and Show Internet packets heard by radio, each with its (i): no passcode, no server, no note", () => {
     const { wrapper, group, labels } = make({ "igate/enabled": "true" }, { igate: igateState() });
     const legends = wrapper.findAll("form > fieldset").map((f) => f.find("legend").text());
     expect(legends.slice(0, 2)).toEqual(["Radio", LEGEND]);
-    expect(labels()).toEqual(["Show Internet stations", "Send what I hear"]);
-    expect(group()?.findAll("input[type=checkbox]")).toHaveLength(2);
-    expect(group()?.findAll("input")).toHaveLength(2);
-    expect(group()?.findAll(".infotip")).toHaveLength(2);
+    expect(labels()).toEqual(THREE);
+    expect(group()?.findAll("input[type=checkbox]")).toHaveLength(3);
+    expect(group()?.findAll("input")).toHaveLength(3);
+    expect(group()?.findAll(".infotip")).toHaveLength(3);
     for (const gone of [
       "#set-igate-server",
       "#set-igate-password",
@@ -52,13 +53,13 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
     expect(row()?.attributes("aria-hidden")).toBeUndefined();
   });
 
-  it("has both ticks off by default", () => {
+  it("has the two ticks of APRS-IS off and Show Internet packets heard by radio on by default", () => {
     const { group } = make({}, { igate: igateState({ state: "off", enabled: false, gate: false }) });
     expect(
       group()
         ?.findAll<HTMLInputElement>("input[type=checkbox]")
         .map((i) => i.element.checked),
-    ).toEqual([false, false]);
+    ).toEqual([false, false, true]);
   });
 
   it("has the status row of the radio under the ticks: the arrow, the state word in the colour of the state, the quiet line, and behind the arrow the server, the filter and what was sent", () => {
@@ -116,7 +117,7 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
   it("shows only the ticks while both are off, and the status line the moment either is on", async () => {
     const { group, labels } = make({}, { igate: igateState({ state: "off", enabled: false, gate: false }) });
     const shown = () => !group()?.find(".igatestatus").classes().includes("field-room");
-    expect(labels()).toEqual(["Show Internet stations", "Send what I hear"]);
+    expect(labels()).toEqual(THREE);
     expect(shown()).toBe(false);
     for (const id of ["#set-igate-enabled", "#set-igate-gate"]) {
       await group()?.find(id).setValue(true);
@@ -124,6 +125,8 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
       await group()?.find(id).setValue(false);
       expect(shown(), id).toBe(false);
     }
+    await group()?.find("#set-igate-show_gated").setValue(false);
+    expect(shown(), "the third tick logs in to nothing").toBe(false);
   });
 
   it("says Connecting to the server while it connects, why it is not connected, and that the server did not take the login", () => {
@@ -142,11 +145,11 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
     );
   });
 
-  it("shows both ticks greyed, which cannot be ticked, and no status row, while the call is not set: no line says why", () => {
+  it("shows the two ticks of APRS-IS greyed, which cannot be ticked, and no status row, while the call is not set: no line says why", () => {
     const { group, labels } = make({ "station/call": "" }, { igate: igateState({ state: "connecting" }) });
-    expect(labels()).toEqual(["Show Internet stations", "Send what I hear"]);
+    expect(labels()).toEqual(THREE);
     const boxes = group()?.findAll<HTMLInputElement>("input[type=checkbox]") ?? [];
-    expect(boxes.map((b) => b.element.disabled)).toEqual([true, true]);
+    expect(boxes.map((b) => b.element.disabled)).toEqual([true, true, false]);
     expect(group()?.findAll(".field.disabled")).toHaveLength(2);
     expect(group()?.find(".tncstatus").exists()).toBe(false);
     expect(group()?.find(".problem").exists()).toBe(false);
@@ -157,16 +160,33 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
     const { daemon, group } = make({ "station/call": "" });
     await tell(daemon, { config: configValues({ "station/call": "OH2GBA" }) });
     const boxes = group()?.findAll<HTMLInputElement>("input[type=checkbox]") ?? [];
-    expect(boxes.map((b) => b.element.disabled)).toEqual([false, false]);
+    expect(boxes.map((b) => b.element.disabled)).toEqual([false, false, false]);
   });
 
   it("sends each tick as it is changed, on its own", async () => {
-    for (const key of ["igate/enabled", "igate/gate"]) {
+    for (const [key, value] of [
+      ["igate/enabled", true],
+      ["igate/gate", true],
+      ["igate/show_gated", false],
+    ] as const) {
       const { group, daemon } = make();
       await group()
         ?.find(`#set-${key.replace("/", "-")}`)
-        .setValue(true);
-      expect(daemon.send).toHaveBeenCalledWith({ cmd: "set_config", values: { [key]: "true" } });
+        .setValue(value);
+      expect(daemon.send).toHaveBeenCalledWith({ cmd: "set_config", values: { [key]: String(value) } });
     }
+  });
+
+  it("says in the (i) of Show Internet packets heard by radio, in one line and a picture, what it leaves out", async () => {
+    const { group } = make();
+    const gated = group()?.findAll(".field")[2];
+    const button = gated?.find(".infotip button");
+    expect(button?.attributes("aria-label")).toBe("About Internet packets heard by radio");
+    expect(button?.attributes("title")).toBeUndefined();
+    await button?.trigger("click");
+    expect(gated?.findAll(".info-line").map((l) => l.text())).toEqual([
+      "Some iGates put packets from the Internet on the air. Unticked, they are left out, except a message to you.",
+    ]);
+    expect(gated?.find("svg.hp").attributes("data-picture")).toBe("gated");
   });
 });

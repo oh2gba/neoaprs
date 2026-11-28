@@ -4,7 +4,8 @@
 // the span per second; play and pause; the slider, which seeks. A timer of a tenth of a second
 // moves the clock (a busy map is not drawn sixty times a second); it stops at the end of the span
 // and does not run while the browser tab is hidden. Only an answer that came after the asking is
-// taken. When Internet stations (`igate/enabled`) is switched while the replay is open, the span
+// taken. When Internet stations (`igate/enabled`) or Show Internet packets heard by radio
+// (`igate/show_gated`) is switched while the replay is open, the span
 // is asked again, because the daemon answers another set; the new one plays on from the time it
 // was at, paused if it was paused.
 import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
@@ -61,7 +62,7 @@ export function useReplay(
   );
 
   watch(
-    () => page.igate.value?.enabled,
+    () => (page.igate.value ? `${page.igate.value.enabled} ${page.igate.value.show_gated}` : undefined),
     (now, before) => {
       if (now === undefined || before === undefined || (data.value === null && asked.value === null)) return;
       const was = data.value ? { at: at.value, playing: playing.value } : resume;

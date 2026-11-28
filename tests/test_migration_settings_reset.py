@@ -91,6 +91,7 @@ KEPT = {
     "digi/enabled": "true",
     "igate/enabled": "true",
     "igate/gate": "true",
+    "igate/show_gated": "false",
     "igate/server": "euro.aprs2.net:14580",
     "igate/password": "19628",
     "gps/source": "gpsd",

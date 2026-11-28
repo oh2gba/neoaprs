@@ -39,6 +39,7 @@ BLOCKERS = (
     "digi/enabled",
     "igate/enabled",
     "igate/gate",
+    "igate/show_gated",
     "messages/alert",
     "tnc/profile",
     "serial/port",

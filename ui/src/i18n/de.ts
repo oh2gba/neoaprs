@@ -1738,6 +1738,10 @@ export const de: Catalogue = {
   "settings.igate.gate_tip1":
     "Stellt ins APRS-IS, was deine Funkgeräte hören: deine Station ist dann ein iGate für ihre Funkgeräte.",
   "settings.igate.gate_tip2": "So erreicht eine im Funk gehörte Nachricht an einen Dienst wie EMAIL-2 diesen Dienst.",
+  "settings.igate.show_gated_label": "Internetpakete aus dem Funk zeigen",
+  "settings.igate.show_gated_tip_label": "Zu Internetpaketen aus dem Funk",
+  "settings.igate.show_gated_tip1":
+    "Manche iGates senden Pakete aus dem Internet in den Funk. Ohne Haken werden sie weggelassen, außer einer Nachricht an dich.",
   "settings.igate.line.off": "Aus",
   "settings.igate.line.connecting": "Verbinde mit {server}…",
   "settings.igate.line.no_server": "Nicht verbunden: kein Server festgelegt",
@@ -2306,6 +2310,8 @@ export const de: Catalogue = {
     "Eine ferne Station sendet; der Wasserfall zeigt ihren Frame als Block im markierten Band, das Neueste oben, und der Empfangspegel liegt unten im guten Bereich.",
   "help.picture.tworadios":
     "Deine Station mit zwei Funkgeräten: das Packet-Funkgerät erreicht das Auto und den Digipeater in der Nähe am Boden entlang, das Mercury-Funkgerät eine ferne Station durch das Signal, das aufsteigt und wieder herunterkommt.",
+  "help.picture.gated":
+    "Drei Wege, auf denen ein Paket dein Funkgerät erreicht: direkt von einer Station, über einen Digipeater und aus dem Internet über ein iGate, den dieser Haken weglässt.",
   "help.picture.dummy":
     "Erfundene Stationen im gestrichelten Rahmen antworten deiner Station, und was sie sendet, geht nicht hinaus: Die Wellen sind durchgestrichen.",
   "help.picture.notifications":

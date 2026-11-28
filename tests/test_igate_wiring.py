@@ -196,6 +196,7 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     assert page.topics["igate"] == {
         "enabled": False,
+        "show_gated": True,
         "gate": False,
         "state": "off",
         "server": "",

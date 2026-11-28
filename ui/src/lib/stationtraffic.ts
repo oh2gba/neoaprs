@@ -29,16 +29,28 @@ export function isTrafficOf(row: PacketRow, call: string): boolean {
 export const trafficKey = (row: PacketRow): string =>
   `${row.heard_at} ${row.direction} ${row.radio_id ?? ""} ${row.tnc2}`;
 
+/** Whether the packet is a message or ack to our call `own`. */
+const toUs = (row: PacketRow, own: string): boolean =>
+  row.decoded.type === "message" && own !== "" && row.decoded.addressee.trim().toUpperCase() === own.toUpperCase();
+
 /**
  * The lines of the list: packets of both sources once each, newest first (arrival order for equal
- * times), without internet packets while `internet` is off, at most TRAFFIC_SHOWN.
+ * times), without internet packets while `internet` is off, without those an iGate put on the air
+ * while `gated` is off (but a message or ack to our call `own`), at most TRAFFIC_SHOWN.
  */
-export function mergeTraffic(live: Iterable<PacketRow>, logged: readonly PacketRow[], internet: boolean): PacketRow[] {
+export function mergeTraffic(
+  live: Iterable<PacketRow>,
+  logged: readonly PacketRow[],
+  internet: boolean,
+  gated = true,
+  own = "",
+): PacketRow[] {
   const seen = new Map<string, PacketRow>();
   for (const row of [...live].sort((a, b) => b.id - a.id)) seen.set(trafficKey(row), row);
   for (const row of logged) if (!seen.has(trafficKey(row))) seen.set(trafficKey(row), row);
   return [...seen.values()]
     .filter((row) => internet || row.via !== "is")
+    .filter((row) => gated || row.via !== "rf-gated" || toUs(row, own))
     .sort((a, b) => time(b) - time(a))
     .slice(0, TRAFFIC_SHOWN);
 }

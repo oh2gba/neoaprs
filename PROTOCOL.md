@@ -1767,6 +1767,7 @@ ever sent on the air. Whether it is connected, to which server, and what it has 
 | field | type | | description |
 |---|---|---|---|
 | `enabled` | boolean |  | `igate/enabled` (Show Internet stations) as in force |
+| `show_gated` | boolean |  | `igate/show_gated` (Show Internet packets heard by radio) as in force: while false, what an iGate put on the air from the internet is left out of every topic and answer but a message or ack to our call |
 | `gate` | boolean |  | `igate/gate` (Send what I hear) as in force: what the radios hear is put on APRS-IS while `state` is `connected` |
 | `state` | "off" \| "connecting" \| "connected" \| "listening" \| "unverified" |  | `off`: both ticks are off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode (`gate` is off), so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change |
 | `server` | string |  | the name the server gave at the login (`T2FINLAND`); empty until it has answered |

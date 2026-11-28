@@ -48,7 +48,13 @@ watch(
 
 const logged = computed(() => stationTrafficByCall.value.get(props.call)?.packets ?? []);
 const rows = computed(() =>
-  mergeTraffic(live.value.values(), logged.value, config.value?.values["igate/enabled"] === "true"),
+  mergeTraffic(
+    live.value.values(),
+    logged.value,
+    config.value?.values["igate/enabled"] === "true",
+    config.value?.values["igate/show_gated"] !== "false",
+    config.value?.values["station/call"] ?? "",
+  ),
 );
 
 /** The time the states are read at, moved on when a query's wait is over. */

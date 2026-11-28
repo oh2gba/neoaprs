@@ -15,7 +15,7 @@ def refused(key: str, text: str) -> SettingError:
     return raised.value
 
 
-def test_both_ticks_are_off_with_the_round_robin_server_and_no_passcode() -> None:
+def test_the_two_ticks_of_aprs_is_are_off_the_third_on_with_the_round_robin_server_and_no_passcode() -> None:
     assert (DEFAULTS.igate_enabled, DEFAULTS.igate_gate, DEFAULTS.igate_server, DEFAULTS.igate_password) == (
         False,
         False,
@@ -23,9 +23,11 @@ def test_both_ticks_are_off_with_the_round_robin_server_and_no_passcode() -> Non
         "",
     )
     assert DEFAULTS.igate_address == ("rotate.aprs2.net", 14580) and not DEFAULTS.internet_on
+    assert DEFAULTS.igate_show_gated and not Config.from_data({"igate/show_gated": "false"}).internet_on
     assert [k for k in KEYS if k.startswith("igate/")] == [
         "igate/enabled",
         "igate/gate",
+        "igate/show_gated",
         "igate/server",
         "igate/password",
     ]

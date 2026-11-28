@@ -1,11 +1,12 @@
 # Internet (APRS-IS)
 
-**Settings → Internet (APRS-IS)** has two ticks, each on its own and both off until you tick them:
+**Settings → Internet (APRS-IS)** has three ticks, each on its own. The first two are off until you tick them:
 
 - **Show Internet stations** puts the stations that APRS-IS, the internet side of APRS, has within the radius of your map on the map, in the Stations tab and in the Packets tab, marked as heard over the internet ([the page](page.md#stations)).
 - **Send what I hear** puts what every radio of yours hears on APRS-IS. Your station is then an iGate for its radios: a station near you that only reaches your radio is on the internet's maps, and a message heard on the radio for a service such as `EMAIL-2` reaches it this way.
+- **Show Internet packets heard by radio**, on until you untick it, is about what your radio hears: [packets that an iGate put on the air from the internet](#show-internet-packets-heard-by-radio).
 
-Both need your call: until it is set, the ticks are there but cannot be ticked. Under them, while either is on, is the status row.
+The first two need your call: until it is set, they are there but cannot be ticked. Under them, while either is on, is the status row.
 
 **Nothing from the internet is ever sent on the air**, whichever ticks are on. What the server sends goes to the map and the logs and nowhere else: a message for you that was sent from the internet is not kept or answered, no query from it is answered, no packet of APRS-IS is repeated by your radio, and a station known only from the internet cannot be messaged. This is how NeoAPRS is built, not a setting.
 
@@ -15,6 +16,12 @@ Unticking it hides them again, as if it had never been on: no station known only
 
 - NeoAPRS logs in to APRS-IS with your call and asks for the stations within the **Radius** of the Map group of the Settings tab, round your position. The circle is asked for again when you change the radius and when your position has moved more than 10 km.
 - With only this tick on, the login only reads: nothing of yours is sent to APRS-IS.
+
+## Show Internet packets heard by radio
+
+Some iGates put packets from the internet on the air, wrapped in their own (a third-party packet, `}SRC>DST,TCPIP,IGATE*:`). Your radio hears them like any other. Untick **Show Internet packets heard by radio** to leave them out: they are then in no list, not on the map, in no count of the Statistics and the Stations tab, in no replay and fire no station alert, and a station heard only that way is not shown. A message or ack sent to your call is always shown and answered, whichever way it came: that is how a station on the internet, or a service such as `EMAIL-2`, reaches you.
+
+Packets heard direct or through digipeaters are untouched, and so is what your station repeats and gates. Nothing is deleted: tick it again and they are back at once, those heard meanwhile too. A station heard both ways that last gave its position in such a packet has no place on the map until it gives one on the air again.
 
 ## Send what I hear
 

@@ -233,6 +233,10 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "Settings tab, Internet (APRS-IS), Send what I hear",
         "`true` puts what every radio hears on APRS-IS, by the iGate's rules, with the passcode worked out from `station/call`; without `igate/enabled` no station of the internet is asked for or kept ([igate.md](igate.md#send-what-i-hear))",
     ),
+    "igate/show_gated": (
+        "Settings tab, Internet (APRS-IS), Show Internet packets heard by radio",
+        "`false` leaves out what an iGate put on the air from the internet (third-party packets) everywhere the page shows packets and stations, but a message or ack to your call; nothing is deleted ([igate.md](igate.md#show-internet-packets-heard-by-radio))",
+    ),
     "igate/server": (
         DB_ONLY,
         "`host:port` of the APRS-IS server the two ticks of Internet (APRS-IS) log in to. The default `rotate.aprs2.net:14580` is the round-robin name of the volunteer servers and the port of the filtered feed; empty leaves it waiting ([igate.md](igate.md#the-server))",
