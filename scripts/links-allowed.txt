@@ -1,3 +1,2 @@
 # Links the stage links (scripts/linkcheck.py) never fails on: each line is a link, a blank and why
 # it is known to refuse a program that asks it while it opens in a browser.
-https://neo.oh2gba.eu/yaesu-ftdx101.html the FTDX101 set-up page of round 20, on the site from its next deploy (server/deploy.sh --site): this line goes then
