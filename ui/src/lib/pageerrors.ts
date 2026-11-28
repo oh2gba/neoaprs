@@ -145,7 +145,7 @@ export class PageErrors {
 
   private transmit(command: PageErrorCommand): boolean {
     if (this.sink === null) return false;
-    let done = false;
+    let done: boolean;
     try {
       done = this.sink(command);
     } catch {
