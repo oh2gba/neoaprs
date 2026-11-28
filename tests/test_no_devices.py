@@ -1122,6 +1122,7 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
             PATIENCE_SEC,
         )
         assert daemon.poll() is None, f"the daemon ended: {logged()}"
+        assert "the update check is off for this run" in logged(), "the Windows proofs read this line"
         assert logged().index("NEOAPRS_NO_DEVICES is set: no serial port") < logged().index("is not opened"), (
             "the line of the start comes before any door"
         )

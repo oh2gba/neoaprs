@@ -245,6 +245,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     )
     controller.debug = args.debug
     controller.updatecheck.developer = developers_run(install)
+    log.info("the update check is %s for this run", "on" if controller.updatecheck.enabled else "off")
     stop = _stop_on_signals(asyncio.get_running_loop())
     # A stop request left by a stop that found nobody running is not for this run.
     stopfile.clear(data_dir)

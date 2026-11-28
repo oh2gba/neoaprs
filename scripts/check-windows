@@ -57,8 +57,9 @@ uninstall. The data folder is the run's own (data-upgrade), never the default on
 OLD's file name decides how the station is made and what is held afterwards (RADIOS_FROM): before
 0.20.0 a radio's settings are flat keys; from 0.20.0 on there are radios and no flat key of one.
 
-Every step script of both proofs starts with NEOAPRS_UPDATE_CHECK=0, so nothing it starts (the
-installer, the app, its daemon) asks the version page.
+Every step script of both proofs starts with NEOAPRS_UPDATE_CHECK=0, for itself and for the user
+(what Windows starts by itself, such as the start at sign-in, has it too), so nothing on the machine
+asks the version page; the last step fails if a log of NeoAPRS there has a start with the check on.
 
 What only a person can see (the wizard, the tray, Update now) is in docs/development.md.
 
@@ -1015,6 +1016,43 @@ def pack_kit(root: Path, out: Path) -> None:
             tar.add(root / name, arcname=name, recursive=False)
 
 
+def fail_unless(condition: str, why: str, *before: str) -> str:
+    """Return the PowerShell line that ends the step with 1 and says why when the condition
+    fails."""
+    return f"if (-not ({condition})) {{ {'; '.join([*before, ps_quote(why)])}; exit 1 }}"
+
+
+# Set for the user before the first step of a proof: what Windows starts by itself (the start at
+# sign-in, which the installer sets) does not inherit a step's environment. The machine goes back to
+# its snapshot after the run.
+USER_SWITCH = "; ".join(
+    (
+        "[Environment]::SetEnvironmentVariable('NEOAPRS_UPDATE_CHECK', '0', 'User')",
+        "if ([Environment]::GetEnvironmentVariable('NEOAPRS_UPDATE_CHECK', 'User') -ne '0') { exit 1 }",
+        "exit 0",
+    )
+)
+# the daemon's line at its start (neoaprs/daemon.py)
+CHECK_ON, CHECK_OFF = "the update check is on for this run", "the update check is off for this run"
+
+
+def update_check_lines() -> list[str]:
+    """Every log of NeoAPRS on the machine: no start with the update check on, and the daemon of
+    the default folder ($log) said that it is off."""
+    return [
+        "$logs = @(Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA 'NeoAPRS'), (Join-Path $env:USERPROFILE 'neoaprs-check') "
+        "-Recurse -File -Filter 'neoaprs.log*' -ErrorAction SilentlyContinue)",
+        f"$on = @($logs | Select-String -SimpleMatch {ps_quote(CHECK_ON)})",
+        fail_unless(
+            "$on.Count -eq 0", "a NeoAPRS on this machine ran with the update check on", '$on | ForEach-Object { "$_" }'
+        ),
+        fail_unless(
+            f"@(Select-String -LiteralPath $log -SimpleMatch {ps_quote(CHECK_OFF)} -ErrorAction SilentlyContinue).Count -gt 0",
+            "the app's daemon did not say the check is off",
+        ),
+    ]
+
+
 def install_script(name: str, *lines: str, no_devices: bool = False) -> str:
     """Return a step script: its name line, the update check off for everything it starts (the
     installer, the app, its daemon), the no-devices switch only when asked, the app's folder in $app."""
@@ -1030,12 +1068,6 @@ def install_script(name: str, *lines: str, no_devices: bool = False) -> str:
             "exit 0",
         ]
     )
-
-
-def fail_unless(condition: str, why: str, *before: str) -> str:
-    """Return the PowerShell line that ends the step with 1 and says why when the condition
-    fails."""
-    return f"if (-not ({condition})) {{ {'; '.join([*before, ps_quote(why)])}; exit 1 }}"
 
 
 NATIVE_OK = "$LASTEXITCODE -eq 0"
@@ -1098,6 +1130,7 @@ def uninstall_script(log: str) -> str:
         "$running = Start-Process -FilePath (Join-Path $app 'neoaprs-app.exe') -ArgumentList '--tray' -PassThru",
         "foreach ($i in 1..120) { if (@(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count -gt $before) { break }; Start-Sleep 1 }",
         fail_unless("-not $running.HasExited", "the app did not stay up before the uninstall"),
+        *update_check_lines(),
         f"$u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + log)} -PassThru",
         "$u.WaitForExit()",
         "foreach ($i in 1..120) { if (-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))) { break }; Start-Sleep 1 }",
@@ -1377,6 +1410,7 @@ def execute_install(
         f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.run)} | Out-Null; exit 0",
         "the folder of the run could not be made",
     )
+    remote_must(settings, USER_SWITCH, "the update check could not be switched off for the user")
     say(f"copying {installer.name} to {paths.run}")
     copy_to(settings, installer, ip.setup)
     results: list[StepResult] = []
@@ -2209,6 +2243,7 @@ def execute_upgrade(settings: Settings, old: Path, old_version: str, new: Path, 
         f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.run)} | Out-Null; exit 0",
         "the folder of the run could not be made",
     )
+    remote_must(settings, USER_SWITCH, "the update check could not be switched off for the user")
     for installer, target in ((old, up.old_setup), (new, up.new_setup)):
         say(f"copying {installer.name} to {paths.run}")
         copy_to(settings, installer, target)

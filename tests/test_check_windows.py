@@ -5,6 +5,7 @@ and the script end to end against stand-in `ssh`, `scp` and `VBoxManage`.
 
 import base64
 import importlib.machinery
+import inspect
 import importlib.util
 import json
 import os
@@ -2000,6 +2001,41 @@ def test_every_proof_script_switches_the_update_check_off_before_it_starts_anyth
         first = started.search(text)
         assert 0 < switch and (first is None or switch < first.start()), f"{name}: something starts before it"
         assert text.count("NEOAPRS_UPDATE_CHECK") == 1, name
+
+
+def test_both_proofs_switch_the_update_check_off_for_the_user_and_check_it_before_the_first_step(
+    script: ModuleType,
+) -> None:
+    """What Windows starts by itself (the start at sign-in) does not inherit a step's environment."""
+    assert script.USER_SWITCH.startswith(
+        "[Environment]::SetEnvironmentVariable('NEOAPRS_UPDATE_CHECK', '0', 'User'); "
+        "if ([Environment]::GetEnvironmentVariable('NEOAPRS_UPDATE_CHECK', 'User') -ne '0') { exit 1 }"
+    )
+    for proof, steps in ((script.execute_install, "install_steps("), (script.execute_upgrade, "upgrade_steps(")):
+        source = inspect.getsource(proof)
+        switch = source.find("remote_must(settings, USER_SWITCH,")
+        assert 0 < switch < source.find("copy_to(") < source.find(steps), proof.__name__
+
+
+def test_both_proofs_fail_when_a_neoaprs_on_the_machine_ran_with_the_update_check_on(script: ModuleType) -> None:
+    """The last step of each proof reads every log of NeoAPRS on the machine: a start with the check on
+    fails it, and the app's own daemon must have said that the check is off."""
+    paths = script.windows_paths("John", "RUN-20261115T101010")
+    install = script.install_steps(
+        paths, "NeoAPRS-Setup-0.20.0.exe", "0.20.0", "6.6.1", "Dire Wolf Release 1.8.1, November 2025"
+    )
+    last = [text for name, text, _ in install if name == "uninstall"] + [upgrade_scripts(script)["uninstall"][0]]
+    assert len(last) == 2
+    for text in last:
+        on, off = (
+            text.find("'the update check is on for this run'"),
+            text.find("'the update check is off for this run'"),
+        )
+        assert 0 < on and 0 < off, "both lines of the daemon are looked for"
+        assert "Join-Path $env:LOCALAPPDATA 'NeoAPRS'" in text and "Join-Path $env:USERPROFILE 'neoaprs-check'" in text
+        assert text.find("a NeoAPRS on this machine ran with the update check on") < text.find("unins000.exe"), (
+            "read before the uninstall ends what runs"
+        )
 
 
 TAKEN_AWAY = (
