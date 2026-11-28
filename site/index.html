@@ -123,11 +123,6 @@
         <li>Show the computer's name and its address, and the key the other computer or phone will ask for.<div class="cmd"><code>hostname; hostname -I; neoaprs db get web/key</code><button class="copy" type="button" data-text="hostname; hostname -I; neoaprs db get web/key" hidden>Copy</button></div></li>
         <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
-      <div class="dl-steps linux-srv dl-docker">
-        <p><b>With Docker</b>, beside the .deb: the same NeoAPRS in one line, on a server or a NAS too. Then <code>docker logs neoaprs</code> shows the key.</p>
-        <div class="cmd"><code>docker run -d --name neoaprs --init --restart unless-stopped -p 7303:7303 -v neoaprs-data:/data ghcr.io/oh2gba/neoaprs:latest</code><button class="copy" type="button" data-text="docker run -d --name neoaprs --init --restart unless-stopped -p 7303:7303 -v neoaprs-data:/data ghcr.io/oh2gba/neoaprs:latest" hidden>Copy</button></div>
-        <p class="dl-note">A USB TNC or a sound card radio: <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/install.md#docker-linux">the run line for it</a>.</p>
-      </div>
       <ol class="dl-steps pi-srv">
         <li>From another computer, log in to the Raspberry Pi with SSH, the way you set it up (<code>ssh YOU@NAME.local</code>). Raspberry Pi OS must be the 64-bit one.</li>
         <li>Download NeoAPRS.<div class="cmd"><code>wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb</code><button class="copy" type="button" data-text="wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb" hidden>Copy</button></div></li>
@@ -138,11 +133,6 @@
         <li>Show the computer's name and its address, and the key the other computer or phone will ask for.<div class="cmd"><code>hostname; hostname -I; neoaprs db get web/key</code><button class="copy" type="button" data-text="hostname; hostname -I; neoaprs db get web/key" hidden>Copy</button></div></li>
         <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose a Dummy radio.</li>
       </ol>
-      <div class="dl-steps pi-srv dl-docker">
-        <p><b>With Docker</b>, beside the .deb: the same NeoAPRS in one line, on a server or a NAS too. Then <code>docker logs neoaprs</code> shows the key.</p>
-        <div class="cmd"><code>docker run -d --name neoaprs --init --restart unless-stopped -p 7303:7303 -v neoaprs-data:/data ghcr.io/oh2gba/neoaprs:latest</code><button class="copy" type="button" data-text="docker run -d --name neoaprs --init --restart unless-stopped -p 7303:7303 -v neoaprs-data:/data ghcr.io/oh2gba/neoaprs:latest" hidden>Copy</button></div>
-        <p class="dl-note">A USB TNC or a sound card radio: <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/install.md#docker-linux">the run line for it</a>.</p>
-      </div>
     </div>
     <p class="aside">Every file is on the <a href="https://github.com/oh2gba/neoaprs/releases/latest">release page</a>. The source is on <a href="https://github.com/oh2gba/neoaprs">GitHub</a>, GPL v3 or later.</p>
   </div>
