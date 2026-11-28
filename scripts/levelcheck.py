@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Ask the registries whether each direct dependency and pinned tool is at its newest release (the stage level).
 
-scripts/levelcheck.py            ask PyPI, npm and GitHub; print what is behind
+scripts/levelcheck.py            ask PyPI, npm, nodejs.org and GitHub; print what is behind
 scripts/levelcheck.py --list     print every pin and where it is written, ask nothing
 One that has been behind for longer than 14 days (counted from the first release after ours) fails the run;
 a younger one is listed and passes. Pre-releases, yanked and deprecated versions are not counted.
@@ -38,6 +38,7 @@ LIMIT = timedelta(days=14)
 PYPI = "https://pypi.org"
 NPM = "https://registry.npmjs.org"
 GITHUB = "https://api.github.com"
+NODEJS = "https://nodejs.org"
 PROBE_HOST = "pypi.org"
 GITHUB_PAGE = 30  # the recent releases asked for when ours is not the latest
 
@@ -51,6 +52,60 @@ RELEASE_FILES = (
 )
 MODEM_FILES = {"Rhizomatica/mercury": "neoaprs/mercury.py", "wb2osz/direwolf": "neoaprs/direwolf.py"}
 UV_REPO = "astral-sh/uv"
+INNO_REPO = "jrsoftware/issrc"  # its tags are is-6_7_1
+_NODE_PIN = re.compile(r"^ARG NODE_VERSION=(\d+\.\d+\.\d+)$", re.M)
+_INNO_PIN = re.compile(r"choco install innosetup --version=(\d+(?:\.\d+)+)")
+# What is pinned by an exact version or hash and not followed here, with the text that shows it in its file.
+NOT_FOLLOWED = (
+    ("the action SHAs of the workflows", ".github/workflows/ci.yml", "persist-credentials: false", "Dependabot's"),
+    ("the lock files", "uv.lock", "[[package]]", "Dependabot's (uv and npm), and the stage lock checks them"),
+    (
+        "the CI container's base image and Ubuntu snapshot",
+        "packaging/ci/Dockerfile",
+        "FROM ubuntu:",
+        "a digest and a date, not a release; scripts/runner-facts (the stage audit) compares them with GitHub's runner",
+    ),
+    (
+        "the Ubuntu image of the install check",
+        "scripts/check-installs",
+        "ubuntu:24.04@sha256:",
+        "a digest of a tag that is rebuilt, not a release",
+    ),
+    (
+        "the PHP image Psalm runs in",
+        "scripts/security-tools",
+        "PHP_IMAGES",
+        "a digest of a tag that is rebuilt, not a release",
+    ),
+    (
+        "Pillow of the AppImage's web window",
+        "packaging/appimage/weblock.py",
+        "PILLOW_SHA256",
+        "the version of pyproject.toml, which is followed there",
+    ),
+    (
+        "the CPython series of the workflows (3.13)",
+        ".github/workflows/ci.yml",
+        'python-version: "3.13"',
+        "a series, not an exact version: uv takes its newest patch release",
+    ),
+    (
+        "Node of the workflows (26)",
+        ".github/workflows/ci.yml",
+        "node-version: 26",
+        "a major line that setup-node resolves to its newest; the exact Node of the container is followed",
+    ),
+    (
+        "the release the .deb check starts from",
+        "packaging/ci/old-release.json",
+        '"sha256"',
+        "the previous NeoAPRS release, which scripts/release rewrites; it is history, not a tool",
+    ),
+)
+_PYTHONHOSTED = re.compile(
+    r"https://files\.pythonhosted\.org/packages/[^\"'\s]*/([A-Za-z0-9_.]+?)-(\d+(?:\.\d+)*)(?:\.tar\.gz|-py)"
+)
+_INNO_TAG = re.compile(r"^is-(\d+(?:_\d+)+)$")
 _RELEASE_URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/releases/download/([^/\"'\s]+)[/\"]")
 _EXACT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*==\s*([^;\s]+)")
 _STABLE = re.compile(r"^v?(\d+!)?\d+(\.\d+)*(\.post\d+)?$")
@@ -63,7 +118,7 @@ _UV_PINS = (
 
 @dataclass(frozen=True)
 class Pin:
-    kind: str  # "pypi", "npm" or "github"
+    kind: str  # "pypi", "npm", "node" (a line of Node.js) or "github"
     name: str  # the package, or owner/repository
     version: str
     where: tuple[str, ...]
@@ -139,6 +194,25 @@ def page_pins(root: Path) -> list[Pin]:
     return [Pin("npm", name, version, ("ui/package.json",)) for name, version in names.items()]
 
 
+def build_pins(root: Path) -> list[Pin]:
+    """Node.js of the CI container, Inno Setup of the Windows release, PyGObject and Meson of the GTK build."""
+    pins = []
+    docker = root / "packaging" / "ci" / "Dockerfile"
+    if docker.is_file():
+        pins += [
+            Pin("node", "node", v, ("packaging/ci/Dockerfile",)) for v in _NODE_PIN.findall(docker.read_text("utf-8"))
+        ]
+    release = root / ".github" / "workflows" / "release.yml"
+    if release.is_file():
+        found = _INNO_PIN.findall(release.read_text("utf-8"))
+        pins += [Pin("github", INNO_REPO, v, (".github/workflows/release.yml",)) for v in found]
+    gi = root / "scripts" / "build-gi"
+    if gi.is_file():
+        found = _PYTHONHOSTED.findall(gi.read_text("utf-8"))
+        pins += [Pin("pypi", name, v, ("scripts/build-gi",)) for name, v in found]
+    return pins
+
+
 def tool_pins(root: Path) -> list[Pin]:
     pins = []
     for name in RELEASE_FILES:
@@ -164,7 +238,7 @@ def tool_pins(root: Path) -> list[Pin]:
 
 def collect(root: Path = ROOT) -> list[Pin]:
     """Every direct dependency and pinned tool, one entry for each name and version."""
-    return _merge([*python_pins(root), *page_pins(root), *tool_pins(root)])
+    return _merge([*python_pins(root), *page_pins(root), *tool_pins(root), *build_pins(root)])
 
 
 def allowed(path: Path = ALLOWED) -> dict[tuple[str, str], Allowance]:
@@ -198,6 +272,7 @@ class Registries:
     pypi: str = PYPI
     npm: str = NPM
     github: str = GITHUB
+    nodejs: str = NODEJS
     token: str = field(default_factory=lambda: os.environ.get("GITHUB_TOKEN", ""))
     timeout: float = TIMEOUT_SEC
     _cache: dict[str, Any] = field(default_factory=dict)
@@ -218,6 +293,8 @@ class Registries:
             return self._pypi(pin.name)
         if pin.kind == "npm":
             return self._npm(pin.name)
+        if pin.kind == "node":
+            return self._node(pin.version)
         return self._github(pin.name, pin.version)
 
     def _pypi(self, name: str) -> list[Release]:
@@ -236,6 +313,15 @@ class Registries:
             Release(version, _when(times.get(version)))
             for version, meta in doc.get("versions", {}).items()
             if stable(version) and not meta.get("deprecated")
+        ]
+
+    def _node(self, ours: str) -> list[Release]:
+        """The releases of the line (22.x) we are on: a newer line is a choice, not a fall behind."""
+        line = ours.split(".")[0]
+        return [
+            Release(item["version"].removeprefix("v"), _when(item.get("date")))
+            for item in self._get(f"{self.nodejs}/dist/index.json")
+            if stable(item["version"]) and item["version"].removeprefix("v").split(".")[0] == line
         ]
 
     def _github(self, repo: str, ours: str) -> list[Release]:
@@ -262,10 +348,16 @@ _NEVER = datetime.max.replace(tzinfo=UTC)
 
 def _github_releases(doc: list[dict[str, Any]]) -> list[Release]:
     return [
-        Release(r["tag_name"].removeprefix("v"), _when(r.get("published_at")))
+        Release(tag_version(r["tag_name"]), _when(r.get("published_at")))
         for r in doc
-        if not r.get("draft") and not r.get("prerelease") and stable(r.get("tag_name", ""))
+        if not r.get("draft") and not r.get("prerelease") and stable(tag_version(r.get("tag_name", "")))
     ]
+
+
+def tag_version(tag: str) -> str:
+    """The version a tag names: v1.2 is 1.2, Inno Setup's is-6_7_1 is 6.7.1."""
+    inno = _INNO_TAG.match(tag)
+    return inno.group(1).replace("_", ".") if inno else tag.removeprefix("v")
 
 
 def _when(text: object) -> datetime | None:
@@ -396,6 +488,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.list:
         for pin in pins:
             print(f"{pin.kind}:{pin.name} {pin.version}  {', '.join(pin.where)}")
+        for what, where, _needle, because in NOT_FOLLOWED:
+            print(f"not followed: {what}  {where}: {because}")
         return 0
     return run(pins, allowed())
 

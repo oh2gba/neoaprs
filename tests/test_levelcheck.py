@@ -6,6 +6,7 @@ and deprecated versions left out."""
 import gzip
 import http.server
 import json
+import re
 import socket
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
@@ -72,7 +73,7 @@ def registries() -> Iterator[Any]:
     serve(server)
     base = f"http://127.0.0.1:{server.server_address[1]}"
     Registry.routes, Registry.asked = {}, []
-    yield levelcheck.Registries(pypi=base, npm=base, github=base, token="", timeout=5)
+    yield levelcheck.Registries(pypi=base, npm=base, github=base, nodejs=base, token="", timeout=5)
     server.shutdown()
     server.server_close()
 
@@ -150,6 +151,45 @@ def test_npm_and_github_releases_are_dated_and_compared(registries: Any) -> None
     ]
     found = verdict(registries, pin("github", "zizmorcore/zizmor", "v1.32.0"))
     assert (found.word, found.newest, found.behind_days) == ("behind", "1.33.1", 20)
+
+
+def node_index(**releases: float) -> None:
+    """The release index of nodejs.org: each version with its age in days; a pre-release of a later line too."""
+    Registry.routes["/dist/index.json"] = [
+        {"version": "v27.0.0-alpha.0.2.0", "date": ago(3)[:10]},
+        {"version": "v26.7.0", "date": ago(2)[:10]},
+        *({"version": "v" + v.replace("_", "."), "date": ago(d)[:10]} for v, d in releases.items()),
+    ]
+
+
+def test_node_is_compared_with_the_newest_release_of_its_own_line(registries: Any) -> None:
+    node_index(**{"22_23_5": 40, "22_22_0": 80})
+    found = verdict(registries, pin("node", "node", "22.23.5"))
+    assert found.word == "level", "a later line (26) is a choice, not a fall behind"
+    registries._cache.clear()
+    node_index(**{"22_23_5": 40, "22_24_0": 5, "22_22_0": 80})
+    found = verdict(registries, pin("node", "node", "22.23.5"))
+    assert (found.word, found.fails, found.newest, found.behind_days) == ("young", False, "22.24.0", 5)
+    registries._cache.clear()
+    node_index(**{"22_23_5": 40, "22_24_0": 20})
+    found = verdict(registries, pin("node", "node", "22.23.5"))
+    assert (found.word, found.fails, found.newest, found.behind_days) == ("behind", True, "22.24.0", 20)
+
+
+def test_inno_setup_tags_are_read_as_versions(registries: Any) -> None:
+    assert levelcheck.tag_version("is-6_7_1") == "6.7.1" and levelcheck.tag_version("v1.2") == "1.2"
+    Registry.routes["/repos/jrsoftware/issrc/releases/latest"] = {"tag_name": "is-6_7_1", "published_at": ago(60)}
+    assert verdict(registries, pin("github", "jrsoftware/issrc", "6.7.1")).word == "level"
+    newer = [{"tag_name": "is-7_1_1", "published_at": ago(30)}, {"tag_name": "is-6_7_1", "published_at": ago(300)}]
+    registries._cache.clear()
+    Registry.routes["/repos/jrsoftware/issrc/releases/latest"] = newer[0]
+    Registry.routes["/repos/jrsoftware/issrc/releases?per_page=30"] = newer
+    found = verdict(registries, pin("github", "jrsoftware/issrc", "6.7.1"))
+    assert (found.word, found.fails, found.newest, found.behind_days) == ("behind", True, "7.1.1", 30)
+    registries._cache.clear()
+    Registry.routes["/repos/jrsoftware/issrc/releases/latest"] = newer[0] | {"published_at": ago(3)}
+    Registry.routes["/repos/jrsoftware/issrc/releases?per_page=30"] = [newer[0] | {"published_at": ago(3)}, newer[1]]
+    assert verdict(registries, pin("github", "jrsoftware/issrc", "6.7.1")).word == "young"
 
 
 def test_a_github_pin_that_is_the_latest_release_asks_once(registries: Any) -> None:
@@ -253,6 +293,15 @@ def test_it_collects_every_exact_pin_of_the_tree(tmp_path: Path) -> None:
     (tmp_path / ".github" / "workflows" / "ci.yml").write_text(workflow * 2)
     (tmp_path / "neoaprs").mkdir()
     (tmp_path / "neoaprs" / "mercury.py").write_text('VERSION = "1.9.26"\nPREVIOUS_VERSION = "1.9.25"\n')
+    (tmp_path / "packaging" / "ci").mkdir(parents=True)
+    (tmp_path / "packaging" / "ci" / "Dockerfile").write_text("ARG UV_VERSION=0.13.10\nARG NODE_VERSION=22.23.5\n")
+    (tmp_path / ".github" / "workflows" / "release.yml").write_text(
+        "if (-not $iscc) { choco install innosetup --version=6.7.1 -y --no-progress }\n"
+    )
+    (tmp_path / "scripts" / "build-gi").write_text(
+        'PYGOBJECT_URL = "https://files.pythonhosted.org/packages/a7/5d/f29/pygobject-3.50.2.tar.gz"\n'
+        'MESON_URL = "https://files.pythonhosted.org/packages/d2/f3/9d5/meson-1.6.1-py3-none-any.whl"\n'
+    )
     found = {(p.kind, p.name, p.version): p.where for p in levelcheck.collect(tmp_path)}
     assert found == {
         ("pypi", "hatchling", "1.33.0"): ("pyproject.toml",),
@@ -262,7 +311,11 @@ def test_it_collects_every_exact_pin_of_the_tree(tmp_path: Path) -> None:
         ("npm", "vue", "3.5.46"): ("ui/package.json",),
         ("npm", "vite", "8.4.0"): ("ui/package.json",),
         ("github", "zizmorcore/zizmor", "v1.33.1"): ("scripts/security-tools",),
-        ("github", "astral-sh/uv", "0.13.10"): (".github/workflows/ci.yml",),
+        ("github", "astral-sh/uv", "0.13.10"): (".github/workflows/ci.yml", "packaging/ci/Dockerfile"),
+        ("node", "node", "22.23.5"): ("packaging/ci/Dockerfile",),
+        ("github", "jrsoftware/issrc", "6.7.1"): (".github/workflows/release.yml",),
+        ("pypi", "pygobject", "3.50.2"): ("scripts/build-gi",),
+        ("pypi", "meson", "1.6.1"): ("scripts/build-gi",),
         ("github", "Rhizomatica/mercury", "1.9.26"): ("neoaprs/mercury.py",),
     }
 
@@ -278,6 +331,12 @@ def test_the_trees_pins_include_every_kind_and_one_uv() -> None:
     } <= names
     assert {("github", "gitleaks/gitleaks"), ("github", "google/osv-scanner")} <= names
     assert len([p for p in pins if p.name == "astral-sh/uv"]) == 1, "every place pins the same uv"
+    assert {
+        ("node", "node"),
+        ("github", "jrsoftware/issrc"),
+        ("pypi", "pygobject"),
+        ("pypi", "meson"),
+    } <= names, "Node of the container, Inno Setup and the GTK build's two are followed too"
     mercury = [p.version for p in pins if p.name == "Rhizomatica/mercury"]
     assert mercury == [MERCURY_VERSION], "the previous Mercury is built beside ours for the tests, not a pin to chase"
     cpython = [p for p in pins if p.name == "astral-sh/python-build-standalone"]
@@ -307,3 +366,30 @@ def test_versions_are_ordered_by_their_numbers() -> None:
     assert keys == sorted(keys[:7]) + keys[7:] and keys[7] < keys[8]
     assert levelcheck.version_key("1.0.post1") > levelcheck.version_key("1.0")
     assert not any(levelcheck.stable(v) for v in ("1.0rc1", "2.0.0-beta.1", "1.0.dev3", "continuous"))
+
+
+def test_every_exact_pin_of_the_tree_is_followed_or_listed_as_not_followed() -> None:
+    """A file of scripts/, packaging/, server/ or .github/ that holds a digest or a commit is the
+    place of a followed pin or one the list names with its reason (and the list's text is still in its file)."""
+    followed = {where for pin in levelcheck.collect() for where in pin.where}
+    listed = {where for _what, where, _needle, _because in levelcheck.NOT_FOLLOWED}
+    for what, where, needle, because in levelcheck.NOT_FOLLOWED:
+        assert needle in (ROOT / where).read_text(encoding="utf-8"), f"{what}: {where} no longer has {needle!r}"
+        assert because
+    pinned = re.compile(r"\b[0-9a-f]{64}\b|@[0-9a-f]{40}\b")
+    owned = {
+        "scripts/build-mercury",
+        "scripts/build-direwolf",
+        "packaging/deb/copyright",
+    }  # the modems' source digests (their VERSION is followed)
+    owned.add("scripts/security-baseline.json")  # the hashes of findings, not of tools
+    for folder in ("scripts", "packaging", "server", ".github"):
+        for path in sorted((ROOT / folder).rglob("*")):
+            name = path.relative_to(ROOT).as_posix()
+            if not path.is_file() or "__pycache__" in name or name.startswith("scripts/__") or path.suffix == ".pyc":
+                continue
+            lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+            if pinned.search("\n".join(line for line in lines if "uses: " not in line)):  # the actions are Dependabot's
+                assert name in followed | listed | owned, (
+                    f"{name} pins a digest the stage level neither follows nor lists"
+                )

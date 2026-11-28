@@ -3,3 +3,6 @@
 # are not counted (7 is 7.0.2 and 8.1); after UNTIL (YYYY-MM-DD) the entry ends and they count again.
 github:vimeo/psalm 7.12 2026-12-31 from 7.12 Psalm takes getenv as a taint source, and server/ reads its settings with getenv: each read needs marking as chosen by the operator first
 npm:typescript 7 2027-01-31 TypeScript 7 has no JavaScript API: vue-tsc 3 stops at its missing lib/tsc, and typescript-eslint 8 asks for below 6.1 (7.1 only as its preview); 6.0 is the last that both run on
+pypi:pygobject 3.51 2027-04-30 from 3.51 PyGObject needs a newer GLib than Ubuntu 22.04 has, and the trial AppImage takes its libraries from 22.04 (standard support ends April 2027)
+pypi:meson 1.7 2026-12-31 Meson builds PyGObject 3.50.2 with this wheel (sha256 pinned); a newer one is not tried against that build yet
+github:jrsoftware/issrc 6.7.2 2026-12-31 the chocolatey package of Inno Setup stops at 6.7.1 (looked on 28 Nov 2026), and the release installs it from there where the runner image has none; 7 is a new major that the installer script is not tried on
