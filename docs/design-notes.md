@@ -815,6 +815,27 @@ its list of heard packets (a wait of 2 s, not measured; a LoRa frame takes 1 to 
 The table is pruned only once it has grown past its limit (2000 keys, more than a channel carries in
 the 30 s window), so a busy channel costs bounded memory and a quiet one costs no pruning.
 
+## neoaprs/rigkeyer.py
+
+A radio keyed through flrig or rigctld is keyed by NeoAPRS, not by the modem: the modem runs with no keying of
+its own and its PTT ON / PTT OFF (Mercury's control port, Direwolf's `-d o` lines) are followed. Hamlib stays
+out of the modems (no `PTT RIG`, no Mercury `-R`): the operator's program owns the CAT port, and NeoAPRS
+neither links nor carries a rig library.
+
+One task drives the rig to what is wanted, one command at a time, so that a key-up never overtakes the
+key-down it ends and a hung command delays, but never loses, the key-up after it. Each command is a fresh short
+connection with a time limit: a program that hangs or dies mid-frame costs that connection only, and the next
+attempt finds the program again when it is back. A key is believed only when the program says the rig is in
+that state (flrig `rig.get_ptt`, rigctld `t` after `RPRT 0`). A key-up that is not believed is asked again
+for as long as the keyer runs, with an ERROR at once and every minute; a key-down answered with a refusal
+(flrig's 0 while it has no radio, `RPRT -n`) left the rig unkeyed, so its key-up failing is not a radio
+left keyed and is said once, as a program that does not answer. The keyer's own limit (the frame's time and
+a second) does not trust the modem's PTT OFF; the modem's own hold (`KEYED_MAX_SEC`) is about believing PTT
+ON for the frame path, a different question.
+
+Frames are held while the program does not answer, not refused: the radio's line stays open and what it
+hears goes on being heard, since receiving needs no keying.
+
 ## neoaprs/selfreplace.py
 
 Replacing a running AppImage keeps the old file beside the new one as `<file>.old` until the new
