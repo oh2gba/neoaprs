@@ -1634,7 +1634,14 @@ def _command_fits(command: dict[str, Any]) -> bool:
 def _page_error_vector(now_ms: int) -> dict[str, Any]:
     """The page_error the page sends for the thrown text "boom" at this instant."""
     at = iso(EPOCH + timedelta(milliseconds=now_ms))
-    command = {"cmd": "page_error", "message": "boom", "stack": "", "source": "window", "at": at, "build": "index-abc.js"}
+    command = {
+        "cmd": "page_error",
+        "message": "boom",
+        "stack": "",
+        "source": "window",
+        "at": at,
+        "build": "index-abc.js",
+    }
     return {"now_ms": now_ms, "command": command, "ok": _command_fits(command)}
 
 

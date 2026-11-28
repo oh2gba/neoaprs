@@ -248,9 +248,9 @@ def not_ours(
         lineage = (parents or windows_parents)()
         family = family_of(pid, lineage)
         # a listener whose parent cannot be read (no snapshot) may be our own run's child: unknown, not another's
-        unknown = {listener.pid for listener in seen if listener.pid not in lineage}
+        unknown = {listener.pid for listener in seen if listener.pid is not None and listener.pid not in lineage}
         if unknown - family:
-            log.debug("the parent of process %s could not be read: taken as ours", sorted(unknown - family, key=str))
+            log.debug("the parent of process %s could not be read: taken as ours", sorted(unknown - family))
         family |= unknown
     else:
         family = {pid}
