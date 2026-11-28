@@ -44,6 +44,7 @@ jobs:
       # the ALSA devices of tests/realmodems/asoundrc (docs/realmodems.md); a tone played into one
       # end of the HF cable must be heard at the other.
       - name: The virtual sound cables
+        timeout-minutes: 10  # a tone that never ends is the runner's sound hanging, not a test
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pipewire pipewire-pulse pipewire-alsa wireplumber pulseaudio-utils alsa-utils dbus
