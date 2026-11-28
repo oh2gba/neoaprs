@@ -931,6 +931,10 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         {"type": "alert_result", "ok": True, "outcome": "ran", "status": 0, "seconds": 20, "line": ""},
         {"type": "alert_result", "ok": False, "outcome": "exit", "status": 3, "seconds": 20, "line": "no display"},
     ],
+    "chat_fresh": [
+        {"type": "chat_fresh", "count": 1, "id": 42, "call": "OH2XYZ", "text": "QRV on 7.0541 USB"},
+        {"type": "chat_fresh", "count": 3, "id": 45, "call": "OH3ABC-7", "text": "<b>not bold</b>"},
+    ],
     "station_alert": [
         {"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "at": NOW, "km": None},
         {"type": "station_alert", "call": "OH2XYZ", "kind": "within", "at": NOW, "km": 8.2},
@@ -978,6 +982,16 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
             },
         },
         {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}},
+        {"type": "state", "topic": "chat", "rev": 0, "value": {"state": "ok"}},
+        {
+            "type": "state",
+            "topic": "chat_lines",
+            "rev": 1,
+            "value": {
+                "41": {"id": 41, "at": NOW, "call": "OH2XYZ", "text": "QRV on 7.0541 USB", "ours": False},
+                "42": {"id": 42, "at": NOW, "call": "OH2GBA-7", "text": "heard you 5/9", "ours": True},
+            },
+        },
         {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
         {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}},
         {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
@@ -1227,6 +1241,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
         "note": "Mercury, 10 W",
     },
     "sked_delete": {"cmd": "sked_delete", "id": "7f3a9c21d4e0"},
+    "chat_say": {"cmd": "chat_say", "text": "QRV on 7.0541 USB, anyone?"},
     "radio_add": {"cmd": "radio_add", "type": "kiss", "name": "Mobile"},
     "radio_remove": {"cmd": "radio_remove", "radio": 3},
     "radio_change": {
@@ -1285,6 +1300,7 @@ def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
         "station_keys",
         "own_objects",
         "own_bulletins",
+        "chat_lines",
     }
 
 

@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from neoaprs import nodevices
+from neoaprs.chat import Line
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND, POWERSHELL_RUN, SCRIPT_VARIABLE
 from neoaprs.childenv import child_environment, windows_program
 from neoaprs.clock import Clock, iso, utcnow
@@ -98,6 +99,15 @@ def station_environment(fired: Fired, base: dict[str, str] | None = None) -> dic
     return _environment("station", f"APRS alert: {fired.call}", fired.call, fired.text, fired.at, "", base)
 
 
+def chat_environment(lines: list[Line], base: dict[str, str] | None = None) -> dict[str, str]:
+    """Return the command environment for the new lines of the chat, told as one: kind `chat`, the newest line."""
+    last = lines[-1]
+    if len(lines) == 1:
+        return _environment("chat", f"NeoAPRS chat: {last.call}", last.call, last.text, last.at, "", base)
+    title = f"NeoAPRS chat: {len(lines)} new lines"
+    return _environment("chat", title, last.call, f"{last.call}: {last.text}", last.at, "", base)
+
+
 def _environment(
     kind: str, title: str, sender: str, text: str, at: datetime, msg_id: str, base: dict[str, str] | None
 ) -> dict[str, str]:
@@ -131,6 +141,11 @@ class Alerts:
     def station(self, fired: Fired) -> None:
         """Run the command for a station alert, under the same switch and limits as a message."""
         self._start(lambda: station_environment(fired), f"the alert of {fired.call}")
+
+    def chat(self, lines: list[Line]) -> None:
+        """Run the command once for the new lines of the chat, unless its kind is switched off."""
+        if lines and self._config().messages_chat_alert:
+            self._start(lambda: chat_environment(lines), "the chat")
 
     def _start(self, environment: Callable[[], dict[str, str]], what: str) -> None:
         if not self._config().messages_alert or not (command := self._command()):

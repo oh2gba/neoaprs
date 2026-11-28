@@ -194,6 +194,60 @@ async def fetch(base: str, version: str, platform: str, install_id: str = "") ->
     return await _quietly(lambda: get(base, version, platform, install_id), "update-check")
 
 
+@dataclass(frozen=True)
+class Fresh:
+    """A conditional GET's answer: the status (304 when unchanged), the body, and the fingerprints to send back."""
+
+    status: int
+    body: bytes = b""
+    etag: str = ""
+    modified: str = ""
+
+
+def get_fresh(url: str, version: str, platform: str, etag: str, modified: str, max_bytes: int) -> Fresh | None:
+    """GET `url` sending back the ETag and Last-Modified last seen; None if unreachable, too long or too slow."""
+    if not url.startswith(("http://", "https://")):
+        return None
+    deadline = time.monotonic() + TIMEOUT_SEC
+    headers = {"User-Agent": f"NeoAPRS/{version} ({platform})"}
+    if etag:
+        headers["If-None-Match"] = etag
+    if modified:
+        headers["If-Modified-Since"] = modified
+    request = urllib.request.Request(url, headers=headers)  # noqa: S310  (http or https only)
+    try:
+        nodevices.check_url(url, level=logging.DEBUG)
+        with urllib.request.build_opener(https_handler(), _NotDowngraded, *nodevices.direct()).open(
+            request, timeout=TIMEOUT_SEC
+        ) as response:
+            body = _read_by(response, max_bytes, deadline)
+            if body is None or len(body) > max_bytes:
+                log.debug("the answer of %s did not come whole or is longer than %d bytes", url, max_bytes)
+                return None
+            said = response.headers
+            return Fresh(int(response.status), body, said.get("ETag", "") or "", said.get("Last-Modified", "") or "")
+    except urllib.error.HTTPError as e:
+        return Fresh(int(e.code))
+    except (OSError, ValueError, http.client.HTTPException) as e:
+        log.debug("%s could not be reached: %r", url, e)
+        return None
+
+
+async def fetch_fresh(url: str, version: str, platform: str, etag: str, modified: str, max_bytes: int) -> Fresh | None:
+    """Run `get_fresh` on its own thread."""
+    try:
+        return await asyncio.wait_for(
+            in_thread(lambda: get_fresh(url, version, platform, etag, modified, max_bytes), "chat-fetch"),
+            TIMEOUT_SEC + FEED_GRACE_SEC,
+        )
+    except TimeoutError:
+        log.debug("the question of %s did not end within %g s", url, TIMEOUT_SEC + FEED_GRACE_SEC)
+        return None
+    except Exception:
+        log.exception("a question of the chat failed")
+        return None
+
+
 async def fetch_url(url: str, version: str, platform: str, max_bytes: int) -> bytes | None:
     return await _quietly(lambda: get_url(url, version, platform, max_bytes=max_bytes), "update-fetch")
 

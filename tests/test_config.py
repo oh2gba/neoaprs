@@ -73,6 +73,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/path": "",
         "messages/alert": "true",
         "messages/alert_command": DEFAULT_ALERT_COMMAND,
+        "messages/chat_alert": "true",
         "status/source": "",
         "status/rigctld": "",
         "status/interval_min": "30",

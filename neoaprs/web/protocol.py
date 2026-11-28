@@ -75,6 +75,7 @@ from .radiowire import (
 )
 from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly, StationAlertMsg, StationPref
+from .chatwire import ChatFreshMsg, ChatLineRow, ChatSay, ChatState
 from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
 from .stationwire import ForgetAllStations, ForgetStation, StationRow, StationTrack, StationTrackMsg
 from .supportwire import PageError
@@ -138,6 +139,7 @@ AnyCommand = Union[
     SkedsWanted,
     SkedPost,
     SkedDelete,
+    ChatSay,
     PageError,
     RadioAdd,
     RadioRemove,
@@ -214,6 +216,12 @@ class TopicValues(_Model):
     skeds: SkedsState = Field(
         description="the sked board (the page calls it HF tests): when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes"
     )
+    chat: ChatState = Field(
+        description="the chat of the HF tests tab, as the project's server keeps it: whether it can be read and takes lines; told whole as it changes"
+    )
+    chat_lines: dict[str, ChatLineRow] = Field(
+        description="the lines of the chat by id (as text), the newest 100 the server keeps, all of them sent with the first `state`: a line read or said is a `set` of its row, one the server no longer has a `del`. Read every 15 seconds while the daemon runs"
+    )
     general: GeneralState = Field(
         description="asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes"
     )
@@ -232,6 +240,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {
     "station_keys": TypeAdapter(StationKey),
     "own_objects": TypeAdapter(OwnObjectRow),
     "own_bulletins": TypeAdapter(OwnBulletinRow),
+    "chat_lines": TypeAdapter(ChatLineRow),
 }
 """A validator for one item of a table topic: the outgoing check looks at the `set` ops with it."""
 
@@ -258,6 +267,7 @@ AnyMessage = Union[
     ReleaseNotesMsg,
     RadioSearchMsg,
     StationAlertMsg,
+    ChatFreshMsg,
     RadioAddedMsg,
     StationTrackMsg,
     RadioLevelMsg,

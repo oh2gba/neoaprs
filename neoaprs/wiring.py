@@ -83,6 +83,7 @@ def wire(parts: Services) -> None:
     parts.prefbook.changed.connect(parts.stationalerts.pref_changed)
     parts.config_changed.connect(parts.stationalerts.settings_changed)
     parts.stationalerts.fired.connect(parts.alerts.station)
+    parts.chat.fresh.connect(parts.alerts.chat)
     wired: list[object] = []
     parts.radios.wire = lambda radio: wire_radio(parts, radio, wired)
     # Each radio's modem and card take the transmit gain and levels live.
