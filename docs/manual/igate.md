@@ -27,7 +27,9 @@ Packets heard direct or through digipeaters are untouched, and so is what your s
 
 With it ticked, what every radio hears is put on APRS-IS, and your own position with it. A receive-only radio, such as a Yaesu FTM, is gated like any other, and so is a Mercury or LoRa radio. Without **Show Internet stations** NeoAPRS asks APRS-IS for no stations at all, and nothing that comes from it is shown or kept but the answers of the services below.
 
-While it is ticked and the login is verified, a message to one of the services that live on APRS-IS (`ANSRVR`, `OTA` and the mail gateway `EMAIL-2`: those of the Services list of the Messages tab and the Email tab) goes over the Internet connection instead of a radio, so it reaches the service from wherever you are, over Mercury too. Its acknowledgement and the service's answers to your call come back the same way and are acked there; the chain under the message and the tag of an answer say **Internet**. A message from any other station that comes from APRS-IS is never taken. Without the tick, or while the login is not up, the message goes on its radio as any other, and one that waits for its next attempt takes the way that is open then.
+While it is ticked and the login is verified, a message to one of the services that live on APRS-IS (`ANSRVR`, `OTA` and the mail gateway `EMAIL-2`: those of the Services list of the Messages tab and the Email tab) goes over the Internet connection instead of a radio, so it reaches the service from wherever you are, over Mercury too.
+
+Its acknowledgement and the service's answers to your call come back the same way and are acked there; the chain under the message and the tag of an answer say **Internet**. A message from any other station that comes from APRS-IS is never taken. Without the tick, or while the login is not up, the message goes on its radio as any other, and one that waits for its next attempt takes the way that is open then.
 
 The login needs the APRS-IS passcode of your call, a number that belongs to the call without its SSID. NeoAPRS works it out from your call: there is nothing to type and nothing to request.
 
