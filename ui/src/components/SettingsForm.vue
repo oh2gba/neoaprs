@@ -399,10 +399,7 @@ function typed(key: string, text: string): void {
         </template>
       </SettingsBox>
       <IgateStatus
-        v-if="group.id === 'igate' && call !== '' && igate"
-        :class="{ 'field-room': !igateOn(draft) }"
-        :inert="!igateOn(draft) || undefined"
-        :aria-hidden="!igateOn(draft) || undefined"
+        v-if="group.id === 'igate' && call !== '' && igate && igateOn(draft)"
         :igate="igate"
         :values="config.values"
         :stations="internetStations(stations.values())"

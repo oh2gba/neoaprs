@@ -8,6 +8,17 @@ const NOTE = /\.(tip\d?|tip_moving|about\d|[a-z]+_tip\d?|overheard_help)$/;
 /** The longest a line of a note is, in characters, for the languages that write words (Japanese is far shorter in characters). */
 const MOST = 145;
 
+describe("the labels of the (i) in German", () => {
+  it('say "Über ..." as "settings.about" does, never "Zu ..."', () => {
+    const de = LOCALES.find((l) => l.code === "de")?.messages as Record<string, Message>;
+    const wrong = Object.entries(de)
+      .filter(([id]) => id.endsWith("tip_label"))
+      .flatMap(([id, message]) => texts(message).map((text) => `${id}: ${text}`))
+      .filter((line) => /: Zu(m|r)? /.test(line));
+    expect(wrong).toEqual([]);
+  });
+});
+
 describe("the notes of the (i)", () => {
   for (const locale of LOCALES) {
     it(`are short in ${locale.name}`, () => {
