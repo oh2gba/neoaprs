@@ -440,3 +440,19 @@ def test_the_windows_smoke_check_wants_the_pinned_release_cm108_ptt_alone_and_ne
         == 3
     )
     assert smoke.check(said.replace(direwolf.VERSION, "1.7.0"))
+
+
+def test_the_windows_build_makes_atest_only_when_asked_and_never_for_a_tarball(
+    build: ModuleType, tmp_path: Path
+) -> None:
+    assert build.commands(tmp_path, windows=True)[1][-1] == "direwolf"
+    assert build.commands(tmp_path, windows=True, atest=True)[1][-2:] == ["direwolf", "atest"]
+    for extra in ([], ["--windows", "--tar"]):
+        done = subprocess.run(
+            [sys.executable, str(SCRIPT), "--with-atest", *extra],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert done.returncode == 1 and "--with-atest is for --windows without --tar" in done.stderr

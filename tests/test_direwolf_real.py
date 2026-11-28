@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import direwolfmodem, kiss
+from tests.support import direwolfaudio
 from neoaprs.bundled import tools_dir
 from neoaprs.claims import Claims
 from neoaprs.clock import utcnow
@@ -288,3 +289,19 @@ async def _opened_once(folder: Path, radio: RadioSpec, caplog: pytest.LogCapture
         finally:
             await driver.stop()
         assert driver.modem.level_now.value is None
+
+
+@pytest.mark.parametrize("name", sorted(direwolfaudio.FILES))
+def test_it_decodes_the_recorded_audio_of_the_frames_we_send_each_frame_once_and_unchanged(name: str) -> None:
+    atest = FOLDER / "dev" / "atest"
+    if not atest.is_file():
+        pytest.skip("atest, which scripts/build-direwolf --install builds beside it, is needed")
+    assert direwolfaudio.decoded(str(atest), direwolfaudio.FIXTURES / name) == list(direwolfaudio.FRAMES)
+
+
+def test_it_decodes_as_many_frames_of_the_recording_under_rising_noise_as_the_direwolf_that_made_it() -> None:
+    atest = FOLDER / "dev" / "atest"
+    if not atest.is_file():
+        pytest.skip("atest, which scripts/build-direwolf --install builds beside it, is needed")
+    got = direwolfaudio.decoded(str(atest), direwolfaudio.FIXTURES / direwolfaudio.NOISE_FILE)
+    assert len(got) == direwolfaudio.NOISE_DECODED, f"{len(got)} of {direwolfaudio.NOISE_FRAMES} decoded"

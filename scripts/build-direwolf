@@ -124,7 +124,7 @@ def apply_patches(tree: Path) -> None:
         raise BuildError(f"{OPTIONS_FILE} still cuts the configuration's path after confpath.patch")
 
 
-def commands(tree: Path, windows: bool = False) -> list[list[str]]:
+def commands(tree: Path, windows: bool = False, atest: bool = False) -> list[list[str]]:
     """Return the CMake configure and build commands."""
     build = tree / "build"
     link = (
@@ -132,14 +132,14 @@ def commands(tree: Path, windows: bool = False) -> list[list[str]]:
         if windows
         else [f"-DCMAKE_EXE_LINKER_FLAGS={LINUX_LINK}"]
     )
-    targets = ["direwolf"] if windows else ["direwolf", *DEV_PROGRAMS]
+    targets = ["direwolf", *(["atest"] if atest else [])] if windows else ["direwolf", *DEV_PROGRAMS]
     return [
         ["cmake", "-S", str(tree), "-B", str(build), *CMAKE_FLAGS, *link],
         ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1), "--target", *targets],
     ]
 
 
-def build(tree: Path, windows: bool = False) -> Path:
+def build(tree: Path, windows: bool = False, atest: bool = False) -> Path:
     """Patch, run CMake and return the folder of the programs made."""
     apply_patches(tree)
     env = {
@@ -147,7 +147,7 @@ def build(tree: Path, windows: bool = False) -> Path:
         for key, value in os.environ.items()
         if key not in ("CFLAGS", "CPPFLAGS", "CXXFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")
     }
-    for command in commands(tree, windows):
+    for command in commands(tree, windows, atest):
         print("+ " + " ".join(command), flush=True)
         done = subprocess.run(
             command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -431,8 +431,16 @@ def main(argv: list[str] | None = None) -> int:
         help="copy the folder to <sys.prefix>/tools/direwolf of the virtual environment (the default when neither --out nor --tar is given)",
     )
     parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
+    parser.add_argument(
+        "--with-atest",
+        action="store_true",
+        help="with --windows: also Direwolf's decoder of recorded audio, dev/atest.exe, for the real-modem job (not shipped; no --tar)",
+    )
     args = parser.parse_args(argv)
     windows = args.windows
+    if args.with_atest and (not windows or args.tar):
+        print("build-direwolf: --with-atest is for --windows without --tar", file=sys.stderr)
+        return 1
     if sys.platform != "linux":
         print("build-direwolf: this builds on Linux, for Linux and (cross-compiled) for Windows", file=sys.stderr)
         return 1
@@ -460,10 +468,13 @@ def main(argv: list[str] | None = None) -> int:
                 f"{archive} is not the file with the pinned SHA-256 {SOURCE_SHA256 or '(none pinned yet)'}"
             )
         tree = buildtool.unpack(archive, WORK_WINDOWS if windows else WORK, "CMakeLists.txt", "Direwolf")
-        programs = build(tree, windows)
+        programs = build(tree, windows, args.with_atest)
         out.mkdir(parents=True, exist_ok=True)
         folder = stage_windows(tree, programs, out, started) if windows else stage(tree, programs, out, started)
         check(folder, windows)
+        if args.with_atest:
+            (folder / "dev").mkdir()
+            shutil.copyfile(programs / "atest.exe", folder / "dev" / "atest.exe")
         tarball = (
             buildtool.make_tarball(folder, out / tarball_name(system="win32" if windows else "linux"), "direwolf")
             if args.tar
