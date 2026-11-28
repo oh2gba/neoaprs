@@ -99,6 +99,7 @@ export const CONFIG_KEYS = [
   "update/url",
   "igate/enabled",
   "igate/gate",
+  "igate/show_gated",
   "igate/server",
   "igate/password",
   "units/non_metric",
