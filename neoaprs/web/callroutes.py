@@ -46,4 +46,5 @@ class CallRoutes:
             "radio_choice": self._radios.choice(call),
             "radio_now": self._radios.now(call),
             "paths": {str(id): ",".join(path) for id, path in sorted(self._radios.paths(call).items())},
+            "text_max": self._radios.text_max(call),
         }

@@ -283,7 +283,7 @@ class StationRow(_Model):
 
 
 class CallRoute(_Model):
-    """How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard."""
+    """How messages go to a call the station book does not hold (a conversation opened by its call), one with a radio chosen, a path set or RF only: the entries of the topic `call_routes`, as the station's row says them once it is heard."""
 
     radio_choice: int | None = Field(
         description="the radio the operator chose for messages to the call (`station_radio`), its id, while that radio is enabled; null for the daemon's choice"
@@ -293,6 +293,10 @@ class CallRoute(_Model):
     )
     paths: dict[str, str] = Field(
         description="the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row"
+    )
+    text_max: int | None = Field(
+        ge=0,
+        description="the bytes of text a message to the call holds on the radio of `radio_now`, as `text_max` of a station's row; null where the whole text fits",
     )
 
 

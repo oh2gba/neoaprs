@@ -3,7 +3,7 @@
 // (tests/test_vectors.py holds the file to the daemon), and every case is asserted here against the
 // page's own function. A rule changed on one side alone fails a test.
 import { describe, expect, it } from "vitest";
-import { bytesLeft } from "@/lib/messages";
+import { bytesLeft, lockedRoom } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
 import { chatText } from "@/lib/chat";
@@ -111,6 +111,10 @@ describe("the vectors of the daemon", () => {
   it("say which texts fit in a message as far as there being a text and its length go", () => {
     for (const { input, ok } of vectors.message_texts)
       expect(input.trim() !== "" && bytesLeft(input) >= 0, JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say how many bytes an encrypted message holds where the radio's frame leaves fewer characters", () => {
+    for (const { text_max, room } of vectors.locked_rooms) expect(lockedRoom(text_max), String(text_max)).toBe(room);
   });
 
   it("say which texts can be posted as a bulletin", () => {

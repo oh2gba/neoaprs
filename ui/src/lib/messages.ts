@@ -94,6 +94,12 @@ export function textBytes(text: string): number {
   return encoder.encode(text).length;
 }
 
+/** The bytes of text an encrypted message holds where `textMax` characters fit on the radio (neoaprs/cipher.py). */
+export function lockedRoom(textMax: number): number {
+  const { lockMark, lockedOverhead } = LIMITS.message;
+  return Math.max(0, Math.floor(((textMax - lockMark) * 6) / 8) - lockedOverhead);
+}
+
 /** How many bytes more the text may have; negative when it is too long. */
 export function bytesLeft(text: string): number {
   return LIMITS.message.textMax - textBytes(text);

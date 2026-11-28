@@ -177,7 +177,7 @@ class Topics:
         )
         return radios, CallRoutes(
             lambda call: self._station(call) is not None,
-            lambda: ctl.radios.chosen(),
+            lambda: [*ctl.radios.chosen(), *(call for call, pref in ctl.prefbook.all().items() if pref.rf_only)],
             lambda radio: ctl.prefbook.paths(radio),
             lambda: (spec.id for spec in ctl.config.live_radios),
             radios,
@@ -498,8 +498,10 @@ class Topics:
 
     def _pref_changed(self, call: str, pref: Pref | None) -> None:
         self.hub.changed("station_prefs", call)
+        # its text_max follows RF only
         if self.ctl.stationbook.get(call) is not None:
-            self.hub.changed("stations", call)  # its text_max follows RF only
+            self.hub.changed("stations", call)
+        self.hub.changed("call_routes", call)
 
     def _key_changed(self, call: str) -> None:
         self.hub.changed("station_keys", call)

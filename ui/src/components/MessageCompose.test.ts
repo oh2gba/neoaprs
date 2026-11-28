@@ -126,6 +126,13 @@ describe("the padlock of an encrypted message", () => {
     expect(wrapper.find(".compose-left").text()).toBe("0 left");
   });
 
+  it("pressed, counts what the radio's frame leaves encrypted where it leaves fewer characters than a message has", async () => {
+    const { wrapper } = compose({ lockable: true, max: 52 });
+    expect(wrapper.find(".compose-left").text()).toBe("52 left");
+    await wrapper.find(".compose-lock").trigger("click");
+    expect(wrapper.find(".compose-left").text()).toBe("23 left");
+  });
+
   it("says how many bytes are over, in orange, when the padlock is pressed under a longer text, and lets it only be shortened", async () => {
     const { wrapper, text, send } = compose({ lockable: true });
     await text.setValue("x".repeat(40));

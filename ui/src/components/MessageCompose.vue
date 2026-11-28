@@ -14,6 +14,7 @@ import { useSocketOpen } from "@/composables/useInFlight";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { errorReason } from "@/i18n/errortext";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
+import { lockedRoom } from "@/lib/messages";
 import { canSendAll, textRefusal } from "@/lib/recipients";
 import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
@@ -54,7 +55,9 @@ watch(
 );
 /** The bytes a message holds (34 if encrypted); the field takes no more (lib/textlimit.ts). */
 const limit = computed<TextLimit>(() => ({
-  max: Math.min(locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax, props.max ?? Infinity),
+  max: locked.value
+    ? Math.min(LIMITS.message.lockedMax, props.max == null ? Infinity : lockedRoom(props.max))
+    : Math.min(LIMITS.message.textMax, props.max ?? Infinity),
   measure: bytes,
   kind: "bytes",
 }));

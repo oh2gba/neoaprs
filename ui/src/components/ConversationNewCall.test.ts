@@ -107,14 +107,14 @@ describe("Route of a call no radio heard", () => {
     expect([pick.element.disabled, pick.element.selectedOptions[0]?.text]).toEqual([false, "Automatic: VHF"]);
     await pick.setValue("2");
     expect(sent("station_radio")).toEqual([{ cmd: "station_radio", call: NEW, radio: 2 }]);
-    await tell(daemon, { callRoutes: new Map([[NEW, { radio_choice: 2, radio_now: 2, paths: {} }]]) });
+    await tell(daemon, { callRoutes: new Map([[NEW, { radio_choice: 2, radio_now: 2, paths: {}, text_max: null }]]) });
     expect(wrapper.find(".convo-head .convo-radio .tag").text()).toBe("HF");
     expect(wrapper.find<HTMLSelectElement>("select.route-radio-pick").element.value).toBe("2");
   });
 
   it("sets the path typed on the radio in force and shows the one the daemon keeps for that call and radio", async () => {
     const wrapper = conversation(NEW, {
-      callRoutes: routes({ [NEW]: { radio_choice: 3, radio_now: 3, paths: { "3": "OH2GBA-12" } } }),
+      callRoutes: routes({ [NEW]: { radio_choice: 3, radio_now: 3, paths: { "3": "OH2GBA-12" }, text_max: null } }),
     });
     const box = await opened(wrapper);
     const field = box.find<HTMLInputElement>(".pathbox:not(.route-radio) input[type='text']");
@@ -124,7 +124,7 @@ describe("Route of a call no radio heard", () => {
   });
 
   it("keeps radio 1's path as for any station, and RF only live on Mercury", async () => {
-    const wrapper = conversation(NEW, { callRoutes: routes({ [NEW]: { radio_choice: 2, radio_now: 2, paths: {} } }) });
+    const wrapper = conversation(NEW, { callRoutes: routes({ [NEW]: { radio_choice: 2, radio_now: 2, paths: {}, text_max: null } }) });
     const box = await opened(wrapper);
     const rfOnly = box.find<HTMLInputElement>(".rfonly input");
     expect(rfOnly.element.disabled).toBe(false);
@@ -134,6 +134,15 @@ describe("Route of a call no radio heard", () => {
 });
 
 describe("the room for the text", () => {
+  it("of a call no radio heard is what its route says the radio's frame leaves", async () => {
+    const wrapper = conversation(NEW, {
+      callRoutes: routes({ [NEW]: { radio_choice: 2, radio_now: 2, paths: {}, text_max: 59 } }),
+    });
+    const text = wrapper.find("input.compose-text");
+    await text.setValue("x".repeat(70));
+    expect((text.element as HTMLInputElement).value).toHaveLength(59);
+  });
+
   it("is what the station's row says the radio's frame leaves, and the whole text where it says none", async () => {
     const row = station("OH2HF", { radio_now: 2, text_max: 66 });
     const wrapper = conversation("OH2HF", { stations: shallowRef(new Map([[row.call, row]])) });

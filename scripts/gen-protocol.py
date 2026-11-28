@@ -50,7 +50,7 @@ from pydantic import BaseModel  # noqa: E402
 import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
-from neoaprs.cipher import MAX_LOCKED  # noqa: E402
+from neoaprs.cipher import LOCK_MARK, MAX_LOCKED, NONCE_LEN, TAG_LEN, locked_room  # noqa: E402
 from neoaprs import direwolf, mercury, mercuryscope  # noqa: E402
 from neoaprs.web import scopefeed  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
@@ -440,7 +440,14 @@ def limits() -> dict[str, Any]:
             "statusMinMin": MIN_STATUS_INTERVAL_MIN,
             "hfBeaconMinMin": HF_BEACON_MIN_MIN,
         },
-        "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
+        "message": {
+            "textMax": MAX_TEXT,
+            "forbidden": FORBIDDEN,
+            "gateway": EMAIL_GATEWAY,
+            "lockedMax": MAX_LOCKED,
+            "lockMark": len(LOCK_MARK),
+            "lockedOverhead": NONCE_LEN + TAG_LEN,
+        },
         "call": {
             "baseMax": BASE_MAX,
             "amateurBaseMin": AMATEUR_BASE_MIN,
@@ -1675,6 +1682,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         ],
         "compare_versions": [{"a": a, "b": b, "order": compare_versions(a, b)} for a, b in VERSION_PAIRS],
         "message_texts": [_message_vector(t) for t in MESSAGE_TEXTS],
+        "locked_rooms": [{"text_max": n, "room": locked_room(n)} for n in (0, 2, 18, 40, 52, 59, 66, 67)],
         "bulletin_texts": [_bulletin_text_vector(t) for t in BULLETIN_TEXTS],
         "bulletin_free_slots": [_bulletin_free_slot_vector(*row) for row in BULLETIN_FREE_SLOTS],
         "object_names": [_object_vector(*row) for row in OBJECT_NAMES],

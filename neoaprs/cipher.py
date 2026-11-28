@@ -17,8 +17,14 @@ KEY_LEN = 32
 NONCE_LEN = 6
 TAG_LEN = 8
 _GCM_NONCE_LEN = 12  # 96 bits: the six random bytes, padded with zeros
-_ROOM = (MAX_TEXT - len(LOCK_MARK)) * 6 // 8
-MAX_LOCKED = _ROOM - NONCE_LEN - TAG_LEN  # bytes of UTF-8 text per message
+
+
+def locked_room(text_max: int) -> int:
+    """Return the bytes of UTF-8 text an encrypted message holds where `text_max` characters fit."""
+    return max(0, (text_max - len(LOCK_MARK)) * 6 // 8 - NONCE_LEN - TAG_LEN)
+
+
+MAX_LOCKED = locked_room(MAX_TEXT)  # bytes of UTF-8 text per message
 _INFO = b"NeoAPRS message key v1"
 
 

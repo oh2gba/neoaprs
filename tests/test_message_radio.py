@@ -154,7 +154,19 @@ async def test_a_call_never_heard_gets_its_radio_and_its_path_there_told_back_un
     assert page.topics["call_routes"] == {}
     await page.send({"cmd": "station_radio", "call": "ea8ee-2", "radio": 2})
     await page.until(lambda: "EA8EE-2" in page.topics["call_routes"])
-    assert page.topics["call_routes"]["EA8EE-2"] == {"radio_choice": 2, "radio_now": 2, "paths": {}}
+    entry = page.topics["call_routes"]["EA8EE-2"]
+    assert {key: entry[key] for key in ("radio_choice", "radio_now", "paths")} == {
+        "radio_choice": 2,
+        "radio_now": 2,
+        "paths": {},
+    }
+    assert "text_max" in entry and entry["text_max"] == e.ctl.messaging.text_max("EA8EE-2"), (
+        "the counter of the page says what the daemon takes"
+    )
+    await page.send({"cmd": "set_station_rf_only", "call": "OH2RFO", "on": True})
+    await page.until(lambda: "OH2RFO" in page.topics["call_routes"]), "RF only changes its room: it has an entry"
+    await page.send({"cmd": "set_station_rf_only", "call": "OH2RFO", "on": False})
+    await page.until(lambda: "OH2RFO" not in page.topics["call_routes"])
     await page.send({"cmd": "station_radio", "call": "EA8EE-2", "radio": None})
     await page.until(lambda: "EA8EE-2" not in page.topics["call_routes"])
     await page.send({"cmd": "set_station_path", "call": "OH2DPN", "path": "OH2GBA-12", "radio": 2})

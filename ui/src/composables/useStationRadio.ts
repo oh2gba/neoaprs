@@ -73,7 +73,7 @@ export function useStationRadio(
     choice: computed(() => (gateway.value ? (radios.email.value?.id ?? null) : (route.value?.radio_choice ?? null))),
     auto: computed(() => (!gateway.value && route.value?.radio_choice == null ? (over.value?.name ?? null) : null)),
     /** The bytes of text a message holds on the radio now where its frame leaves fewer; null: the message's own. */
-    textMax: computed(() => row()?.text_max ?? null),
+    textMax: computed(() => route.value?.text_max ?? null),
     pathShown,
     pathless: computed(() =>
       pathShown.value && over.value !== null && !over.value.carriesPath
