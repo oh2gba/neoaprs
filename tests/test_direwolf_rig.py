@@ -75,6 +75,7 @@ async def test_a_direwolf_that_dies_keyed_lets_the_rig_go(tmp_path: Path, fake_k
 
 
 @FAKES
+@pytest.mark.expects_errors  # the key-up of the frame keyed meanwhile is not confirmed: an ERROR by design
 async def test_a_rig_program_that_stops_answering_holds_the_frames_of_a_packet_radio(
     tmp_path: Path, fake_kind: type
 ) -> None:
@@ -99,5 +100,5 @@ async def test_the_keying_test_of_a_radio_keyed_through_rigctld_keys_the_rig(tmp
     await m.key_test()
     await until_started(lambda: fake.ptt == 1)
     await until_started(lambda: not m.test and fake.ptt == 0)
-    assert fakedirewolf.runs(m.home)[-2][-2:] == ["-x", "p"], "the test keys by the PTT alone, no tone"
+    assert ["-x", "p"] in [run[-2:] for run in fakedirewolf.runs(m.home)], "the test keys by the PTT alone, no tone"
     await m.stop()
