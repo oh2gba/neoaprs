@@ -70,7 +70,8 @@ const NOTIFICATIONS = box(
 );
 const only = (title: string, ids: string[]): Box => box(ids, ids.length, [title]);
 const SETTINGS_TAB = {
-  "Internet (APRS-IS)": only("Internet (APRS-IS)", ["set-igate-enabled", "set-igate-gate"]),
+  // with Show Internet packets heard by radio, its third tick
+  "Internet (APRS-IS)": only("Internet (APRS-IS)", ["set-igate-enabled", "set-igate-gate", "set-igate-show_gated"]),
   Digipeater: only("Digipeater", ["set-radio-1-digipeat"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,

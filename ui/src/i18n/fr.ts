@@ -2206,7 +2206,7 @@ export const fr: Catalogue = {
   "help.picture.tworadios":
     "Votre station avec deux radios : la radio packet atteint la voiture et le digipeater proches au ras du sol, la radio Mercury atteint une station lointaine par le signal qui monte et redescend.",
   "help.picture.gated":
-    "Trois chemins par lesquels un paquet atteint votre radio : directement d'une station, par un digipeater, et depuis Internet par un iGate, celui que cette case laisse de côté.",
+    "Trois chemins par lesquels un paquet atteint votre radio : directement d'une station, par un digipeater, et depuis Internet par un iGate, celui que cette case laisse de côté.",
   "help.picture.dummy":
     "Des stations inventées dans un cadre en pointillés répondent à votre station, et ce qu'elle envoie ne sort pas : les ondes sont barrées.",
   "help.picture.notifications":
