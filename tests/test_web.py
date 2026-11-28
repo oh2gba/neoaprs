@@ -1557,3 +1557,46 @@ def test_the_page_build_is_the_main_script_of_the_page_served(
     assert PageSnapshot.take(tmp_path / "nothing").build == "" and "not whole" in caplog.text
     built = PageSnapshot.take(PAGE_DIR).build
     assert built.startswith("index-") and (PAGE_DIR / "assets" / built).is_file()
+
+
+async def test_list_ports_tells_the_direction_and_channel_of_a_sound_servers_device_and_who_holds_its_card(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from neoaprs import soundserver
+    from neoaprs.claims import Claim
+    from neoaprs.mercury import SoundCard
+    from neoaprs.mercurymodem import Mercury
+    from tests.support.files import fixture_text
+
+    nodes = soundserver.list_nodes(lambda args: fixture_text(f"pactl/station-{args[1]}.json"))
+    virtual = soundserver.list_nodes(lambda args: fixture_text(f"pactl/virtual-{args[1]}.json"))
+    assert nodes is not None and virtual is not None
+    server = soundserver.cards(nodes, {0: "CODEC", 2: "Generic"})
+    quad = [c for c in soundserver.cards(virtual, {}) if c.id.startswith("pulse:DEVICE=quad_in")][:2]
+    codec = SoundCard("plughw:CARD=CODEC,DEV=0", "USB AUDIO CODEC", True, True)
+    monkeypatch.setattr(Mercury, "sound_cards", lambda self: [codec, *server, *quad])
+    asked: list[list[str]] = []
+
+    def together(cards: list[str], devices: list[str]) -> tuple[dict[str, str | None], dict[str, str | None]]:
+        asked.append(list(cards))
+        return {c: ("0123456789ab" if c == codec.id else None) for c in cards}, {}
+
+    monkeypatch.setattr(web_handlers, "together", together)
+    settings = {"hf/enabled": "true", "hf/profile": "mercury", "mercury/sound_card": "", "mercury/keying": "vox"}
+    e = Env(tmp_path, web=True, settings=settings)
+    await e.start()
+    e.ctl.radios.claims.hold(Claim("sound_card", codec.id, 3))
+    page = await e.ws()
+    await page.send({"cmd": "list_ports", "radio": 2})
+    rows = (await page.expect("ports"))["sound_cards"]
+    assert [
+        (r["name"], r["capture"], r["playback"], r["channel"], r["held_by"], r["usb_group"], r["pick"]) for r in rows
+    ] == [
+        ("USB AUDIO CODEC", True, True, None, 3, "0123456789ab", False),
+        ("FTDX101", False, True, None, 3, "0123456789ab", False),
+        ("Soundcard", False, True, None, None, None, False),
+        ("FTDX101", True, False, None, 3, "0123456789ab", False),
+        ("Rubix44", True, False, None, None, None, False),
+        ("Rubix44", True, False, 1, None, None, False),
+    ], "a device on the card another radio holds is held too, and sits where the card sits"
+    assert asked[-1][:3] == [codec.id, codec.id, "plughw:CARD=Generic,DEV=0"]

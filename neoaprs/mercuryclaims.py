@@ -6,10 +6,10 @@ The claims half of `Mercury`. Without the claims table a modem holds nothing and
 import logging
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
-from . import nodevices
+from . import nodevices, soundserver
 from .claims import Claim, Claims
 from .mercurycards import stable_alsa_id
 from .mercuryhelper import Command, alsa_card_names, expected_program, free_ports, pair_free
@@ -18,6 +18,7 @@ from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO
 from .radiotype import RadioId, ResourceKind
 from .signal import Signal
+from .soundserver import Node
 from .source import os_error_text
 
 log = logging.getLogger("neoaprs.mercury")
@@ -121,6 +122,7 @@ class Holding:
     broadcast_port: int
     control_port: int
     sound_card: str
+    nodes: tuple[Node, ...]
     state: str
     ports_changed: Signal[[]]
     _held: HeldPorts
@@ -138,7 +140,7 @@ class Holding:
         return self._held.chosen
 
     def held_card(self) -> str:
-        return held_card(self.claims, self.holder, self.sound_card)
+        return held_card(self.claims, self.holder, soundserver.behind(self.sound_card, self.nodes, alsa_card_names()))
 
     def held(self) -> list[Claim]:
         return (
@@ -181,7 +183,7 @@ class Holding:
         self.claims.release(self.holder, "sound_card")
         self.claims.release(self.holder, "keying")
         for claim in (
-            card_claim(sound_card, self.holder),
+            *card_claims(sound_card, self.holder, self.nodes),
             *([Claim("keying", keying_port, self.holder)] if keying_port else []),
         ):
             if (other := self.claims.hold(claim)) is not None:
@@ -197,3 +199,11 @@ class Holding:
 
 def card_claim(sound_card: str, holder: RadioId) -> Claim:
     return Claim("sound_card", stable_alsa_id(sound_card, alsa_card_names()), holder)
+
+
+def card_claims(
+    sound_card: str, holder: RadioId, nodes: Sequence[Node] = (), card_names: Mapping[int, str] | None = None
+) -> list[Claim]:
+    """Return what a sound card setting holds; a sound server's device holds its ALSA card, else itself."""
+    names = alsa_card_names() if card_names is None else card_names
+    return [Claim("sound_card", stable_alsa_id(v, names), holder) for v in soundserver.claims(sound_card, nodes, names)]

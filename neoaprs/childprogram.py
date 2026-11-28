@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import tcplisten, winchild
+from . import soundserver, tcplisten, winchild
 from .childenv import child_environment, windows_program
 from .clock import Clock, utcnow
 from .source import os_error_text
@@ -51,11 +51,15 @@ def runs_shipped(command: Command, program: Path) -> bool:
 
 
 def environment(command: Command) -> dict[str, str]:
-    """Return the reduced environment, plus ALSA_CONFIG_PATH if an alsa.conf is shipped."""
+    """Return the reduced environment, plus the shipped ALSA library's configuration if there is one.
+
+    It is the shipped alsa.conf and the names of the sound server's devices; the plug-ins are the system's."""
     env = child_environment()
     conf = Path(command[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
     if len(command) == 1 and conf.is_file():
-        env["ALSA_CONFIG_PATH"] = str(conf)
+        env["ALSA_CONFIG_PATH"] = f"{conf}:{soundserver.CONF}"
+        if (plugins := soundserver.plugin_dir(env)) is not None:
+            env["ALSA_PLUGIN_DIR"] = str(plugins)
     return env
 
 

@@ -13,6 +13,7 @@ from .frequencylist import SUGGESTED
 # re-exported
 from .mercurycards import (
     PAIR as PAIR,
+    SERVER as SERVER,
     WASAPI_CAPTURE as WASAPI_CAPTURE,
     WASAPI_PLAYBACK as WASAPI_PLAYBACK,
     SoundCard as SoundCard,
@@ -257,7 +258,8 @@ def card_reason(card: str, setting: str, cards: Sequence[SoundCard]) -> str:
 
 
 def propose_sound_card(cards: Sequence[SoundCard]) -> str:
-    """Return the sound card id the page proposes when the setting is empty."""
+    """Return the sound card id the page proposes when the setting is empty; never a sound server's device."""
+    cards = [c for c in cards if not c.id.startswith(SERVER)]
     return (
         choose_sound_card(cards)
         or next((c.id for c in cards if c.default), "")
