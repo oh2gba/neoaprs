@@ -2,3 +2,4 @@
 # KIND is pypi, npm or github; VERSION is the first version that cannot be taken, and it and every later one
 # are not counted (7 is 7.0.2 and 8.1); after UNTIL (YYYY-MM-DD) the entry ends and they count again.
 github:vimeo/psalm 7.12 2026-12-31 from 7.12 Psalm takes getenv as a taint source, and server/ reads its settings with getenv: each read needs marking as chosen by the operator first
+npm:typescript 7 2027-01-31 TypeScript 7 has no JavaScript API: vue-tsc 3 stops at its missing lib/tsc, and typescript-eslint 8 asks for below 6.1 (7.1 only as its preview); 6.0 is the last that both run on
