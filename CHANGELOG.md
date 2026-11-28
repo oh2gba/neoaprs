@@ -14,6 +14,26 @@
 - **Changed:** a radio whose sound server device is gone waits instead of playing through the loudspeakers.
 - **Fixed:** the text box counts the room a Mercury frame leaves when RF only and a gateway path are used.
 - **Fixed:** odd or damaged packets, GPS sentences and modem lines no longer stop a packet or a list from being read.
+- **New:** a Sound card radio can be keyed through flrig or rigctld, sharing the radio's CAT port with your other programs.
+- **New:** `neoaprs doctor` says whether the flrig or rigctld a radio is keyed through answers.
+- **New:** Windows: virtual COM ports (com0com, VSPE and the like) are listed by name in the Port lists.
+- **New:** with Send what I hear on, messages to ANSRVR, OTA and EMAIL-2 go over the Internet, and their answers come back the same way.
+- **New:** past HF tests can be deleted from your own list with the bin; other stations still see them.
+- **Changed:** behind a reverse proxy: allow it with `neoaprs db set web/proxy true`, see the manual's network page.
+- **Changed:** the secure connection's new certificate authority can sign only for your station.
+- **Changed:** the HF test board takes at most five planned tests per call.
+- **Changed:** NeoAPRS looks for a new version every six hours.
+- **Changed:** HF tests: Plan a test opens in a window, so the board and the chat have the room.
+- **Changed:** HF tests: Past tests fold away, closed at first.
+- **Changed:** RF only is called Radio only, in each language's own word.
+- **Changed:** in a container the key is always asked, and the secure connection is not offered.
+- **Changed:** two radios can take two channels of one multichannel sound card.
+- **Fixed:** a sound device that is gone reads Not found, and the sound fields keep their place.
+- **Fixed:** with the new tick off, a station heard on the air stays where the air put it.
+- **Fixed:** a Bluetooth radio whose COM port another program holds says so, and one switched off is told in five seconds.
+- **Fixed:** an answer RF only on Mercury goes back through the gateway the asker came by.
+- **Fixed:** a Send logs note of control characters alone is no longer refused by the server after it was sent.
+- **Fixed:** a message going over the Internet shows Internet, not a radio's Route.
 - **New:** on Windows a paired Bluetooth radio is listed by its name and connected to directly.
 - **New:** the HF tests tab has a chat: a line to everyone using the tab, over the Internet, never on the air.
 - **New:** a new line in the chat tells you as a message does; Notifications has HF tests chat to switch it off.
