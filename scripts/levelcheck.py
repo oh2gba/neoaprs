@@ -72,6 +72,12 @@ NOT_FOLLOWED = (
         "a digest of a tag that is rebuilt, not a release",
     ),
     (
+        "com0com's signed release for the proof of virtual COM ports",
+        "scripts/check-windows-virtualports",
+        "ZIP_SHA256=",
+        "3.0.0.0 of 2017 is com0com's last release; the zip is fetched by hand for a proof on the Windows machine",
+    ),
+    (
         "the Ubuntu image the site's sounds are made in",
         "scripts/site-sounds",
         "FROM ubuntu:26.04@sha256:",

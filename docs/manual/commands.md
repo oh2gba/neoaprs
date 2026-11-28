@@ -46,7 +46,7 @@ It checks:
 - **The database**: readable, and its version against the one this NeoAPRS uses. A file of a newer NeoAPRS fails; an older one is migrated at the next start.
 - **The call**: `station/call`. It says "set your call on the page" while it is empty or cannot transmit.
 - **The radios**: each by its name (`Packet`, `Mercury`, `LoRa`, `Packet 2`, or the one you gave it), with its type and its port, server or sound card and keying, or that it is off. It warns when no radio is on, and fails when the radios cannot be read from the database.
-- **The serial ports** the system lists, with the description and the USB `VID:PID` of each. That is also what to paste into a bug report.
+- **The serial ports** the system lists, with the description and the USB `VID:PID` of each. That is also what to paste into a bug report. A virtual COM port on Windows that only the registry knows shows by its name, with `n/a` and `VID:PID -`.
 - **On Linux**, whether you are in the group that owns the serial devices (`dialout`, `uucp` on Arch), and whether **brltty** or **ModemManager** are installed. They take USB serial adapters: brltty makes a CH340, CP210x or FTDI port vanish as it is plugged in, and ModemManager probes new ports as modems. It gives the way to remove or stop them.
 - **On Linux with KDE**, whether Firefox is a Flatpak whose notifications can go missing. It prints the two `flatpak override` commands and never runs them ([notifications.md](notifications.md#notifications-do-not-appear)).
 - Whether a daemon holds the data folder, where its page is, and whether it answers.
