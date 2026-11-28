@@ -181,6 +181,36 @@
   {"input": "RFONLYX", "alias": false, "marker": true},
   {"input": "", "alias": false, "marker": false}
  ],
+ "board_names": [
+  {"input": "BLN1", "kind": "bulletin"},
+  {"input": "bln1", "kind": "bulletin"},
+  {"input": " BLN9 ", "kind": "bulletin"},
+  {"input": "BLNA", "kind": "announcement"},
+  {"input": "BLNZ", "kind": "announcement"},
+  {"input": "BLN3HAMS", "kind": "group"},
+  {"input": "BLNAWX", "kind": "group"},
+  {"input": "BLN1HAMS-", "kind": "group"},
+  {"input": "BLN1HAMSXX", "kind": null},
+  {"input": "BLN", "kind": null},
+  {"input": "ALL", "kind": "group"},
+  {"input": "CQ", "kind": "group"},
+  {"input": "QST", "kind": "group"},
+  {"input": "QSTX", "kind": null},
+  {"input": "ALLEN", "kind": null},
+  {"input": "NWS-WARN", "kind": "nws"},
+  {"input": "NWS-ABCDE", "kind": "nws"},
+  {"input": "NWS-ABCDEF", "kind": null},
+  {"input": "NWS", "kind": null},
+  {"input": "SKY", "kind": "nws"},
+  {"input": "SKYABC", "kind": "nws"},
+  {"input": "SKYABCD", "kind": null},
+  {"input": "CWA", "kind": "nws"},
+  {"input": "CWA1", "kind": "nws"},
+  {"input": "OH2GBA", "kind": null},
+  {"input": "OH2GBA-9", "kind": null},
+  {"input": "WINLINK", "kind": null},
+  {"input": "EMAIL-2", "kind": null}
+ ],
  "compare_versions": [
   {"a": "0.10.0", "b": "0.9.0", "order": 1},
   {"a": "0.9.0", "b": "0.10.0", "order": -1},
@@ -217,6 +247,16 @@
   {"input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "ok": true},
   {"input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "ok": false},
   {"input": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ", "ok": false}
+ ],
+ "locked_rooms": [
+  {"text_max": 0, "room": 0},
+  {"text_max": 2, "room": 0},
+  {"text_max": 18, "room": 0},
+  {"text_max": 40, "room": 14},
+  {"text_max": 52, "room": 23},
+  {"text_max": 59, "room": 28},
+  {"text_max": 66, "room": 34},
+  {"text_max": 67, "room": 34}
  ],
  "bulletin_texts": [
   {"input": "Snow expected", "ok": true},
@@ -650,6 +690,16 @@
   {"input": "ham@exam\ud800ple.org", "ok": false},
   {"input": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh@example.o", "ok": true},
   {"input": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh@example.o", "ok": false}
+ ],
+ "support_notes": [
+  {"input": "\u0000", "note": ""},
+  {"input": "\u0000\u0007 \u001b", "note": ""},
+  {"input": "help\u0000", "note": "help"},
+  {"input": "\r\nok\r", "note": "ok"},
+  {"input": "\u0085a\u007f", "note": "a"},
+  {"input": "  \t ", "note": ""},
+  {"input": "\u00e4\t\u00f6\nx", "note": "\u00e4\t\u00f6\nx"},
+  {"input": "\u2003word\u2003", "note": "\u2003word\u2003"}
  ],
  "sked_calls": [
   {"input": "OH2GBA", "call": "OH2GBA"},

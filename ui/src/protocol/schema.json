@@ -494,7 +494,7 @@
     },
     "CallRoute": {
       "additionalProperties": false,
-      "description": "How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard.",
+      "description": "How messages go to a call the station book does not hold (a conversation opened by its call), one with a radio chosen, a path set or RF only: the entries of the topic `call_routes`, as the station's row says them once it is heard.",
       "properties": {
         "radio_choice": {
           "anyOf": [
@@ -524,12 +524,25 @@
           },
           "description": "the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row",
           "type": "object"
+        },
+        "text_max": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the bytes of text a message to the call holds on the radio of `radio_now`, as `text_max` of a station's row; null where the whole text fits"
         }
       },
       "required": [
         "radio_choice",
         "radio_now",
-        "paths"
+        "paths",
+        "text_max"
       ],
       "title": "CallRoute",
       "type": "object"
@@ -3673,6 +3686,11 @@
             }
           ],
           "description": "the radio a message that came in came on, its id; null for a message of ours (its attempts say) and for one from the internet or kept before the radio was"
+        },
+        "internet_now": {
+          "default": false,
+          "description": "for a message of ours on its way (`sending`, `queued`) to an internet service: its next attempt goes over the Internet connection, not on a radio (`radio_now` is then null)",
+          "type": "boolean"
         },
         "radio_now": {
           "anyOf": [
@@ -7338,7 +7356,7 @@
     },
     "SetStationRfOnly": {
       "additionalProperties": false,
-      "description": "Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE`\nalready gets no second one). A path that would be more than 8 elements with it is refused when a message is sent (\"path too long for RF only\"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`\nof the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason.",
+      "description": "Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE`\nalready gets no second one). A path that would be more than 8 elements with it is refused when a message is sent (\"path too long for Radio only\"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`\nof the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason.",
       "properties": {
         "cmd": {
           "const": "set_station_rf_only",

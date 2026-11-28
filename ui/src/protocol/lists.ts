@@ -123,12 +123,12 @@ export const SHIP_SOURCES = ["none", "fintraffic", "aisstream", "receiver"] as c
 
 /** The Packet types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
 export const TNC_PROFILES = [
-  {"key": "kenwood-tnc2", "name": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2", "transport": "serial", "baud": 9600, "probe": true},
+  {"key": "kenwood-tnc2", "name": "Kenwood TH-D7, TM-D700, TNC-2", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kenwood-d710", "name": "Kenwood TM-D710 / TH-D72", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kantronics", "name": "Kantronics KPC-3+", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kiss", "name": "KISS TNC", "transport": "serial", "baud": 9600, "probe": false},
   {"key": "kiss-tcp", "name": "Direwolf", "transport": "tcp", "baud": null, "probe": false},
-  {"key": "tnc-text", "name": "Yaesu FTM, TNC in monitor mode (RX only)", "transport": "serial", "baud": 9600, "probe": false},
+  {"key": "tnc-text", "name": "Yaesu FTM, receive only", "transport": "serial", "baud": 9600, "probe": false},
   {"key": "dummy", "name": "Dummy packet radio", "transport": "dummy", "baud": null, "probe": false},
 ] as const;
 /** A Mercury radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy Mercury radio (`dummy`). */
@@ -1662,7 +1662,7 @@ export const LIMITS = {
     widest: { freq: "1296.000 MHz", mode: "PKTUSB" },
   },
   interval: { beaconMinMin: 20, statusMinMin: 15, hfBeaconMinMin: 30 },
-  message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2", lockedMax: 34, services: ["ANSRVR", "OTA", "EMAIL-2"] },
+  message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2", lockedMax: 34, lockMark: 2, lockedOverhead: 14, services: ["ANSRVR", "OTA", "EMAIL-2"] },
   call: { baseMax: 6, amateurBaseMin: 3, maxSsid: 15, placeholders: ["MYCALL", "N0CALL", "NOCALL"] },
   path: { maxCalls: 8, direct: "DIRECT", rfOnly: "RFONLY", textMax: 256, recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-2" },
   alert: { kmMin: 1, kmMax: 1000 },

@@ -138,7 +138,7 @@ export interface BulletinUnpostCommand {
   slot: string;
 }
 
-/** How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard. */
+/** How messages go to a call the station book does not hold (a conversation opened by its call), one with a radio chosen, a path set or RF only: the entries of the topic `call_routes`, as the station's row says them once it is heard. */
 export interface CallRoute {
   /** the radio the operator chose for messages to the call (`station_radio`), its id, while that radio is enabled; null for the daemon's choice */
   radio_choice: number | null;
@@ -146,6 +146,8 @@ export interface CallRoute {
   radio_now: number | null;
   /** the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row */
   paths: { [key: string]: string };
+  /** the bytes of text a message to the call holds on the radio of `radio_now`, as `text_max` of a station's row; null where the whole text fits */
+  text_max: number | null;
 }
 
 /** The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set them): a slider is drawn only where the card has the control, at the card's level. */
@@ -927,6 +929,8 @@ export interface MessageRow {
   msg_id: string | null;
   /** the radio a message that came in came on, its id; null for a message of ours (its attempts say) and for one from the internet or kept before the radio was */
   radio_id: number | null;
+  /** for a message of ours on its way (`sending`, `queued`) to an internet service: its next attempt goes over the Internet connection, not on a radio (`radio_now` is then null) */
+  internet_now?: boolean;
   /** for a message of ours on its way (`sending`, `queued`), the radio its next attempt goes on: the one its first attempt went on, which it keeps until it ends unless Route changes or that radio is switched off, else the station's radio now (plan rule 3.2); null for every other message and while there is no radio it may go on. The page shows Route, the path and the radio's state of this radio */
   radio_now: number | null;
   /** `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt, or the reason in `failure`; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
@@ -1857,7 +1861,7 @@ export interface SetStationPathCommand {
   radio?: number | null;
 }
 
-/** Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE` already gets no second one). A path that would be more than 8 elements with it is refused when a message is sent ("path too long for RF only"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set` of the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason. */
+/** Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE` already gets no second one). A path that would be more than 8 elements with it is refused when a message is sent ("path too long for Radio only"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set` of the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason. */
 export interface SetStationRfOnlyCommand {
   cmd: "set_station_rf_only";
   call: string;
