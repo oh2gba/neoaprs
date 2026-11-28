@@ -2,6 +2,8 @@
 `altitude_text`, `compressed_comment`), against the specification's worked example, the decoder of
 the same module, and the layout of chapter 9: 13 bytes `/YYYYXXXX$csT`."""
 
+import re
+
 import pytest
 
 from neoaprs.aprsposition import (
@@ -215,3 +217,23 @@ def test_the_cs_digits_at_the_ends_of_their_range_are_read() -> None:
     # c = 0, s = 90: north at the greatest speed that cs can hold
     q = decoded(b"/5L!!<*e7>!{[")
     assert q.course_deg == 0 and q.speed_kmh == pytest.approx((1.08**90 - 1) * KNOT_KMH)
+
+
+@pytest.mark.parametrize(
+    ("args", "error"),
+    [
+        ((91.0, 0.0, "/", ">"), "the position 91.0, 0.0 is not on the earth"),
+        ((60.0, 24.0, "a", ">"), "the symbol table 'a' is not / or \\ or an overlay character A-Z, 0-9"),
+        ((60.0, 24.0, "[", ">"), "the symbol table '[' is not / or \\ or an overlay character A-Z, 0-9"),
+        ((60.0, 24.0, ":", ">"), "the symbol table ':' is not / or \\ or an overlay character A-Z, 0-9"),
+        ((60.0, 24.0, "/", " "), "the symbol code ' ' is not one printable character"),
+    ],
+)
+def test_what_is_wrong_with_a_position_to_send_is_said(args: tuple[float, float, str, str], error: str) -> None:
+    with pytest.raises(ValueError, match=f"^{re.escape(error)}$"):
+        compressed_position(*args)
+
+
+def test_the_first_and_the_last_printable_symbol_codes_are_sent() -> None:
+    assert compressed_position(0.0, 0.0, "/", "!")[9:10] == b"!"
+    assert compressed_position(0.0, 0.0, "/", "~")[9:10] == b"~"

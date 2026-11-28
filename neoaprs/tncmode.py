@@ -104,7 +104,6 @@ class TextWatch:
     def __init__(self) -> None:
         self._run = bytearray()
         self._first: float | None = None
-        self._lines = 0
         self.alarm = False
 
     def feed(self, chunk: bytes, now: float) -> bool:
@@ -124,13 +123,12 @@ class TextWatch:
     def _end(self, now: float) -> None:
         if len(self._run) >= self.MIN_LINE:
             self._first = now if self._first is None else self._first
-            self._lines += 1
-            self.alarm = self.alarm or (self._lines >= 2 and now - self._first >= self.HOLD_SEC)
+            self.alarm = self.alarm or now - self._first >= self.HOLD_SEC
         self._run.clear()
 
     def frame(self) -> bool:
         """A valid KISS frame came: forget the text; return whether the alarm went off."""
-        was, self.alarm, self._first, self._lines = self.alarm, False, None, 0
+        was, self.alarm, self._first = self.alarm, False, None
         self._run.clear()
         return was
 

@@ -60,6 +60,15 @@ def test_a_public_key_that_is_not_32_bytes_of_base64_is_none(text: str) -> None:
         public_key(text)
 
 
+def test_a_public_key_with_a_character_that_is_not_base64_is_refused_and_not_read_past_it() -> None:
+    with pytest.raises(ValueError) as refused:
+        public_key(PUBLIC_KEY[:10] + "!" + PUBLIC_KEY[10:])
+    assert str(refused.value) == "a public key is the base64 of 32 bytes"
+    with pytest.raises(ValueError) as refused:
+        public_key(base64.b64encode(bytes(31)).decode())
+    assert str(refused.value) == "a public key is 32 bytes, not 31"
+
+
 def test_a_list_signed_for_its_version_gives_the_files_sum() -> None:
     signature = sign(SUMS, "0.7.0", SEED).encode()
     assert len(base64.b64decode(signature.strip())) == 64
@@ -100,7 +109,10 @@ def test_a_signature_over_a_different_list_does_not_hold() -> None:
 @pytest.mark.parametrize("cut", [1, 4, 20])
 def test_a_truncated_signature_does_not_hold(cut: int) -> None:
     whole = base64.b64decode(sign(SUMS, "0.7.0", SEED))
-    assert bad(signature=base64.b64encode(whole[:-cut]))
+    assert (
+        bad(signature=base64.b64encode(whole[:-cut]))
+        == f"SHA256SUMS.sig is {64 - cut} bytes, not the 64 of a signature"
+    )
     assert bad(signature=sign(SUMS, "0.7.0", SEED).encode()[: -cut - 2])
 
 
@@ -109,6 +121,15 @@ def test_a_truncated_signature_does_not_hold(cut: int) -> None:
 )
 def test_a_signature_that_is_none_does_not_hold(signature: bytes) -> None:
     assert bad(signature=signature)
+
+
+def test_a_signature_that_is_not_base64_says_so() -> None:
+    assert bad(signature=b"not base64 at all") == "SHA256SUMS.sig is not base64"
+
+
+def test_a_blank_line_inside_the_list_does_not_end_it() -> None:
+    sums = f"{OTHER}  install.sh\n\n{MINE}  {NAME}\n".encode()
+    assert signed_checksum(sums, sign(sums, "0.7.0", SEED).encode(), "0.7.0", NAME, public()) == MINE
 
 
 def test_an_empty_list_is_not_believed_even_signed() -> None:
@@ -132,9 +153,9 @@ def test_a_list_signed_with_another_key_does_not_hold() -> None:
 
 
 def test_signing_takes_a_32_byte_seed_and_a_version_of_a_release() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="^the signing key is a 32-byte seed, not 31 bytes$"):
         sign(SUMS, "0.7.0", SEED[:31])
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="^'v0.7.0' is not a version of a release$"):
         sign(SUMS, "v0.7.0", SEED)
 
 

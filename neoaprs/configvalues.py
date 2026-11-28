@@ -42,7 +42,8 @@ def port_scheme(address: str) -> str:
     """Return the address if it is a device path or a socket, tcp, bt or ble URL, else raise.
 
     Other pyserial schemes (`spy://` writes a file) must never be reached."""
-    if "://" in address and address.lower().split("://", 1)[0] not in PORT_SCHEMES:
+    scheme, found, _ = address.lower().partition("://")
+    if found and scheme not in PORT_SCHEMES:
         raise CodedError(f"{address!r} is not an address or a name", "setting.not_host", value=address)
     return address
 
@@ -118,8 +119,6 @@ def host_list(text: str) -> str:
 def map_source(text: str) -> str:
     """Return map/source: empty, an http(s) address or a PMTiles file path."""
     value = text.strip()
-    if value == "":
-        return ""
     if len(value) > MAX_MAP_SOURCE or not value.isprintable() or value.startswith("-"):
         raise CodedError(
             f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text
@@ -133,7 +132,7 @@ def _scheme(address: str) -> str:
     try:
         return urlsplit(address).scheme
     except ValueError:  # an IPv6 address without its closing ]
-        return ""
+        return ""  # pragma: no mutate
 
 
 def tnc_profile(text: str) -> str:

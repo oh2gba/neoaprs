@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 
 import pytest
 
@@ -312,3 +313,71 @@ def test_fixture_monitor_text() -> None:
 
 def test_the_fixtures_are_not_truncations_of_one_another() -> None:
     assert len({fixture_bytes(f"ax25/{n}.bin") for n in NAMES}) == len(NAMES)
+
+
+# ---- the edges of what is taken, and the words of each refusal (the log and the support file keep them) ----------
+
+
+@pytest.mark.parametrize("call", ["!", "~", "A!~"])
+def test_the_first_and_the_last_printable_characters_are_taken_in_a_call_and_off_the_air(call: str) -> None:
+    assert Address(call).call == call
+    frame = decode(raw_frame(raw_address("APRS"), raw_address(call)))
+    assert frame.source.call == call
+
+
+@pytest.mark.parametrize(
+    ("make", "words"),
+    [
+        (lambda: Address("OH2GBAX"), "call 'OH2GBAX' must have 1 to 6 characters"),
+        (lambda: Address("OH 2"), "call 'OH 2' has a character that cannot be in an address: ' '"),
+        (lambda: Address("OH\x7f"), "call 'OH\\x7f' has a character that cannot be in an address: '\\x7f'"),
+        (lambda: Address("OH2", 16), "SSID 16 of 'OH2' is not 0 to 15"),
+        (lambda: Address.parse("OH2-99"), "call 'OH2-99' has an SSID above 15"),
+        (
+            lambda: Frame(Address("APRS", repeated=True), Address("OH2"), ()),
+            "only a digipeater can be marked as repeated, not the destination or the source",
+        ),
+        (lambda: Frame(Address("APRS"), Address("OH2"), (), control=256), "control and PID are bytes"),
+        (lambda: Frame(Address("APRS"), Address("OH2"), (), pid=256), "control and PID are bytes"),
+    ],
+)
+def test_a_refused_address_or_frame_says_what_is_wrong(make: Callable[[], object], words: str) -> None:
+    with pytest.raises(Ax25Error) as refused:
+        make()
+    assert str(refused.value) == words
+
+
+def test_a_control_byte_and_a_pid_of_255_are_bytes() -> None:
+    frame = Frame(Address("APRS"), Address("OH2"), (), control=255, pid=255)
+    assert (frame.control, frame.pid) == (255, 255)
+
+
+@pytest.mark.parametrize(
+    ("data", "words"),
+    [
+        (
+            raw_address("APRS") + raw_address("OH2") + raw_address("WIDE1"),
+            "the address field never ends: the frame stops before an address has its last-address bit",
+        ),
+        (
+            raw_address("APRS", last=True) + b"\x03\xf0hi there",
+            "the address field ends after the destination: there is no source address",
+        ),
+        (
+            raw_frame(raw_address("APRS"), raw_address("OH2"), raw_address("WIDE1"), tail=b""),
+            "the frame ends after the address field: there is no control byte",
+        ),
+        (
+            raw_frame(raw_address("APRS"), raw_address("OH2"), raw_address("WIDE1"), tail=b"\x03"),
+            "a UI frame ends after the control byte: there is no PID",
+        ),
+        (
+            raw_frame(raw_address("AP RS"), raw_address("OH2")),
+            "address 0 has a call of spaces or with a space inside: 'AP RS '",
+        ),
+    ],
+)
+def test_a_frame_that_cannot_be_read_says_why(data: bytes, words: str) -> None:
+    with pytest.raises(Ax25Error) as refused:
+        decode(data)
+    assert str(refused.value) == words

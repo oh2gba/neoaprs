@@ -35,8 +35,9 @@ def test_encode_escapes_a_command_byte_that_is_a_fend_or_a_fesc_too() -> None:
 
 @pytest.mark.parametrize("port,command", [(-1, 0), (16, 0), (0, -1), (0, 16)])
 def test_encode_refuses_a_port_or_command_that_does_not_fit_four_bits(port: int, command: int) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as refused:
         encode(b"x", port=port, command=command)
+    assert str(refused.value) == f"KISS port and command are 4 bits each, got port {port} and command {command}"
 
 
 # ---- decode
@@ -102,6 +103,8 @@ def test_an_escape_that_is_neither_tfend_nor_tfesc_drops_the_frame_and_counts_it
     assert decoder.dropped == 1
     assert decoder.feed(b"\xc0\x00next\xc0") == [KissFrame(0, 0, b"next")]
     assert decoder.dropped == 1
+    assert decoder.feed(b"\xc0\x00ab\xdb\x41cd\xc0\x00ab\xdb\x41cd\xc0") == []
+    assert decoder.dropped == 3
 
 
 def test_a_bad_escape_costs_the_rest_of_its_frame_but_not_the_following_one() -> None:

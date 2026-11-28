@@ -2,7 +2,7 @@
 # against its short list of tests, and .github/workflows/mutants.yml runs one group a night and fails
 # when a module's score is below its floor. The floor is the score last recorded here; raise it when
 # tests are added, never lower it without a reason in the commit. Score: the mutants caught (killed
-# or timed out) in 100 of those mutmut made. neoaprs/migrations.py is not here: mutmut makes 651
+# or timed out) in 100 of those mutmut made. The target of every module is 90. neoaprs/migrations.py is not here: mutmut makes 651
 # mutants of it and its tests take minutes a run, many hours a night; it needs a short list first.
 
 [modules.kiss]
@@ -20,19 +20,24 @@ floor = 85.6
 [modules.aprsposition]
 path = "neoaprs/aprsposition.py"
 group = 1
-tests = ["tests/test_aprsposition.py", "tests/test_aprsposition_compressed.py", "tests/test_properties_aprs.py"]
+tests = [
+    "tests/test_aprsposition.py",
+    "tests/test_aprsposition_compressed.py",
+    "tests/test_properties_aprs.py",
+    "tests/test_aprsparse.py",
+]
 floor = 79.7
 
 [modules.aprsmice]
 path = "neoaprs/aprsmice.py"
 group = 1
-tests = ["tests/test_aprsmice.py", "tests/test_aprsmiceout.py"]
+tests = ["tests/test_aprsmice.py", "tests/test_aprsmiceout.py", "tests/test_properties_mice.py"]
 floor = 77.2
 
 [modules.digipeater]
 path = "neoaprs/services/digipeater.py"
 group = 2
-tests = ["tests/test_digipeater.py", "tests/test_digi_rows.py"]
+tests = ["tests/test_digipeater.py", "tests/test_digi_rows.py", "tests/test_pass_rows.py", "tests/test_pass_slow.py"]
 floor = 79.1
 
 [modules.crossrule]
@@ -44,7 +49,7 @@ floor = 96.7
 [modules.retries]
 path = "neoaprs/services/retries.py"
 group = 2
-tests = ["tests/test_radio_of_frame.py"]
+tests = ["tests/test_radio_of_frame.py", "tests/test_retries.py"]
 floor = 63.6
 
 [modules.smartbeacon]
@@ -56,7 +61,7 @@ floor = 93.2
 [modules.tncmode]
 path = "neoaprs/tncmode.py"
 group = 3
-tests = ["tests/test_tncmode.py"]
+tests = ["tests/test_tncmode.py", "tests/test_properties_tncmode.py", "tests/test_properties_textwatch.py"]
 floor = 93.8
 
 [modules.configvalues]
@@ -80,5 +85,5 @@ floor = 42.5
 [modules.updateasset]
 path = "neoaprs/updateasset.py"
 group = 4
-tests = ["tests/test_updateasset.py"]
+tests = ["tests/test_updateasset.py", "tests/test_updatesign.py", "tests/test_properties_releases.py"]
 floor = 37.8

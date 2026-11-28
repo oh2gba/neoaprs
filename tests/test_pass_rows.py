@@ -405,3 +405,22 @@ def test_an_ack_that_names_the_pair_call_goes_once_by_its_path() -> None:
     assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"], (
         "the request passed it, and its entry is used up"
     )
+
+
+@pytest.mark.expects_errors
+def test_a_failing_handler_of_the_count_is_logged_by_the_signals_name_and_the_frame_still_goes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    rig = pair_rig()
+    told: list[RadioId] = []
+
+    def fails(radio: RadioId) -> None:
+        raise RuntimeError("boom")
+
+    rig.digi.counted.connect(fails)
+    rig.digi.counted.connect(told.append)
+    rig.hear(frame("OH2GBA-12", info=msg()))
+    assert len(rig.hf.sent) == 1 and told == [HF_ID]
+    assert [r.getMessage() for r in caplog.records if r.name == "neoaprs.signal"] == [
+        "a handler of signal digipeater.counted failed"
+    ]

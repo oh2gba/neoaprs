@@ -1,10 +1,19 @@
 """Positions: the timestamp resolution, the coordinates, the extensions and the compressed form."""
 
+import re
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from neoaprs.aprsposition import PositionError, degrees, motion, parse_position, resolve_mdhm, resolve_timestamp
+from neoaprs.aprsposition import (
+    PositionError,
+    degrees,
+    motion,
+    parse_position,
+    resolve_mdhm,
+    resolve_timestamp,
+    uncompressed_position,
+)
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 BODY = b"4903.50N/07201.75W-"
@@ -339,3 +348,165 @@ def test_compress_position_corners_round_trip() -> None:
     for lat, lon in [(90.0, -180.0), (-90.0, 180.0), (0.0, 0.0), (60.17, 24.94), (-90.0, -180.0)]:
         p = parse_position(compress_position(lat, lon, "/", "-"), NOW)
         assert (p.lat, p.lon) == (pytest.approx(lat, abs=1e-5), pytest.approx(lon, abs=1e-5))
+
+
+def raises(error: str) -> pytest.RaisesExc:  # type: ignore[type-arg]
+    return pytest.raises(PositionError, match=f"^{re.escape(error)}$")
+
+
+@pytest.mark.parametrize(
+    ("raw", "error"),
+    [
+        (b"09234z", "bad timestamp"),
+        (b"240000h", "bad time of day in the timestamp"),
+        (b"126000h", "bad time of day in the timestamp"),
+        (b"120060h", "bad time of day in the timestamp"),
+        (b"002345z", "bad day or time in the timestamp"),
+        (b"322345z", "bad day or time in the timestamp"),
+        (b"092445z", "bad day or time in the timestamp"),
+        (b"092360z", "bad day or time in the timestamp"),
+    ],
+)
+def test_what_is_wrong_with_a_timestamp_is_said(raw: bytes, error: str) -> None:
+    with raises(error):
+        resolve_timestamp(raw, NOW)
+
+
+def test_a_timestamp_exactly_an_hour_ahead_is_still_now() -> None:
+    assert resolve_timestamp(b"211300z", NOW) == at(2026, 10, 21, 13)
+    assert resolve_timestamp(b"130000h", NOW) == at(2026, 10, 21, 13)
+    assert resolve_mdhm("10211300", NOW) == at(2026, 10, 21, 13)
+    assert resolve_mdhm("10211230", NOW) == at(2026, 10, 21, 12, 30)
+
+
+def test_a_time_of_day_has_no_fraction_of_a_second() -> None:
+    assert resolve_timestamp(b"115900h", NOW.replace(microsecond=123456)) == at(2026, 10, 21, 11, 59)
+
+
+def test_what_is_wrong_with_an_mdhm_timestamp_is_said() -> None:
+    with raises("bad timestamp"):
+        resolve_mdhm("1009055", NOW)
+    with raises("timestamp matches no date"):
+        resolve_mdhm("02311200", NOW)
+
+
+def test_a_position_may_carry_a_time_of_day() -> None:
+    assert parse_position(b"115900h" + BODY, NOW).timestamp == at(2026, 10, 21, 11, 59)
+
+
+@pytest.mark.parametrize(
+    ("body", "error"),
+    [
+        (b"092345z", "no position"),
+        (b"4903.50N/07201.75", "position too short"),
+        (b"4903.50X/07201.75W-", "bad coordinate '4903.50X'"),
+        (b"4x03.50N/07201.75W-", "bad coordinate '4x03.50N'"),
+        (b"4903.x0N/07201.75W-", "bad coordinate '4903.x0N'"),
+        (b"4903.50N/072x1.75W-", "bad coordinate '072x1.75W'"),
+        (b"490 .5 N/07201.75W-", "bad ambiguity in '490 .5 N'"),
+        (b"4   .  N/07201.75W-", "bad ambiguity in '4   .  N'"),
+        (b" 903.50N/07201.75W-", "bad ambiguity in ' 903.50N'"),
+        (b"4 03.50N/07201.75W-", "bad ambiguity in '4 03.50N'"),
+        (b"9103.50N/07201.75W-", "coordinate '9103.50N' out of range"),
+        (b"4903.50N#07201.75W-", "bad symbol table '#'"),
+        (b"4903.50N/07201.75W\x7f", "bad symbol code"),
+        (b"4903.50N/07201.75W\x20", "bad symbol code"),
+        (b"/5L!!<*e7>7P", "compressed position too short"),
+        (b"/5L!}<*e7>7P[", "bad base-91 character in a compressed position"),
+        (b"/{{{{!!!!>  A", "compressed position out of range"),
+    ],
+)
+def test_what_is_wrong_with_a_position_is_said(body: bytes, error: str) -> None:
+    with raises(error):
+        parse_position(body, NOW)
+
+
+def test_the_last_minute_and_the_poles_and_the_date_line() -> None:
+    assert parse_position(b"4959.00N/07201.75W-", NOW).lat == pytest.approx(49 + 59 / 60)
+    p = parse_position(b"9000.99N/18000.99E-", NOW)
+    assert (p.lat, p.lon) == (90.0, 180.0)
+    p = parse_position(b"90  .  S/180  .  W-", NOW)
+    assert (p.lat, p.lon) == (-90.0, -180.0)
+
+
+def test_a_compressed_position_is_never_ambiguous() -> None:
+    p = parse_position(b"/5L!!<*e7>7P[", NOW)
+    assert p.ambiguity == 0 and p.ambiguity is not None
+
+
+def test_a_type_byte_that_says_no_gga_fix_leaves_course_and_speed() -> None:
+    p = parse_position(b"/5L!!<*e7>7P/", NOW)
+    assert (p.course_deg, p.altitude_m) == (88, None)
+
+
+def test_the_wind_of_a_compressed_weather_station() -> None:
+    p = parse_position(b"/5L!!<*e7_7P[", NOW)
+    assert p.symbol_table == "/" and p.weather is not None and (p.weather.wind_dir, p.weather.wind_kmh) == (88, 58.3)
+    p = parse_position(b"/5L!!<*e7_z![", NOW)  # 89, the last direction: 356 degrees
+    assert p.weather is not None and p.weather.wind_dir == 356
+    p = parse_position(b"/5L!!<*e7_7P\x7f", NOW)  # the type byte does not matter to the wind
+    assert p.weather is not None and p.weather.wind_dir == 88
+
+
+def test_a_course_of_360_is_north_and_a_course_alone_has_no_extensions() -> None:
+    p = parse_position(BODY + b"360/010x", NOW)
+    assert (p.course_deg, p.comment) == (0, "x")
+    assert parse_position(BODY + b"088/036", NOW).extensions is None
+
+
+def test_only_an_area_object_reads_an_area() -> None:
+    p = parse_position(b"4903.50N\\07201.75Wl744/444{100}", NOW)
+    assert p.extensions is not None and p.extensions.area is not None and p.comment == "{100}"
+    for body in (b"4903.50N/07201.75Wl744/444{100}", b"4903.50N\\07201.75W-744/444{100}"):
+        p = parse_position(body, NOW)
+        assert (p.extensions, p.comment) == (None, "744/444{100}")
+
+
+def test_a_compressed_or_a_weather_comment_has_no_data_extension() -> None:
+    p = parse_position(b"/5L!!<*e7>  A088/036 x", NOW)
+    assert (p.course_deg, p.comment) == (None, "088/036 x")
+    p = parse_position(b"4903.50N/07201.75W_220/004g005t077PHG5132 x", NOW)
+    assert (p.extensions, p.comment) == (None, "PHG5132 x")
+
+
+def test_storm_data_only_with_a_storm_symbol() -> None:
+    p = parse_position(BODY[:-1] + b"@088/036/HC/150^200/0980>090&030%040", NOW)
+    assert p.storm is not None and (p.storm.storm_type, p.storm.pressure_hpa, p.course_deg) == ("HC", 980, 88)
+    p = parse_position(b"4903.50N\\07201.75W@146.520MHz /TS/050 north", NOW)
+    assert p.storm is not None and p.storm.storm_type == "TS" and p.comment == "north"
+    assert p.frequency is not None and p.frequency.mhz == pytest.approx(146.52)
+    p = parse_position(BODY + b"/TS/050", NOW)
+    assert (p.storm, p.comment) == (None, "/TS/050")
+
+
+def test_a_signpost_only_with_the_signpost_symbol() -> None:
+    p = parse_position(b"4903.50N\\07201.75Wm146.520MHz {55} limit", NOW)
+    assert (p.sign, p.comment) == ("55", "limit")
+    assert p.frequency is not None and p.frequency.mhz == pytest.approx(146.52)
+    for body in (b"4903.50N/07201.75Wm{55} limit", b"4903.50N\\07201.75W-{55} limit"):
+        p = parse_position(body, NOW)
+        assert (p.sign, p.comment) == (None, "{55} limit")
+
+
+def test_the_frequency_and_the_telemetry_of_a_comment() -> None:
+    p = parse_position(BODY + b"146.520MHz Hi|!!!!|", NOW)
+    assert p.frequency is not None and p.frequency.mhz == pytest.approx(146.52)
+    assert p.telemetry is not None and p.telemetry.sequence == 0
+    assert p.comment == "Hi"
+
+
+@pytest.mark.parametrize(
+    ("args", "sent"),
+    [
+        ((49 + 3.5 / 60, -(72 + 1.75 / 60), "/", "-"), b"4903.50N/07201.75W-"),
+        ((-33.75, 151 + 12.5 / 60, "\\", ">"), b"3345.00S\\15112.50E>"),
+        ((60.99999, 24.999999, "/", "-"), b"6100.00N/02500.00E-"),  # 60 minutes carry into the degree
+        ((-0.000001, -0.000001, "/", "-"), b"0000.00N/00000.00E-"),  # what rounds to nothing has no south
+        ((0.5, 0.5, "/", "-"), b"0030.00N/00030.00E-"),
+        ((-90.0, -180.0, "/", "-"), b"9000.00S/18000.00W-"),
+        ((90.0, 180.0, "/", "-"), b"9000.00N/18000.00E-"),
+    ],
+)
+def test_the_uncompressed_position_sent(args: tuple[float, float, str, str], sent: bytes) -> None:
+    assert uncompressed_position(*args) == sent
+    assert parse_position(sent, NOW).lat == pytest.approx(args[0], abs=0.5 / 6000)
