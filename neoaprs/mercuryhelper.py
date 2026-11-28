@@ -171,13 +171,13 @@ OWN_PAIR = BROADCAST_PORT
 
 
 def taken_by_another(broadcast_port: int) -> None:
-    """Raise PortsTaken when a program listens on Mercury's own KISS or control port: another Mercury.
+    """Raise PortsTaken when a program listens on Mercury's own KISS or control port beyond the loopback.
 
-    Another pair with a listener is passed over, as one that cannot be bound."""
-    if broadcast_port != OWN_PAIR:
-        return
-    if found := childprogram.listened([broadcast_port, broadcast_port + CONTROL_OFFSET]):
-        raise PortsTaken(sorted(found))
+    That is a Mercury NeoAPRS did not ship (ours listen on this computer only), most likely the
+    operator's own. Another NeoAPRS's Mercury, or a pair taken otherwise, is passed over."""
+    pair = [broadcast_port, broadcast_port + CONTROL_OFFSET]
+    if broadcast_port == OWN_PAIR and childprogram.foreign_listeners(pair):
+        raise PortsTaken(sorted(childprogram.listened(pair)))
 
 
 def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES, mercury: bool = True) -> tuple[int, int]:

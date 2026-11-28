@@ -471,8 +471,9 @@ install for all users cannot write there, so it is given the radio's folder; Mer
 
 ## neoaprs/mercuryruns.py
 
-The daemon talks only to the Mercury it started. A program on Mercury's own pair, most likely a
-Mercury the operator runs, holds the radio's keying port too, so a second one beside it would only
+The daemon talks only to the Mercury it started. A program on Mercury's own pair that listens
+beyond the loopback, most likely a Mercury the operator runs (the shipped one listens on 127.0.0.1
+only, so another NeoAPRS's is passed over and its next pair taken), holds the radio's keying port too, so a second one beside it would only
 fight it; it is not started, and the radio waits with one reason until the pair is free or the
 operator gives the radio the type for his own Mercury. Before each connect of the control line, and
 before the KISS line opens, every listener on the two ports must be the child or one of its

@@ -169,9 +169,63 @@ class Foreign:
         await self.air.aclose()
 
 
-async def test_another_program_on_mercurys_own_ports_is_never_started_over_and_never_connected_to(
+def every_address_pair() -> tuple[socket.socket, socket.socket]:
+    """Two sockets listening on every address, a KISS port and the control port 200 above it: an
+    upstream Mercury, which binds INADDR_ANY."""
+    for _ in range(50):
+        kiss = socket.socket()
+        kiss.bind(("0.0.0.0", 0))
+        control = socket.socket()
+        try:
+            control.bind(("0.0.0.0", kiss.getsockname()[1] + CONTROL_OFFSET))
+        except OSError:
+            kiss.close()
+            control.close()
+            continue
+        kiss.listen()
+        control.listen()
+        return kiss, control
+    pytest.skip("no pair of ports 200 apart was free")
+
+
+def connected_to(listener: socket.socket) -> bool:
+    listener.setblocking(False)
+    try:
+        listener.accept()[0].close()
+    except BlockingIOError:
+        return False
+    return True
+
+
+async def test_another_mercury_on_mercurys_own_ports_on_every_address_is_never_started_over_nor_connected_to(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
+    kiss, control = every_address_pair()
+    port = kiss.getsockname()[1]
+    monkeypatch.setattr(mercuryhelper, "OWN_PAIR", port)
+    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=0, tries=50: mercuryhelper.free_ports(port, tries))
+    m = modem(tmp_path)
+    try:
+        with kiss, control:
+            await m.start(HF)
+            with caplog.at_level(logging.WARNING, "neoaprs.mercury"):
+                await until_started(lambda: m.reason == "ports_taken")
+            assert m.problem == PORTS_TAKEN and m.starts == 0 and m.pid is None
+            assert f"{port} on 0.0.0.0" in caplog.text, "the log says where"
+            assert m.frame_hold() and m.refuses_line(), "the radio takes no frame"
+            assert not connected_to(kiss) and not connected_to(control)
+            await stopped(m)
+        await m.start(HF)  # gone: the radio's own pair is its again
+        await until_started(lambda: m.state == "running" and m.broadcast_port == port)
+        assert m.frame_hold() == "" and m.refuses_line() == ""
+    finally:
+        await stopped(m)
+
+
+async def test_another_neoaprss_mercury_on_the_loopback_is_passed_over_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two NeoAPRS on one computer each start their own Mercury, the second on the next pair."""
     async with Foreign() as other:
         monkeypatch.setattr(mercuryhelper, "OWN_PAIR", other.port)
         monkeypatch.setattr(
@@ -180,20 +234,11 @@ async def test_another_program_on_mercurys_own_ports_is_never_started_over_and_n
         m = modem(tmp_path)
         await m.start(HF)
         try:
-            with caplog.at_level(logging.WARNING, "neoaprs.mercury"):
-                await until_started(lambda: m.reason == "ports_taken")
-            assert m.problem == PORTS_TAKEN and m.starts == 0 and m.pid is None
-            assert f"{other.port} on 127.0.0.1" in caplog.text, "the log says where"
-            assert m.frame_hold() and m.refuses_line(), "the radio takes no frame"
+            await until_started(lambda: m.state == "running")
+            assert m.broadcast_port != other.port and m.reason == ""
             assert other.station.connections == other.station.control_connections == 0
         finally:
             await stopped(m)
-    await m.start(HF)  # gone: the radio's own pair is its again
-    try:
-        await until_started(lambda: m.state == "running" and m.broadcast_port == other.port)
-        assert m.frame_hold() == "" and m.refuses_line() == ""
-    finally:
-        await stopped(m)
 
 
 async def test_a_control_line_that_would_reach_another_program_is_not_opened_and_our_run_is_ended(
