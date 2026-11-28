@@ -3,6 +3,7 @@ and the slices that shorten it after deleting."""
 
 import logging
 import os
+import re
 import sqlite3
 import sys
 from datetime import timedelta
@@ -116,17 +117,21 @@ async def test_pruning_the_log_gives_the_file_its_room_back(tmp_path: Path) -> N
 
 
 def temp_files(folders: list[Path]) -> set[Path]:
-    """The folders that hold a SQLite temporary file now (a file unlinked while open shows under /proc on Linux)."""
+    """The folders that hold a SQLite temporary file now (a file unlinked while open shows under /proc on Linux).
+
+    SQLite 3.54 makes it without a name (O_TMPFILE), which /proc shows as `#INODE` in its folder."""
     found: set[Path] = set()
     for folder in folders:
         found |= {folder for name in os.listdir(folder) if "etilqs" in name}
     if sys.platform.startswith("linux"):
         for fd in os.listdir("/proc/self/fd"):
             try:
-                target = Path(os.readlink(f"/proc/self/fd/{fd}").removesuffix(" (deleted)"))
+                link = os.readlink(f"/proc/self/fd/{fd}")
             except OSError:
                 continue
-            if "etilqs" in target.name:
+            target = Path(link.removesuffix(" (deleted)"))
+            unnamed = link.endswith(" (deleted)") and re.fullmatch(r"#\d+", target.name) and target.parent in folders
+            if "etilqs" in target.name or unnamed:
                 found.add(target.parent)
     return found
 
