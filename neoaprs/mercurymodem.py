@@ -8,7 +8,7 @@ import asyncio
 import logging
 import sys
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -30,8 +30,6 @@ from .mercury import (
     ini_text,
     keying_of,
     ports_from,
-    propose_keying,
-    propose_sound_card,
     speaker_audio,
 )
 from .mercurycontrol import ControlLine
@@ -39,6 +37,7 @@ from .mercurytune import Tuning
 from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim, take_folder
 from .mercuryhelper import Command, PortsTaken, Program, audio_lost, choose_setup, expected_program, find
 from .mercuryhelper import first_pair, foreign_listeners, free_ports, is_shipped, list_sound_cards, next_modem_ports
+from .mercurychoice import left_out, own_choice, system_serial_ports
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryruns import PORTS_TAKEN, REASONS as REASONS, Runs, owners_of, owners_words
 from .mercuryscoping import Scoping
@@ -47,8 +46,7 @@ from .mercurystale import end_stale
 from .mercurystall import GAP_SEC, STALL_SEC, StallWatch
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLine
 from .radiotype import HF_ID, RadioId
-from .radiotypes import kind_field
-from .serialprobe import PortInfo, claim_value, holder_words, named_ports, offered_ports
+from .serialprobe import claim_value, holder_words
 from .modemstate import ModemLife
 from .signal import Signal
 from .soundwatch import SoundServing
@@ -71,61 +69,6 @@ RECEIVE_STALLED = (
 STATES = ("stopped", "starting", "running", "waiting")
 TESTS = ("", "tune", "key")
 ENGINE_LOG = "mercury_engine.log"  # Mercury rotates it itself
-
-
-def system_serial_ports() -> list[SerialPort]:
-    """Return the machine's serial ports. For a thread."""
-    return [SerialPort(p.device, p.vid, p.pid) for p in offered_ports()]
-
-
-def left_out(config: Config, but: RadioId) -> tuple[str, ...]:
-    """Return the serial ports that key no radio of `but` (others', remembered, GPS, skipped)."""
-    named = tuple(c.value for c in named_ports(config, off_too=True) if c.holder != but)
-    return tuple(
-        dict.fromkeys(
-            v
-            for v in (
-                *named,
-                *(claim_value(p) for p in (config.serial_last_port, config.gps_device, *config.serial_skip_paths)),
-            )
-            if v
-        )
-    )
-
-
-def own_choice(config: Config, holder: RadioId) -> tuple[str, str, int]:
-    """Return the radio's own sound card, keying and gain; "", "" and 0 where it has none."""
-    spec = config.radio(holder)
-    if spec is None or spec.removed or kind_field(spec.kind, "sound_card") is None:
-        return "", "", 0
-    return str(spec.value("sound_card")), str(spec.value("keying")), int(spec.value("tx_gain_db"))
-
-
-def proposal(
-    cards: Sequence[SoundCard],
-    ports: Sequence[PortInfo],
-    config: Config,
-    *,
-    claims: Claims | None = None,
-    holder: RadioId = HF_ID,
-) -> tuple[str, str]:
-    """Return the card (id) and keying the page proposes while the settings are empty."""
-    serial, held_cards = (
-        (claims.held_by_others(holder, "serial"), claims.held_by_others(holder, "sound_card"))
-        if claims is not None
-        else (frozenset[str](), frozenset[str]())
-    )
-    card = propose_sound_card([c for c in cards if c.id not in held_cards])
-    leave = left_out(config, holder)
-    return card, propose_keying(
-        cards,
-        card,
-        [
-            SerialPort(p.device, p.vid, p.pid)
-            for p in ports
-            if (key := claim_value(p.device)) not in leave and (not serial or key not in serial)
-        ],
-    )
 
 
 def _address(url: str) -> tuple[str, int]:

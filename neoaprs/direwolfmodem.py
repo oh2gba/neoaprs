@@ -44,7 +44,7 @@ from .mercury import CONTROL_OFFSET, Keying, SerialPort, SoundCard, keying_of, p
 from .mercuryclaims import MODEM_KINDS, HeldPorts, card_claims, held_card, keying_claim
 from .mercuryhelper import Command, foreign_listeners, free_ports, list_sound_cards, next_modem_ports
 from .mercuryhelper import find as mercury_program
-from .mercurymodem import system_serial_ports
+from .mercurychoice import system_serial_ports
 from .radiotype import RadioId
 from .reading import NO_READING, Reading
 from .serialprobe import PortInfo, claim_value, holder_words

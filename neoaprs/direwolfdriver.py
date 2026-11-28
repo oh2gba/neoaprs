@@ -17,7 +17,7 @@ from .direwolf import PROFILE, PROFILE_300, modem_baud
 from .mercury import HOST
 from .direwolfmodem import DirewolfModem, levels_card, port_chosen
 from .mercurydriver import chosen_as_set
-from .mercurymodem import left_out
+from .mercurychoice import left_out
 from .radiodriver import RunOverrides
 from .radiospec import RadioSpec
 from .soundmixer import Mixer

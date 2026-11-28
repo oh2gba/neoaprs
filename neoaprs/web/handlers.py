@@ -19,7 +19,7 @@ from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.pref import Alert
 from neoaprs.direwolfmodem import DirewolfModem, proposal as sound_card_proposal
-from neoaprs.mercurymodem import left_out, proposal
+from neoaprs.mercurychoice import left_out, proposal
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.radiospec import FM_ID
 from neoaprs.radiotype import ResourceKind

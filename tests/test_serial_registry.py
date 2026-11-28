@@ -20,8 +20,8 @@ from neoaprs.coded import code_of
 from neoaprs.config import Config
 from neoaprs.direwolfmodem import proposal as sound_card_proposal
 from neoaprs.mercurycards import SoundCard
-from neoaprs.mercurymodem import proposal as mercury_proposal
-from neoaprs.mercurymodem import system_serial_ports
+from neoaprs.mercurychoice import proposal as mercury_proposal
+from neoaprs.mercurychoice import system_serial_ports
 from neoaprs.radiospec import RadioSpec
 from neoaprs.radiotype import FM_ID
 from neoaprs.serialprobe import AdapterId, PortInfo

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import mercuryhelper, mercurymodem, serialholders, serialprobe, tncdriver
+from neoaprs import mercurychoice, mercuryhelper, mercurymodem, serialholders, serialprobe, tncdriver
 from neoaprs.claims import Claim, Claims
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import Keying, SerialPort, SoundCard
@@ -295,7 +295,7 @@ def test_the_table_hands_out_pairs_that_share_no_port_and_a_radios_own_pair_is_i
 
 def as_radio(config: Config, id: RadioId) -> Config:
     """The settings with radio `id` an HF radio whose own sound card and keying are radio 2's: a
-    modem reads its own radio's (mercurymodem.own_choice), and the modems of these tests are radio
+    modem reads its own radio's (mercurychoice.own_choice), and the modems of these tests are radio
     5's too."""
     hf = config.radio(HF_ID)
     assert hf is not None
@@ -770,10 +770,10 @@ def test_the_keying_choice_leaves_out_every_other_radios_port_on_or_off_and_the_
         spec(4, port="/dev/ttyACM0", enabled=False),
     )
     station = with_radios(DEFAULTS, [gone, hf, fm3, fm4])
-    assert set(mercurymodem.left_out(station, 2)) == {port_key("/dev/ttyUSB3"), port_key("/dev/ttyACM0")}, (
+    assert set(mercurychoice.left_out(station, 2)) == {port_key("/dev/ttyUSB3"), port_key("/dev/ttyACM0")}, (
         "a removed radio's port is free, the modem's own keying line is its own"
     )
-    assert port_key("/dev/ttyUSB2") in mercurymodem.left_out(station, 5)
+    assert port_key("/dev/ttyUSB2") in mercurychoice.left_out(station, 5)
 
 
 def test_the_keying_choice_leaves_out_a_port_named_in_another_spelling_of_it_as_on_windows(
@@ -793,7 +793,7 @@ def test_the_keying_choice_leaves_out_a_port_named_in_another_spelling_of_it_as_
         serial_skip="\\\\.\\COM5",
     )
     ports = [SerialPort(name, 0x10C4, 0xEA60) for name in ("COM3", "COM5", "COM6")]
-    assert choose_setup(["mercury"], "plughw:1,0", "", lambda: ports, mercurymodem.left_out(station, 2))[1] == Keying(
+    assert choose_setup(["mercury"], "plughw:1,0", "", lambda: ports, mercurychoice.left_out(station, 2))[1] == Keying(
         "vox"
     ), "radio 3's port, the GPS receiver's and the skipped one key no HF radio"
     assert choose_setup(
@@ -801,10 +801,10 @@ def test_the_keying_choice_leaves_out_a_port_named_in_another_spelling_of_it_as_
         "plughw:1,0",
         "",
         lambda: [*ports, SerialPort("COM7", 0x10C4, 0xEA60)],
-        mercurymodem.left_out(station, 2),
+        mercurychoice.left_out(station, 2),
     )[1] == Keying("rts", "COM7")
     cards = [SoundCard("plughw:1,0", "USB Audio CODEC", True, True)]
-    assert mercurymodem.proposal(
+    assert mercurychoice.proposal(
         cards,
         [serialprobe.PortInfo(p.device, "CP2102", "USB VID:PID=10C4:EA60", p.vid, p.pid) for p in ports],
         station,

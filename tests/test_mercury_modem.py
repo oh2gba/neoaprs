@@ -35,8 +35,8 @@ from neoaprs.mercurymodem import (
     SOUND_CARD_FAILED,
     TRANSMITTING,
     Mercury,
-    proposal,
 )
+from neoaprs.mercurychoice import proposal
 from neoaprs.mercurydriver import MercuryDriver
 from neoaprs.radiodriver import RunOverrides
 from neoaprs.radiospec import RadioSpec
