@@ -197,7 +197,7 @@ stage_architecture() { "$python" -m pytest -q -p no:cacheprovider "${ARCHITECTUR
 # marked nightly are left out, the 30 slowest are printed, and the run fails when its tests took over
 # NEOAPRS_TEST_BUDGET_SEC in sum (tests/support/timebudget.py): the budget is this machine's, so a
 # run on CI (CI set) is not held to it.
-PYTEST_BUDGET_SEC=3600  # seconds in sum: about 2,700 measured with four workers on a loaded machine, and room
+PYTEST_BUDGET_SEC=3000  # seconds in sum: 2,200 to 2,300 measured with four workers on a loaded machine, and room
 stage_pytest() {
     local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=("${ARCHITECTURE_TESTS[@]/#/--ignore=}" "${PAGE_TESTS[@]/#/--ignore=}")
     local seed="${NEOAPRS_TEST_SEED:-$(( RANDOM * 32768 + RANDOM ))}" budget="${NEOAPRS_TEST_BUDGET_SEC:-$PYTEST_BUDGET_SEC}"

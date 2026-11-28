@@ -146,6 +146,7 @@ def test_the_station_pref_table_refuses_an_rf_only_the_program_cannot_produce(
     s.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @pytest.mark.expects_errors
 def test_a_migration_12_that_doubts_changes_nothing_and_leaves_the_preferences_where_they_were(tmp_path: Path) -> None:
     clock = FixedClock()

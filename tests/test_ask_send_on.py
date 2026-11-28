@@ -484,6 +484,7 @@ def test_a_tick_stores_itself_alone_whatever_the_number_and_one_sent_back_as_it_
 # ---- the whole daemon ----------------------------------------------------------------------------
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_daemon_with_fm_and_mercury_asks_on_the_fm_radio_ticked_when_mercury_came_and_then_on_the_ticked_radios(
     tmp_path: Path,
 ) -> None:

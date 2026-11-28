@@ -97,6 +97,7 @@ def run_until_listening(data: Path, *extra: str) -> set[str]:
     return modules_of(written)
 
 
+@pytest.mark.slow("starts a Python process and looks at every module it imported")
 def test_a_plain_start_of_the_daemon_does_not_import_the_certificates_library_or_the_support_bundle(
     tmp_path: Path,
 ) -> None:
