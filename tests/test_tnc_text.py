@@ -31,6 +31,7 @@ def rig() -> Rigs:
     return Rigs()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 @stops_rigs
 async def test_a_line_that_reads_text_writes_nothing_while_a_tnc_that_can_be_asked_is_written_to_at_once_on_the_same_timings(
     rig: Rigs,

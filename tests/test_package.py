@@ -209,6 +209,7 @@ def test_the_sdist_is_named_by_the_version_the_wheel_is_named_by(built: dict[str
     assert built["sdist"].name == f"neoaprs-{WHEEL_VERSION}.tar.gz"
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_the_sdist_is_the_package_and_the_licence(built: dict[str, Path]) -> None:
     with tarfile.open(built["sdist"]) as sdist:
         names = [n.split("/", 1)[1] for n in sdist.getnames() if "/" in n]
@@ -295,6 +296,7 @@ def test_the_installed_replay_plays_the_sample_that_is_in_the_package(installed:
         proc.communicate(timeout=STOP_PATIENCE_SEC)
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_the_installed_package_finds_its_page_and_unit_template_and_its_daemon_serves_the_page(
     installed: Path, tmp_path: Path
 ) -> None:

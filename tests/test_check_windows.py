@@ -875,6 +875,7 @@ def test_uv_that_cannot_be_fetched_or_copied_is_the_sentence_of_the_user_and_not
         script.put_uv_there(settings, paths, tmp_path)
 
 
+@pytest.mark.nightly("waits out the step's time limit of the Windows check script, half a minute")
 def test_a_step_runs_with_its_whole_log_kept_and_a_step_that_hangs_is_ended_with_code_124(
     script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

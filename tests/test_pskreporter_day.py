@@ -39,6 +39,7 @@ async def set_radio(page: WsClient, e: Env, **values: str) -> None:
     await until(stored)
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_mercury_radio_reports_the_stations_it_hears_directly_once_each_and_a_changed_dial_on_its_band(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

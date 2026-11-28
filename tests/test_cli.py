@@ -154,6 +154,7 @@ def test_the_capture_parser_and_its_refusal_to_overwrite(tmp_path: Path) -> None
     assert capturecmd.main([str(tmp_path / "there.bin")]) == 2 and (tmp_path / "there.bin").read_bytes() == b"x"
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
     """`neoaprs capture --port socket://...` on a TCP TNC that plays the capture of the live radio:
     the file is the bytes, and the frames are counted."""

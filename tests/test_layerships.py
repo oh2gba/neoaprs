@@ -401,6 +401,7 @@ async def test_the_address_is_this_computers_port_10110_when_empty_and_the_port_
     assert seen == [("127.0.0.1", 10110), ("ais.local", 10110), ("fe80::1", 10110), ("pi.local", 4001)]
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_receiver_that_sends_a_thousand_lines_a_second_does_not_hold_the_loop() -> None:
     receiver = await ais_receiver()
     service = await own(receiver.address)

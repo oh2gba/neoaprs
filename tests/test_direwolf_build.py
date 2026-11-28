@@ -43,6 +43,7 @@ def test_the_script_has_the_pins_of_the_program_and_none_of_its_own() -> None:
     assert not re.search(r"\b\d+\.\d+\.\d+\b", text.replace("127.0.0.1", "")), "no version of Direwolf either"
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 def test_the_script_takes_the_values_it_builds_from_the_pins_and_builds_nothing_while_the_sha256_is_not_pinned(
     build: ModuleType, tmp_path: Path
 ) -> None:

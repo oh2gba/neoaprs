@@ -55,6 +55,7 @@ def test_the_setting_takes_true_and_false_and_refuses_the_rest() -> None:
 # ---- the whole daemon ----------------------------------------------------------------------------
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_when_it_is_on(tmp_path: Path) -> None:
     e = await quick_start(
         tmp_path,
@@ -136,6 +137,7 @@ async def test_a_new_message_a_retry_an_object_and_a_bulletin_are_refused_with_t
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_message_that_is_being_sent_waits_without_using_up_an_attempt_or_failing(tmp_path: Path) -> None:
     e = await quick_start(tmp_path, messaging=True, unpaced=True)
     sent = await e.ctl.messaging.send("OH2RDG", "Hello")

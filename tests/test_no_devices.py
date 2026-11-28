@@ -1053,6 +1053,7 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     )
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 @posix_only
 async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_and_opens_no_port_of_its_settings(
     tmp_path: Path, ptys: Ptys

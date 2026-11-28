@@ -80,6 +80,7 @@ def test_a_bad_argument_and_a_process_that_is_not_its_parent_are_refused_with_a_
     assert lines[-1] == f"end-after {os.getpid()} 0: refused: that process is not this one's parent (exit 3)"
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_an_app_stuck_for_good_is_ended_from_outside_within_the_bound(tmp_path: Path) -> None:
     """The app's own last resort is gone (here: never called) and its main thread holds the GIL in a loop:
     no thread of it can run, and the watchdog it started at Quit still ends it."""

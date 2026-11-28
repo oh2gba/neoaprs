@@ -563,6 +563,7 @@ async def test_the_question_a_service_sees_carries_the_position_to_one_decimal_a
     )
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_with_the_own_receiver_set_the_internet_is_never_asked() -> None:
     internet, receiver = await layers_server(), await layers_server()
     receiver.route("/tar1090/data/aircraft.json", body=sky(plane("aaaaaa")))
@@ -592,6 +593,7 @@ async def test_after_the_stop_a_save_starts_and_stops_nothing() -> None:
         assert len(service._tasks) == 0, "no task that nobody awaits"
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_the_loop_is_not_held_while_a_receiver_answers_some_16_megabytes() -> None:
     receiver = await layers_server()
     many = [

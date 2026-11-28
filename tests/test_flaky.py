@@ -457,6 +457,7 @@ def test_all_green_is_exit_code_0(rig: Callable[[Path], Rig], tmp_path: Path) ->
     assert "no test failed in any run" in done.stdout and "4 of 4 runs green" in done.stdout
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 @linux_only
 def test_a_run_that_is_not_over_in_time_is_ended_with_its_container_and_listed_with_its_stack(
     rig: Callable[[Path], Rig], tmp_path: Path
@@ -600,6 +601,7 @@ def collected(folder: Path, *options: str) -> list[str]:
     return [line for line in done.stdout.splitlines() if "::" in line]
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_pytest_asked_for_a_seed_collects_in_its_order_and_without_one_in_the_order_of_the_files(
     tmp_path: Path,
 ) -> None:

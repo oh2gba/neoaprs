@@ -10,6 +10,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.source import Source
 from neoaprs.web.protocol import TOPIC_NAMES
@@ -97,6 +99,7 @@ def told_radios(page: Any) -> list[tuple[int, str, str, bool]]:
     )
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_on_a_new_installations_daemon_the_install_probe_and_sim_radios_add_each_radio_they_need_the_first_as_radio_1(
     tmp_path: Path,
 ) -> None:

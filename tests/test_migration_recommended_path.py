@@ -7,6 +7,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+import pytest
+
 from neoaprs.config import Config
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
@@ -47,6 +49,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection
         migrated.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_old_default_path_becomes_the_recommended_one_and_nothing_else_is_touched(tmp_path: Path) -> None:
     with migrate(
         tmp_path, {"beacon/path": "WIDE1-1,WIDE2-1", "station/call": "OH2GBA", "station/symbol_code": "-"}
@@ -60,6 +63,7 @@ def test_the_old_default_path_becomes_the_recommended_one_and_nothing_else_is_to
         )
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_custom_path_and_direct_only_are_as_they_were(tmp_path: Path) -> None:
     for folder, path, calls in (
         ("a", "WIDE2-2", ("WIDE2-2",)),
@@ -75,6 +79,7 @@ def test_a_custom_path_and_direct_only_are_as_they_were(tmp_path: Path) -> None:
             assert stored_config(db).beacon_path == path and stored_config(db).beacon_path_calls == calls
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_with_no_beacon_path_stored_stays_so(tmp_path: Path) -> None:
     with migrate(tmp_path / "f", {"station/call": "OH2GBA"}) as db:
         assert flat_row(db, "beacon/path") is None and stored_config(db).beacon_path == ""

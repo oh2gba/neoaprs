@@ -136,6 +136,7 @@ async def test_aprst_and_ping_give_the_path_the_query_came_by(tmp_path: Path) ->
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_the_general_query_gives_our_position_after_the_wait_and_not_again_for_ten_minutes(
     tmp_path: Path,
 ) -> None:
@@ -260,6 +261,7 @@ async def test_aprsh_tells_from_the_packet_log_when_the_station_was_heard(tmp_pa
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_message_to_qru_is_answered_not_acked_and_not_kept_while_we_serve_a_group_and_is_overheard_otherwise(
     tmp_path: Path,
 ) -> None:

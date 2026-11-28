@@ -4,6 +4,8 @@ typed name equal to what another unnamed radio is called ("Packet", "Mercury 2")
 
 from pathlib import Path
 
+import pytest
+
 from neoaprs.radiospec import FM_ID
 from tests.test_radios_wire import added, refused, started
 
@@ -67,6 +69,7 @@ async def test_a_name_that_is_what_another_radio_is_called_is_taken(tmp_path: Pa
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_name_in_the_form_of_a_radio_with_no_name_of_its_own_is_refused_so_that_none_becomes_another_radios_by_an_add_a_clear_or_a_remove(
     tmp_path: Path,
 ) -> None:

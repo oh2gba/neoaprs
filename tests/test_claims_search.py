@@ -643,6 +643,7 @@ async def test_a_named_port_another_radio_holds_is_waited_for_and_no_other_port_
         await tnc.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 @posix_only
 async def test_two_searches_that_take_turns_nudge_each_port_once_and_say_their_turns_once(
     ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture

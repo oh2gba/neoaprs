@@ -236,6 +236,7 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     own_ports(monkeypatch)
 
 
+@pytest.mark.nightly("a simulated day of a Windows station with four faults, about half a minute")
 async def test_a_day_of_a_windows_station_with_four_faults(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

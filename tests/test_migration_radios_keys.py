@@ -5,6 +5,8 @@ packets none.
 
 from pathlib import Path
 
+import pytest
+
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
@@ -24,6 +26,7 @@ def messages(db: object) -> None:
     db.execute(INSERT_MESSAGE, (LATER, "in", "OH2AAA", "OH2BBB", "not for us", None, "overheard", 0))  # type: ignore[attr-defined]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_migration_24_leaves_the_messages_plain_and_makes_the_table_of_keys(tmp_path: Path) -> None:
     clock = FixedClock()
     path = tmp_path / DB_NAME
@@ -47,6 +50,7 @@ def test_migration_24_leaves_the_messages_plain_and_makes_the_table_of_keys(tmp_
     migrated.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_migration_25_marks_what_the_air_gave_as_the_fm_radios_and_counts_the_stations_for_it(tmp_path: Path) -> None:
     clock = FixedClock()
     path = tmp_path / DB_NAME

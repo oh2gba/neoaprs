@@ -199,6 +199,7 @@ def test_a_good_bundle_is_stored_with_its_json_answered_with_a_reference_and_mai
     assert (endpoint.stored / ".htaccess").read_text(encoding="utf-8") == "Require all denied\n"
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_two_files_have_two_references(endpoint: Endpoint, bundle: bytes) -> None:
     endpoint.start()
     refs = {str(endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[1]["ref"]) for _ in range(3)}
@@ -364,6 +365,7 @@ def test_an_address_for_a_reply_is_kept_in_the_json_and_named_in_the_mail_with_a
     assert len(mails) == 2
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_form_without_an_address_is_taken_as_before_and_one_that_is_not_an_address_is_kept_empty(
     endpoint: Endpoint, bundle: bytes
 ) -> None:
@@ -490,6 +492,7 @@ def test_a_file_over_10_megabytes_in_a_body_that_fits_is_too_large_too(endpoint:
     assert not list(endpoint.stored.glob("NEO-*"))
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_sender_is_held_to_five_files_an_hour_and_the_hash_of_the_address_is_all_that_is_kept(
     endpoint: Endpoint, bundle: bytes
 ) -> None:
@@ -559,6 +562,7 @@ def test_the_call_the_version_and_the_platform_are_cleaned_and_cannot_make_a_hea
     )
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_note_is_text_cut_to_2000_characters_and_stays_in_the_body_of_the_mail(
     endpoint: Endpoint, bundle: bytes
 ) -> None:

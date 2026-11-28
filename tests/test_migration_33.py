@@ -509,6 +509,7 @@ def test_the_way_back_gives_the_columns_again_and_the_step_then_makes_the_same_d
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_way_back_through_32_and_33_gives_the_tables_of_version_30_word_for_word(tmp_path: Path) -> None:
     """After 33 and 32 are taken back the tables are those of a file of version 30, column by column
     and in the text of their statements, so that a test of an older migration cannot insert a row
@@ -545,6 +546,7 @@ def test_the_way_back_through_32_and_33_gives_the_tables_of_version_30_word_for_
 # ---- the stores on the database the step leaves
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 async def test_the_logs_read_what_the_step_left_and_write_beside_it(tmp_path: Path) -> None:
     db = at_32(tmp_path, stations, prefs, objects, settings=BOTH_ON)
     run(db, _v33)

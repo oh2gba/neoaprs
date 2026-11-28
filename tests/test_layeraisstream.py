@@ -79,6 +79,7 @@ async def test_a_page_that_looks_gets_the_ships_of_the_box_round_the_radius(
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_wrong_key_shows_the_refused_state_and_is_not_tried_again_soon(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -116,6 +117,7 @@ def problem(tab: Any) -> str:
     return str(tab.topics["map"]["layers"][1]["problem"])
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_refused_key_is_tried_again_by_itself_and_a_connection_that_is_taken_clears_the_refusal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None
 ) -> None:
@@ -145,6 +147,7 @@ async def test_saving_the_same_key_again_tries_it_at_once(
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_connections_reset_or_stalled_before_the_confirmation_are_an_outage_not_a_refused_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None
 ) -> None:
@@ -178,6 +181,7 @@ async def test_the_connection_is_closed_when_the_page_stops_looking(
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_new_radius_is_one_new_subscription_on_the_same_connection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None
 ) -> None:
@@ -194,6 +198,7 @@ async def test_a_new_radius_is_one_new_subscription_on_the_same_connection(
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_lost_or_stalled_connection_is_made_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None
 ) -> None:
@@ -238,6 +243,7 @@ async def test_without_a_local_stand_in_nothing_goes_to_aisstream(
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_the_probe_runs_the_product_source_and_never_prints_the_key(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

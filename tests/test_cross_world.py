@@ -4,6 +4,8 @@ WIDE path alone puts nothing on HF."""
 
 from pathlib import Path
 
+import pytest
+
 from neoaprs import ax25
 from neoaprs.radiospec import FM_ID, HF_ID
 from tests.support.env import Env, idle_for
@@ -40,6 +42,7 @@ async def three(tmp_path: Path, path: str = PAIR_CALL) -> tuple[World, Env, Env,
     return w, gateway, fm, hf
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_message_with_the_pair_call_as_its_path_reaches_the_hf_station_in_one_hf_frame_and_its_ack_comes_back_through_the_gateway(
     tmp_path: Path,
 ) -> None:
@@ -67,6 +70,7 @@ async def test_a_message_with_the_pair_call_as_its_path_reaches_the_hf_station_i
     assert stats.sent == 1 and stats.held == 0
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_reply_message_goes_back_through_the_gateway_the_same_way_and_its_ack_follows(tmp_path: Path) -> None:
     w, gateway, fm, hf = await three(tmp_path)
     first = await fm.ctl.messaging.send("OH2H", "Moi HF")
@@ -86,6 +90,7 @@ async def test_the_reply_message_goes_back_through_the_gateway_the_same_way_and_
     assert len(got) == 1 and got[0].text == "Moi FM"
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_wide_path_alone_puts_nothing_on_hf(tmp_path: Path) -> None:
     w, gateway, fm, hf = await three(tmp_path, path="WIDE1-1,WIDE2-1")
     await fm.ctl.messaging.send("OH2H", "Moi HF")

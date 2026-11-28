@@ -106,6 +106,7 @@ def test_stop_with_no_daemon_says_so_and_clears_a_request_that_was_left(
     assert stopcmd.main(["--data", str(tmp_path / "never-made")]) == 0
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_open_starts_a_detached_daemon_once_and_stop_ends_it_cleanly(data: Path) -> None:
     first = command("open", "--data", str(data), "--no-browser", "--timeout", "60")
     assert first.returncode == 0, first
@@ -123,6 +124,7 @@ def test_open_starts_a_detached_daemon_once_and_stop_ends_it_cleanly(data: Path)
     assert "not running" in command("stop", "--data", str(data)).stderr
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_stop_request_left_in_the_folder_does_not_end_the_next_daemon(data: Path) -> None:
     data.mkdir(parents=True, exist_ok=True)
     stopfile.request(data)
@@ -131,6 +133,7 @@ def test_a_stop_request_left_in_the_folder_does_not_end_the_next_daemon(data: Pa
     assert is_running(data) and not stopfile.requested(data)
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_open_asks_the_browser_for_the_address_the_daemon_logged(
     data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -261,6 +264,7 @@ def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environ
         server.server_close()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_clean_stop_and_says_each_warning_once(
     data: Path,
 ) -> None:

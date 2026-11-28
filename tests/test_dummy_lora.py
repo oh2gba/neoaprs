@@ -412,6 +412,7 @@ def test_each_dummy_world_names_the_calls_it_makes_up_for_its_radio() -> None:
 # ---- the daemon
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_beacons_and_takes_a_message_in_text_and_is_a_row_of_the_topic(
     tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture
 ) -> None:

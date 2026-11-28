@@ -338,6 +338,7 @@ async def test_an_id_of_an_older_program_is_none_of_ours_and_the_numbers_begin_a
     await other.m.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_all_1296_ids_in_use_leave_no_id_for_another_message(rig: Rig) -> None:
     for ident in MSG_IDS:
         await rig.log.insert(
@@ -1227,6 +1228,7 @@ async def test_every_new_or_changed_message_is_told_with_the_message_as_it_is(ri
     assert [(r.id, r.state, r.attempts) for r in rig.changed] == [(1, "sending", 0), (1, "sending", 1), (1, "acked", 1)]
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_no_message_is_dropped_by_count_or_by_age_and_a_message_being_sent_stays(rig: Rig) -> None:
     first = await rig.m.send("OH2RDG", "pending")
     for n in range(700):
@@ -1672,6 +1674,7 @@ async def test_without_a_board_a_message_to_a_bulletin_is_overheard(rig: Rig) ->
     assert [(m.to_call, m.state) for m in alone.records()] == [("BLN1", "overheard")]
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_overheard_messages_are_not_limited_and_push_out_nothing(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "ours 1", "1"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "ours 2", "2"))

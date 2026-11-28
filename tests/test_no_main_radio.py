@@ -313,6 +313,7 @@ def counted(thing: str, radio: Radio, on: tuple[Radio, ...]) -> int:
     }[thing]
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 @pytest.mark.parametrize("day", [*STATIONS, G], ids=lambda day: day.name)
 async def test_the_update_sends_what_0_20_0_sent_on_every_radio_but_the_floor_and_the_mail_of_a_station_without_fm_or_lora(
     tmp_path: Path, quick: None, day: Day
@@ -358,6 +359,7 @@ async def test_the_update_sends_what_0_20_0_sent_on_every_radio_but_the_floor_an
         await run.e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_bulletin_ticked_for_fm_and_hf_repeats_every_30_minutes_on_both_and_one_on_fm_alone_every_20(
     tmp_path: Path, quick: None
 ) -> None:
@@ -389,6 +391,7 @@ async def test_a_bulletin_ticked_for_fm_and_hf_repeats_every_30_minutes_on_both_
         await run.e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_radio_switched_off_and_on_again_after_the_update_takes_the_mail_back_and_no_status_goes_out_early(
     tmp_path: Path, quick: None
 ) -> None:

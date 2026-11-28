@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+import pytest
+
 from neoaprs.chain import Attempt
 from neoaprs.config import BY_KEY, DEFAULTS
 from neoaprs.configradios import FLAT_HOMES
@@ -154,6 +156,7 @@ def frozen(path: Path) -> bool:
     return any(path.relative_to(ROOT).match(pattern) for pattern in FROZEN)
 
 
+@pytest.mark.slow("reads every source file of the repository")
 def test_no_source_names_the_wire_or_the_views_of_before() -> None:
     # This file names the old words to search for them, so the scan leaves it out
     assert finds([path for path in sources(*SEARCHED) if not frozen(path) and path != Path(__file__)], OLD) == []

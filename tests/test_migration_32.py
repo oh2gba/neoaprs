@@ -264,6 +264,7 @@ def test_an_sqlite_that_cannot_drop_a_column_is_refused_before_anything_is_chang
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_way_back_gives_the_words_again_and_the_step_then_makes_the_same_database(tmp_path: Path) -> None:
     """`undo_32` is what tests/support/migrated.step_back uses below 32, so that the test of an
     older migration runs this step over its rows."""

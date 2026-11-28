@@ -4,12 +4,15 @@ and owned, and Quit stops it; a running one is attached to and left running.
 
 from pathlib import Path
 
+import pytest
+
 from neoaprs import PROGRAM
 from neoaprs.cli.daemonstate import is_running, page_answers
 from neoaprs.desktop.session import open_session, stop_owned
 from tests.test_open_stop import command, data, radio  # noqa: F401  (fixtures)
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_with_no_daemon_the_app_starts_one_owns_it_and_stops_it_at_quit(data: Path) -> None:  # noqa: F811
     session = open_session(data, timeout=60)
     assert session.owned and is_running(data) and page_answers(session.url)
@@ -18,6 +21,7 @@ def test_with_no_daemon_the_app_starts_one_owns_it_and_stops_it_at_quit(data: Pa
     assert log.count(" starting, data in ") == 1 and log.rstrip().endswith(f"{PROGRAM} ended") and " ERROR " not in log
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_daemon_that_runs_is_attached_to_and_survives_the_app(data: Path) -> None:  # noqa: F811
     assert command("open", "--data", str(data), "--no-browser", "--timeout", "60").returncode == 0
     session = open_session(data, timeout=60)

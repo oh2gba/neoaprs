@@ -148,6 +148,7 @@ async def test_alone_every_sending_service_refuses_with_rx_only_and_not_one_byte
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_beside_a_dummy_fm_radio_everything_goes_on_that_one_an_ack_too_and_a_query_heard_on_the_text_radio_alone_is_not_answered(
     tmp_path: object,
 ) -> None:
@@ -242,6 +243,7 @@ ASKS_NUMBERED = ax25.Frame(
 )
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 @pytest.mark.parametrize(
     "query", [GENERAL, ASKS_HEARD, ASKS_QRU, ASKS_NUMBERED], ids=["general", "heard", "qru", "numbered"]
 )
@@ -434,6 +436,7 @@ def test_a_search_leaves_out_the_ports_the_radios_that_only_listen_are_set_to() 
     )
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_save_of_the_text_radio_restarts_no_radio_that_has_its_own_port(tmp_path: object) -> None:
     e = Env(
         tmp_path,
@@ -464,6 +467,7 @@ async def test_a_save_of_the_text_radio_restarts_no_radio_that_has_its_own_port(
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 @posix_only
 async def test_the_search_of_a_radio_whose_own_port_is_gone_never_opens_the_port_a_text_radio_is_set_to(
     tmp_path: object,

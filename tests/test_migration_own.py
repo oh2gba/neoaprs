@@ -56,6 +56,7 @@ def version_twelve(path: Path, clock: FixedClock) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_twelve_gets_the_two_empty_tables_and_keeps_everything_it_had(tmp_path: Path) -> None:
     clock = FixedClock()
     old = tmp_path / "old" / DB_NAME
@@ -217,6 +218,7 @@ def test_the_bulletin_table_refuses_what_the_program_cannot_produce(
     s.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @pytest.mark.expects_errors
 def test_a_migration_13_that_doubts_changes_nothing(tmp_path: Path) -> None:
     clock = FixedClock()

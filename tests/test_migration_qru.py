@@ -28,6 +28,7 @@ def version_seventeen(path: Path, clock: FixedClock) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_every_object_there_is_keeps_its_values_and_gets_no_group_and_the_schedule(tmp_path: Path) -> None:
     clock = FixedClock()
     old = tmp_path / "old" / DB_NAME

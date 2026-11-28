@@ -166,6 +166,7 @@ async def test_the_tone_is_refused_while_the_modem_is_not_running_or_the_radio_i
         await air.aclose()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_rx_only_is_ticked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -220,6 +221,7 @@ async def attached(tmp_path: Path, air: Air, reconnect_sec: float) -> tuple[Merc
     return m, station
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_tone_that_ends_while_the_control_line_is_down_is_ended_when_the_line_is_back(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -240,6 +242,7 @@ async def test_a_tone_that_ends_while_the_control_line_is_down_is_ended_when_the
         await air.aclose()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_stop_while_the_control_line_is_down_is_written_when_it_is_back(tmp_path: Path) -> None:
     air = Air(frame_sec=0.2)
     m, station = await attached(tmp_path, air, reconnect_sec=3.0)
@@ -328,6 +331,7 @@ async def test_an_owed_tune_off_that_cannot_be_written_in_time_ends_the_run_and_
         await m.stop()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_an_owed_tune_off_written_before_the_deadline_restarts_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

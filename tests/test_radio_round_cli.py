@@ -264,6 +264,7 @@ async def test_db_set_on_a_stopped_daemons_file_is_what_the_next_start_runs_with
     assert (await db(capsys, data, "get", "serial/baud"))[:2] == (2, ""), "the key of before is no setting"
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command_line_and_the_bundle_and_a_database_made_of_the_bundle(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

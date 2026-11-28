@@ -828,6 +828,7 @@ def test_a_failed_release_run_is_shown_and_run_again_with_rerun_and_the_tag_is_n
     assert_released(rig)
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_draft_short_of_files_or_a_release_with_a_dead_link_stops_the_run_and_nothing_before_is_done_again(
     rig: Rig, downloads: str
 ) -> None:
@@ -999,6 +1000,7 @@ def test_a_failed_ci_run_names_the_full_sha_of_its_commit(rig: Rig) -> None:
     assert done.returncode == 1 and f"commit {rig.commit_of_release()}" in done.stdout
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_tag_push_that_failed_on_head_is_made_again_on_head(rig: Rig) -> None:
     ci_fails_then_a_fix_is_pushed(rig)
     head = rig.git("rev-parse", "HEAD")

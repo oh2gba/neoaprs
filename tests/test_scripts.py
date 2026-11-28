@@ -98,6 +98,7 @@ def wait_until(condition: object, seconds: float = 90.0) -> None:
     raise AssertionError("the condition did not come true")
 
 
+@pytest.mark.nightly("replays a whole capture into a daemon started as a process, half a minute")
 def test_a_replayed_capture_fills_the_database_of_a_daemon_without_a_radio_over_tcp(tmp_path: Path) -> None:
     data = tmp_path / "data"
     # A station that is set up: with no call and position there is no station of ours in the book
@@ -213,6 +214,7 @@ def test_the_replay_refuses_a_file_that_is_not_there_or_holds_no_frame(tmp_path:
         assert done.returncode == 1 and message in done.stderr and done.stdout == ""
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_the_tool_sets_checks_and_reads_the_settings(tmp_path: Path) -> None:
     data = tmp_path / "data"
     assert tool(data, "list").returncode == 1, "reading makes no database"

@@ -64,6 +64,7 @@ def trails_of(message: dict[str, Any]) -> dict[str, list[list[Any]]]:
     return {trail["id"]: trail["points"] for trail in message["trails"]}
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_page_that_comes_back_within_the_grace_starts_with_the_trail_and_after_it_with_none(
     tmp_path: Path, look_grace: float
 ) -> None:
@@ -101,6 +102,7 @@ async def test_a_page_that_comes_back_within_the_grace_starts_with_the_trail_and
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_nothing_is_asked_once_the_grace_has_passed(tmp_path: Path, look_grace: float) -> None:
     receiver = await layers_server()
     receiver.route("/tar1090/data/aircraft.json", body=sky(plane("461f2a")))
@@ -133,6 +135,7 @@ def test_a_page_is_handed_only_the_trails_of_the_things_in_its_table_thinned_whe
     assert older[0][2] == T0, "the trail still begins where it began"
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 def test_the_first_table_for_three_hundred_aircraft_after_half_an_hour_is_bounded() -> None:
     import json
 

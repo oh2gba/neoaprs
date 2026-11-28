@@ -594,6 +594,7 @@ def test_without_docker_or_uv_the_script_says_so(rig: Rig, tmp_path: Path) -> No
 # ---- the probe of the upgrade, against this tree's daemon ----
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_the_probe_seeds_a_daemon_and_finds_all_of_it_in_the_next_one_and_refuses_a_version_that_is_not_the_daemons(
     tmp_path: Path,
 ) -> None:

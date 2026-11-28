@@ -90,6 +90,7 @@ def tables_and_version(path: Path) -> tuple[int, dict[str, int]]:
         db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @pytest.mark.expects_errors
 @pytest.mark.parametrize("version, seed, after, sabotage, old_table", DOUBTS)
 def test_a_step_that_finds_its_new_table_unlike_the_old_one_changes_nothing_and_the_next_start_migrates(
@@ -333,6 +334,7 @@ KILLS_HERE = pytest.mark.skipif(
 )
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @KILLS_HERE
 @pytest.mark.parametrize(
     "kills",
@@ -395,6 +397,7 @@ def test_a_migration_killed_again_and_again_ends_with_one_copy_the_one_of_the_ol
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @KILLS_HERE
 def test_a_copy_of_a_middle_version_an_earlier_program_left_goes_and_the_old_one_stays(tmp_path: Path) -> None:
     """Killed in the second step, with a copy of the middle version beside the old one: the next
@@ -416,6 +419,7 @@ def test_a_copy_of_a_middle_version_an_earlier_program_left_goes_and_the_old_one
     assert taken(folder) == [old] and at_the_old_version_as_it_was(folder / old, held)
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @KILLS_HERE
 def test_a_start_killed_after_the_last_step_leaves_the_copies_of_the_migration_before_to_the_next_one(
     tmp_path: Path,

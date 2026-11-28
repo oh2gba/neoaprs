@@ -134,6 +134,7 @@ def test_a_station_all_of_whose_packets_came_by_a_gate_is_known_by_the_gate(tmp_
     )
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_migrated_database_has_exactly_the_tables_indexes_and_checks_of_a_new_one_and_a_copy_was_made(
     tmp_path: Path,
 ) -> None:

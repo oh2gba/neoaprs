@@ -490,6 +490,7 @@ async def config_of(page: Any, values: dict[str, str], told: Callable[[dict[str,
     return dict(page.topics["config"])
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_through_the_page_a_pair_is_offered_set_refused_kept_and_survives_a_restart(tmp_path: Path) -> None:
     e, page = await started(tmp_path, {"tnc/profile": "dummy"})
     hf = await added(page, "dummy-hf")

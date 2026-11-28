@@ -164,6 +164,7 @@ def week_of_a_feed(now, fixed: int, cars: int) -> list[PacketRow]:
     return sorted(rows, key=lambda row: row.heard_at)
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_week_of_a_feed_is_thinned_to_what_shows_and_stays_small(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()

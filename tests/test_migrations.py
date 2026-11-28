@@ -487,6 +487,7 @@ def made_copy(source: Path, dest: Path) -> None:
         db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_copy_is_whole_by_its_header_and_a_half_written_or_changed_one_is_not(tmp_path: Path) -> None:
     from neoaprs.backupfolder import whole
 
@@ -1734,6 +1735,7 @@ BULLETIN_INSERT = "INSERT INTO bulletin (sender, slot, group_name, text, first_h
 LATER = "2026-10-21T13:00:00.000000Z"
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_six_gets_the_empty_bulletin_table_and_keeps_the_rest(tmp_path: Path) -> None:
     clock = FixedClock()
     old = tmp_path / "old" / DB_NAME
@@ -2008,6 +2010,7 @@ def version_eight(path: Path, clock: FixedClock) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_eight_gets_the_attempts_column_empty_for_every_station_and_keeps_the_rest(
     tmp_path: Path,
 ) -> None:
@@ -2104,6 +2107,7 @@ def version_nine(path: Path, clock: FixedClock) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_nine_takes_unconfirmed_messages_and_keeps_every_message_and_the_index(
     tmp_path: Path,
 ) -> None:
@@ -2234,6 +2238,7 @@ def version_ten(path: Path, clock: FixedClock) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_ten_gets_the_empty_attempt_and_hop_tables_and_keeps_every_message(
     tmp_path: Path,
 ) -> None:

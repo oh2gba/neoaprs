@@ -136,6 +136,7 @@ def temp_files(folders: list[Path]) -> set[Path]:
     return found
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 def test_the_copy_is_built_beside_the_file_wherever_the_system_keeps_temporary_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

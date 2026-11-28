@@ -208,6 +208,7 @@ async def test_a_command_that_cannot_start_is_a_failure_not_a_crash(
     assert any(f"status {MISSING_STATUS}" in r.getMessage() for r in caplog.records)
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_command_that_runs_out_of_time_is_killed_with_what_it_started(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

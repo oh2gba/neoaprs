@@ -199,6 +199,7 @@ async def test_a_daemon_with_no_gps_runs_no_feed(tmp_path: Path) -> None:
 # ---- the page
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_the_page_is_told_the_gps_the_fix_and_the_beacon(tmp_path: Path) -> None:
     gpsd = await fake_gpsd()
     e = await started(tmp_path, gpsd)

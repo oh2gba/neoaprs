@@ -202,6 +202,7 @@ async def test_a_mercury_without_the_ui_has_no_scope_and_the_gain_waits_for_the_
         await m.stop()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path) -> None:
     m = modem(tmp_path)
     await m.start(HF)
@@ -274,6 +275,7 @@ def air(tmp_path: Path, blocks: list[list[float]] | None = None, noise_db: float
     (tmp_path / UI_SCENE_FILE).write_text(json.dumps({"blocks": blocks or [], "noise_db": noise_db}), encoding="utf-8")
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_frame_and_not_for_a_carrier_or_a_step(
     tmp_path: Path,
 ) -> None:
@@ -297,6 +299,7 @@ async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_fra
         await m.stop()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -323,6 +326,7 @@ async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_mo
         await m.stop()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however_young_the_machines_clock_is(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -342,6 +346,7 @@ async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however
         await m.stop()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_moment_after_our_own_frame_is_a_fraction_of_a_second_and_ends_by_itself(tmp_path: Path) -> None:
     assert 0.3 <= mercuryscoping.AFTER_TX_SEC <= 1.0, (
         "longer than Mercury's own holdoff of 300 ms, and short enough not to hide a station that answers"

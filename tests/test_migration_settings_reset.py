@@ -147,6 +147,7 @@ RADIOS = [key for key in KEYS if key not in STATION_KEYS]
 STATE = ["beacon/last_sent_at", "status/last_sent_at", "status/last_text"]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_settings_off_the_page_go_back_to_the_defaults_and_the_removed_rows_are_gone(tmp_path: Path) -> None:
     with migrate(tmp_path, {**RESET, **KEPT, **{key: "7" for key in REMOVED}}) as db:
         found, config = rows_of(db), stored_config(db)
@@ -181,6 +182,7 @@ def test_the_settings_off_the_page_go_back_to_the_defaults_and_the_removed_rows_
     assert config.web_port == 7777 and config.web_allowed_hosts == "radio.lan,shack" and config.map_radius_km == 300
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_every_setting_that_is_not_reset_is_kept(tmp_path: Path) -> None:
     assert set(KEYS) - set(RESET) <= KEPT.keys(), "the test holds an odd value for every setting that stays"
     stored = {key: KEPT[key] for key in KEYS if key in KEPT}
@@ -193,6 +195,7 @@ def test_every_setting_that_is_not_reset_is_kept(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_value_that_is_already_the_default_is_deleted_without_a_line(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -211,6 +214,7 @@ def test_a_value_that_is_already_the_default_is_deleted_without_a_line(
     assert not [r for r in caplog.records if "reset to the default" in r.getMessage()]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_one_info_line_for_each_key_reset_with_the_old_value(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         with migrate(tmp_path, {**RESET, "station/call": "OH2GBA"}):
@@ -227,6 +231,7 @@ def test_one_info_line_for_each_key_reset_with_the_old_value(tmp_path: Path, cap
     ]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_with_no_such_rows_is_as_it_was(tmp_path: Path) -> None:
     with migrate(tmp_path, {"station/call": "OH2GBA"}) as db:
         assert rows_of(db) == {"station/call": ("OH2GBA", 1)}

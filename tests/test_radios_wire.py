@@ -63,6 +63,7 @@ async def at_rest(modem: Mercury) -> None:
     await until(lambda: modem.state in ("running", "waiting"), START_SEC)
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_the_topic_has_every_radio_and_a_radio_added_changed_and_removed_is_told_with_its_row(
     tmp_path: Path,
 ) -> None:
@@ -228,6 +229,7 @@ async def test_a_command_that_names_no_radio_is_refused_for_radio_1_once_it_is_r
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_key(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
     # Off with the defaults (127.0.0.1:8001 and 8002 below): the ports of a real Direwolf on this
@@ -434,6 +436,7 @@ async def test_a_pair_switched_on_makes_its_call_ours_and_the_stations_row_loses
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_ask_around_goes_on_its_ticked_radios_and_local_info_on_the_radio_named_and_a_radio_that_is_off_is_refused_with_its_name(
     tmp_path: Path,
 ) -> None:
@@ -521,6 +524,7 @@ async def test_an_object_goes_on_the_radios_named_and_its_row_says_them(tmp_path
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_the_topic_tells_a_radio_at_most_four_times_a_second(tmp_path: Path) -> None:
     """A second of changes, one every 25 ms of the hub's clock, which the test keeps (forty sleeps
     of the machine's are not a second: on Windows a sleep of 25 ms lasts two steps of its clock, 31
@@ -595,6 +599,7 @@ def test_a_radio_of_a_type_that_is_none_has_no_row_and_the_types_are_the_pages_l
     )
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_message_on_its_way_says_the_radio_it_takes_next_as_the_choice_and_the_radios_change(
     tmp_path: Path,
 ) -> None:
@@ -701,6 +706,7 @@ async def test_the_radio_chosen_for_email_is_told_in_force_by_the_status_and_one
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_the_stations_are_told_whole_only_when_what_their_rows_read_of_the_radios_changes(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
     id = await added(page, "dummy")

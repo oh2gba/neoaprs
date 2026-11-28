@@ -653,6 +653,7 @@ async def test_a_serial_port_is_closed_off_the_loop_and_opened_again_only_once_t
     await until(ser.closed.is_set)
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_an_earlier_close_that_hangs_is_waited_for_after_a_later_one_of_the_port_but_only_so_long(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

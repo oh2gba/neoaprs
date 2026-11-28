@@ -10,6 +10,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import ROOT
 from tests.support.patience import PATIENCE_SEC
 
@@ -352,6 +354,7 @@ def found_in_the_suite() -> list[Found]:
     return found
 
 
+@pytest.mark.slow("reads every source file of the repository")
 def test_no_test_has_a_fixed_port_a_sleep_in_its_body_a_thread_found_dead_at_a_moment_or_a_short_wait() -> None:
     found = found_in_the_suite()
     refused = [str(f) for f in found if (f.file, f.function, f.rule) not in ALLOWED]

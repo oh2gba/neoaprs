@@ -77,6 +77,7 @@ def migrate(folder: Path, command: str | None = None) -> sqlite3.Connection:
     return migrated.db
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_twentyone_keeps_every_preference_with_no_alert_and_takes_one_that_is_only_an_alert(
     tmp_path: Path,
 ) -> None:
@@ -122,6 +123,7 @@ def test_the_table_refuses_an_alert_the_program_cannot_produce(
     s.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @pytest.mark.parametrize("old", [migrationsteps22on._OLD_LINUX_ALERT, migrationsteps22on._OLD_WINDOWS_ALERT])
 def test_the_old_default_alert_command_gives_way_to_the_new_one_with_a_line_in_the_log(
     tmp_path: Path, old: str, caplog: pytest.LogCaptureFixture
@@ -133,6 +135,7 @@ def test_the_old_default_alert_command_gives_way_to_the_new_one_with_a_line_in_t
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_command_of_the_operators_own_stays_and_the_old_defaults_are_the_new_ones_with_the_title_of_the_alert(
     tmp_path: Path,
 ) -> None:

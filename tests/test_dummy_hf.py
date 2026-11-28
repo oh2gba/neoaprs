@@ -294,6 +294,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     assert e.mercury.state == "stopped"
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_nothing_of_it_reaches_the_air(
     tmp_path: Path, fast: None
 ) -> None:

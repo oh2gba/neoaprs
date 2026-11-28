@@ -8,6 +8,8 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 from neoaprs import ax25
 from neoaprs.message import FINAL_WAIT_SEC, FIRST_WAIT_SEC, retry_pause
 from neoaprs.radiotypes.common import HF_LIMITS as HF
@@ -21,6 +23,7 @@ def sent_by(world: World, call: str) -> list[ax25.Frame]:
     return [ax25.decode(payload) for sender, _, payload in world.air.delivered if sender is world[call].hf_radio]
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_beacon_of_one_station_reaches_the_other_two_after_one_frame_on_the_air_and_nobody_else_hears_it_twice(
     tmp_path: Path,
 ) -> None:
@@ -75,6 +78,7 @@ async def test_a_message_is_acked_within_one_frame_each_way_and_the_first_wait_o
     assert w.air.collisions == 0 and a.mercury.frames_keyed == 1 and b.mercury.frames_keyed == 1
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the_retry_goes_through(
     tmp_path: Path,
 ) -> None:
@@ -98,6 +102,7 @@ async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the
     assert a.ctl.messaging.get(record.id).attempts == 2 and w.air.collisions == 2 and len(w.air.delivered) == 2  # type: ignore[union-attr]
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel_is_busy_and_go_one_at_a_time(
     tmp_path: Path,
 ) -> None:
@@ -188,6 +193,7 @@ async def test_over_the_air_every_frame_is_direct_and_whole_whatever_the_path_se
     assert heard is not None and heard.lat is not None
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_the_beacon_of_the_hf_radio_goes_out_at_the_one_interval_with_the_random_pause(tmp_path: Path) -> None:
     w = World(tmp_path, frame_sec=0.1)
     a = await w.add("OH2A", **{"beacon/interval_min": "30"})
@@ -227,6 +233,7 @@ async def test_a_changed_beacon_interval_is_planned_by_the_hf_radios_beacon_at_o
     assert a.beacon_2.next_due is None, "Off again"
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_message_is_kept_once(
     tmp_path: Path,
 ) -> None:
@@ -263,6 +270,7 @@ async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_m
     assert w.air.collisions == 0
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_each_a_whole_direct_frame_and_the_message_fails(
     tmp_path: Path,
 ) -> None:
@@ -298,6 +306,7 @@ async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_
     assert a.mercury.frames_keyed == 4 and w.air.collisions == 0
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_daemon_started_again_with_a_message_on_its_way_goes_on_from_its_database_and_the_message_is_acked(
     tmp_path: Path,
 ) -> None:

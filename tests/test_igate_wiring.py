@@ -183,6 +183,7 @@ async def test_the_igate_knows_the_dummy_radio_from_the_settings_as_the_line_doe
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_from_the_page_switch_it(
     tmp_path: Path,
 ) -> None:

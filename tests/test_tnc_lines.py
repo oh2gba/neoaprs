@@ -86,6 +86,7 @@ async def played(profile: Profile, radio_id: int | None) -> tuple[Tnc, list[Pack
     return tnc, made
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_every_packet_the_tnc_makes_heard_or_sent_carries_the_id_of_its_radio(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

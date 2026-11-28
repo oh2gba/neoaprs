@@ -98,6 +98,7 @@ async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_co
         await server.stop()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every_sending_command_as_rx_only_and_writes_not_one_byte(
     tmp_path: Path,
 ) -> None:

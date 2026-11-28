@@ -94,6 +94,7 @@ def test_tests_and_the_test_folder_do_not_count_as_a_mention(tmp_path: Path) -> 
     assert named(root) == [".only-in-a-test"]
 
 
+@pytest.mark.slow("reads every source file of the repository")
 def test_the_style_sheets_of_this_tree_are_clean() -> None:
     if not (ROOT / "ui" / "src" / "styles").is_dir():
         pytest.skip("no ui/ in this tree")

@@ -78,6 +78,7 @@ def migrate(folder: Path):  # type: ignore[no-untyped-def]
     return migrated
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_every_own_timeout_is_cleared_and_a_row_that_held_only_that_is_gone(tmp_path: Path) -> None:
     migrated = migrate(tmp_path)
     rows = migrated.db.execute(
@@ -95,6 +96,7 @@ def test_every_own_timeout_is_cleared_and_a_row_that_held_only_that_is_gone(tmp_
     migrated.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_cleared_timeout_is_not_read_and_the_preferences_that_say_something_are_the_path_and_rf_only(
     tmp_path: Path,
 ) -> None:
@@ -111,6 +113,7 @@ def test_a_cleared_timeout_is_not_read_and_the_preferences_that_say_something_ar
     migrated.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_one_info_line_for_each_station_that_had_a_timeout(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         migrate(tmp_path).close()

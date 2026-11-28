@@ -310,6 +310,7 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
     return outcomes
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 @pytest.mark.parametrize(
     "name",
     [
@@ -336,6 +337,7 @@ def test_what_is_allowed_passes_the_guards(child_outcomes: dict[str, str], name:
     assert child_outcomes[name] == "ok"
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 @pytest.mark.parametrize(
     "name",
     [

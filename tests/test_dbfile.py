@@ -62,6 +62,7 @@ def test_a_transaction_commits_all_of_it_or_rolls_all_of_it_back(tmp_path: Path)
     db.close()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 def test_a_copy_is_whole_checked_private_synced_and_leaves_nothing_behind(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -91,6 +91,7 @@ def test_the_readme_says_what_to_do_what_is_in_it_and_what_was_left_out(tmp_path
     assert "public" in readme and "texts of messages" in readme
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_summarys_beacon_is_each_radios_interval_in_force_the_hf_radio_raised_to_its_floor(tmp_path: Path) -> None:
     data = fake_folder(
         tmp_path,
@@ -122,6 +123,7 @@ def test_the_summarys_beacon_is_each_radios_interval_in_force_the_hf_radio_raise
     )
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_summary_says_on_which_radios_each_thing_goes_one_line_each_objects_and_bulletins_from_the_running_daemon(
     tmp_path: Path,
 ) -> None:
@@ -210,6 +212,7 @@ def test_the_summary_says_which_of_the_two_internet_ticks_is_on_and_the_state_of
     assert "31415" not in summary
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_screen(tmp_path: Path) -> None:
     summary = made(tmp_path)[1]["summary.txt"]
     assert "NeoAPRS:" in summary and VERSION in summary
@@ -279,6 +282,7 @@ def test_a_daemon_that_holds_the_folder_is_said_so_and_its_state_is_in_the_bundl
     assert "state.json" in members["README.txt"]
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_name(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
 
@@ -324,6 +328,7 @@ def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_n
     ), "a Mercury radio that is off is there, off"
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_virtual_mixers_combinations_are_folded_the_chosen_card_first_and_a_deaf_mercury_is_told(
     tmp_path: Path,
 ) -> None:
@@ -419,6 +424,7 @@ def test_a_virtual_mixers_combinations_are_folded_the_chosen_card_first_and_a_de
     assert re.search(r"Aircraft:\s+none$", layers, re.MULTILINE)
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_its_own(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
 
@@ -448,6 +454,7 @@ def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_
     )
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_radio_with_a_problem_now_shows_it_and_one_that_never_failed_has_no_latest_error_line(tmp_path: Path) -> None:
     live = {
         "daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
@@ -492,6 +499,7 @@ def stored_radio(data: Path, kind: str, type: str, name: str, enabled: bool, pos
     return made
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_own_settings_and_a_removed_one_none(
     tmp_path: Path,
 ) -> None:
@@ -556,6 +564,7 @@ def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_o
     ), "no key of before: a radio's own settings are its radio's"
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_database_made_of_a_bundle_of_stored_radios_gets_the_same_radios_from_the_migrations(tmp_path: Path) -> None:
     """tests/support/bundledb.py makes a database as version 30 kept it from a bundle's
     settings.json: the flat keys that settings.json says stored are what migration 31 makes radios 1
@@ -657,6 +666,7 @@ def test_radios_that_cannot_be_read_are_one_section_that_says_so_and_no_made_up_
     )
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_removed_radios_own_rows_are_told_with_it(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
 
@@ -730,6 +740,7 @@ def test_a_big_database_is_not_checked(tmp_path: Path, monkeypatch: pytest.Monke
     assert "skipped: the file is" in made(tmp_path)[1]["database.txt"]
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_migration_whose_source_changed_is_said_so(tmp_path: Path) -> None:
     data = fake_folder(tmp_path)
     from tests.support.migrated import opened
@@ -889,6 +900,7 @@ def test_rotated_logs_share_one_budget_the_newest_first_and_an_older_one_that_do
     )
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_budget_of_a_bundle_is_the_one_of_the_module_and_the_newest_log_comes_first(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1045,6 +1057,7 @@ def test_a_data_folder_that_is_not_there_still_gives_a_bundle_that_says_so(tmp_p
     assert not any(name.startswith("logs/") for name in members)
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_missing_app_log_is_just_not_there(tmp_path: Path) -> None:
     _, members = made(tmp_path, fake_folder(tmp_path, app_log=False))
     assert (
@@ -1065,6 +1078,7 @@ def test_a_gatherer_that_raises_is_an_error_file_and_the_rest_is_made(
     assert "summary.txt" in members and "packets.txt" in members
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_journal_when_there_is_one_is_a_member_and_a_failure_of_it_is_text(tmp_path: Path) -> None:
     data = fake_folder(tmp_path)
     result = make_bundle(

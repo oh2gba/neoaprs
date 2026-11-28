@@ -319,6 +319,7 @@ def test_the_ack_of_a_mail_heard_on_a_radio_that_is_off_goes_on_the_email_radio_
 # ---- the whole daemon: frames counted per radio
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_call_on_the_first_box_and_the_email_tabs_choice_moves_the_mail_alone(
     tmp_path: Path,
 ) -> None:
@@ -461,6 +462,7 @@ class Station:
 MAIL, NEW, CQ = ":EMAIL-2  :", ":OH2NEW", ":CQ       :"
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carries_the_mail_when_it_is_chosen_and_nothing_else_moves(
     tmp_path: Path,
 ) -> None:
@@ -581,6 +583,7 @@ async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carr
     await e.stop()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_on_a_fake_clock_a_mail_has_its_two_attempts_on_one_radio_and_a_new_choice_or_its_radio_switched_off_moves_the_next_attempt(
     tmp_path: Path,
 ) -> None:

@@ -74,6 +74,7 @@ def next_id(db: sqlite3.Connection) -> int:
     return int(db.execute("SELECT last_insert_rowid()").fetchone()[0])
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_twentytwo_keeps_every_message_with_its_id(tmp_path: Path) -> None:
     db = migrate(tmp_path)
     assert db.execute(f"SELECT {COLUMNS} FROM message ORDER BY id").fetchall() == MESSAGES
@@ -82,6 +83,7 @@ def test_a_database_of_version_twentytwo_keeps_every_message_with_its_id(tmp_pat
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 @pytest.mark.parametrize(
     "deleted, expected",
     [((), 6), ((1,), 6), ((2, 5), 2), ((1, 2, 5), 1)],
@@ -95,6 +97,7 @@ def test_the_next_message_gets_an_id_above_the_highest_the_table_holds(
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_next_message_is_above_the_id_of_a_deleted_one_whose_delivery_chain_is_still_there(tmp_path: Path) -> None:
     db = migrate(tmp_path, deleted=(5,), chain_of=9)
     assert next_id(db) == 10, "the chain rows of message 9 must not be shown under a new message"
@@ -104,6 +107,7 @@ def test_the_next_message_is_above_the_id_of_a_deleted_one_whose_delivery_chain_
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_an_empty_message_table_starts_at_one(tmp_path: Path) -> None:
     clock = FixedClock()
     old = tmp_path / DB_NAME
@@ -113,6 +117,7 @@ def test_an_empty_message_table_starts_at_one(tmp_path: Path) -> None:
     migrated.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_id_of_a_deleted_message_is_not_given_again_after_the_migration(tmp_path: Path) -> None:
     db = migrate(tmp_path)
     db.execute("DELETE FROM message WHERE id = 5")

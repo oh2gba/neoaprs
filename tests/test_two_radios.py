@@ -75,6 +75,7 @@ async def test_each_beacon_runs_while_its_radio_is_on_and_not_otherwise(tmp_path
     assert not c.beacon.running and c.beacon_2.running
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_message_goes_out_on_the_radio_the_station_was_heard_on_and_the_ack_comes_back_the_same_way(
     tmp_path: Path,
 ) -> None:
@@ -165,6 +166,7 @@ async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_
 # nor is built by its rules
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_with_the_fm_radio_away_a_message_to_a_station_heard_on_hf_goes_over_hf_and_an_ack_held_by_hf_is_flushed_when_hf_is_free(
     tmp_path: Path,
 ) -> None:

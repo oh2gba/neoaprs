@@ -42,6 +42,7 @@ def version_eleven(path: Path, clock: FixedClock) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_keeps_the_rest(tmp_path: Path) -> None:
     clock = FixedClock()
     old = tmp_path / "old" / DB_NAME

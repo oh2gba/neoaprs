@@ -338,6 +338,7 @@ async def test_the_log_says_which_ports_are_tried_and_what_the_search_found(capl
     await tnc.aclose()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_port_a_save_gives_a_radio_while_find_my_radio_tries_it_is_let_go_at_once_and_the_search_goes_on(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

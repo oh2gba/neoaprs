@@ -191,6 +191,7 @@ async def test_a_change_between_the_two_own_receivers_at_the_same_address_makes_
 # ---- a fake Radarcape on the loopback
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_a_fake_radarcape_on_this_computer_is_asked_its_list_without_the_station_and_its_aircraft_reach_the_table(
     under_the_switch: None,
 ) -> None:

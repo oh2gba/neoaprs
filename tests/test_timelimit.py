@@ -42,6 +42,7 @@ def run_pytest(folder: Path, limit: str) -> "subprocess.CompletedProcess[str]":
     )
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_test_that_hangs_ends_the_run_with_its_name_and_the_stack_where_it_waits(tmp_path: Path) -> None:
     (tmp_path / "test_hung.py").write_text(HUNG, encoding="utf-8")
     done = run_pytest(tmp_path, "2")

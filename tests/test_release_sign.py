@@ -136,6 +136,7 @@ def test_a_secret_that_is_not_a_seed_is_refused_without_its_value(rig: Rig, valu
     assert done.returncode == 1 and why in done.stdout and value not in done.stdout and state(rig)["draft"] is True
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_secret_bws_cannot_read_or_none_named_signs_nothing(rig: Rig) -> None:
     rig.env["NEOAPRS_SIGNING_SECRET_ID"] = "00000000-0000-0000-0000-000000000000"
     done = rig.release()

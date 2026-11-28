@@ -990,6 +990,7 @@ async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tn
         await stopped(m)
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_owner_is_told_to_point_the_tnc_at_it(
     tmp_path: Path,
 ) -> None:

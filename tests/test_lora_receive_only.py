@@ -33,6 +33,7 @@ def no_list(monkeypatch: pytest.MonkeyPatch) -> object:
     sock.close()
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_radio_that_only_receives_hears_everything_and_sends_nothing_whatever_is_asked_of_it(
     tmp_path: Path,
 ) -> None:

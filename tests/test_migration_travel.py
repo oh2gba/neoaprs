@@ -100,17 +100,20 @@ def migrate(folder: Path, stored: dict[str, str]) -> tuple[dict[str, tuple[str, 
     return found, radios
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_rows_of_the_removed_settings_are_deleted_and_every_other_is_as_it_was(tmp_path: Path) -> None:
     found, radios = migrate(tmp_path, {**GONE, **KEPT})
     assert found == KEPT_SETTINGS and radios == KEPT_RADIO
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_moving_station_of_the_old_settings_travels_by_car_when_the_gps_is_set(tmp_path: Path) -> None:
     found, _ = migrate(tmp_path, {**GONE, **KEPT})
     config = Config.from_data({key: value for key, (value, _) in found.items()})
     assert config.mobile and config.beacon_travel == "car" and config.smart == PRESETS["car"]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_one_info_line_for_each_row_removed_with_its_old_value(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -123,6 +126,7 @@ def test_one_info_line_for_each_row_removed_with_its_old_value(
     )
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_with_none_of_these_rows_is_as_it_was_and_says_nothing(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -138,6 +142,7 @@ def test_a_removed_setting_that_is_stored_by_hand_is_ignored_and_cannot_be_set()
             Config.check(key, "7")
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_stored_moving_as_row_is_renamed_to_travel_with_its_value_and_its_revision_and_says_so(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -150,6 +155,7 @@ def test_a_stored_moving_as_row_is_renamed_to_travel_with_its_value_and_its_revi
     assert Config.from_data({key: value for key, (value, _) in found.items()}).smart == PRESETS["boat"]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_with_both_rows_keeps_the_travel_row_and_loses_the_other(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -161,6 +167,7 @@ def test_a_database_with_both_rows_keeps_the_travel_row_and_loses_the_other(
     ]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_a_database_without_a_moving_as_row_gets_no_travel_row_and_no_line(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

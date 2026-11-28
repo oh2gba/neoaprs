@@ -48,6 +48,7 @@ def run(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, str, str]:
 # ---- the command
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_command_makes_the_file_in_the_folder_it_is_given_and_prints_where_and_what_to_do(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -83,6 +84,7 @@ def test_the_journal_is_the_one_the_module_has_when_the_bundle_is_made(
     assert code == 0 and "the journal of the test" in zip_members(made)["logs/journal.txt"]
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_default_folder_is_the_desktop_and_without_one_the_home_folder(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -118,6 +120,7 @@ def test_a_daemon_that_holds_the_folder_is_said_in_the_summary(
     assert code == 0 and "Daemon:" in summary and "running, up" in summary and "by its log" in summary
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_folder_that_cannot_be_written_is_said_and_is_exit_1(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -128,6 +131,7 @@ def test_a_folder_that_cannot_be_written_is_said_and_is_exit_1(
     assert code == 1 and out == "" and "could not be written" in err and "--out" in err
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_show_opens_the_file_manager_at_the_file_and_a_failure_of_it_is_only_a_note(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], no_file_manager: list[Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -150,6 +154,7 @@ class Console:
         return self.tty
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_pause_waits_for_enter_only_at_a_console(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -231,6 +236,7 @@ def test_a_bundle_that_cannot_be_made_is_told_and_logged(caplog: pytest.LogCaptu
     assert any("the support bundle could not be made" in r.getMessage() and r.exc_info for r in caplog.records)
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_the_tray_item_makes_the_bundle_on_the_desktop_shows_it_and_logs_it(
     tmp_path: Path, no_file_manager: list[Path], caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -244,6 +250,7 @@ def test_the_tray_item_makes_the_bundle_on_the_desktop_shows_it_and_logs_it(
     assert zipfile.is_zipfile(made.path)
 
 
+@pytest.mark.slow("makes a support bundle from a daemon and its database")
 def test_a_file_manager_that_does_not_start_is_a_warning_and_not_a_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

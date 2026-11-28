@@ -61,6 +61,7 @@ def migrate(folder: Path) -> sqlite3.Connection:
     return migrated.db
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_every_message_is_kept_and_none_has_a_failure(tmp_path: Path) -> None:
     db = migrate(tmp_path)
     assert db.execute(f"SELECT {COLUMNS} FROM message ORDER BY id").fetchall() == [
@@ -80,6 +81,7 @@ def test_every_message_is_kept_and_none_has_a_failure(tmp_path: Path) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_column_takes_the_reason_there_is_and_nothing_else(tmp_path: Path) -> None:
     db = migrate(tmp_path)
     db.execute("UPDATE message SET failure = 'too_long_for_radio' WHERE id = 4")

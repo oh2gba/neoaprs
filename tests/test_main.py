@@ -199,6 +199,7 @@ def test_the_daemon_starts_makes_its_database_and_stops_cleanly_on_a_signal(
     db.close()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_the_lines_of_a_migration_are_in_the_log_and_on_stderr_where_the_journal_has_them(tmp_path: Path) -> None:
     data = tmp_path / "data"
     data.mkdir()
@@ -264,6 +265,7 @@ def test_the_data_folder_is_the_one_in_the_environment_when_none_is_given(tmp_pa
     assert (data / DB_NAME).is_file()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_debug_logs_more(tmp_path: Path) -> None:
     quiet, loud = tmp_path / "quiet", tmp_path / "loud"
     for data, flag in ((quiet, ()), (loud, ("--debug",))):
@@ -474,6 +476,7 @@ def test_when_the_port_and_the_ten_after_it_are_in_use_the_daemon_runs_without_t
 # ---- one daemon to a data folder
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_is_not_disturbed(
     tmp_path: Path,
 ) -> None:

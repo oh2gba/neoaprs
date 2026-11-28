@@ -95,6 +95,7 @@ def daemons(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, signals_restored: N
 
 
 # ---- the daemon
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_a_daemon_on_a_fallback_port_starts_again_on_that_port_though_the_port_it_asked_for_is_free_by_then(
     daemons: Daemons,
 ) -> None:
@@ -122,6 +123,7 @@ async def test_a_daemon_on_a_fallback_port_starts_again_on_that_port_though_the_
     await daemons.stop()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_a_daemon_on_the_port_of_its_settings_or_of_its_flag_starts_again_there(daemons: Daemons) -> None:
     # Two neighbouring ports that are free once the block ends: one for the settings, one for the
     # flag
@@ -147,6 +149,7 @@ async def test_a_daemon_on_the_port_of_its_settings_or_of_its_flag_starts_again_
     )
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_a_daemon_on_a_free_port_starts_again_on_the_port_it_was_given(daemons: Daemons) -> None:
     port = await daemons.start("--web-port", "0")
     await daemons.restart(["/home/ham/NeoAPRS.AppImage", "run", "--data", str(daemons.data), "--web-port", "0"])
@@ -156,6 +159,7 @@ async def test_a_daemon_on_a_free_port_starts_again_on_the_port_it_was_given(dae
     await daemons.stop()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_a_port_of_before_the_restart_that_is_taken_by_then_does_not_keep_the_daemon_from_its_page(
     daemons: Daemons,
 ) -> None:
@@ -176,6 +180,7 @@ async def test_a_port_of_before_the_restart_that_is_taken_by_then_does_not_keep_
     await daemons.stop()
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_the_daemon_that_starts_in_the_place_of_one_of_0_20_1_finds_its_port_in_the_log(daemons: Daemons) -> None:
     """An older daemon leaves the restart note and no port, and removes the page's file as it ends:
     only the log has its port."""
@@ -287,6 +292,7 @@ def test_only_a_whole_line_the_daemon_said_itself_names_the_page_of_the_run_befo
     assert page_of_the_run_before(tmp_path) == "http://127.0.0.1:7304/", "the line ends of Windows"
 
 
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_a_note_of_a_restart_that_never_came_pins_no_port(daemons: Daemons) -> None:
     """The note is believed for a quarter of an hour and read by one start: an old one (the
     installer never ended the daemon, the computer was switched off in the middle) is passed over
@@ -335,6 +341,7 @@ async def test_a_note_that_names_a_port_the_daemon_may_not_have_is_passed_over(d
 
 
 # ---- the end-to-end test's own reading of it
+@pytest.mark.slow("starts the daemon, a script or pytest as a process of its own")
 async def test_the_update_test_finds_the_page_beside_the_port_it_holds_and_the_same_page_after_the_restart(
     daemons: Daemons,
 ) -> None:

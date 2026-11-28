@@ -215,6 +215,7 @@ async def test_a_database_whose_only_trace_of_hf_is_a_station_heard_on_it_comes_
     ]
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_way_back_to_30_gives_the_rows_of_30_and_the_runner_then_gives_the_same_rows_again(tmp_path: Path) -> None:
     path = tmp_path / DB_NAME
     version_30(path, SETTINGS, lambda db: packets(db, ON_AIR), messages, stations, prefs, objects)

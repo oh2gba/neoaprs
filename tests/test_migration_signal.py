@@ -5,6 +5,8 @@ packets, messages and stations (`station.signal_at`). Existing rows get none.
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from neoaprs import ax25
 from neoaprs.messagelog import message_of
 from neoaprs.messagesql import held_messages
@@ -78,6 +80,7 @@ def migrate(folder: Path) -> sqlite3.Connection:
     return migrated.db
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_every_row_is_kept_and_none_has_a_reading(tmp_path: Path) -> None:
     db = migrate(tmp_path)
     assert db.execute(f"SELECT {MESSAGE_COLUMNS} FROM message ORDER BY id").fetchall() == [
@@ -102,6 +105,7 @@ def test_every_row_is_kept_and_none_has_a_reading(tmp_path: Path) -> None:
     db.close()
 
 
+@pytest.mark.slow("runs the migrations on database files of old versions")
 def test_the_columns_take_a_reading(tmp_path: Path) -> None:
     db = migrate(tmp_path)
     db.execute("UPDATE packet SET snr = -2.5, rssi = -112")

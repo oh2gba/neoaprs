@@ -229,6 +229,7 @@ async def test_a_probe_whose_return_is_not_answered_enters_kiss_and_an_answer_to
     assert r.tnc.stats.watchdog_probes == 1 and r.tnc.watchdog.probes == 0
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 @stops_rigs
 async def test_a_hundred_unanswered_probes_make_one_warning_and_no_info_and_every_fifth_reopens_the_port(
     rig: Rigs, caplog: pytest.LogCaptureFixture
@@ -357,6 +358,7 @@ async def test_beacon_now_and_send_message_are_refused_over_the_socket_while_the
     await page.until(lambda: page.topics["messages"].get("1", {}).get("attempts") == 1)
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_as_a_kiss_frame_when_the_radio_comes_back(
     tmp_path: Path,
 ) -> None:

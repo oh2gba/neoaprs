@@ -70,6 +70,7 @@ async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_i
         await e.stop()
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_new_one(tmp_path: Path) -> None:
     # The back-off is the time the test has to take the port: a machine that stalls for a second
     # does not end it

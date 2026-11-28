@@ -51,6 +51,7 @@ async def test_a_page_that_looks_gets_every_mark_and_its_card_with_the_pass_and_
     await e.stop()
 
 
+@pytest.mark.slow("serves made-up feeds on the loopback through the layer's rounds")
 async def test_with_the_layer_off_nothing_is_asked_or_sent_and_switching_it_off_stops_the_rounds(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

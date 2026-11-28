@@ -300,6 +300,7 @@ async def beside_boards(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[
     await server.stop()
 
 
+@pytest.mark.nightly("six made-up radios through a simulated day, about half a minute each")
 @pytest.mark.parametrize(
     "beside", [False, True], ids=["six", "six-and-a-lora-board-a-text-monitor-and-a-sound-card-radio"]
 )
@@ -518,6 +519,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         )
 
 
+@pytest.mark.slow("runs a daemon with its radios and services through its loop")
 async def test_three_hf_radios_a_message_goes_on_the_one_that_heard_the_station_last(
     tmp_path: Path, quick: None
 ) -> None:
