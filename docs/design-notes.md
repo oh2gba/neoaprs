@@ -1488,7 +1488,10 @@ for byte as they were; a post asks for the past tests with `"past": true`. The s
 past file lags until the next write: a reader also takes the board's own rows that have ended by its clock, and the two together,
 grouped and ordered by one rule (the `sked_past` vectors, held by the daemon, the page and the server), are the past tests. A test
 deleted before it began is gone; one deleted while it runs ends at that moment and stays as a past test, since it did happen and
-others may have joined it. The past tests are never written into the station's database: after a start they come with the next read.
+others may have joined it. The past tests are never written into the station's database: after a start they come with the next read. The
+operator may take a past test off this installation's list: only its ids are kept, in the row `update/sked_hidden`, and the topic
+leaves those rows out for every page. The ids are forgotten when a read of both files no longer lists them (never after a read
+that failed), so the row holds at most what the past tests hold.
 
 ## neoaprs/soundmixer.py
 

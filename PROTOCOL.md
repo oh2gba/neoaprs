@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-67 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+68 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -638,6 +638,14 @@ board is read again. An `error` (`sked.unreachable`) when the project's server c
 | field | type | | description |
 |---|---|---|---|
 | `id` | string |  |  |
+
+### `sked_past_delete`
+
+Takes a past test off this installation's list, by the ids of its rows: `past` of the topic `skeds` no longer has them, for every page of this installation and after a restart. Nothing is sent to the server, and other stations still see the test; the ids are forgotten once the server no longer lists them. An `error` (`failed`), and nothing taken off, when an id is not one of `past` as the daemon has it now.
+
+| field | type | | description |
+|---|---|---|---|
+| `ids` | string[] |  | (max 100 items) |
 
 ### `chat_say`
 

@@ -202,6 +202,7 @@ NAME = {
     "SignalSeries.call",
     "SignalSeriesMsg.call",
     "SkedDelete.id",
+    "SkedPastDelete.ids",
     "SkedFrequency.band",
     "SkedFrequency.dial",
     "SkedPost.dial",

@@ -29,7 +29,7 @@ from neoaprs.web.protocol import COMMAND_NAMES, COMMAND_TYPES, COMMANDS, MESSAGE
 from neoaprs.web.qruwire import AskQru
 from neoaprs.web.radiowire import StationRadio
 from neoaprs.web.session import Connection
-from neoaprs.web.skedwire import SkedDelete, SkedPost
+from neoaprs.web.skedwire import SkedDelete, SkedPastDelete, SkedPost
 from neoaprs.web.supportwire import PageError
 
 BY_NAME: dict[str, type[BaseModel]] = {
@@ -129,6 +129,11 @@ HELPED: dict[type[BaseModel], st.SearchStrategy[Any]] = {
     ),
     SkedPost: sked_posts(),
     SkedDelete: st.builds(SkedDelete, cmd=st.just("sked_delete"), id=st.from_regex(r"\A[0-9a-f]{12}\Z")),
+    SkedPastDelete: st.builds(
+        SkedPastDelete,
+        cmd=st.just("sked_past_delete"),
+        ids=st.lists(st.from_regex(r"\A[0-9a-f]{12}\Z"), min_size=1, max_size=3),
+    ),
     ChatSay: st.builds(ChatSay, cmd=st.just("chat_say"), text=st.from_regex(r"\A[A-Za-z0-9][A-Za-z0-9 ]{0,40}\Z")),
     PageError: st.builds(
         PageError, cmd=st.just("page_error"), at=TIMES.map(iso), source=st.sampled_from(["vue", "window", "promise"])
@@ -345,6 +350,7 @@ PAGE_SENDS: list[dict[str, Any]] = [
         "note": "",
     },
     {"cmd": "sked_delete", "id": "0123456789ab"},
+    {"cmd": "sked_past_delete", "ids": ["0123456789ab", "0123456789ac"]},
     {"cmd": "skeds_wanted"},
     {"cmd": "chat_say", "text": "hello"},
     {"cmd": "satellite_look", "on": True, "cards": []},

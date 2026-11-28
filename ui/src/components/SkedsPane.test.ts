@@ -187,7 +187,7 @@ describe("SkedsPane", () => {
       expect(wrapper.find(".boardpane").element.lastElementChild).toBe(section.element);
     });
 
-    it("show a test in the board's own row: the time in UTC with the viewer's own in the title, the dial, every call and the note, with no Join or Delete", () => {
+    it("show a test in the board's own row: the time in UTC with the viewer's own in the title, the dial, every call and the note, with no Join", () => {
       const wrapper = pane([], {
         past: [gone("a", { call: "OH2GBA", note: "Mercury, 10 W" }), gone("b", { call: "OH3ABC" })],
       });
@@ -200,8 +200,38 @@ describe("SkedsPane", () => {
       expect(row?.findAll(".sked-call").map((c) => c.text())).toEqual(["OH2GBA", "OH3ABC"]);
       expect(row?.find(".sked-note").text()).toBe("OH2GBA: Mercury, 10 W");
       expect(row?.find(".sked-actions").exists()).toBe(true);
-      expect(row?.find(".sked-actions").element.children).toHaveLength(0);
+      expect(row?.find(".sked-actions .btn").exists()).toBe(false);
       expect(row?.find(".tag").exists()).toBe(false);
+    });
+
+    it("have the trash in the column of Delete and Join, which asks twice and then takes the whole test off this list", async () => {
+      const wrapper = pane([sked("a", { call: "OH2XYZ" })], {
+        past: [gone("a1", { call: "OH2GBA" }), gone("a2", { call: "OH3ABC" })],
+      });
+      expect(rows(wrapper)[0]?.find(".xbtn").exists()).toBe(false);
+      const button = pastRows(wrapper)[0]?.find(".sked-actions .xbtn");
+      expect(button?.attributes("aria-label")).toBe("Delete the past test, Wed 21 Oct 07:00 to 09:00 UTC");
+      await button?.trigger("click");
+      expect(sent("sked_past_delete")).toEqual([]);
+      expect(button?.text()).toBe("sure?");
+      await button?.trigger("click");
+      expect(sent("sked_past_delete")).toEqual([{ cmd: "sked_past_delete", ids: ["a1", "a2"] }]);
+      expect(sent("sked_delete")).toEqual([]);
+    });
+
+    it("lose the row the daemon no longer tells, and nothing above it changes", async () => {
+      const board = [sked("a"), sked("b", { from: at(5), to: at(6) })];
+      const past = [gone("p1", { from: at(-3), to: at(-2) }), gone("p2"), gone("p3", { from: at(-9), to: at(-8) })];
+      const wrapper = pane(board, { past });
+      const before = [...rows(wrapper), ...pastRows(wrapper)].map((r) => r.element);
+      await pastRows(wrapper)[1]?.find(".xbtn").trigger("click");
+      await pastRows(wrapper)[1]?.find(".xbtn").trigger("click");
+      expect(sent("sked_past_delete")).toEqual([{ cmd: "sked_past_delete", ids: ["p2"] }]);
+      await tell(daemon, { skeds: skedsState(board, { past: [past[0], past[2]] }) });
+      const after = [...rows(wrapper), ...pastRows(wrapper)].map((r) => r.element);
+      expect(after).toEqual([before[0], before[1], before[2], before[4]]);
+      expect(wrapper.find(".boardpane").element.lastElementChild).toBe(wrapper.find("fieldset.sked-past").element);
+      expect(pastRows(wrapper).map((r) => r.find(".xbtn").classes("armed"))).toEqual([false, false]);
     });
 
     it("list the newest first, twenty at most", () => {

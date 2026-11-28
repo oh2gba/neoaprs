@@ -7532,6 +7532,31 @@
       "title": "SkedPast",
       "type": "object"
     },
+    "SkedPastDelete": {
+      "additionalProperties": false,
+      "description": "Takes a past test off this installation's list, by the ids of its rows: `past` of the topic `skeds` no longer has them, for every page of this installation and after a restart. Nothing is sent to the server, and other stations still see the test; the ids are forgotten once the server no longer lists them. An `error` (`failed`), and nothing taken off, when an id is not one of `past` as the daemon has it now.",
+      "properties": {
+        "cmd": {
+          "const": "sked_past_delete",
+          "type": "string"
+        },
+        "ids": {
+          "items": {
+            "pattern": "^[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "cmd",
+        "ids"
+      ],
+      "title": "SkedPastDeleteCommand",
+      "type": "object"
+    },
     "SkedPost": {
       "additionalProperties": false,
       "description": "Posts a sked of ours on the board of the project's server: our call (the setting `station/call`), `from` and `to` in UTC (`to` after `from` by 24 hours at most, not past, `from` not more than 30 days ahead), a `dial` in the form of the HF\nbox and a `note` of at most 80 characters (control and invisible characters are made spaces). It goes only on this command, and carries the call, the two times, the dial, the note and this installation's secret token. Answered by the topic `skeds`, whose\nrows then have it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter, nothing is sent by radio), the sked has ended (`sked.past`) or begins more than 30 days ahead by the daemon's or the server's clock (`sked.far`), too many were posted from here lately (`sked.rate`), the board has no\nroom (`sked.full`), or the project's server could not be reached or would not take it (`sked.unreachable`). A board that is closed to the call is no error: the state of the topic says `closed`.",
@@ -10096,6 +10121,7 @@
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
           "signal_series": "#/$defs/SignalSeries",
           "sked_delete": "#/$defs/SkedDelete",
+          "sked_past_delete": "#/$defs/SkedPastDelete",
           "sked_post": "#/$defs/SkedPost",
           "skeds_wanted": "#/$defs/SkedsWanted",
           "speed_series": "#/$defs/SpeedSeries",
@@ -10269,6 +10295,9 @@
         },
         {
           "$ref": "#/$defs/SkedDelete"
+        },
+        {
+          "$ref": "#/$defs/SkedPastDelete"
         },
         {
           "$ref": "#/$defs/ChatSay"

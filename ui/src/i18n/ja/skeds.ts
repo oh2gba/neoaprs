@@ -19,6 +19,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.join_label": "{calls}のテストに参加、{when}",
   "skeds.delete_title": "削除(掲示板から外す)",
   "skeds.delete_label": "自局のテストを削除、{when}",
+  "skeds.past_delete_label": "過去のテストを削除、{when}",
 
   "skeds.post_label": "テストの予定",
   "skeds.day": "日",

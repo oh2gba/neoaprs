@@ -19,6 +19,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.join_label": "Partecipa al test di {calls}, {when}",
   "skeds.delete_title": "Elimina (toglilo dalla bacheca)",
   "skeds.delete_label": "Elimina il nostro test, {when}",
+  "skeds.past_delete_label": "Elimina il test passato, {when}",
 
   "skeds.post_label": "Programma un test",
   "skeds.day": "Giorno",

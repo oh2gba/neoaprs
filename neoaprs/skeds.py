@@ -26,6 +26,8 @@ SKEDS_ROW = "update/skeds"
 # secret sent with each posted sked so only this installation can delete it; never logged
 SKED_TOKEN = "update/sked_token"  # noqa: S105  (the name of a row, not a secret)
 OURS_ROW = "update/sked_ids"
+# the ids of the past tests the operator took off this installation's list; the server still has them
+HIDDEN_ROW = "update/sked_hidden"
 VERSION = 1
 # server limits: rows on a board, and rows of one call whatever its SSID
 MAX_ROWS = 100

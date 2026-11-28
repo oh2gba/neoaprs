@@ -1,9 +1,13 @@
-"""The lists that grow: the chat of the HF tests tab and the lines put on APRS-IS behind the Internet row.
-The demo daemon has neither a chat nor APRS-IS, so the page is told the daemon's frames (`__neoTell`, the
-page's own code takes them). Nothing a reader scrolled up looks at moves when a line comes at the bound,
-and the lists with lines pass the screen checks."""
+"""The lists that grow: the chat of the HF tests tab and the lines put on APRS-IS behind the Internet row,
+and the past tests that the operator takes off. The demo daemon has neither a chat, nor APRS-IS, nor the
+sked board, so the page is told the daemon's frames (`__neoTell`, the page's own code takes them). Nothing a
+reader scrolled up looks at moves when a line comes at the bound, nothing above a past test moves when it
+goes, and the lists with lines pass the screen checks."""
 
+from datetime import timedelta
 from typing import Any
+
+from neoaprs.clock import iso, utcnow
 
 import pytest
 
@@ -131,3 +135,57 @@ def test_the_sent_lines_full_and_scrolled_up_hold_still_when_a_line_comes_and_re
             " return [w, Math.min(...[...b.querySelectorAll('.igatesent-line')].map(r => r.getBoundingClientRect().width))]; }"
         )
         assert widths[1] > widths[0] * 0.85, f"a line has the list's width, not a column beside the tag: {widths}"
+
+
+def skeds_with(past: list[str]) -> dict[str, Any]:
+    """The topic `skeds` with a test to come and the past tests named, an hour apart, newest first."""
+
+    def at(hours: float) -> str:
+        return iso(utcnow().replace(microsecond=0) + timedelta(hours=hours)) or ""
+
+    def row(ident: str, start: float, call: str) -> dict[str, Any]:
+        return {"id": ident, "call": call, "from": at(start), "to": at(start + 1), "dial": "7.0541 MHz USB", "note": ""}
+
+    return {
+        "state": "ok",
+        "fetched_at": at(0),
+        "frequencies": [{"band": "40 m", "dial": "7.0541 MHz USB"}],
+        "rows": [{**row("0000000000aa", 2, "OH2XYZ"), "ours": False}],
+        "past": [row(f"0000000000{n:02d}", -2 - 2 * n, "SM5ABC") for n in range(4) if f"p{n}" in past],
+    }
+
+
+# where each row stands in the pane's content: a shorter list scrolled to its end scrolls back, as any list does
+PLACES = """rs => rs.map(r => { const pane = r.closest(".boardpane");
+    return r.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop; })"""
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_a_past_test_taken_off_asks_twice_sends_its_ids_and_goes_with_nothing_above_it_moving(
+    browser: Any, demo: Any, faults: Any, width: int
+) -> None:
+    with drive.opened(browser, demo.url, faults, width=width, tab="skeds") as page:
+        # (the demo daemon has no board: the command is kept here, not refused there)
+        page.evaluate(
+            """() => { const s = window.__neoSocket.current; window.__neoKept = []; const send = s.send.bind(s);
+                s.send = (d) => JSON.parse(d).cmd === "sked_past_delete" ? window.__neoKept.push(JSON.parse(d)) : send(d); }"""
+        )
+        state(page, "skeds", skeds_with(["p0", "p1", "p2", "p3"]))
+        drive.settle(page)
+        assert [f for f in findings(page, "en") if "sked" in f] == []
+        rows = ".boardpane .sked"
+        trash = page.locator(".sked-past .sked").nth(2).locator(".xbtn")
+        trash.scroll_into_view_if_needed()
+        drive.settle(page)
+        tops = page.eval_on_selector_all(rows, PLACES)
+        place = trash.bounding_box()
+        trash.click()
+        drive.settle(page)
+        assert trash.bounding_box() == place and trash.get_attribute("class") == "xbtn armed", "sure? in its place"
+        assert page.eval_on_selector_all(rows, PLACES) == tops
+        trash.click()
+        assert page.evaluate("window.__neoKept") == [{"cmd": "sked_past_delete", "ids": ["000000000002"]}]
+        state(page, "skeds", skeds_with(["p0", "p1", "p3"]))
+        drive.settle(page)
+        after = page.eval_on_selector_all(rows, PLACES)
+        assert len(after) == len(tops) - 1 and after[:3] == tops[:3], "the board and the newer past tests stay put"
