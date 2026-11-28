@@ -1522,7 +1522,9 @@ program is seen proves nothing; ten such rounds in a row (5 s at the start, 20 s
 the same state, since a modem opens its streams within a second and one slow answer of the server
 passes. A device the listing of the start lacks is never handed to the modem by its name.
 
-Such a run takes the system's libasound (`LD_LIBRARY_PATH`, searched before the program's RUNPATH) and
+Such a run takes the system's libasound (`LD_LIBRARY_PATH`, searched before the program's RUNPATH, is a
+folder of the radio's own that holds only a link to it, so no other library of the system takes the
+place of a shipped one) and
 `soundserver.conf` as `ALSA_CONFIG_PATH`, which takes in `/usr/share/alsa/alsa.conf` first. The shipped
 libasound (1.2.14) cannot load Fedora's plug-ins, which need ALSA_1.2.15, and `ALSA_PLUGIN_DIR` does not
 help with that; openSUSE's 1.2.16 reads no list of files in `ALSA_CONFIG_PATH`. The modems need only

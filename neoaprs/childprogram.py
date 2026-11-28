@@ -50,15 +50,33 @@ def runs_shipped(command: Command, program: Path) -> bool:
     return len(command) == 1 and Path(command[0]).resolve() == program.resolve()
 
 
-def environment(command: Command, system_sound: bool = False) -> dict[str, str]:
+SYSTEM_ALSA_FOLDER = "system-alsa"
+LIBASOUND = "libasound.so.2"
+
+
+def system_alsa_folder(lib: Path, home: Path) -> Path:
+    """Return a folder in `home` that holds only a link to the system's libasound in `lib`, so that no
+    other library of the system takes the place of a shipped one; raise OSError if it cannot be made."""
+    folder = home / SYSTEM_ALSA_FOLDER
+    folder.mkdir(parents=True, exist_ok=True)
+    link, target = folder / LIBASOUND, lib / LIBASOUND
+    if not (link.is_symlink() and link.readlink() == target):
+        link.unlink(missing_ok=True)
+        link.symlink_to(target)
+    return folder
+
+
+def environment(command: Command, system_sound: bool = False, home: Path | None = None) -> dict[str, str]:
     """Return the reduced environment, plus the ALSA configuration: the shipped one if there is one.
 
     With `system_sound` (a sound server's devices) the system's ALSA library instead, whose version the
-    server's plug-in is built for, and soundserver.conf, which takes in the system's configuration."""
+    server's plug-in is built for (by a folder of `home` that links it alone), and soundserver.conf,
+    which takes in the system's configuration. Raise OSError if that folder cannot be made."""
     env = child_environment()
     conf = Path(command[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
     if system_sound and (system := soundserver.system_alsa()) is not None:
-        env["LD_LIBRARY_PATH"] = str(system.lib)  # searched before the shipped program's RUNPATH
+        lib = system.lib if home is None else system_alsa_folder(system.lib, home)
+        env["LD_LIBRARY_PATH"] = str(lib)  # searched before the shipped program's RUNPATH
         env["ALSA_CONFIG_PATH"] = str(soundserver.CONF)
     elif len(command) == 1 and conf.is_file():
         env["ALSA_CONFIG_PATH"] = str(conf)
@@ -386,7 +404,7 @@ class Program:
             text=True,
             encoding="utf-8",
             errors="replace",
-            env=environment(argv, self.system_sound),
+            env=environment(argv, self.system_sound, pid_file.parent if pid_file is not None else None),
             # its own group: Ctrl-Break to the group asks it alone to end (winchild.ask_to_end)
             creationflags=HIDDEN_WINDOW | (OWN_GROUP if self.asked_by_break else 0),
         )

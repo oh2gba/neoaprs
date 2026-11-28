@@ -1438,3 +1438,20 @@ def test_a_program_on_a_sound_servers_device_runs_on_the_systems_alsa_library(
     )
     monkeypatch.setattr(soundserver, "system_alsa", lambda: None)
     assert "LD_LIBRARY_PATH" not in environment([str(program)], system_sound=True), "none found: the shipped one"
+
+
+def test_a_run_on_a_sound_servers_device_finds_only_the_systems_libasound_before_the_shipped_libraries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The system's folder first would put every library of the system before the shipped ones (hamlib,
+    fftw of another build): the run is given a folder of its own with a link to libasound alone."""
+    lib = tmp_path / "usr-lib"
+    lib.mkdir()
+    for name in ("libasound.so.2", "libhamlib.so.4", "libfftw3.so.3"):
+        (lib / name).write_text("")
+    program, home = tmp_path / "mercury" / "mercury", tmp_path / "radio"
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: soundserver.SystemAlsa(lib, tmp_path / "alsa.conf"))
+    for _ in range(2):
+        folder = Path(environment([str(program)], system_sound=True, home=home)["LD_LIBRARY_PATH"])
+        assert folder.parent == home and [p.name for p in folder.iterdir()] == ["libasound.so.2"]
+        assert (folder / "libasound.so.2").resolve() == (lib / "libasound.so.2").resolve()
