@@ -106,8 +106,7 @@ class Tuning:
         if generation != self._generation or self.state not in ("starting", "running"):
             log.info("Direwolf: the radio was stopped or started again meanwhile: the swap is given up")
             return False
-        # the run's last PTT line may come after its stop, when its lines are no longer read
-        self._rig_release()
+        self._rig_release()  # a run that was ended hard says no `PTT 0 = 0`
         self.keyed = self.busy = False
         self._starting_since = time.monotonic()  # down until the next run listens
         return True

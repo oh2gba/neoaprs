@@ -2,6 +2,7 @@
 that record each key-down and key-up and can hang, refuse, leave the rig keyed or die mid-frame."""
 
 import logging
+import sys
 import time
 
 import pytest
@@ -182,6 +183,10 @@ async def test_a_program_that_is_not_running_at_the_start_holds_the_frames_and_i
     assert fake.keyed == [fake.keyed[0]] and fake.keyed[0].on is False, "only the start's key-up, nothing keyed"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows answers a closed port of the loopback only after its retries: no refusal in time",
+)
 async def test_a_refused_connection_is_a_rig_not_keyed_and_the_stop_after_it_logs_no_error() -> None:
     gone = await FakeRigctld().start()
     await gone.die()

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import direwolf, rigkeyer
+from neoaprs import direwolf, direwolfmodem, rigkeyer
 from neoaprs.direwolf import conf_text
 from neoaprs.mercury import Keying
 from neoaprs.rigkeyer import RIG_SILENT
@@ -91,7 +91,10 @@ async def test_a_rig_program_that_stops_answering_holds_the_frames_of_a_packet_r
     await m.stop()
 
 
-async def test_the_keying_test_of_a_radio_keyed_through_rigctld_keys_the_rig(tmp_path: Path) -> None:
+async def test_the_keying_test_of_a_radio_keyed_through_rigctld_keys_the_rig(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(direwolfmodem, "RIG_MARGIN_SEC", 30.0)  # the end of the run lets the rig go, not the limit
     fake = await FakeRigctld().start()
     m = modem(tmp_path)
     await m.start(CARD, f"rigctld:127.0.0.1:{fake.port}", 0)
@@ -100,5 +103,5 @@ async def test_the_keying_test_of_a_radio_keyed_through_rigctld_keys_the_rig(tmp
     await m.key_test()
     await until_started(lambda: fake.ptt == 1)
     await until_started(lambda: not m.test and fake.ptt == 0)
-    assert ["-x", "p"] in [run[-2:] for run in fakedirewolf.runs(m.home)], "the test keys by the PTT alone, no tone"
+    assert [run[-2:] for run in fakedirewolf.runs(m.home) if "-x" in run] == [["-x", "p"]], "the PTT alone, no tone"
     await m.stop()
