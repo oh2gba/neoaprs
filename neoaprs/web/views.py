@@ -215,7 +215,11 @@ def _hop_row(attempt: Attempt, position: int, call: str) -> dict[str, Any]:
 
 
 def message_row(
-    record: MessageRecord, attempts: tuple[Attempt, ...] = (), queued: bool = False, radio_now: RadioId | None = None
+    record: MessageRecord,
+    attempts: tuple[Attempt, ...] = (),
+    queued: bool = False,
+    radio_now: RadioId | None = None,
+    internet_now: bool = False,
 ) -> dict[str, Any]:
     """Return the page's row of a message.
 
@@ -226,7 +230,8 @@ def message_row(
         record,
         attempts_detail=attempt_rows(record, attempts),
         state="queued" if queued else record.state,
-        radio_now=radio_now if on_its_way else None,
+        radio_now=radio_now if on_its_way and not internet_now else None,
+        internet_now=on_its_way and internet_now,
     )
 
 

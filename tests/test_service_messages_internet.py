@@ -159,3 +159,21 @@ async def test_a_message_that_waits_when_send_what_i_hear_is_switched_off_goes_o
     assert first.by_internet and not second.by_internet and second.radio_id is not None
     assert len(lines_to(server, "OTA")) == 1
     await e.stop()
+
+
+async def test_a_message_on_its_way_over_the_internet_says_so_to_the_page_and_names_no_radio(tmp_path: Path) -> None:
+    """Its Route is no radio's while the Internet way is open: the row says `internet_now`, and `radio_now` is null."""
+    server = await fake_aprsis()
+    e = await started(tmp_path, server, web=True)
+    page = await e.ws()
+    await page.until(lambda: "messages" in page.topics)
+    record = await e.ctl.messaging.send("OTA", "CHASE OH-0001")
+    await page.until(lambda: str(record.id) in page.topics["messages"])
+    row = page.topics["messages"][str(record.id)]
+    assert (row["state"], row["radio_now"], row["internet_now"]) == ("sending", None, True)
+    await page.send({"cmd": "set_config", "values": {"igate/gate": "false"}})
+    await page.until(
+        lambda: page.topics["messages"][str(record.id)]["internet_now"] is False
+        or page.topics["messages"][str(record.id)]["state"] != "sending"
+    )
+    await e.stop()

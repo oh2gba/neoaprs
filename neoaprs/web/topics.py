@@ -17,7 +17,7 @@ from neoaprs.callsign import normal_name
 from neoaprs.controller import Controller
 from neoaprs.direwolfmodem import DirewolfModem
 from neoaprs.mercurymodem import Mercury
-from neoaprs.message import MessageRecord, MessagingError
+from neoaprs.message import MessageRecord, MessagingError, is_internet_service
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
@@ -311,12 +311,14 @@ class Topics:
 
     def _message_row(self, record: MessageRecord) -> dict[str, Any]:
         sending = record.direction == "out" and record.state == "sending"
-        radio = self.ctl.messaging.radio_now(record) if sending else None
+        internet = sending and self.ctl.messaging.by_internet(record.to_call)
+        radio = self.ctl.messaging.radio_now(record) if sending and not internet else None
         return message_row(
             record,
             self.ctl.messaging.delivery.attempts_of(record.id),
             self.ctl.messaging.queued(record),
             None if radio is None else radio.id,
+            internet,
         )
 
     async def start(self) -> None:
@@ -464,6 +466,9 @@ class Topics:
 
     def _igate_changed(self) -> None:
         self.hub.changed("igate")
+        for record in self.ctl.messaging.records():
+            if record.direction == "out" and record.state == "sending" and is_internet_service(record.to_call):
+                self.hub.changed("messages", str(record.id))  # it goes over the Internet or on a radio now
 
     def _qru_changed(self) -> None:
         self.hub.changed("qru")

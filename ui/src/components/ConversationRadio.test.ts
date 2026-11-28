@@ -94,6 +94,20 @@ describe("the radio of a conversation", () => {
     );
   });
 
+  it("is the Internet for a message to a service on its way over the Internet connection, with no Route", () => {
+    for (const state of ["sending", "queued"] as const) {
+      const wrapper = header("OTA", [], [message(4, { to_call: "OTA", state, radio_now: null, internet_now: true })]);
+      expect(named(wrapper), state).toBe("Internet");
+      expect(hasRoute(wrapper), state).toBe(false);
+    }
+    const done = header(
+      "OTA",
+      [],
+      [message(4, { to_call: "OTA", state: "acked", radio_now: null, internet_now: false })],
+    );
+    expect(named(done)).not.toBe("Internet");
+  });
+
   it("follows the operator's choice at once while a message is on its way, which takes the radio chosen from its next attempt", () => {
     const pressedFm = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_choice: 1, radio_now: 1 });
     const sending = message(4, { to_call: "OH2RDG", state: "sending", radio_id: 2, radio_now: 2 });

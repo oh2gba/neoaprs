@@ -283,6 +283,7 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
     route: "",
     radio_id: extra.radio_id ?? null,
     radio_now: onItsWay ? (extra.radio_id ?? null) : null,
+    internet_now: false,
     seal: "",
     failure: null,
     snr: null,

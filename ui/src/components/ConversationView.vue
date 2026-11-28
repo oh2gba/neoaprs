@@ -75,6 +75,10 @@ const { rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
 const heard = computed(() => isOverheard(props.selected));
+/** A message of ours on its way over the Internet connection (to an internet service): no radio, no path. */
+const internet = computed(() =>
+  props.thread.some((m) => m.internet_now && (m.state === "sending" || m.state === "queued")),
+);
 /** The station's key for the Key menu, and whether a message to it can be locked. */
 const theirs = computed(() => keys.of(replyTo(props.selected)));
 const lockable = computed(() => keys.canLock(replyTo(props.selected)));
@@ -111,7 +115,10 @@ onMounted(() => {
         <template v-if="heard">{{ t("messages.overheard_title", { name: conversationName(selected) }) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
-      <span v-if="!heard && named && over" class="convo-radio">
+      <span v-if="!heard && internet" class="convo-radio"
+        ><TagMark tone="info">{{ t("channel.is") }}</TagMark></span
+      >
+      <span v-else-if="!heard && named && over" class="convo-radio">
         <span class="twowords"
           ><span
             v-for="radio in room"
@@ -127,7 +134,7 @@ onMounted(() => {
         >
       </span>
       <RouteMenu
-        v-if="!heard && shown"
+        v-if="!heard && shown && !internet"
         :key="selected"
         :call="selected"
         :paths="paths"

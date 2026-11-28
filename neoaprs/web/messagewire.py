@@ -76,6 +76,10 @@ class MessageRow(_Model):
     radio_id: int | None = Field(
         description="the radio a message that came in came on, its id; null for a message of ours (its attempts say) and for one from the internet or kept before the radio was"
     )
+    internet_now: bool = Field(
+        default=False,
+        description="for a message of ours on its way (`sending`, `queued`) to an internet service: its next attempt goes over the Internet connection, not on a radio (`radio_now` is then null)",
+    )
     radio_now: int | None = Field(
         description="for a message of ours on its way (`sending`, `queued`), the radio its next attempt goes on: the one its first attempt went on, which it keeps until it ends unless Route changes or that radio is switched off, else the station's radio now (plan rule 3.2); "
         "null for every other message and while there is no radio it may go on. The page shows Route, the path and the radio's state of this radio"
