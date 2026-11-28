@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import MessageServices from "@/components/MessageServices.vue";
 import MessagesPane from "@/components/MessagesPane.vue";
 import { MESSAGES_WIDE } from "@/lib/layout";
+import { isInternetService } from "@/lib/messages";
 import { SERVICES } from "@/lib/services";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { stubWidth } from "@/test/width";
@@ -46,6 +47,10 @@ describe("MessageServices", () => {
   it("has one entry for each row of the table, each with an addressee and a text", () => {
     expect(mount(MessageServices).findAll("option")).toHaveLength(SERVICES.length);
     expect(SERVICES.every((s) => /^[A-Z0-9-]{1,9}$/.test(s.to) && s.text.trim() !== "")).toBe(true);
+  });
+
+  it("writes only to the internet services the daemon sends over the Internet connection", () => {
+    expect(SERVICES.filter((s) => !isInternetService(s.to))).toEqual([]);
   });
 });
 

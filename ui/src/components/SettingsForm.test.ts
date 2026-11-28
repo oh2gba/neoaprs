@@ -98,6 +98,7 @@ describe("SettingsForm", () => {
       "serial/skip",
       "web/port",
       "web/allowed_hosts",
+      "web/proxy",
       "igate/server", // (left to the shell: the default suits everyone)
       "igate/password", // (left to the shell: the passcode is worked out from the call)
       "map/maxzoom",

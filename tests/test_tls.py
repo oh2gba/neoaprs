@@ -1,6 +1,7 @@
 """The certificates of the secure connection (neoaprs/web/tls.py): the authority made once, the
 certificate of the computer and when it is made again. The clock is the test's."""
 
+import ipaddress
 import stat
 import sys
 from datetime import timedelta
@@ -8,7 +9,9 @@ from pathlib import Path
 
 import pytest
 from cryptography import x509
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.verification import PolicyBuilder, Store, VerificationError
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 from neoaprs.web.tls import (
@@ -18,6 +21,7 @@ from neoaprs.web.tls import (
     CertificateStore,
     TlsError,
     fingerprint_of,
+    make_server,
     wanted_names,
 )
 from tests.support.clock import FixedClock
@@ -132,11 +136,84 @@ def test_a_new_address_makes_a_new_certificate_and_the_authority_stays(tmp_path:
     cert.verify_directly_issued_by(ca_cert(tmp_path))
 
 
-def test_a_new_host_name_makes_a_new_certificate(tmp_path: Path) -> None:
+def test_a_new_host_name_makes_a_new_certificate_with_the_names_the_authority_covers_and_asked_again_nothing_new(
+    tmp_path: Path,
+) -> None:
     s, _ = store(tmp_path)
     s.ensure(HOST, [LAN])
+    s.ensure("pi4", [LAN, "203.0.113.9"])
+    names = san(server_cert(tmp_path))
+    assert "pi4.local" in names and "pi4" not in names and "203.0.113.9" not in names, (
+        "(the authority was made for raspberrypi and the local names: the bare new name is left out)"
+    )
+    serial = server_cert(tmp_path).serial_number
+    s.ensure("pi4", [LAN, "203.0.113.9"])
+    assert server_cert(tmp_path).serial_number == serial, "(no new certificate at every start for a name left out)"
+
+
+def test_a_new_authority_may_sign_only_for_the_station_s_names_and_addresses_and_the_local_ones(
+    tmp_path: Path,
+) -> None:
+    s, clock = store(tmp_path)
+    s.ensure(HOST, [LAN, "203.0.113.9"], ["pi.example.org"])
+    ca = ca_cert(tmp_path)
+    limits = ca.extensions.get_extension_for_class(x509.NameConstraints)
+    assert limits.critical and limits.value.excluded_subtrees is None
+    permitted = limits.value.permitted_subtrees or []
+    assert [n.value for n in permitted if isinstance(n, x509.DNSName)] == ["localhost", "local", HOST, "pi.example.org"]
+    networks = {str(n.value) for n in permitted if isinstance(n, x509.IPAddress)}
+    assert {"192.168.0.0/16", "10.0.0.0/8", "127.0.0.0/8", "::1/128", "fe80::/10", "203.0.113.9/32"} <= networks
+    assert "0.0.0.0/0" not in networks and not any(n.startswith("203.0.113.0/") for n in networks)
+    key = serialization.load_pem_private_key((tmp_path / "tls" / "ca.key").read_bytes(), None)
+    assert isinstance(key, ec.EllipticCurvePrivateKey)
+    trust = Store([ca])
+    at = clock() + timedelta(hours=1)
+
+    def verified(name: str, cert: x509.Certificate) -> bool:
+        subject = x509.IPAddress(ipaddress.ip_address(name)) if name[0].isdigit() else x509.DNSName(name)
+        try:
+            PolicyBuilder().store(trust).time(at).build_server_verifier(subject).verify(cert, [])
+        except VerificationError:
+            return False
+        return True
+
+    page = server_cert(tmp_path)
+    assert all(verified(name, page) for name in (HOST, f"{HOST}.local", "pi.example.org", LAN, "203.0.113.9"))
+    for foreign in ("www.example.com", "198.51.100.1"):
+        _, cert = make_server(key, ca, foreign, (foreign,), clock())
+        assert not verified(foreign, cert), f"(a stolen key of the authority signs nothing for {foreign})"
+
+
+def test_an_authority_made_before_the_limits_keeps_working_and_signs_for_every_name_until_it_is_made_anew(
+    tmp_path: Path,
+) -> None:
+    s, clock = store(tmp_path)
+    s.ensure(HOST, [LAN])
+    folder = tmp_path / "tls"
+    key = serialization.load_pem_private_key((folder / "ca.key").read_bytes(), None)
+    assert isinstance(key, ec.EllipticCurvePrivateKey)
+    old = ca_cert(tmp_path)
+    unlimited = x509.CertificateBuilder(
+        old.issuer,
+        old.subject,
+        old.public_key(),
+        old.serial_number,
+        old.not_valid_before_utc,
+        old.not_valid_after_utc,
+        [e for e in old.extensions if not isinstance(e.value, x509.NameConstraints)],
+    ).sign(key, hashes.SHA256())
+    (folder / "ca.crt").write_bytes(unlimited.public_bytes(serialization.Encoding.PEM))
+    (folder / "server.crt").unlink()
+    first = s.ensure("pi4", [LAN, "203.0.113.9"])
+    assert first.ca_der == unlimited.public_bytes(serialization.Encoding.DER), "(not replaced: the devices trust it)"
+    assert {"pi4", "203.0.113.9"} <= san(server_cert(tmp_path))
+    for name in folder.iterdir():
+        name.unlink()
+    folder.rmdir()
     s.ensure("pi4", [LAN])
-    assert {"pi4", "pi4.local"} <= san(server_cert(tmp_path))
+    assert ca_cert(tmp_path).extensions.get_extension_for_class(x509.NameConstraints).critical, (
+        "(the folder moved away: the new authority is of the limited kind)"
+    )
 
 
 def test_a_certificate_with_30_days_left_is_made_again_and_one_with_more_is_not(tmp_path: Path) -> None:

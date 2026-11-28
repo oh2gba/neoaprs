@@ -84,6 +84,18 @@ QUERY_EVERY_SEC = 60
 
 
 EMAIL_GATEWAY = "EMAIL-2"
+# The services of the page's list (ui/src/lib/services.ts) and the email gateway: they live on APRS-IS, so with
+# Send what I hear on a message to one goes over the Internet connection and its answers are taken from there.
+INTERNET_SERVICES = ("ANSRVR", "OTA", EMAIL_GATEWAY)
+
+
+# The route of a message that came over the Internet connection.
+INTERNET_ROUTE = "internet"
+
+
+def is_internet_service(call: str) -> bool:
+    """Return whether the call is one of INTERNET_SERVICES, exactly (with its SSID)."""
+    return call.strip().upper() in INTERNET_SERVICES
 
 
 class MessagingError(CodedError):

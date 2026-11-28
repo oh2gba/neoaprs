@@ -152,6 +152,7 @@
  "setting.tnc_char": {"params": ["char"], "text": ["'{char}' is a character a TNC takes for a command and may not be in it"]},
  "setting.too_long": {"params": ["length", "max"], "text": ["{length} characters is more than the {max} allowed"]},
  "setting.unknown": {"params": [], "text": ["a radio of the kind {*} has no such setting", "no such pair setting", "no such setting (the settings are {*})", "no such setting: it is radio/{*}/{*} now", "no such setting: it is radio_change's {*} now"]},
+ "sked.call_full": {"params": ["max"], "text": ["your call has {max} tests planned on the board already"]},
  "sked.far": {"params": [], "text": ["that test begins more than 30 days ahead"]},
  "sked.full": {"params": [], "text": ["the board has no room for another test now"]},
  "sked.past": {"params": [], "text": ["that test has ended already"]},

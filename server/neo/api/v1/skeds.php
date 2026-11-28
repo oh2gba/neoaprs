@@ -22,11 +22,12 @@
  *
  * A refusal is {"ok": false, "reason": CODE} with a matching status: 405 method, 413 too_large,
  * 415 bad_request (not application/json), 400 bad_request, 429 rate, 403 closed (board closed or call
- * blocked), 403 not_yours, 409 full, 422 past, too_long or too_far, 500 storage.
+ * blocked), 403 not_yours, 409 full or call_full, 422 past, too_long or too_far, 500 storage.
  *
  * What is refused: a `to` not after the server's now (past), a `from` more than 30 days ahead (too_far),
- * a sked longer than 24 hours (too_long), a sixth sked to come for one token, an eleventh under one call
- * (any SSID) or a hundred and first in all (full). Only the server's clock decides. The call has the form
+ * a sked longer than 24 hours (too_long), a sixth planned test under one call, any SSID (call_full: a sked
+ * with the times and dial of one of them joins it and adds none), a sixth sked to come for one token, an
+ * eleventh under one call (any SSID) or a hundred and first in all (full). Only the server's clock decides. The call has the form
  * of an amateur call (3 to 6 letters and digits with a digit and a letter, SSID 0 to 15), the dial the
  * form the program shows ("7.0541 MHz USB"), the note one line of at most 80 characters with control and
  * invisible characters removed. The same sked posted again under the same token is answered with its id.
@@ -75,6 +76,7 @@ const MAX_AHEAD_SEC    = 30 * 86400;
 const MAX_LENGTH_SEC   = 24 * 3600;
 const MAX_PER_TOKEN    = 5;
 const MAX_PER_CALL     = 10;
+const MAX_TESTS_PER_CALL = 5;     // planned tests (to come, by their times and dial) under one call, any SSID
 const MAX_IN_ALL       = 100;
 const KEEP_PAST_SEC    = 30 * 86400;
 const MAX_PAST_TESTS   = 20;
@@ -291,6 +293,7 @@ function skeds_add(string $dir, array $in, int $now): never
     $toIso = neo_iso($to);
     $mine = 0;
     $ofCall = 0;
+    $tests = [];
     foreach ($coming as $id => $row) {
         if (($row['token'] ?? '') === $hash) {
             if ($row['call'] === $call && $row['from'] === $fromIso && $row['to'] === $toIso && $row['dial'] === $dial && ($row['note'] ?? '') === $note) {
@@ -299,8 +302,12 @@ function skeds_add(string $dir, array $in, int $now): never
             }
             $mine++;
         }
-        if (neo_base($row['call']) === neo_base($call)) $ofCall++;
+        if (neo_base($row['call']) === neo_base($call)) {
+            $ofCall++;
+            $tests[$row['from'] . '|' . $row['to'] . '|' . $row['dial']] = true;
+        }
     }
+    if (count($tests) >= MAX_TESTS_PER_CALL && !isset($tests["$fromIso|$toIso|$dial"])) neo_refuse(409, 'call_full');
     if ($mine >= MAX_PER_TOKEN || $ofCall >= MAX_PER_CALL || count($coming) >= MAX_IN_ALL) neo_refuse(409, 'full');
     $id = skeds_new_id($stored);
     skeds_keep($dir, $id, ['id' => $id, 'call' => $call, 'from' => $fromIso, 'to' => $toIso, 'dial' => $dial, 'note' => $note, 'token' => $hash, 'posted' => neo_iso($now)]);

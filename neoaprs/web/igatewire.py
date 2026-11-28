@@ -42,7 +42,10 @@ class IgateSentLine(_Model):
     """A line that was put on APRS-IS."""
 
     at: Iso = Field(description="when it was sent")
-    radio: int | None = Field(ge=1, description="the radio that heard the packet; null for our own position")
+    radio: int | None = Field(
+        ge=1,
+        description="the radio that heard the packet; null for our own position and our messages and acks to the internet services",
+    )
     line: str = Field(
         description="the line as it went to the server, after the gating rules (the TNC2 text): other stations' data, shown as text only"
     )

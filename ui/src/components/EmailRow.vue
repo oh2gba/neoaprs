@@ -12,7 +12,6 @@ import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useCameOn } from "@/composables/useStationRadio";
-import { radioTone } from "@/lib/channels";
 import { routeWords } from "@/lib/routes";
 import { useSure } from "@/composables/useSure";
 import { dateTimeText } from "@/lib/format";
@@ -86,7 +85,7 @@ const copy = useCopyMenu(() => [
     <div v-if="open" class="mail-detail muted">
       <span>{{ dateTimeText(row.at) }}</span>
       <span v-if="row.route || on" :title="t('messages.route_title')">
-        <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark>
+        <TagMark v-if="on" :tone="on.tone" :title="on.title">{{ on.label }}</TagMark>
         {{ routeWords(row.route) }}
       </span>
       <MessageChain v-if="row.direction === 'out'" :row="row" :heard-direct="heardDirect" mail />

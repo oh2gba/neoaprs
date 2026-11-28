@@ -41,6 +41,9 @@ class FakeGate:
     def is_local(self, request: tornado.httputil.HTTPServerRequest) -> bool:
         return is_local(request)
 
+    def take_proxy(self, request: tornado.httputil.HTTPServerRequest) -> bool:
+        return True
+
 
 class FakePageHost:
     """Everything a Socket asks of its server: the checks say yes, the Api writes down."""

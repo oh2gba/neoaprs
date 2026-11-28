@@ -173,6 +173,10 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         DB_ONLY,
         "names besides an IP address, `localhost` and the machine's own name (and `name.local`) that the page answers to, separated by commas",
     ),
+    "web/proxy": (
+        DB_ONLY,
+        "`true` when a reverse proxy on this computer passes the page on: its `X-Forwarded-For` is the visitor's address and its `X-Forwarded-Proto` the scheme; while `false` a request through such a proxy is refused ([network.md](network.md#what-is-refused))",
+    ),
     "messages/alert": (
         "Settings tab, Notifications, On the NeoAPRS computer (Alert)",
         "whether a message to you, and an alert you set on a station, runs `messages/alert_command` ([notifications.md](notifications.md))",

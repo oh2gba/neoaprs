@@ -83,7 +83,7 @@ from neoaprs.config import (  # noqa: E402
     Config,
 )
 from neoaprs.configstatus import LONGEST_FREQ, LONGEST_MODE, MAX_STATUS, STATUS_FIELDS, fill_template, status_template  # noqa: E402
-from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
+from neoaprs.message import EMAIL_GATEWAY, INTERNET_SERVICES, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
 from neoaprs import layerthing  # noqa: E402
 from neoaprs.radiospec import MAX_NAME  # noqa: E402
@@ -448,6 +448,7 @@ def limits() -> dict[str, Any]:
             "lockedMax": MAX_LOCKED,
             "lockMark": len(LOCK_MARK),
             "lockedOverhead": NONCE_LEN + TAG_LEN,
+            "services": list(INTERNET_SERVICES),
         },
         "call": {
             "baseMax": BASE_MAX,

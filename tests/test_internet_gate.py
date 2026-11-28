@@ -107,7 +107,8 @@ TAKERS = {
     "stationbook": {"take"},
     "weatherlog": {"take"},
     # ON_AIR_ONLY: messaging and what it hands the packet to
-    "messaging": {"on_packet", "echoed"},
+    # (from_internet: only a listed service's message or ack to us, while it carries ours; the inbox decides)
+    "messaging": {"on_packet", "echoed", "from_internet"},
     "messaging.inbox": {"on_packet"},
     "messaging.delivery": {"heard"},
     "queries": {"on_packet"},

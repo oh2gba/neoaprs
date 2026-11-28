@@ -283,6 +283,7 @@ class Services:
             qru=self.qru.heard,
             qru_answer=self.qruask.answers,
             keyring=self.keyring,
+            internet=self.igate,
         )
         self.queries = Queries(
             self.radios,
@@ -376,6 +377,8 @@ class Services:
         # a login that only gates still gets messages to our call; nothing of it is kept
         if self.config.igate_enabled:
             self.internet_packet.emit(packet)
+        # a listed service's answer to our message, whether or not the internet's stations are shown
+        self.messaging.from_internet(packet)
 
     def kept_change(self, before: Config, after: Config) -> tuple[Config, Kept]:
         """Return `after` with its ticks put in, and what the change keeps in force."""

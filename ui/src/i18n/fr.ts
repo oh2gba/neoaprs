@@ -149,6 +149,7 @@ export const fr: Catalogue = {
   "error.update.not_running": "aucun téléchargement de mise à jour n'est en cours",
   "error.sked.rate": "trop d'essais ont été publiés d'ici récemment ; réessayez plus tard",
   "error.sked.full": "le tableau n'a plus de place pour un autre essai en ce moment",
+  "error.sked.call_full": "votre indicatif a déjà {max} essais prévus sur le tableau",
   "error.sked.past": "cet essai est déjà terminé",
   "error.sked.far": "cet essai commence dans plus de 30 jours",
   "error.sked.unreachable": "le tableau des essais HF n'a pas pu être joint à l'instant ; réessayez plus tard",

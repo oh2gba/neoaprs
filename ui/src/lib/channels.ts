@@ -246,6 +246,9 @@ const wordTag = (channel: Worded, title = meaning(channel)): HeardTag => ({
   tone: toneOf(channel),
 });
 
+/** The tag of what came over the Internet connection. */
+export const internetTag = (): HeardTag => wordTag("is");
+
 /** The tag of a logged packet: the radio it came or went on, iGate (its title names the radio
  * that heard it) or Internet. Null for a radio the page does not know yet. */
 export function packetTag(packet: Packet, radios: readonly PageRadio[]): HeardTag | null {

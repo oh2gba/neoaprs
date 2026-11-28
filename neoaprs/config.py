@@ -182,6 +182,8 @@ SETTINGS: tuple[Setting, ...] = (
     # 0: the system picks a free port.
     Setting("web_port", "web/port", int_in(0, 65535)),
     Setting("web_allowed_hosts", "web/allowed_hosts", host_list),
+    # A reverse proxy on this computer passes the page on: its forwarding headers are believed.
+    Setting("web_proxy", "web/proxy", boolean),
     # 0: the beacon is off, also for a moving station.
     Setting(
         "beacon_interval_min",
@@ -269,6 +271,7 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     web_https: bool = False
     web_port: int = 7303
     web_allowed_hosts: str = ""
+    web_proxy: bool = False
     beacon_interval_min: int = 0
     messages_chat_alert: bool = True
     messages_alert: bool = True

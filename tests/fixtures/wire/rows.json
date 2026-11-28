@@ -71,7 +71,8 @@
     "web/https": "false",
     "web/key": "",
     "web/network": "false",
-    "web/port": "7303"
+    "web/port": "7303",
+    "web/proxy": "false"
    },
    "https": {
     "fingerprint": "",
@@ -196,7 +197,8 @@
     "web/https": "false",
     "web/key": "",
     "web/network": "false",
-    "web/port": "7303"
+    "web/port": "7303",
+    "web/proxy": "false"
    }
   },
   {
@@ -248,7 +250,8 @@
     "web/https": "false",
     "web/key": "",
     "web/network": "false",
-    "web/port": "7303"
+    "web/port": "7303",
+    "web/proxy": "false"
    },
    "https": {
     "fingerprint": "AB:CD",
@@ -375,7 +378,8 @@
     "web/https": "false",
     "web/key": "",
     "web/network": "false",
-    "web/port": "7303"
+    "web/port": "7303",
+    "web/proxy": "false"
    }
   }
  ],
@@ -509,6 +513,7 @@
    "attempts_detail": [
     {
      "acked": false,
+     "by_internet": false,
      "hops": [
       {
        "by_internet": false,
@@ -529,6 +534,7 @@
     },
     {
      "acked": false,
+     "by_internet": false,
      "hops": [
       {
        "by_internet": false,
@@ -543,6 +549,7 @@
     },
     {
      "acked": true,
+     "by_internet": false,
      "hops": [],
      "internet": null,
      "radio_id": null,
@@ -595,6 +602,7 @@
    "attempts_detail": [
     {
      "acked": true,
+     "by_internet": false,
      "hops": [],
      "internet": null,
      "radio_id": 2,
@@ -625,6 +633,7 @@
    "attempts_detail": [
     {
      "acked": false,
+     "by_internet": false,
      "hops": [
       {
        "by_internet": false,
@@ -668,6 +677,7 @@
    "attempts_detail": [
     {
      "acked": false,
+     "by_internet": false,
      "hops": [],
      "internet": null,
      "radio_id": null,
@@ -742,6 +752,7 @@
    "attempts_detail": [
     {
      "acked": false,
+     "by_internet": false,
      "hops": [],
      "internet": null,
      "radio_id": null,

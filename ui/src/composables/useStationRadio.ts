@@ -13,7 +13,9 @@ import { useRadios } from "@/composables/useRadios";
 import { t } from "@/i18n";
 import { normalizeCall } from "@/lib/calls";
 import { radioBlockedReason } from "@/lib/compose";
-import { isGateway } from "@/lib/messages";
+import { internetCarries, isGateway, isInternetService } from "@/lib/messages";
+import { internetTag, radioTone, type HeardTag } from "@/lib/channels";
+import { INTERNET_ROUTE } from "@/lib/routes";
 import type { PageRadio, RadioId } from "@/lib/radios";
 import type { CallRoute, MessageRow, StationRow } from "@/protocol/protocol";
 
@@ -26,10 +28,21 @@ export const PREFS_RADIO: RadioId = 1;
 /**
  * The radio an incoming message came on, where radios are named; null for none or for one of ours.
  */
-export function useCameOn(): (m: Pick<MessageRow, "direction" | "radio_id">) => PageRadio | null {
+export function useCameOn(): (m: Pick<MessageRow, "direction" | "radio_id" | "route">) => HeardTag | null {
   const radios = useRadios();
-  return (m) =>
-    m.direction === "in" && m.radio_id !== null && radios.named(m.radio_id) ? (radios.byId(m.radio_id) ?? null) : null;
+  return (m) => {
+    if (m.direction !== "in") return null;
+    if (m.route === INTERNET_ROUTE) return internetTag();
+    const radio = m.radio_id !== null && radios.named(m.radio_id) ? radios.byId(m.radio_id) : undefined;
+    return radio === undefined
+      ? null
+      : {
+          key: `radio-${radio.id}`,
+          label: radio.name,
+          title: t("radio.heard_on", { name: radio.name }),
+          tone: radioTone(radio),
+        };
+  };
 }
 
 /**
@@ -42,7 +55,7 @@ export function useStationRadio(
   thread: () => readonly Pick<MessageRow, "state" | "radio_now">[] = () => [],
 ) {
   const radios = useRadios();
-  const { prefs, fallbackPath, send, callRoutes } = useDaemonContext();
+  const { prefs, fallbackPath, send, callRoutes, igate } = useDaemonContext();
   const gateway = computed(() => isGateway(call()));
   /** The station's row, else the route the daemon keeps for a call it does not hold; null for neither. */
   const route = computed<StationRow | CallRoute | null>(
@@ -66,7 +79,11 @@ export function useStationRadio(
   return {
     over,
     named,
-    offline: computed(() => radioBlockedReason(over.value, named.value)),
+    offline: computed(() =>
+      isInternetService(call()) && internetCarries(igate.value)
+        ? undefined
+        : radioBlockedReason(over.value, named.value),
+    ),
     choices,
     /** The radio cannot be chosen here (the email gateway); Route's row stays, greyed. */
     fixed: gateway,

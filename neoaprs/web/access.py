@@ -20,7 +20,7 @@ from neoaprs.clock import Clock
 from neoaprs.config import Config
 from neoaprs.configtypes import KEY_ALPHABET, KEY_GROUP_SIZE, KEY_GROUPS, access_key
 
-from .addresses import is_loopback
+from .addresses import as_address, is_loopback
 from .headers import host_name, refuse_foreign_origin
 from .pagefiles import Secured
 
@@ -40,11 +40,34 @@ PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host"
 # Names of this computer a request may carry in its Host, besides loopback addresses.
 OWN_NAMES = ("localhost",)
 # Settings a page on another device may not change; they name a program or address the daemon uses.
-LOCAL_ONLY = frozenset({"messages/alert_command", "update/url", "map/source", "web/allowed_hosts"})
+LOCAL_ONLY = frozenset({"messages/alert_command", "update/url", "map/source", "web/allowed_hosts", "web/proxy"})
 
 
 def new_key() -> str:
     return access_key("".join(secrets.choice(KEY_ALPHABET) for _ in range(KEY_GROUPS * KEY_GROUP_SIZE)))
+
+
+def through_proxy(request: tornado.httputil.HTTPServerRequest) -> bool:
+    """Return True if the request came from this computer with a forwarding header: a proxy on it passed it on."""
+    return is_loopback(request.remote_ip or "") and any(name in request.headers for name in PROXY_HEADERS)
+
+
+def _last(value: str) -> str:
+    """The last entry of a header a proxy appends to: the one the proxy on this computer wrote."""
+    return value.rsplit(",", 1)[-1].strip()
+
+
+def believe_proxy(request: tornado.httputil.HTTPServerRequest) -> None:
+    """Take the visitor's address and the scheme from a proxy on this computer (`web/proxy`)."""
+    for header in ("X-Forwarded-For", "X-Real-Ip"):
+        if header in request.headers:
+            visitor = as_address(_last(request.headers[header]))
+            if visitor is not None:
+                request.remote_ip = str(visitor)
+            break
+    scheme = _last(request.headers.get("X-Forwarded-Proto", "")).lower()
+    if scheme in ("http", "https"):
+        request.protocol = scheme
 
 
 def is_local(request: tornado.httputil.HTTPServerRequest) -> bool:
@@ -95,6 +118,25 @@ class Access:
         self._container = container
         self._wrong: dict[str, list[float]] = {}  # per address, times of wrong keys
         self._blocked: dict[str, float] = {}  # per address, when the block ends
+        self._proxy_told = False
+
+    def take_proxy(self, request: tornado.httputil.HTTPServerRequest) -> bool:
+        """Return False for a request through a proxy on this computer while `web/proxy` is off.
+
+        With it on, the request is made the visitor's (`believe_proxy`); it is never this computer's."""
+        if not through_proxy(request):
+            return True
+        if self._config().web_proxy:
+            believe_proxy(request)
+            return True
+        if not self._proxy_told:
+            self._proxy_told = True
+            log.warning(
+                "a request came through a proxy on this computer (%s) and was refused: a page behind a reverse proxy "
+                "needs neoaprs db set web/proxy true",
+                ", ".join(name for name in PROXY_HEADERS if name in request.headers),
+            )
+        return False
 
     def session(self, secure: bool = False) -> str:
         """Return a new session token; `secure` marks one bought over https."""

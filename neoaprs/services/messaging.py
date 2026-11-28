@@ -28,7 +28,7 @@ from neoaprs.message import (
     check_text,
 )
 from neoaprs.messagelog import MessageLog
-from neoaprs.packet import Message, Packet
+from neoaprs.packet import IS, Message, Packet
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
 from neoaprs.services.acks import Acks
 from neoaprs.radiospec import told
@@ -39,6 +39,7 @@ from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
 from neoaprs.services.messageradio import MessageRadios, info, last_run, named
+from neoaprs.services.serviceroute import InternetWay, ServiceRoute
 from neoaprs.services.keys import Keys, NoKeys
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, reply_path_on
@@ -93,6 +94,7 @@ class Messaging:
         qru: Callable[[Packet, Message], bool] | None = None,
         qru_answer: Callable[[Packet, Message], bool] | None = None,
         keyring: Keys | None = None,
+        internet: InternetWay | None = None,
     ) -> None:
         self._given = radios  # read through `as_pick` at each call
         self.keyring: Keys = keyring or NoKeys()
@@ -103,6 +105,8 @@ class Messaging:
         self._paths = paths
         self.clock, self.tick_sec = clock, tick_sec
         self.pace = Pace(clock, spacing_sec)
+        self.services = ServiceRoute(internet, interlock, clock)
+        self.internet_open, self.by_internet = self.services.open, self.services.takes
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}  # by id
@@ -217,15 +221,15 @@ class Messaging:
 
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """Pick the radio, check the frame fits, keep the message and make the first attempt."""
-        radio = self.message_radios.station(to)
-        if radio.state is Source.State.SILENT:
-            raise MessagingError.of(radio.why_unusable())
-        self._frame(
-            info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""),
-            to,
-            room=0 if once else REPLY_ACK_ROOM,
-            radio=radio,
-        )
+        field = info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else "")
+        if self.by_internet(to):
+            way = "the Internet connection"
+        else:
+            radio = self.message_radios.station(to)
+            if radio.state is Source.State.SILENT:
+                raise MessagingError.of(radio.why_unusable())
+            self._frame(field, to, room=0 if once else REPLY_ACK_ROOM, radio=radio)
+            way = told(radio.name, radio.id)
         ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(
             MessageRecord(
@@ -251,7 +255,7 @@ class Messaging:
             to,
             len(text),
             record.attempts_max,
-            told(radio.name, radio.id),
+            way,
         )
         return self.attempt(record)
 
@@ -396,6 +400,8 @@ class Messaging:
         """Return the bytes of text a message to the station holds on its radio now, where fewer than MAX_TEXT fit.
 
         None where the whole text fits, the radio has no frame limit, or no frame can be made."""
+        if self.by_internet(to):
+            return None
         try:
             radio = self.message_radios.station(to)
             limit = radio.max_frame
@@ -443,6 +449,8 @@ class Messaging:
         """Transmit the message once if the radio is up, its pause is over and it is not `queued`.
 
         Return the message as it is afterwards."""
+        if record.direction == "out" and self.by_internet(record.to_call):
+            return record if self.queued(record) else self._attempt_internet(record)
         if (
             self.queued(record)
             or not self.retries.radio_up(record)
@@ -488,6 +496,11 @@ class Messaging:
         self.put(record)
         return record
 
+    def _attempt_internet(self, record: MessageRecord) -> MessageRecord:
+        if (sent := self.services.attempt(record, self.inbox.heard, self.delivery)) is not None:
+            self.put(sent)
+        return sent or record
+
     def put(self, record: MessageRecord) -> None:
         """Hold, schedule, store and announce a new or changed message (and the queue it is in)."""
         before = self._records.get(record.id)
@@ -516,6 +529,11 @@ class Messaging:
         """Pass a heard or sent packet to the inbox."""
         self.inbox.on_packet(packet)
 
+    def from_internet(self, packet: Packet) -> None:
+        """Take a packet from APRS-IS: only a listed service's message or ack to us is used (Inbox)."""
+        if packet.via == IS:
+            self.inbox.on_packet(packet)
+
     def echoed(self, packet: Packet, message: Message) -> None:
         """Link a heard copy of our message to its attempt; announce it if it showed a new hop."""
         found = self.delivery.heard(self._records.values(), packet, message)
@@ -526,7 +544,10 @@ class Messaging:
         """Acknowledge message `msg_id` of station `to` on the radio the message (`packet`) came on.
 
         The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack. It is RF
-        only when the message was."""
+        only when the message was; one that came over the Internet connection is acked there."""
+        if packet is not None and packet.via == IS:
+            self.services.ack(to, msg_id, reply_ack)
+            return
         self.acks.send(
             to,
             msg_id,

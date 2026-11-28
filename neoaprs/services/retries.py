@@ -33,6 +33,8 @@ class Host(Protocol):
     def put(self, record: MessageRecord) -> None: ...
     # None when the message has no radio now (email gateway, no email radio): the attempt waits
     def radio_of(self, record: MessageRecord) -> AirRadio | None: ...
+    def internet_open(self) -> bool: ...
+    def by_internet(self, to: str) -> bool: ...
 
 
 class Retries:
@@ -93,6 +95,8 @@ class Retries:
 
     def radio_up(self, record: MessageRecord | None = None) -> bool:
         """Return whether an attempt can be made now; log once per radio that attempts wait."""
+        if record is not None and record.direction == "out" and self._host.by_internet(record.to_call):
+            return True
         radio = first_sender(as_pick(self._given, self._config)) if record is None else self._host.radio_of(record)
         if radio is not None and radio.usable:
             return True
@@ -118,7 +122,7 @@ class Retries:
         radios = as_pick(self._given, self._config).senders()
         for radio in radios:
             self._watch(radio, now, shut)
-        if shut or not any(radio.usable for radio in radios):
+        if shut or not (any(radio.usable for radio in radios) or self._host.internet_open()):
             if any(now >= due for due in self._due.values()):
                 if shut:
                     self._interlock.refused("message")

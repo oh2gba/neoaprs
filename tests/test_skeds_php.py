@@ -362,7 +362,9 @@ def test_the_server_clock_refuses_the_past_the_far_and_the_long(endpoint: Endpoi
 def test_a_token_has_five_skeds_to_come(endpoint: Endpoint) -> None:
     endpoint.start()
     key = token()
-    answers = [endpoint.add(key, **{"from": at((n + 1) * HOUR), "to": at((n + 2) * HOUR)}) for n in range(6)]
+    answers = [
+        endpoint.add(key, call=f"OH{n}ABC", **{"from": at((n + 1) * HOUR), "to": at((n + 2) * HOUR)}) for n in range(6)
+    ]
     assert [code for code, _ in answers] == [200] * 5 + [409] and answers[5][1] == {"ok": False, "reason": "full"}
     assert endpoint.add(token())[0] == 200, "another installation still posts under the same call"
 
@@ -377,6 +379,24 @@ def test_a_call_has_ten_skeds_to_come_whatever_its_ssid_and_the_board_a_hundred(
         endpoint.keep(f"{n:012x}", call=f"OH{n % 10}A{n:02d}")
     assert len(endpoint.files()) == 100
     assert endpoint.add(token(), call="OH3ABC") == (409, {"ok": False, "reason": "full"})
+
+
+def test_a_call_has_five_planned_tests_whatever_its_ssid_until_one_has_passed_or_is_withdrawn(
+    endpoint: Endpoint,
+) -> None:
+    endpoint.start()
+    hours = lambda n: {"from": at((2 * n + 1) * HOUR), "to": at((2 * n + 2) * HOUR)}  # noqa: E731
+    first = token()
+    _, posted = endpoint.add(first, **hours(0))
+    for n in range(1, 5):
+        assert endpoint.add(token(), call="OH2GBA-7" if n % 2 else "OH2GBA", **hours(n))[0] == 200
+    endpoint.keep("0000000000aa", start=at(-3 * HOUR), end=at(-2 * HOUR))  # (a test that has passed counts not)
+    sixth = token()
+    assert endpoint.add(sixth, call="OH2GBA-9", **hours(5)) == (409, {"ok": False, "reason": "call_full"})
+    assert endpoint.add(sixth, call="OH2GBA-9", **hours(2))[0] == 200, "(joining one of the five adds no test)"
+    assert endpoint.add(token(), call="OH2XYZ", **hours(5))[0] == 200, "(another call)"
+    assert endpoint.remove(first, posted["id"])[0] == 200
+    assert endpoint.add(sixth, call="OH2GBA-9", **hours(5))[0] == 200, "(one was withdrawn)"
 
 
 def test_the_board_is_sorted_by_its_start_and_holds_a_hundred_rows(endpoint: Endpoint) -> None:

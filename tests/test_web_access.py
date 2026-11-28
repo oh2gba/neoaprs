@@ -290,11 +290,38 @@ async def test_this_computer_is_never_asked_for_the_key(tmp_path: Path) -> None:
     assert renewed.code == 204 and "Set-Cookie" not in renewed.headers and e.ctl.config.web_key != KEY
 
 
-async def test_a_request_through_a_proxy_on_this_computer_is_not_this_computer(tmp_path: Path) -> None:
+PROXY = {**NETWORK, "web/proxy": "true"}
+
+
+async def test_a_request_through_a_proxy_on_this_computer_is_refused_while_no_proxy_is_set_and_the_log_says_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = await served(tmp_path, NETWORK)
     for header in ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host", "X-Forwarded-Proto", "Via"):
-        assert (await e.fetch("/access", headers={header: "203.0.113.9"})).code == 401, header
+        answer = await e.fetch("/access", headers={header: "203.0.113.9"})
+        assert answer.code == 403 and b"web/proxy" in answer.body, header
+    socket_ = await e.fetch("/ws", headers={"X-Forwarded-For": "203.0.113.9", "Upgrade": "websocket"})
+    assert socket_.code == 403, "(the socket too)"
+    assert len([r for r in caplog.records if "web/proxy" in r.getMessage()]) == 1
     assert (await e.fetch("/access")).code == 204, "and without one it is this computer"
+
+
+async def test_with_web_proxy_on_a_proxied_request_is_its_visitor_s_who_logs_in_and_is_shut_out_alone(
+    tmp_path: Path,
+) -> None:
+    e = await served(tmp_path, PROXY)
+    for header in ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host", "X-Forwarded-Proto", "Via"):
+        assert (await e.fetch("/access", headers={header: "203.0.113.9"})).code == 401, header
+    # (nginx's $proxy_add_x_forwarded_for: what the visitor sent, then the address the proxy saw)
+    guesser = {"X-Forwarded-For": "127.0.0.1, 203.0.113.9"}
+    for _ in range(MAX_WRONG):
+        await e.fetch("/access", method="POST", body=login_body("wrong"), headers=guesser)
+    assert (await e.fetch("/access", method="POST", body=login_body(KEY), headers=guesser)).code == 429
+    other = {"X-Forwarded-For": "198.51.100.7"}
+    answer = await e.fetch("/access", method="POST", body=login_body(KEY), headers=other)
+    assert answer.code == 204 and COOKIE in answer.headers["Set-Cookie"], "(the other visitor is not shut out)"
+    assert (await e.fetch("/access", headers={**other, "Cookie": cookie_of(answer)})).code == 204
+    assert (await e.fetch("/access")).code == 204, "(this computer is still this computer)"
 
 
 async def test_a_request_from_the_loopback_is_this_computer_only_when_it_is_addressed_to_this_computer(
@@ -522,7 +549,7 @@ async def test_with_the_network_off_the_page_by_the_name_of_this_computer_is_sen
     assert r.code == 307 and r.headers["Location"] == f"http://127.0.0.1:{e.port}/"
     assert (
         await e.fetch("/", headers={"Host": f"aprs.example.org:{e.port}", "X-Forwarded-For": "203.0.113.9"})
-    ).code == 200
+    ).code == 403, "(a proxy is not set)"
     assert (await e.fetch("/")).code == 200
 
 

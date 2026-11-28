@@ -38,6 +38,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.update.not_running": "no hay ninguna descarga de actualización en curso",
   "error.sked.rate": "se han publicado demasiadas pruebas desde aquí últimamente; inténtalo más tarde",
   "error.sked.full": "el tablón no tiene sitio para otra prueba ahora",
+  "error.sked.call_full": "tu indicativo ya tiene {max} pruebas previstas en el tablón",
   "error.sked.past": "esa prueba ya ha terminado",
   "error.sked.far": "esa prueba empieza dentro de más de 30 días",
   "error.sked.unreachable": "no se pudo acceder al tablón de pruebas HF ahora mismo; inténtalo más tarde",

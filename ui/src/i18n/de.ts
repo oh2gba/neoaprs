@@ -147,6 +147,7 @@ export const de: Catalogue = {
   "error.update.not_running": "es läuft kein Download eines Updates",
   "error.sked.rate": "in letzter Zeit wurden von hier zu viele Tests eingetragen; versuche es später noch einmal",
   "error.sked.full": "auf der Tafel ist jetzt kein Platz für einen weiteren Test",
+  "error.sked.call_full": "dein Rufzeichen hat schon {max} geplante Tests auf der Tafel",
   "error.sked.past": "dieser Test ist schon zu Ende",
   "error.sked.far": "dieser Test beginnt erst in mehr als 30 Tagen",
   "error.sked.unreachable": "die Tafel der KW-Tests war gerade nicht erreichbar; versuche es später noch einmal",

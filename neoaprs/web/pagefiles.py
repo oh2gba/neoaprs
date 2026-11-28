@@ -25,6 +25,7 @@ log = logging.getLogger("neoaprs.web")
 class Gate(Protocol):
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool: ...
     def is_local(self, request: tornado.httputil.HTTPServerRequest) -> bool: ...
+    def take_proxy(self, request: tornado.httputil.HTTPServerRequest) -> bool: ...
 
 
 class HostGate(Protocol):
@@ -44,7 +45,17 @@ def same_place(request: tornado.httputil.HTTPServerRequest) -> str:
 
 
 def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
-    """Answer 403 and return True for a Host name that is not ours (DNS rebinding)."""
+    """Answer 403 and return True for a Host name that is not ours (DNS rebinding), or for a request through a proxy
+    on this computer while `web/proxy` is off."""
+    if not server.access.take_proxy(handler.request):
+        handler.set_status(403)
+        handler.set_header("Content-Type", "text/plain; charset=utf-8")
+        handler.set_header("X-Content-Type-Options", "nosniff")
+        handler.finish(
+            "NeoAPRS does not answer through a proxy on its computer.\n"
+            "If the proxy is yours, allow it: neoaprs db set web/proxy true\n"
+        )
+        return True
     header = handler.request.headers.get("Host", "")
     if server.host_allowed(header):
         return False

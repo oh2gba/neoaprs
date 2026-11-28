@@ -38,6 +38,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.update.not_running": "nessun download di aggiornamento in corso",
   "error.sked.rate": "di recente sono stati pubblicati troppi test da qui; riprova più tardi",
   "error.sked.full": "la bacheca non ha spazio per un altro test in questo momento",
+  "error.sked.call_full": "il tuo nominativo ha già {max} test in programma sulla bacheca",
   "error.sked.past": "quel test è già terminato",
   "error.sked.far": "quel test inizia tra più di 30 giorni",
   "error.sked.unreachable": "la bacheca dei test HF non è raggiungibile in questo momento; riprova più tardi",

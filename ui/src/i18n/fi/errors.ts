@@ -37,6 +37,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.update.not_running": "päivityksen latausta ei ole käynnissä",
   "error.sked.rate": "täältä on viime aikoina lisätty liian monta testiä; yritä myöhemmin uudelleen",
   "error.sked.full": "taululla ei ole nyt tilaa uudelle testille",
+  "error.sked.call_full": "tunnuksellasi on jo {max} suunniteltua testiä taululla",
   "error.sked.past": "tuo testi on jo päättynyt",
   "error.sked.far": "tuo testi alkaa yli 30 päivän päästä",
   "error.sked.unreachable": "HF-testitaulua ei tavoitettu juuri nyt; yritä myöhemmin uudelleen",

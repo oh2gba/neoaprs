@@ -1,10 +1,13 @@
 """The certificates of the secure connection (`web/https`): a local CA and a server certificate.
 
 Files in `tls/` of the data folder, owner-only: the CA (ten years, kept while its files exist)
-and the server certificate (at most 800 days; Apple's limit is 825). Keys are never served.
+and the server certificate (at most 800 days; Apple's limit is 825). Keys are never served. A new CA may
+sign only for the names and addresses of the station (critical name constraints); one made before that
+is kept as it is, since the devices trust it.
 """
 
 import hashlib
+import ipaddress
 import logging
 import os
 from collections.abc import Callable, Iterable
@@ -35,6 +38,24 @@ BACKDATE = timedelta(days=1)
 CLOCK_SANE_AFTER = utc(2025, 1, 1)
 NAME_MAX = 64  # longest common name
 Names = tuple[str, ...]
+# The networks a new authority may sign for besides the station's own addresses: loopback, the private and
+# link-local ranges and the shared address space of carrier-grade NAT and overlay networks.
+OWN_NETWORKS = tuple(
+    ipaddress.ip_network(n)
+    for n in (
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "100.64.0.0/10",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+    )
+)
+# Names a new authority may sign for besides the station's own: this computer and the names of the local network.
+OWN_DOMAINS = ("localhost", "local")
 
 
 class TlsError(Exception):
@@ -89,6 +110,48 @@ def _general_names(names: Names) -> list[x509.GeneralName]:
     return out
 
 
+def name_limits(names: Names) -> x509.NameConstraints:
+    """Return the limits of a new authority: the station's names and addresses (`wanted_names`) and OWN_*."""
+    domains: list[str] = []
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = list(OWN_NETWORKS)
+    for name in names:
+        address = as_address(name)
+        if address is None:
+            if name not in domains and not _in_domains(name, OWN_DOMAINS):
+                domains.append(name)
+        elif not any(address in network for network in networks):
+            networks.append(ipaddress.ip_network(address))
+    return x509.NameConstraints(
+        permitted_subtrees=[
+            *(x509.DNSName(d) for d in (*OWN_DOMAINS, *domains)),
+            *(x509.IPAddress(n) for n in networks),
+        ],
+        excluded_subtrees=None,
+    )
+
+
+def _in_domains(name: str, domains: Iterable[str]) -> bool:
+    """Whether a DNS name is one of the domains or under one (RFC 5280: a constraint covers its subdomains)."""
+    return any(name == d or name.endswith("." + d) for d in (d.lstrip(".").lower() for d in domains))
+
+
+def covered(ca: x509.Certificate, name: str) -> bool:
+    """Whether the authority may sign for the name: always for one made before authorities were limited."""
+    try:
+        limits = ca.extensions.get_extension_for_class(x509.NameConstraints).value
+    except x509.ExtensionNotFound:
+        return True
+    permitted = limits.permitted_subtrees or []
+    address = as_address(name)
+    if address is None:
+        return _in_domains(name, (n.value for n in permitted if isinstance(n, x509.DNSName)))
+    return any(
+        address in n.value
+        for n in permitted
+        if isinstance(n, x509.IPAddress) and isinstance(n.value, (ipaddress.IPv4Network, ipaddress.IPv6Network))
+    )
+
+
 def _names_of(cert: x509.Certificate) -> Names:
     try:
         san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
@@ -136,7 +199,8 @@ def _builder(
     )
 
 
-def make_ca(host: str, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+def make_ca(host: str, now: datetime, names: Names) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+    """Make an authority that may sign only for `names` and OWN_DOMAINS and OWN_NETWORKS (`name_limits`)."""
     key = ec.generate_private_key(ec.SECP256R1())
     name = x509.Name(
         [
@@ -161,6 +225,7 @@ def make_ca(host: str, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.
             ),
             critical=True,
         )
+        .add_extension(name_limits(names), critical=True)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
         .sign(key, hashes.SHA256())
     )
@@ -249,8 +314,17 @@ class CertificateStore:
                 self.folder.chmod(0o700)
             except OSError:
                 pass  # a system without such modes
-            ca_key, ca = self._ca(host, now)
-            names = wanted_names(host, addresses, more)
+            wanted = wanted_names(host, addresses, more)
+            ca_key, ca = self._ca(host, now, wanted)
+            names = tuple(n for n in wanted if covered(ca, n))
+            if left := [n for n in wanted if n not in names]:
+                log.info(
+                    "the certificate of the page leaves out %s: NeoAPRS's certificate authority was made for other "
+                    "names; to have them, stop NeoAPRS, move the folder %s away and start it (the devices trust the "
+                    "new authority again)",
+                    ", ".join(left),
+                    self.folder,
+                )
             key, cert = self._server(ca_key, ca, host, names, now)
         except OSError as e:
             raise TlsError(f"the certificates in {self.folder} could not be written or read: {e}") from e
@@ -264,11 +338,11 @@ class CertificateStore:
             cert.not_valid_after_utc,
         )
 
-    def _ca(self, host: str, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+    def _ca(self, host: str, now: datetime, names: Names) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
         key_file, cert_file = self._path("ca.key"), self._path("ca.crt")
         if not (key_file.is_file() and cert_file.is_file()):
             log.info("making NeoAPRS's certificate authority in %s", self.folder)
-            key, cert = make_ca(host, now)
+            key, cert = make_ca(host, now, names)
             _write_private(key_file, _pem_key(key))
             _write_private(cert_file, _pem_cert(cert))
             return key, cert
@@ -291,7 +365,7 @@ class CertificateStore:
                 self.folder,
                 RENEW_BEFORE_DAYS,
             )
-            key, cert = make_ca(host, now)
+            key, cert = make_ca(host, now, names)
             _write_private(key_file, _pem_key(key))
             _write_private(cert_file, _pem_cert(cert))
             return key, cert

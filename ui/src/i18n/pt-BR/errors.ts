@@ -38,6 +38,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.update.not_running": "nenhum download de atualização em andamento",
   "error.sked.rate": "foram publicados testes demais daqui recentemente; tente de novo mais tarde",
   "error.sked.full": "o quadro não tem espaço para outro teste agora",
+  "error.sked.call_full": "seu indicativo já tem {max} testes planejados no quadro",
   "error.sked.past": "esse teste já terminou",
   "error.sked.far": "esse teste começa daqui a mais de 30 dias",
   "error.sked.unreachable": "não foi possível acessar o quadro de testes HF agora; tente de novo mais tarde",

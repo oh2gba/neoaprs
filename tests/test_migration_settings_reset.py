@@ -73,6 +73,7 @@ KEPT = {
     "web/https": "true",
     "web/port": "7777",
     "web/allowed_hosts": "radio.lan,shack",
+    "web/proxy": "true",
     "messages/alert": "false",
     "messages/chat_alert": "false",
     "messages/alert_command": "echo hi",

@@ -10,7 +10,7 @@ import { dateTimeText } from "@/lib/format";
 import { readingText } from "@/lib/signal";
 import type { QueryKind } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
-import type { MessageRow } from "@/protocol/protocol";
+import type { IgateState, MessageRow } from "@/protocol/protocol";
 
 export interface Conversation {
   /** The other station. */
@@ -32,6 +32,17 @@ const encoder = new TextEncoder();
 /** Whether the call, as typed, is the email gateway. */
 export function isGateway(call: string): boolean {
   return normalizeCall(call) === EMAIL_GATEWAY;
+}
+
+/** Whether the call is one of the internet services (`LIMITS.message.services`), exactly. */
+export function isInternetService(call: string): boolean {
+  return LIMITS.message.services.some((service) => service === call.trim().toUpperCase());
+}
+
+/** Whether the Internet connection carries the messages to the internet services: Send what I hear is on and the
+ * login is verified. */
+export function internetCarries(igate: IgateState | null): boolean {
+  return igate !== null && igate.gate && igate.state === "connected";
 }
 
 /** The other station of a message: the sender if it came in, else the addressee; "sender>addressee"

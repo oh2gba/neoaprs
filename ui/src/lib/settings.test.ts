@@ -123,6 +123,7 @@ describe("groupKeys", () => {
             "serial/skip",
             "web/port",
             "web/allowed_hosts",
+            "web/proxy",
             "igate/server",
             "igate/password",
             "map/maxzoom",

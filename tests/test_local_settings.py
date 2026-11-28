@@ -24,6 +24,7 @@ NEW_VALUES = {
     "update/url": "https://updates.example.org/version.json",
     "map/source": "https://maps.example.org/planet.pmtiles",
     "web/allowed_hosts": "aprs.example.org",
+    "web/proxy": "true",
 }
 
 
