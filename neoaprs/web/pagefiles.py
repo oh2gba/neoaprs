@@ -24,6 +24,7 @@ log = logging.getLogger("neoaprs.web")
 
 class Gate(Protocol):
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool: ...
+    def is_local(self, request: tornado.httputil.HTTPServerRequest) -> bool: ...
 
 
 class HostGate(Protocol):

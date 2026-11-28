@@ -8,10 +8,12 @@ from typing import Any
 
 import tornado.httpserver
 import tornado.httputil
+
 import tornado.web
 from tornado.iostream import IOStream
 from tornado.netutil import bind_sockets
 
+from neoaprs.web.access import is_local
 from neoaprs.web.pagesocket import Socket
 from tests.support.env import remember_stop
 
@@ -35,6 +37,9 @@ class FakeApi:
 class FakeGate:
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool:
         return True
+
+    def is_local(self, request: tornado.httputil.HTTPServerRequest) -> bool:
+        return is_local(request)
 
 
 class FakePageHost:

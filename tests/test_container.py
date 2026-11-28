@@ -7,6 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+import tornado.httputil
 
 from neoaprs.cli import servicecmd
 from neoaprs.cli.installkind import DEB_PREFIX, container_environment, detect, simulated
@@ -124,3 +125,23 @@ def test_a_container_hides_proc_asound_and_the_names_of_the_cards_are_read_from_
     (masked / "card1").mkdir()
     (masked / "card1" / "id").write_text("Device\n", encoding="utf-8")
     assert alsa_card_names() == {1: "Device"}, "what ALSA's own folder has wins"
+
+
+async def test_in_a_container_a_request_from_the_loopback_is_no_proof_of_this_computer(tmp_path: Path) -> None:
+    """A port forwarder inside the container's namespace hands every remote connection over as
+    127.0.0.1, so the key is always asked there."""
+    e = Env(tmp_path, web=True, install=CONTAINER)
+    await e.start()
+    try:
+        for host in ("localhost", f"127.0.0.1:{e.port}"):
+            assert (await e.fetch("/access", {"Host": host})).code == 401, host
+            login = await e.fetch("/access", {"Host": host}, method="POST", body='{"key": ""}')
+            assert login.code == 403, f"{host}: an empty key is wrong, not this computer"
+        assert e.server is not None
+        request = tornado.httputil.HTTPServerRequest(
+            method="GET", uri="/", headers=tornado.httputil.HTTPHeaders({"Host": "my-nas"})
+        )
+        request.remote_ip = "127.0.0.1"
+        assert e.server.this_computer_target(request) is None
+    finally:
+        await e.stop()

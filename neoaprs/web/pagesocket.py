@@ -7,7 +7,6 @@ from typing import Any, Protocol
 import tornado.websocket
 from tornado.iostream import IOStream, StreamBufferFullError
 
-from .access import is_local
 from .api import Api
 from .browser import browser_of
 from .headers import origin_is_host
@@ -56,7 +55,7 @@ class Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
             stream.max_write_buffer_size = MAX_WRITE_BUFFER
             self.server.page_proved(stream)
         ip = self.request.remote_ip or ""
-        self.server.api.attach(self, ip, is_local(self.request))
+        self.server.api.attach(self, ip, self.server.access.is_local(self.request))
         log.info("page connected from %s: %s", ip, browser_of(self.request.headers.get("User-Agent", "")))
 
     def on_message(self, message: str | bytes) -> None:

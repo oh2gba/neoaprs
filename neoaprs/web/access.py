@@ -88,9 +88,11 @@ class Verdict(Enum):
 class Access:
     """Settings and clock are read on each call, so a new key or switch takes effect at once."""
 
-    def __init__(self, config: Callable[[], Config], clock: Clock) -> None:
+    def __init__(self, config: Callable[[], Config], clock: Clock, *, container: bool = False) -> None:
         self._config = config
         self._clock = clock
+        # In a container a forwarder may hand a remote connection over from the loopback.
+        self._container = container
         self._wrong: dict[str, list[float]] = {}  # per address, times of wrong keys
         self._blocked: dict[str, float] = {}  # per address, when the block ends
 
@@ -110,9 +112,13 @@ class Access:
             return False
         return int(expires) > self._clock().timestamp() and hmac.compare_digest(mac.encode(), _mac(key, body).encode())
 
+    def is_local(self, request: tornado.httputil.HTTPServerRequest) -> bool:
+        """Return True if the request comes from this computer itself; never in a container."""
+        return not self._container and is_local(request)
+
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool:
         """Return True for a local request; others need a valid session while the network is on."""
-        if is_local(request):
+        if self.is_local(request):
             return True
         config = self._config()
         cookie = request.cookies.get(COOKIE)
@@ -195,7 +201,7 @@ class Login(_Answer):
         self.set_status(204)
 
     def post(self) -> None:
-        if is_local(self.request):
+        if self.server.access.is_local(self.request):
             self.set_status(204)
             return
         try:
@@ -226,6 +232,6 @@ class NewKey(_Answer):
             raise tornado.web.HTTPError(401)
         if not await self.server.renew_key():
             raise tornado.web.HTTPError(500)
-        if not is_local(self.request):
+        if not self.server.access.is_local(self.request):
             self.server.access.give_session(self)
         self.set_status(204)

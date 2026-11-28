@@ -102,7 +102,9 @@ class WebServer:
             self.page.size / 1048576,
         )
         self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=self.page.build)
-        self.access = Access(lambda: controller.config, controller.clock)
+        self.access = Access(
+            lambda: controller.config, controller.clock, container=controller.install.kind == "container"
+        )
         self.address = LOOPBACK  # what it listens on; "" is every interface
         self._by_name: list[str] = []
         self.port = 0
@@ -142,7 +144,8 @@ class WebServer:
 
     def this_computer_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None:
         """Return the 127.0.0.1 URL for a loopback request by another name, else None."""
-        return this_computer_target(request, self.controller.config.web_network, self.bound_port())
+        network = self.controller.config.web_network or self.in_container
+        return this_computer_target(request, network, self.bound_port())
 
     @property
     def in_container(self) -> bool:
