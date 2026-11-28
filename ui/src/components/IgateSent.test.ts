@@ -121,7 +121,7 @@ describe("the lines put on APRS-IS", () => {
   it("are listed oldest first with the time, the tag of the radio that heard each and the line; none for our own", async () => {
     const { daemon, wrapper } = make();
     await toggle(wrapper, true);
-    expect(wrapper.find(".igatesent").text()).toBe("");
+    expect(wrapper.find(".igatesent").text()).toBe("No packet yet.");
     await tell(daemon, {
       igateSent: [line(1, 1), line(2, 2), line(3, null, "OH2GBA>APZNEO,TCPIP*:!6010.00N/02456.00E>")],
     });
@@ -149,6 +149,20 @@ describe("the lines put on APRS-IS", () => {
     await tell(daemon, { igateSent: [line(1), line(2), line(3)] });
     await flushPromises();
     expect(box.scrollTop).toBe(100);
+  });
+
+  it("keep each row's element when the oldest leaves at the bound, so what a reader looks at stays put", async () => {
+    const { daemon, wrapper } = make();
+    await toggle(wrapper, true);
+    const full = Array.from({ length: SENT_KEPT }, (_, n) => line(n));
+    await tell(daemon, { igateSent: full });
+    const row = (n: number) => wrapper.findAll(".igatesent-row").find((r) => r.text().endsWith(`>line ${n}`))?.element;
+    const before = row(50);
+    await tell(daemon, {
+      igateSent: sentAfter(full, { type: "igate_sent", whole: false, lines: [line(SENT_KEPT)] }),
+    });
+    expect(row(50)).toBe(before);
+    expect(wrapper.findAll(".igatesent-row")).toHaveLength(SENT_KEPT);
   });
 
   it("are shown to the newest when the box is opened", async () => {

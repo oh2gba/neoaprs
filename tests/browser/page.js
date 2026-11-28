@@ -16,7 +16,7 @@
   // The page's socket, watched: what came, which topics, and the saves not yet answered. `drop` closes
   // it as a lost connection would (the page then connects again by itself).
   const Native = window.WebSocket;
-  const socket = (window.__neoSocket = { opened: 0, received: 0, topics: [], states: 0, asked: [], answered: [], current: null, sentAt: 0, heardAt: 0 });
+  const socket = (window.__neoSocket = { opened: 0, received: 0, topics: [], states: 0, asked: [], answered: [], current: null, sentAt: 0, heardAt: 0, last: {} });
   window.WebSocket = class extends Native {
     constructor(...args) {
       super(...args);
@@ -30,6 +30,7 @@
           const m = JSON.parse(event.data);
           if (m.type === "state") socket.states++;
           if (m.type === "state" && !socket.topics.includes(m.topic)) socket.topics.push(m.topic);
+          if (m.type === "state") socket.last[m.topic] = m.value;
           if ((m.type === "saved" || m.type === "error") && typeof m.id === "number") socket.answered.push(m.id);
         } catch {
           // (not JSON: the page itself says so)
@@ -48,6 +49,10 @@
     }
   };
   window.__neoSocketDrop = () => socket.current && socket.current.close(4000, "dropped by the browser suite");
+  // A frame as the daemon would send it, for what the demo daemon cannot make (the chat's lines, the lines
+  // put on APRS-IS): the page's own code takes it as it takes the daemon's.
+  window.__neoTell = (message) =>
+    socket.current.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(message) }));
 
   // A hidden tab, simulated: the headless browser has no window to hide, so the page is told it is hidden
   // as the browser would tell it (its timers and frames are not slowed as a real hidden tab's are).

@@ -16,13 +16,13 @@ const table = (...rows: ChatLineRow[]): ReadonlyMap<string, ChatLineRow> => new 
 const fresh: ChatFreshMessage = { type: "chat_fresh", count: 1, id: 2, call: "OH3ABC", text: "hi" };
 
 let daemon: FakeDaemon;
-let announce: ReturnType<typeof vi.fn>;
+let announce: ReturnType<typeof vi.fn<(fresh: ChatFreshMessage) => void>>;
 let chat: ReturnType<typeof useChat>;
 
 beforeEach(() => {
   localStorage.clear();
   daemon = fakeDaemon({ chatState: { state: "ok" } });
-  announce = vi.fn();
+  announce = vi.fn<(fresh: ChatFreshMessage) => void>();
   chat = effectScope().run(() => useChat(daemon, daemon.panel, announce))!;
 });
 

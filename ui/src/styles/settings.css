@@ -359,24 +359,38 @@ fieldset.composebox > legend {
    long line wraps inside it */
 .igatesent {
   height: 12em;
-  padding: 8px;
+  padding: 0 8px;
   overflow: auto;
-  background: var(--bg);
   border: 1px solid var(--border);
   font-size: 12px;
   line-height: 1.35;
 }
+.igatesent .empty {
+  margin: 4px 0;
+}
+/* a line as the Packets tab stacks one: the time and the radio's tag, then the line under them */
 .igatesent-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 7em) minmax(0, 1fr);
-  gap: 0 8px;
-  align-items: baseline;
+  grid-template-areas:
+    "time tag"
+    "line line";
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.igatesent-time {
+  grid-area: time;
 }
 .igatesent-tag {
+  grid-area: tag;
   min-width: 0;
-  overflow: hidden;
+}
+.igatesent-tag:empty {
+  display: none;
 }
 .igatesent-line {
+  grid-area: line;
   overflow-wrap: anywhere;
 }
 .beaconstatus .problem {

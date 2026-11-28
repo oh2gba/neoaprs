@@ -257,10 +257,18 @@
   gap: 2px;
   height: 9rem;
   margin: 0;
-  padding: 0;
+  padding: 4px 6px;
   overflow-y: auto;
   list-style: none;
   overflow-wrap: anywhere;
+}
+.chat-line {
+  padding: 1px 4px;
+  border-radius: var(--radius-box);
+}
+/* a line of ours, as our own messages are shown */
+.chat-line.ours {
+  background: var(--row-selected);
 }
 .chat-at {
   margin-right: 6px;

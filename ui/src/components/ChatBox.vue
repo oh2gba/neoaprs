@@ -14,6 +14,7 @@ import { t } from "@/i18n";
 import { chatText } from "@/lib/chat";
 import { leftTitle } from "@/lib/compose";
 import { dateTimeText, hourMinuteText } from "@/lib/format";
+import { keepPlace } from "@/lib/keepplace";
 import { mayPostAs } from "@/lib/skeds";
 import { characters, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
@@ -42,7 +43,8 @@ watch(
   () => chat.lines.value.length > 0 && chat.lines.value[chat.lines.value.length - 1]?.id,
   () => {
     const keep = following;
-    void nextTick(() => keep && toEnd());
+    const back = keep ? null : keepPlace(list.value);
+    void nextTick(() => (keep ? toEnd() : back?.()));
   },
 );
 onMounted(toEnd);
