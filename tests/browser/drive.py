@@ -1,5 +1,6 @@
 """The browser suite's daemon and pages: scripts/demo-daemon on a folder of its own, and Chromium on its page."""
 
+import ctypes
 import os
 import re
 import shutil
@@ -30,6 +31,12 @@ START_SEC = 90.0  # the longest a start may take (a limit, not how long it takes
 STEP_MS = 30_000  # the longest one step of the page may take
 LOG_LINE = re.compile(r"web page at (http://\S+?)/?\s")
 SHIPS_LINE = re.compile(r"Ships, My own receiver: (127\.0\.0\.1:\d+)")
+
+
+def ends_with_the_run() -> None:
+    """In the demo daemon's process before it starts: a TERM when the run's process ends, however it ends
+    (a run killed or stopped before its teardown), which the demo daemon passes on to the daemon."""
+    ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
 
 
 def until(condition: Callable[[], object], timeout_sec: float, what: str) -> None:
@@ -130,6 +137,7 @@ class Demo:
                 stdout=out,
                 stderr=subprocess.STDOUT,
                 cwd=ROOT,
+                preexec_fn=ends_with_the_run if sys.platform.startswith("linux") else None,  # noqa: PLW1509
             )
         log = self.folder / "neoaprs.log"
 
