@@ -7,6 +7,7 @@ import asyncio
 import socket
 import sys
 from typing import cast
+from tests.support.patience import PATIENCE_SEC
 
 
 # A refused connection in the system's words.
@@ -70,7 +71,7 @@ class FakeRadio:
         for client in self._clients:
             client.write(data)
 
-    async def said(self, count: int = 1, timeout_sec: float = 2.0) -> bytes:
+    async def said(self, count: int = 1, timeout_sec: float = PATIENCE_SEC) -> bytes:
         """What the code under test has written since the last call: waits until at least `count`
         bytes came or the time is up, and returns all of it."""
         loop = asyncio.get_running_loop()
@@ -90,7 +91,7 @@ class FakeRadio:
         first."""
         self._heard[:0] = data
 
-    async def connected(self, timeout_sec: float = 2.0) -> None:
+    async def connected(self, timeout_sec: float = PATIENCE_SEC) -> None:
         """Waits until a client is connected."""
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout_sec

@@ -12,6 +12,7 @@ from neoaprs import ax25, kiss
 from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsmessage import format_ack, format_message
 from neoaprs.packet import Packet
+from tests.support.patience import PATIENCE_SEC
 
 
 def on_air(source: str, info: bytes, destination: str = "APRS", path: str = "WIDE1-1") -> bytes:
@@ -52,10 +53,10 @@ def from_internet(
 class Hears(Protocol):
     """What `said` needs of a world: the `Env` of tests/support/env.py."""
 
-    async def heard(self, count: int = 1, timeout_sec: float = 2.0) -> bytes: ...
+    async def heard(self, count: int = 1, timeout_sec: float = PATIENCE_SEC) -> bytes: ...
 
 
-async def said(radio: Hears, count: int = 1, timeout_sec: float = 2.0) -> list[ax25.Frame]:
+async def said(radio: Hears, count: int = 1, timeout_sec: float = PATIENCE_SEC) -> list[ax25.Frame]:
     """The frames the daemon has written to the radio, waiting until `count` arrived or time is up."""
     out: list[ax25.Frame] = []
     decoder = kiss.KissDecoder()

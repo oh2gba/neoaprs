@@ -361,7 +361,7 @@ class Env:
         else:
             feed_pty(self.master, data)
 
-    async def heard(self, count: int = 1, timeout_sec: float = 2.0) -> bytes:
+    async def heard(self, count: int = 1, timeout_sec: float = PATIENCE_SEC) -> bytes:
         """What the daemon has written to the radio since the last call: waits for `count` bytes (or
         the time) and returns all that came."""
         if self.radio is not None:

@@ -12,6 +12,7 @@ from neoaprs.db import Db
 from neoaprs.dbfile import connect
 from neoaprs.dbthread import DbThread, Tuning
 from tests.support.safety import FaultyConnection, Injected as Injected, raw
+from tests.support.patience import PATIENCE_SEC
 
 T = TypeVar("T")
 THREAD_PREFIX = "neoaprs-db"
@@ -27,7 +28,7 @@ def db_threads() -> list[DbThread]:
     return [t for t in threading.enumerate() if isinstance(t, DbThread) and t.name.startswith(THREAD_PREFIX)]
 
 
-def wait_gone(timeout: float = 2.0) -> list[DbThread]:
+def wait_gone(timeout: float = PATIENCE_SEC) -> list[DbThread]:
     deadline = time.monotonic() + timeout
     while db_threads() and time.monotonic() < deadline:
         time.sleep(0.005)

@@ -83,7 +83,7 @@ class WsClient:
         except asyncio.TimeoutError:
             raise TimeoutError from None
 
-    async def frames(self, count: int, timeout: float = 5.0) -> list[bytes]:
+    async def frames(self, count: int, timeout: float = PATIENCE_SEC) -> list[bytes]:
         """Waits until `count` binary frames have come, and gives all that have."""
         deadline = asyncio.get_running_loop().time() + timeout
         while len(self.binary) < count:
@@ -93,7 +93,7 @@ class WsClient:
                 raise AssertionError(f"{len(self.binary)} binary frames came, not {count}") from None
         return list(self.binary)
 
-    async def recv(self, timeout: float = 5.0) -> dict[str, Any]:
+    async def recv(self, timeout: float = PATIENCE_SEC) -> dict[str, Any]:
         deadline = asyncio.get_running_loop().time() + timeout
         while self._read >= len(self.messages):
             assert self.closed_with is None, f"the socket was closed {self.closed_with}"
@@ -104,7 +104,7 @@ class WsClient:
         self._read += 1
         return self.messages[self._read - 1]
 
-    async def expect(self, kind: str, topic: str | None = None, timeout: float = 5.0) -> dict[str, Any]:
+    async def expect(self, kind: str, topic: str | None = None, timeout: float = PATIENCE_SEC) -> dict[str, Any]:
         """The next message of the type (of the topic, for `state` and `patch`); the ones before it
         are read and stay in `messages`."""
         deadline = asyncio.get_running_loop().time() + timeout

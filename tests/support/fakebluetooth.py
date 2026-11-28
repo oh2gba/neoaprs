@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from neoaprs import btserial, btsdp
+from tests.support.patience import PATIENCE_SEC
 
 ADDRESS = "00:11:22:33:44:55"
 
@@ -148,14 +149,14 @@ class FakeBluetooth:
         self.peer.sendall(data)
         self.peer.setblocking(False)
 
-    async def connected(self, timeout_sec: float = 2.0) -> None:
+    async def connected(self, timeout_sec: float = PATIENCE_SEC) -> None:
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout_sec
         while self.peer is None:
             assert loop.time() < deadline, "nobody connected to the fake device"
             await asyncio.sleep(0.005)
 
-    async def said(self, count: int = 1, timeout_sec: float = 2.0) -> bytes:
+    async def said(self, count: int = 1, timeout_sec: float = PATIENCE_SEC) -> bytes:
         """What the code under test has written: waits for at least `count` bytes (or the time) and
         returns all that came."""
         assert self.peer is not None, "nobody is connected to the device"

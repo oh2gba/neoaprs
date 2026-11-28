@@ -14,6 +14,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
 import pytest
+from tests.support.patience import PATIENCE_SEC
 
 # For a test, or `pytestmark = posix_only` for a file
 posix_only = pytest.mark.skipif(
@@ -78,7 +79,7 @@ def feed(master_fd: int, data: bytes) -> None:
         view = view[os.write(master_fd, view) :]
 
 
-def heard(master_fd: int, count: int = 1, timeout_sec: float = 2.0) -> bytes:
+def heard(master_fd: int, count: int = 1, timeout_sec: float = PATIENCE_SEC) -> bytes:
     """What the port has written, waiting until at least `count` bytes came or the time is up."""
     out = bytearray()
     deadline = time.monotonic() + timeout_sec
