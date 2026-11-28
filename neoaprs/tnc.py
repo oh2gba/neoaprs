@@ -90,6 +90,7 @@ def _until_settings_change(tnc: "Tnc", problem: str) -> None:
 
 class Tnc(TimedSource):
     stats: TncStats
+    _modem_ran = False  # the modem was running at its last change
 
     def __init__(
         self,
@@ -203,6 +204,7 @@ class Tnc(TimedSource):
                 self._port = None
                 found[0].close()
                 raise
+            self.modem_changed()  # the modem may have stopped while the line was opened
 
     async def _find_line(
         self, reopen: str, named: bool, generation: int
@@ -299,14 +301,17 @@ class Tnc(TimedSource):
 
     def modem_changed(self) -> None:
         """Follow the modem: the line is closed while the modem does not run, and opened once it does."""
-        if (modem := self._modem()) is None or self.state is Source.State.STOPPED:
+        if (modem := self._modem()) is None:
+            return
+        ran, self._modem_ran = self._modem_ran, modem.state == "running"
+        if self.state is Source.State.STOPPED:
             return
         if modem.state != "running" and (port := self._port) is not None:
             self._port = None
             self._drop_tasks()
             port.close()
             self._wait(MODEM_NOT_RUNNING)
-        elif modem.state == "running" and self.state is Source.State.WAITING and self._port is None:
+        elif not ran and modem.state == "running" and self.state is Source.State.WAITING and self._port is None:
             self._generation += 1  # the retry already due is void: this one connects now
             self._spawn(self._connect())
 

@@ -25,13 +25,14 @@ from neoaprs.tncprofile import MERCURY_OWN, tcp_url
 from tests.support.faketnc import UI
 from neoaprs.cli.supportsummary import _mercury
 from neoaprs.mercuryruns import PORTS_TAKEN, StartEnd
+from neoaprs import tnc
 from neoaprs.tnc import Tnc
 from neoaprs.web.supportstate import mercury_state
 from neoaprs.radiotype import HF_ID
 from neoaprs.source import Backoff, Source
 from tests.support import fakemercury
 from tests.support.clock import FixedClock
-from tests.support.env import Env, until_started
+from tests.support.env import Env, idle_for, until_started
 from tests.support.fakemercury import Air, of_radio
 from tests.support.modemports import base_of_this_test, own_ports
 from tests.test_mercury_modem import HF, _alive, stopped
@@ -384,6 +385,76 @@ async def test_your_own_mercury_is_reached_at_its_address_starts_no_modem_and_it
         await driver.modem._end_for_good("hears nothing", "receive_stalled")
         await until_started(lambda: driver.line.state is not Source.State.CONNECTED)
         assert not driver.line.send_frame(UI) and await station.said(1, 0.2) == b"", "given up: the line is closed too"
+    finally:
+        await driver.stop()
+        await air.aclose()
+
+
+async def own_radio(tmp_path: Path, station: fakemercury.FakeMercury) -> MercuryDriver:
+    spec = RadioSpec(
+        2, "hf", MERCURY_OWN.key, "", True, 2, settings={"tcp_host": "127.0.0.1", "tcp_port": str(station.port)}
+    )
+    driver = MercuryDriver(spec, Claims(), radio_folder(tmp_path, 2), utcnow)
+    driver.modem.changed.connect(driver.line.modem_changed)  # (wiring.py ties them)
+    driver.configure(spec, DEFAULTS, RunOverrides())
+    return driver
+
+
+async def test_the_events_of_a_running_mercury_do_not_open_its_waiting_line_again_and_again(tmp_path: Path) -> None:
+    """SNR, PTT and BUSY come many times a minute; only the modem's start makes the line try at once."""
+    air = Air()
+    station = air.station()
+    await air.start()
+    driver = await own_radio(tmp_path, station)
+    driver.line.backoff = Backoff([600.0])
+    try:
+        await driver.start()
+        await until_started(lambda: driver.modem.running and driver.line.usable)
+        station.refuse()
+        station.drop()
+        await until_started(lambda: driver.line.state is Source.State.WAITING)
+        tries = [0]
+        connect = driver.line._connect
+
+        async def counted(*args: object, **kw: object) -> None:
+            tries[0] += 1
+            await connect(*args, **kw)  # type: ignore[arg-type]
+
+        driver.line._connect = counted  # type: ignore[method-assign]
+        for snr in range(5):
+            station.say_control(f"SN {snr}.5")
+        await until_started(lambda: driver.modem.snr == 4.5)
+        await idle_for(0.2)
+        assert tries[0] == 0
+    finally:
+        await driver.stop()
+        await air.aclose()
+
+
+async def test_a_line_that_opens_after_the_modem_stopped_is_closed_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    air = Air()
+    station = air.station()
+    await air.start()
+    driver = await own_radio(tmp_path, station)
+    driver.line.backoff = Backoff([600.0])
+    opened = tnc.open_port
+    stopped_meanwhile: list[bool] = []
+
+    async def open_while_it_stops(line: Tnc, path: str) -> object:
+        port = await opened(line, path)
+        station.drop_control()  # its control port goes while the line is being opened
+        await until_started(lambda: not driver.modem.running)
+        stopped_meanwhile.append(True)
+        return port
+
+    monkeypatch.setattr(tnc, "open_port", open_while_it_stops)
+    try:
+        await driver.start()
+        await until_started(lambda: stopped_meanwhile and driver.line.state is not Source.State.CONNECTING)
+        await idle_for(0.1)
+        assert driver.line._port is None and not driver.line.usable
     finally:
         await driver.stop()
         await air.aclose()
