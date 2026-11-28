@@ -121,6 +121,13 @@ class Tuning:
         """Return why no frame may go now (a calibration run has the radio), or ""."""
         return TRANSMITTING if self.test else ""
 
+    def frame_hold(self) -> str:
+        return self.hold()
+
+    def refuses_line(self) -> str:
+        """Direwolf's line is opened whenever it listens."""
+        return ""
+
     def describe(self) -> str:
         """Return the status line, for example "Direwolf AFSK1200, listening"."""
         mode = mode_of(self.baud)

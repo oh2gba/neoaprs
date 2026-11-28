@@ -39,6 +39,7 @@ from .mercurytune import Tuning
 from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim, take_folder
 from .mercuryhelper import (
     Command,
+    PortsTaken,
     Program,
     audio_lost,
     choose_setup,
@@ -51,6 +52,7 @@ from .mercuryhelper import (
     next_modem_ports,
 )
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
+from .mercuryruns import PORTS_TAKEN, REASONS as REASONS, Runs, owners_of, owners_words
 from .mercuryscoping import Scoping
 from .mercuryscope import clamp_gain
 from .mercurystale import end_stale
@@ -78,8 +80,6 @@ RECEIVE_STALLED = (
     "Mercury hears nothing: its receive side stalled again after three restarts in an hour; restart the radio"
 )
 STATES = ("stopped", "starting", "running", "waiting")
-# Why the state is `waiting`, as a code for the page.
-REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "receive_stalled")
 TESTS = ("", "tune", "key")
 ENGINE_LOG = "mercury_engine.log"  # Mercury rotates it itself
 
@@ -146,7 +146,7 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
+class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
     PROGRAM, LOG = "Mercury", log
     _program: Program
 
@@ -186,8 +186,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         self.keying = Keying("vox")
         self.frames_keyed = 0
         self.starts = 0
-        self._program = Program(self._ended, self._audio_error, self._capture_full)
+        self._program = Program(self._ended, self._audio_error, self._capture_full, self._keying_failed)
         self.stall = StallWatch()
+        self._init_runs()
         self._audio_failed = False
         self._control: ControlLine | None = None
         self._dropped: set[ControlLine] = set()  # lines of an ended run, still being stopped
@@ -209,7 +210,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         _, keying, gain = own_choice(config, self.holder)
         self.tx_gain_db = clamp_gain(gain)
         self.backoff.reset()
-        self.stall = StallWatch()
+        self.stall.fresh()
         self._held.forget()
         if not speaker and attach:
             self.attached = attach
@@ -336,6 +337,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         keying, ini = self.keying, self.home / INI_FILE
         try:
             self._choose_ports()
+        except PortsTaken as e:
+            log.warning("Mercury is not started: %s; %s", PORTS_TAKEN, owners_of(e.ports))
+            return self._failed(PORTS_TAKEN, "ports_taken")
         except OSError as e:
             log.warning("Mercury cannot be started: %s", e)
             return self._failed("no free port for Mercury; the log says which were tried", "no_port")
@@ -352,11 +356,13 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
             argv += ["-L", str(self.home / ENGINE_LOG)]
         self._program.device_lines.clear()
         self._program.keying = keying.text if keying.kind in ("rts", "dtr") else ""
+        self._program.keying_told = self._init_failed = False
         try:
             self._program.start(argv, self.home, pid_file)
         except OSError as e:
             return self._failed(f"Mercury could not be started: {os_error_text(e)}", "not_started")
         self.starts += 1
+        self._start_made()
         if self.state == "waiting":
             self.changed.emit()
         else:
@@ -372,6 +378,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
 
     def _failed(self, problem: str, reason: str) -> None:
         """Report a launch that failed for a reason that may pass, and retry after the back-off."""
+        self._start_ended(reason, attempt=True)
         self._set("waiting", problem, reason)
         self._relaunch_later()
 
@@ -407,8 +414,11 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         self._gone(SOUND_CARD_FAILED, "sound_card")
 
     def _capture_full(self, now: float) -> None:
-        """Called on the loop, at most once a second, while Mercury's capture buffer is full."""
-        if self.state == "stopped":
+        """Called on the loop, at most once a second, while Mercury's capture buffer is full.
+
+        A run whose engine never came up (its keying failed, its control port never answered) fills the
+        buffer too: that is no stall."""
+        if self.state == "stopped" or self._init_failed or not self.engine_ran:
             return
         # a PTT ON without its PTT OFF is not believed for long: a missed one must not blind the watch
         if self.keyed_now(now) or self.test:
@@ -455,6 +465,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         self.speaker_line.close()
         self._clear_channel()
         self._forget_test()
+        self._start_ended(reason)
         self._set("waiting", problem, reason)
         self._relaunch_later()
 
@@ -466,6 +477,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
             self._event,
             self._control_state,
             self._control_backoff,
+            self._control_refused,
         )
         self._control.start()
 
@@ -484,7 +496,12 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
             ):
                 self._tasks.spawn(self._refuse_open(found), "mercury-refuse")
                 return
+            if others := self.others_on_ports():
+                log.warning("Mercury's control line reached another program: %s; %s", PORTS_TAKEN, owners_words(others))
+                self._taken()
+                return
             self.backoff.connected()
+            self._start_ran()
             self._set("running", "")
         else:
             # a test under way stays on: its TUNE OFF is written when the port is back
@@ -500,17 +517,6 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         """
         log.warning("Mercury listens on the network (%s): it is ended and not run", ", ".join(found))
         await self._end_for_good(OPEN_TO_NETWORK, "network")
-
-    async def _end_for_good(self, problem: str, reason: str) -> None:
-        """End the program and do not start it again until the radio is started anew."""
-        self._generation += 1
-        control, self._control = self._control, None
-        if control is not None:
-            await control.stop()
-        await asyncio.to_thread(self._program.stop)
-        self._clear_channel()
-        self._forget_test()
-        self._set("waiting", problem, reason)
 
     def _end_run(self, problem: str) -> bool:
         if not self._program.running:

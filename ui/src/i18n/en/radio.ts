@@ -39,6 +39,7 @@ export const radio = {
   "radio.type.kiss_tcp": "Direwolf",
   "radio.type.tnc_text": "Yaesu FTM, TNC in monitor mode (RX only)",
   "radio.type.mercury": "sound card",
+  "radio.type.mercury_own": "your own program",
   "radio.type.lora_tcp": "tracker or iGate on Wi-Fi",
   "radio.type.lora_serial": "tracker or iGate on USB or Bluetooth",
   "radio.type.lora_console": "iGate on USB (RX only)",

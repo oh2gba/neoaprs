@@ -8,6 +8,7 @@ import os
 import signal
 import socket
 import sys
+import threading
 import time
 from pathlib import Path
 from collections.abc import Callable
@@ -18,7 +19,15 @@ from neoaprs import kiss
 from neoaprs.claims import Claims
 from neoaprs.mercuryclaims import radio_folder
 from neoaprs.radiotype import HF_ID, RadioId
-from neoaprs.mercury import CONTROL_OFFSET, FRAME_SEC, MAX_PAYLOAD, SOURCE_COMMIT, VERSION
+from neoaprs.mercury import (
+    CONTROL_OFFSET,
+    FRAME_SEC,
+    KEYING_OPEN_WINDOWS,
+    MAX_PAYLOAD,
+    RADIO_INIT_FAILED,
+    SOURCE_COMMIT,
+    VERSION,
+)
 from tests.support.fakemercuryui import FakeUi
 from tests.support.fakeradio import FakeRadio
 
@@ -287,12 +296,18 @@ def of_radio(data_dir: Path, holder: RadioId = HF_ID, claims: Claims | None = No
 
 
 def program(
-    die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False, audio_lost: bool = False
+    die_after_sec: float | None = None,
+    audio_error: bool = False,
+    no_ui: bool = False,
+    audio_lost: bool = False,
+    keying_fails: str = "",
 ) -> list[str]:
     """The command that runs this module as the Mercury program, whatever the working directory (the
     daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With
     `die_after_sec` it dies by itself; with `audio_error` it prints, once its ports listen, the line
-    Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
+    Mercury prints when its sound card cannot be opened, and runs on as Mercury does. With
+    `keying_fails` ("COM10 (Windows error 5)") it says it cannot open its keying port, listens on
+    nothing and waits until it is ended, as an unpatched Mercury does."""
     command = [
         sys.executable,
         "-c",
@@ -305,6 +320,7 @@ def program(
         *(["--audio-error"] if audio_error else []),
         *(["--audio-lost"] if audio_lost else []),
         *(["--no-ui"] if no_ui else []),
+        *(["--keying-fails", keying_fails] if keying_fails else []),
     ]
 
 
@@ -413,6 +429,24 @@ async def _serve(
     return 0
 
 
+def hang_after_keying(what: str) -> int:
+    """What Mercury does when its keying port cannot be opened (mercury_engine.c): it says so and its
+    audio threads run on, the ports never listened on, until it is asked to end."""
+    print("mercury_engine: radio init failed", flush=True)
+    say(
+        KEYING_OPEN_WINDOWS.format(port=what.split(" ", 1)[0], error=what.rsplit(" ", 1)[1].rstrip(")"))
+        if "Windows error" in what
+        else f"[ERR] [serial-ptt] Cannot open {what}"
+    )
+    say(RADIO_INIT_FAILED)
+    stop = threading.Event()
+    if sys.platform != "win32":
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    stop.wait()
+    print("Mercury engine init failed.", flush=True)
+    return 1
+
+
 def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> int:
     args = _arguments(sys.argv[1:] if argv is None else argv)
     if "-V" in args:
@@ -421,6 +455,8 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
     if "-z" in args:
         out(SOUND_CARDS.rstrip("\n"))
         return 0
+    if args.get("--keying-fails"):
+        return hang_after_keying(args["--keying-fails"])
     die_after = (
         float(args["--die-after"])
         if args.get("--die-after")

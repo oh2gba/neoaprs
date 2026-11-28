@@ -468,6 +468,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.not_started": "モデムを起動できませんでした",
   "settings.tnc.hf.sound_card": "サウンドカードを開けません: 別のものを選んでください",
   "settings.tnc.hf.keying": "送信切替のデバイスを開けません: 別の送信切替の方法を選んでください",
+  "settings.tnc.hf.keying_in_use": "送信切替のポートは別のプログラムが使用中です",
+  "settings.tnc.hf.keying_missing": "送信切替のポートが見つかりません",
+  "settings.tnc.hf.ports_taken": "別のプログラムがすでにモデムのポートを使用しています",
   "settings.tnc.counts": {
     other: "受信{n}パケット、入力 {bytes_in}、出力 {bytes_out}、中継 {digipeated}",
   },

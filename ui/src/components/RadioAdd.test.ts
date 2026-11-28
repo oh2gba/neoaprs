@@ -43,7 +43,7 @@ const PACKET = [
   "Direwolf",
   "Yaesu FTM, TNC in monitor mode (RX only)",
 ];
-const MERCURY = ["Sound card"];
+const MERCURY = ["Sound card", "Your own program"];
 const LORA = ["Tracker or iGate on Wi-Fi", "Tracker or iGate on USB or Bluetooth", "iGate on USB (RX only)"];
 const WITHOUT = ["Dummy packet radio", "Dummy Mercury radio", "Dummy LoRa radio"];
 
@@ -71,14 +71,14 @@ describe("Add radio's list", () => {
   });
 
   it("draws no heading for a group with nothing in it", () => {
-    const { wrapper } = make(["mercury"]);
+    const { wrapper } = make(["mercury", "mercury-own"]);
     expect(drawn(wrapper)).toEqual([
       "Radio type",
       { "Packet (classic APRS)": PACKET },
       { LoRa: LORA },
       { "Without a radio": WITHOUT },
     ]);
-    expect(addTypeChoices(["mercury"]).map((choice) => choice.group)).not.toContain("Mercury (DATAC3)");
+    expect(addTypeChoices(["mercury", "mercury-own"]).map((choice) => choice.group)).not.toContain("Mercury (DATAC3)");
   });
 
   it("names its groups and its lines in the page's language", () => {

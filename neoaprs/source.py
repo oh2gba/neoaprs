@@ -240,6 +240,10 @@ class Source:
 CHECKING = Reason("the TNC is checking that the radio is there", "radio.checking")
 
 
+# a radio whose modem program does not run takes no frame and has no line
+MODEM_NOT_RUNNING = Reason("the modem is not running", "radio.not_connected")
+
+
 def unusable_because(state: Source.State) -> Reason:
     """Return why a frame cannot be sent in this state (CONNECTED means settling into KISS)."""
     if state is Source.State.SILENT:

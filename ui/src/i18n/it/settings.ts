@@ -502,6 +502,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.hf.not_started": "Impossibile avviare il modem",
   "settings.tnc.hf.sound_card": "Impossibile aprire la scheda audio: sceglierne un’altra",
   "settings.tnc.hf.keying": "Impossibile aprire il dispositivo di commutazione: scegli un altro modo di commutazione",
+  "settings.tnc.hf.keying_in_use": "La porta di commutazione è usata da un altro programma",
+  "settings.tnc.hf.keying_missing": "La porta di commutazione non esiste",
+  "settings.tnc.hf.ports_taken": "Un altro programma usa già le porte del modem",
   "settings.tnc.counts": {
     one: "{n} pacchetto ricevuto, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",
     other: "{n} pacchetti ricevuti, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",

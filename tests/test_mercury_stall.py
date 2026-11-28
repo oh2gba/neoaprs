@@ -142,14 +142,14 @@ async def test_a_stalled_mercury_is_started_again_and_after_three_restarts_in_an
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until_started(lambda: m.state in ("starting", "running") and m.pid is not None)
+        await until_started(lambda: m.state == "running" and m.pid is not None)
         with caplog.at_level(logging.WARNING, "neoaprs.mercury"):
             t = 0.0
             for _ in range(3):
                 first = m.starts
                 for s in range(int(STALL_SEC) + 1):
                     m._capture_full(t + s)
-                await until_started(lambda first=first: m.starts > first and m.pid is not None)  # type: ignore[misc]
+                await until_started(lambda first=first: m.starts > first and m.state == "running")  # type: ignore[misc]
                 t += RESTART_EVERY_SEC + 60
             assert m.stall.restarts == 3 and m.stall.stalls == 3
             for s in range(int(STALL_SEC) + 1):

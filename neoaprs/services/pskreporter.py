@@ -27,7 +27,7 @@ from neoaprs.radiospec import RadioId, RadioSpec
 from neoaprs.services.updatecheck import ENV_SWITCH
 from neoaprs.station import Station
 from neoaprs.tasks import TaskSet
-from neoaprs.tncprofile import MERCURY
+from neoaprs.tncprofile import MERCURY_TYPES
 
 log = logging.getLogger("neoaprs.pskreporter")
 
@@ -84,7 +84,13 @@ def base_of(call: str) -> str | None:
 
 def reporting_dial(spec: RadioSpec | None) -> int | None:
     """Return the dial in Hz of a Mercury radio that reports, else None."""
-    if spec is None or spec.type != MERCURY.key or spec.removed or not spec.enabled or not spec.value("psk_report"):
+    if (
+        spec is None
+        or spec.type not in MERCURY_TYPES
+        or spec.removed
+        or not spec.enabled
+        or not spec.value("psk_report")
+    ):
         return None
     return dial_hz(str(spec.value("psk_dial")))
 

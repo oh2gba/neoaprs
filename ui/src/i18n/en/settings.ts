@@ -491,6 +491,9 @@ export const settings = {
   "settings.tnc.hf.not_started": "The modem could not be started",
   "settings.tnc.hf.sound_card": "Sound card could not be opened: choose another",
   "settings.tnc.hf.keying": "Keying device could not be opened: choose another way of keying",
+  "settings.tnc.hf.keying_in_use": "Keying port in use by another program",
+  "settings.tnc.hf.keying_missing": "Keying port not found",
+  "settings.tnc.hf.ports_taken": "Another program is already using the modem's ports",
   "settings.tnc.counts": {
     one: "{n} packet heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",
     other: "{n} packets heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",

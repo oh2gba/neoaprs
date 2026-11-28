@@ -386,11 +386,11 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     ),
     "tcp_host": (
         "Settings tab, Radio (Address)",
-        "where a `kiss-tcp` radio connects while its port is empty; a `lora-tcp` radio's is empty until the board's address is typed, and nothing is opened meanwhile",
+        "where a `kiss-tcp` radio connects while its port is empty; a `mercury-own` radio's Mercury, this computer by default; a `lora-tcp` radio's is empty until the board's address is typed, and nothing is opened meanwhile",
     ),
     "tcp_port": (
         "Settings tab, Radio (Port)",
-        "the KISS port there ({tcp_port}): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100",
+        "the KISS port there ({tcp_port}): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100; a `mercury-own` radio's Mercury 8100 by default, its control port the one 200 above",
     ),
     "on_hf": (
         "Settings tab, Radio (On HF)",

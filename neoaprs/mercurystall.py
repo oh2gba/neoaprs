@@ -18,12 +18,18 @@ Action = Literal["", "restart", "give_up"]
 
 
 class StallWatch:
-    """The runs of the capture warning of one modem, and its stalls and restarts (monotonic times)."""
+    """The runs of the capture warning of one modem, and its stalls and restarts (monotonic times).
+
+    The counts cover every start of the radio in one run of the daemon."""
 
     def __init__(self) -> None:
         self.stalls = self.restarts = 0
         self.last_stall_at: datetime | None = None
         self.last_restart_at: datetime | None = None
+        self.fresh()
+
+    def fresh(self) -> None:
+        """A new start of the radio: three more restarts in an hour; the counts are kept."""
         self.stalled = False
         self.given_up = False
         self._run_from: float | None = None

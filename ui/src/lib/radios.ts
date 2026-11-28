@@ -95,6 +95,9 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "modem.not_started": "settings.tnc.hf.not_started",
   "modem.sound_card": "settings.tnc.hf.sound_card",
   "modem.keying": "settings.tnc.hf.keying",
+  "modem.keying_in_use": "settings.tnc.hf.keying_in_use",
+  "modem.keying_missing": "settings.tnc.hf.keying_missing",
+  "modem.ports_taken": "settings.tnc.hf.ports_taken",
   "modem.receive_stalled": "settings.tnc.hf.receive_stalled",
   "modem.receive_deaf": "settings.tnc.hf.receive_deaf",
 };

@@ -1374,6 +1374,7 @@ export const fr: Catalogue = {
   "radio.type.kantronics": "Kantronics KPC-3+",
   "radio.type.kiss_tcp": "Direwolf",
   "radio.type.mercury": "carte son",
+  "radio.type.mercury_own": "votre propre programme",
   "radio.type.dummy": "Radio packet factice",
   "radio.type.dummy_hf": "Radio Mercury factice",
   "radio.type.tnc_text": "Yaesu FTM, TNC en moniteur (RX seul)",
@@ -1887,6 +1888,9 @@ export const fr: Catalogue = {
   "settings.tnc.hf.not_started": "Le modem n'a pas pu être lancé",
   "settings.tnc.hf.sound_card": "Carte son impossible à ouvrir : choisissez-en une autre",
   "settings.tnc.hf.keying": "Commutation impossible à ouvrir : choisissez une autre façon de commuter",
+  "settings.tnc.hf.keying_in_use": "Le port de commutation est utilisé par un autre programme",
+  "settings.tnc.hf.keying_missing": "Le port de commutation est introuvable",
+  "settings.tnc.hf.ports_taken": "Un autre programme utilise déjà les ports du modem",
   "settings.tnc.counts": {
     one: "{n} paquet entendu, {bytes_in} reçus, {bytes_out} émis, {digipeated} relayés",
     other: "{n} paquets entendus, {bytes_in} reçus, {bytes_out} émis, {digipeated} relayés",

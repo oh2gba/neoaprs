@@ -62,6 +62,9 @@ const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
   not_started: "settings.tnc.hf.not_started",
   sound_card: "settings.tnc.hf.sound_card",
   keying: "settings.tnc.hf.keying",
+  keying_in_use: "settings.tnc.hf.keying_in_use",
+  keying_missing: "settings.tnc.hf.keying_missing",
+  ports_taken: "settings.tnc.hf.ports_taken",
   receive_stalled: "settings.tnc.hf.receive_stalled",
 };
 

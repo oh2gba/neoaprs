@@ -37,6 +37,7 @@ export const radio: Readonly<Record<keyof typeof en, Message>> = {
   "radio.type.kiss_tcp": "Direwolf",
   "radio.type.tnc_text": "Yaesu FTM, TNC en modo monitor (solo RX)",
   "radio.type.mercury": "tarjeta de sonido",
+  "radio.type.mercury_own": "tu propio programa",
   "radio.type.lora_tcp": "tracker o iGate por Wi-Fi",
   "radio.type.lora_serial": "tracker o iGate por USB o Bluetooth",
   "radio.type.lora_console": "iGate por USB (solo RX)",

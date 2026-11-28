@@ -85,9 +85,20 @@ class ModemState(_Model):
         description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `reason` says why"
     )
     reason: Literal[
-        "", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying", "receive_stalled"
+        "",
+        "not_installed",
+        "stopped",
+        "network",
+        "no_port",
+        "not_started",
+        "sound_card",
+        "keying",
+        "keying_in_use",
+        "keying_missing",
+        "ports_taken",
+        "receive_stalled",
     ] = Field(
-        description="why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; `receive_stalled` the program heard nothing (its receive side stalled) again after three restarts in an hour and is not started again until the radio is; empty unless the state is `waiting`"
+        description="why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; `keying_in_use` its keying port is in use by another program (Mercury: Windows error 5, or the device is busy) and the program was ended; it is started again after a back-off for as long as the radio is on; `keying_missing` its keying port is not there and the program was ended, started again in the same way; `ports_taken` another program listens on the KISS or control port of the modem's pair (most likely a Mercury the operator started himself): no modem is started beside it, no line connects to it, and the start is tried again after a back-off; the radio's type `mercury-own` is the one for such a Mercury; `receive_stalled` the program heard nothing (its receive side stalled) again after three restarts in an hour and is not started again until the radio is; empty unless the state is `waiting`"
     )
     mode: str = Field(
         description="the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf)"
@@ -180,6 +191,9 @@ RadioProblemCode = Literal[
     "modem.not_started",
     "modem.sound_card",
     "modem.keying",
+    "modem.keying_in_use",
+    "modem.keying_missing",
+    "modem.ports_taken",
     "modem.receive_stalled",
     "modem.receive_deaf",
     "transmit.off",

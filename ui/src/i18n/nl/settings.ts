@@ -505,6 +505,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.sound_card": "Geluidskaart kon niet worden geopend: kies een andere",
   "settings.tnc.hf.keying":
     "Het toestel voor de PTT kon niet worden geopend: kies een andere manier om de PTT te bedienen",
+  "settings.tnc.hf.keying_in_use": "De PTT-poort wordt door een ander programma gebruikt",
+  "settings.tnc.hf.keying_missing": "De PTT-poort is er niet",
+  "settings.tnc.hf.ports_taken": "Een ander programma gebruikt de poorten van de modem al",
   "settings.tnc.counts": {
     one: "{n} pakket gehoord, {bytes_in} ontvangen, {bytes_out} verzonden, {digipeated} herhaald",
     other: "{n} pakketten gehoord, {bytes_in} ontvangen, {bytes_out} verzonden, {digipeated} herhaald",

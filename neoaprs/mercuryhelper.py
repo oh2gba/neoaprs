@@ -53,6 +53,7 @@ from .mercury import (
     card_with,
     choose_keying,
     choose_sound_card,
+    keying_failure,
     keying_of,
     parse_sound_cards,
     unstamped,
@@ -157,9 +158,36 @@ def pair_free(broadcast_port: int) -> bool:
     return all(_free(port) for port in pair_ports(broadcast_port))
 
 
-def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[int, int]:
-    """Return the first free (broadcast, control) pair from `first` up; raise OSError if none."""
+class PortsTaken(OSError):
+    """Another program listens on the KISS or control port of the pair a modem would take."""
+
+    def __init__(self, ports: Sequence[int]) -> None:
+        super().__init__(f"another program listens on {', '.join(map(str, ports))}")
+        self.ports = tuple(ports)
+
+
+# Mercury's own pair, where a Mercury listens unless told otherwise: a program on it is most likely one
+OWN_PAIR = BROADCAST_PORT
+
+
+def taken_by_another(broadcast_port: int) -> None:
+    """Raise PortsTaken when a program listens on Mercury's own KISS or control port: another Mercury.
+
+    Another pair with a listener is passed over, as one that cannot be bound."""
+    if broadcast_port != OWN_PAIR:
+        return
+    if found := childprogram.listened([broadcast_port, broadcast_port + CONTROL_OFFSET]):
+        raise PortsTaken(sorted(found))
+
+
+def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES, mercury: bool = True) -> tuple[int, int]:
+    """Return the first free (broadcast, control) pair from `first` up; raise OSError if none.
+
+    For Mercury raise PortsTaken where a program listens on Mercury's own KISS or control port.
+    """
     for port in range(first, first + tries):
+        if mercury:
+            taken_by_another(port)
         if pair_free(port):
             return port, port + CONTROL_OFFSET
     raise OSError(f"no free pair of ports from {first} to {first + tries}")
@@ -174,11 +202,14 @@ def next_modem_ports(
 ) -> int:
     """Return the first broadcast port whose four ports overlap no other radio's pair and are free.
 
-    Raise OSError if none of `tries` fits.
+    Raise OSError if none of `tries` fits, PortsTaken where a program listens on Mercury's ports.
     """
     taken = {port for held in claims.held_by_others(holder, "modem_ports") for port in pair_ports(int(held))}
     for port in range(first, first + tries):
-        if taken.isdisjoint(pair_ports(port)) and free(port):
+        if not taken.isdisjoint(pair_ports(port)):
+            continue
+        taken_by_another(port)
+        if free(port):
             return port
     raise OSError(f"no free pair of ports from {first} to {first + tries} that no other radio's modem holds")
 
@@ -280,7 +311,8 @@ def _end_tree(process: subprocess.Popen[str]) -> None:
 
 class Program(childprogram.Program):
     """One run of Mercury; `on_audio_error` gets the line saying the sound card did not open,
-    `on_capture_full` the monotonic time of a full capture buffer, at most once a second."""
+    `on_capture_full` the monotonic time of a full capture buffer, at most once a second, and
+    `on_keying_error` the reason and line of a keying it could not set up, once a run."""
 
     name = "Mercury"
     asked_by_break = True  # sigbreak.patch: Ctrl-Break unkeys and ends it, as Ctrl-C does
@@ -290,11 +322,14 @@ class Program(childprogram.Program):
         on_ended: Callable[[int | None, list[str]], None],
         on_audio_error: Callable[[str], None] | None = None,
         on_capture_full: Callable[[float], None] | None = None,
+        on_keying_error: Callable[[str, str], None] | None = None,
     ) -> None:
         super().__init__(on_ended, log, mercury_log)
         self._on_audio_error = on_audio_error
         self._on_capture_full = on_capture_full
+        self._on_keying_error = on_keying_error
         self._full_told = -1.0  # reader thread only
+        self.keying_told = False  # set before a run starts, then by its reader thread
         # what the run said of its sound devices and keying, for the support file
         self.device_lines: deque[str] = deque(maxlen=DEVICE_LINES)
         self.keying = ""  # the run's keying, `rts:COM3`: lowered after a Windows end
@@ -304,6 +339,9 @@ class Program(childprogram.Program):
             post(self._on_audio_error, line)
         if _DEVICE_LINE.search(line):
             self.device_lines.append(unstamped(line))
+        if self._on_keying_error is not None and not self.keying_told and (why := keying_failure(line)):
+            self.keying_told = True
+            post(self._on_keying_error, why, unstamped(line))
         if self._on_capture_full is not None and capture_full(line):
             now = time.monotonic()
             if now - self._full_told >= 1.0:

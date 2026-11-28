@@ -13,6 +13,7 @@ from neoaprs.beaconrule import interval_words, send_on_radios
 from neoaprs.config import Config
 from neoaprs.emailrule import email_radio
 from neoaprs.radiospec import RadioId, RadioSpec, in_force_set, log_name
+from neoaprs.tncprofile import MERCURY_TYPES
 from neoaprs.versions import InstallInfo
 
 from .radiosettings import is_mercury, reached, type_words
@@ -222,7 +223,7 @@ def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
         rows.append(("Sound cards listed", "none"))
     if isinstance(mercury := entry.get("mercury"), dict):
         rows += _mercury(mercury)
-        rows += _psk_reporter(spec, mercury) if spec.type == "mercury" else []
+        rows += _psk_reporter(spec, mercury) if spec.type in MERCURY_TYPES else []
     return rows
 
 
@@ -265,6 +266,7 @@ def _mercury(m: dict[str, Any]) -> list[tuple[str, str]]:
         ),
     ]
     rows += [("Mercury said", str(line)) for line in m.get("device_lines") or []]
+    rows += [("Mercury started", f"{start.get('at')}: {start.get('ended')}") for start in m.get("starts") or []]
     if m.get("crashed_at"):
         rows.append(("Mercury ended by itself", str(m["crashed_at"])))
         rows += [("Its last lines", str(line)) for line in m.get("crash_lines") or []]

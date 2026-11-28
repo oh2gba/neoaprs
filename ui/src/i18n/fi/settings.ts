@@ -494,6 +494,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.not_started": "Modeemin käynnistys ei onnistunut",
   "settings.tnc.hf.sound_card": "Äänikorttia ei voitu avata: valitse toinen",
   "settings.tnc.hf.keying": "Avainnuslaitetta ei voitu avata: valitse toinen avainnustapa",
+  "settings.tnc.hf.keying_in_use": "Toinen ohjelma käyttää avainnusporttia",
+  "settings.tnc.hf.keying_missing": "Avainnusporttia ei löydy",
+  "settings.tnc.hf.ports_taken": "Toinen ohjelma käyttää jo modeemin portteja",
   "settings.tnc.counts": {
     one: "{n} paketti kuultu, {bytes_in} sisään, {bytes_out} ulos, {digipeated} toistettu",
     other: "{n} pakettia kuultu, {bytes_in} sisään, {bytes_out} ulos, {digipeated} toistettu",
