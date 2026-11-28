@@ -2,7 +2,8 @@
 // A row of a layer's box in Settings, Map: the Source list of Aircraft or Ships (`layer.offered`,
 // in the daemon's order; a stored source not among them shows as None), or the receiver's address,
 // shown only while the choice is an own receiver, with the receiver's state under it
-// (lib/receiverstatus.ts). A receiver that has not answered yet is looking, so the room is reserved
+// (lib/receiverstatus.ts); in the Aircraft box, which has no key row, their room is kept while the
+// choice is another. A receiver that has not answered yet is looking, so the room is reserved
 // from the first moment. Or the Ships box's AISStream key: a masked field with a link beside it to
 // the page where a key is made, and under it a status row that says AISStream's refusal of the key,
 // the room of both kept while there is nothing to say. Choosing a source switches the layer on in
@@ -14,7 +15,15 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useMapLayers } from "@/composables/useMapLayers";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { addressField, keyShown, layerKey, layerOf, shownSource, sourceChoices } from "@/lib/layersettings";
+import {
+  addressField,
+  addressRoom,
+  keyShown,
+  layerKey,
+  layerOf,
+  shownSource,
+  sourceChoices,
+} from "@/lib/layersettings";
 import { AISSTREAM_KEY_URL } from "@/lib/links";
 import { receiverLook } from "@/lib/receiverstatus";
 import { fieldFor, type FieldInfo } from "@/lib/settings";
@@ -36,6 +45,10 @@ const isSource = computed(() => own.value?.role === "source");
 const isKey = computed(() => own.value?.role === "key");
 /** The key's field is there while AISStream is chosen; else only its room. */
 const keyOff = computed(() => isKey.value && !keyShown(draft));
+/** The address row and its state are there as their room only (Aircraft, no own receiver chosen). */
+const addressOff = computed(() => addressRoom(props.fieldKey, draft));
+/** The row is its room: hidden, out of the keyboard's and the reader's way. */
+const roomOnly = computed(() => keyOff.value || addressOff.value);
 const error = computed(() => errors[props.fieldKey] ?? "");
 /** AISStream did not take the key: said in the status row under it, whose room is always kept. */
 const refused = computed(() => isKey.value && !keyOff.value && layer.value?.problem === "key_refused");
@@ -68,15 +81,15 @@ const typed = (text: string): void => {
 <template>
   <SettingsField
     :id="id"
-    :class="{ 'field-room': keyOff, layerslot: !isSource }"
+    :class="{ 'field-room': roomOnly, layerslot: !isSource }"
     :info="info"
     :model-value="shown"
     fallback=""
     :error="error"
     :changed="form.changed(fieldKey)"
     :apply="true"
-    :inert="keyOff || undefined"
-    :aria-hidden="keyOff || undefined"
+    :inert="roomOnly || undefined"
+    :aria-hidden="roomOnly || undefined"
     @update:model-value="typed"
     @choose="choose"
     @commit="form.finish(fieldKey, $event)"
@@ -88,7 +101,13 @@ const typed = (text: string): void => {
       }}</a>
     </template>
   </SettingsField>
-  <div v-if="!isSource && !isKey && look" class="receiverstatus statusfold statushead statusflat">
+  <div
+    v-if="!isSource && !isKey && look"
+    class="receiverstatus statusfold statushead statusflat"
+    :class="{ 'field-room': addressOff }"
+    :inert="addressOff || undefined"
+    :aria-hidden="addressOff || undefined"
+  >
     <StatusLine :state="look.state" :tone="look.tone" :line="look.line" />
   </div>
   <div

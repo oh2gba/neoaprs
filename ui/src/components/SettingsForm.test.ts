@@ -114,7 +114,7 @@ describe("SettingsForm", () => {
         2 +
         3 + // (the browser's own: Notify me, Sound, Notification)
         1 + // (Language)
-        -2 + // (the two receivers' addresses of the Map group: shown only with My own receiver)
+        -1 + // (the Ships box's receiver's address: in the key's place only with My own receiver)
         1, // (Add radio, the last row of the Radio group; one radio has no Name)
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
@@ -1558,7 +1558,7 @@ describe("SettingsForm", () => {
           .find("fieldset:has(#set-map-radius_km)")
           .findAll(".field label")
           .map((l) => l.text()),
-      ).toEqual(["Radius", "Detailed map", "Source", "Source", "Key"]);
+      ).toEqual(["Radius", "Detailed map", "Source", "Receiver's address", "Source", "Key"]);
     });
 
     it("has a box for each layer, Aircraft and Ships, each with its Source, that end the group, and Radius and Detailed map outside them", () => {
@@ -1567,9 +1567,10 @@ describe("SettingsForm", () => {
       const boxes = group.findAll("fieldset.subbox");
       expect(boxes.map((b) => b.find("legend").text())).toEqual(["Aircraft", "Ships"]);
       expect(boxes.map((box) => box.findAll(".field label").map((l) => l.text()))).toEqual([
-        ["Source"],
+        ["Source", "Receiver's address"],
         ["Source", "Key"],
       ]);
+      expect(boxes[0]?.find(".field:has(#set-map-aircraft_host)").classes()).toContain("field-room");
       expect(boxes[1]?.find(".field:has(#set-map-ships_key)").classes()).toContain("field-room");
       for (const box of boxes) {
         expect(box.find("legend").attributes("title")).toBeUndefined();

@@ -184,14 +184,34 @@ button,
   flex-basis: 40%;
 }
 
+/* on a phone a row with a list has the list under its label, the whole width of the row: the
+   entries of many lists are longer than the column beside a label */
+.size-phone .field:has(> .field-control select) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.size-phone .field:has(> .field-control select) > * {
+  grid-column: 1;
+}
+/* the call's SSID has the line under the call, with its meaning */
+.size-phone .field-control .input.ssid {
+  flex-basis: 100%;
+}
+/* Add radio's list has the whole line, its Add under it */
+.size-phone .radioadd .field-control > select.input {
+  flex-basis: 100%;
+}
+
 /* on a phone the button of an action row fills the control column, as other rows' inputs do */
 .size-phone .action-row .field-control > .btn:first-child {
   flex: 1;
 }
 
-/* the two buttons of the Help group share the column on a phone */
+/* the two buttons of the Help group share the column on a phone, and their words may take two
+   lines there */
 .size-phone .help-logs .action-row .field-control > .btn {
   flex: 1;
+  white-space: normal;
+  text-wrap: balance;
 }
 
 /* the update check button keeps its size on a phone: the version and the answer are beside it, or

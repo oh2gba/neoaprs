@@ -38,12 +38,21 @@ beforeEach(() => {
   forgetLayerTicks();
 });
 
+/** Whether the row of `selector` is there as its room only: hidden, inert and out of the reader's way. */
+function roomOnly(wrapper: ReturnType<typeof make>["wrapper"], selector: string): boolean {
+  const row = wrapper.find(selector).element.closest(".field, .statusflat");
+  if (!row) throw new Error(`no row of ${selector}`);
+  const room = row.classList.contains("field-room");
+  expect([row.hasAttribute("inert"), row.getAttribute("aria-hidden") === "true"]).toEqual([room, room]);
+  return room;
+}
+
 describe("Settings, Map: aircraft and ships", () => {
-  it("has the Source rows of Aircraft and Ships, each in the box of its layer and at None out of the box, with no address field", () => {
+  it("has the Source rows of Aircraft and Ships, each in the box of its layer and at None out of the box, the aircraft's address only as its room", () => {
     const { wrapper } = make();
     expect(wrapper.find<HTMLSelectElement>("#set-map-aircraft").element.value).toBe("none");
     expect(wrapper.find<HTMLSelectElement>("#set-map-ships").element.value).toBe("none");
-    expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(false);
+    expect(roomOnly(wrapper, "#set-map-aircraft_host")).toBe(true);
     expect(wrapper.find("#set-map-ships_host").exists()).toBe(false);
     expect(wrapper.find('label[for="set-map-aircraft"]').text()).toBe("Source");
     expect(wrapper.find('label[for="set-map-ships"]').text()).toBe("Source");
@@ -86,7 +95,7 @@ describe("Settings, Map: aircraft and ships", () => {
       mapLayer("ships"),
     ]);
     expect(wrapper.find<HTMLSelectElement>("#set-map-aircraft").element.value).toBe("adsblol");
-    expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(false);
+    expect(roomOnly(wrapper, "#set-map-aircraft_host")).toBe(true);
   });
 
   it("saves each choice at once with set_config", async () => {
@@ -98,19 +107,19 @@ describe("Settings, Map: aircraft and ships", () => {
     expect(other.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/ships": "fintraffic" } });
   });
 
-  it("shows the address field and its state only while the choice is My own receiver, and hides it with another choice", async () => {
+  it("shows the address field and its state only while the choice is My own receiver, and keeps only their room with another choice", async () => {
     const { wrapper } = make({ "map/aircraft": "receiver" }, [
       mapLayer("aircraft", { source: "receiver", receiver: receiving(42) }),
       mapLayer("ships"),
     ]);
-    expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(true);
+    expect(roomOnly(wrapper, "#set-map-aircraft_host")).toBe(false);
     expect(wrapper.find('label[for="set-map-aircraft_host"]').text()).toBe("Receiver's address");
     expect(wrapper.find("#set-map-aircraft_host").attributes("placeholder")).toBe("This computer");
-    expect(wrapper.find(".receiverstatus").exists()).toBe(true);
+    expect(roomOnly(wrapper, ".receiverstatus")).toBe(false);
     expect(wrapper.find("#set-map-ships_host").exists()).toBe(false);
     await wrapper.find("#set-map-aircraft").setValue("adsbfi");
-    expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(false);
-    expect(wrapper.find(".receiverstatus").exists()).toBe(false);
+    expect(roomOnly(wrapper, "#set-map-aircraft_host")).toBe(true);
+    expect(roomOnly(wrapper, ".receiverstatus")).toBe(true);
   });
 
   it("shows the address field and its state with a Radarcape chosen, with an empty box and an (i) of one line", async () => {

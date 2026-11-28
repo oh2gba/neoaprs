@@ -84,8 +84,8 @@ fieldset.composebox > legend {
   min-width: 0;
 }
 /* the call field: the call (at most six characters, so a width of its own) and the dropdown of its
-   SSID, side by side where there is room and one under the other where not (a phone), the
-   dropdown with the rest of its line */
+   SSID, side by side where there is room and one under the other where not and on a phone
+   (responsive.css), the dropdown with the rest of its line */
 .field-control .callrow {
   display: flex;
   flex: 1;

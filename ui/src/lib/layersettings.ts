@@ -127,7 +127,22 @@ export function layerShown(key: string, values: Readonly<Record<string, string>>
   const own = layerKey(key);
   if (own === null || own.role === "source") return true;
   const mine = isOwn(values[sourceKey(own.layer)] ?? "");
-  return own.role === "address" ? mine : !mine;
+  if (own.role === "key") return !mine;
+  return mine || !hasKeyRow(own.layer);
+}
+
+/** Whether the layer's box has a key row, in the address row's place while the source is not an own receiver. */
+const hasKeyRow = (layer: LayerName): boolean =>
+  Object.values(KEYS).some((row) => row.layer === layer && row.role === "key");
+
+/**
+ * Whether the address row is there only as its room: a layer with no key row (Aircraft) keeps the
+ * row of the receiver's address and its state while the source is not an own receiver, so that
+ * choosing one moves nothing below.
+ */
+export function addressRoom(key: string, values: Readonly<Record<string, string>>): boolean {
+  const own = layerKey(key);
+  return own?.role === "address" && !isOwn(values[sourceKey(own.layer)] ?? "");
 }
 
 /** Whether the key's field is shown in its room: while the choice is AISStream. */
