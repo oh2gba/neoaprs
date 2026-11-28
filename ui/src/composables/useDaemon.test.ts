@@ -59,6 +59,17 @@ describe("useDaemon and the errors of the page", () => {
     pageErrors.record(new Error("after the page is gone"), "window");
     expect(socket.sent).toHaveLength(2);
   });
+
+  it("shows nothing when the daemon refuses or fails a page_error: it is a report, not the operator's doing", () => {
+    const { daemon, socket, wrapper } = setUp();
+    socket.say(hello());
+    socket.say(errorOf("page_error: at: is not in the expected form", "invalid"));
+    socket.say(errorOf("page_error: that did not work", "failed"));
+    expect(daemon.lastError.value).toBeNull();
+    socket.say(errorOf("nope"));
+    expect(daemon.lastError.value?.text).toBe("nope");
+    wrapper.unmount();
+  });
 });
 
 describe("useDaemon", () => {

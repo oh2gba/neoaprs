@@ -7,7 +7,9 @@ import { bytesLeft } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
 import { chatText } from "@/lib/chat";
-import { DIAL, pastGroups } from "@/lib/skeds";
+import { DIAL, pastGroups, postCommand } from "@/lib/skeds";
+import { PageErrors } from "@/lib/pageerrors";
+import type { PageErrorCommand } from "@/protocol/protocol";
 import { pairCall } from "@/lib/settingspair";
 import { replyAddressOk } from "@/lib/support";
 import { parsePath, validCall, validName } from "@/lib/calls";
@@ -28,6 +30,27 @@ describe("the vectors of the daemon", () => {
 
   it("say what a line of the chat keeps of its text", () => {
     for (const { input, text } of vectors.chat_texts) expect(chatText(input), JSON.stringify(input)).toBe(text);
+  });
+
+  it("are the page_error the page sends at each instant, which the daemon takes", () => {
+    for (const { now_ms, command, ok } of vectors.page_error_commands) {
+      const sent: PageErrorCommand[] = [];
+      const errors = new PageErrors(
+        () => now_ms,
+        () => command.build,
+      );
+      errors.attach((built) => sent.push(built) > 0);
+      errors.record(command.message, "window");
+      expect(sent, String(now_ms)).toEqual([command]);
+      expect(ok).toBe(true);
+    }
+  });
+
+  it("are the sked_post the page sends for each form, which the daemon takes", () => {
+    for (const { now_ms, draft, command, ok } of vectors.sked_post_commands) {
+      expect(postCommand(draft, now_ms), JSON.stringify(draft)).toEqual(command);
+      expect(ok).toBe(true);
+    }
   });
 
   it("say which dials a sked takes", () => {

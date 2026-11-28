@@ -795,5 +795,15 @@
   {"station": "OH2GBA", "pairs": [[1, 2, false, 9], [1, 3, true, 9]], "pair": [1, 2], "ssid": 15},
   {"station": "OH2GBA-9", "pairs": [[1, 2, false, 9]], "pair": [1, 2], "ssid": 15},
   {"station": "OH2GBA", "pairs": [[1, 3, false, 15], [1, 11, true, 1], [1, 12, true, 2], [1, 13, true, 3], [1, 14, true, 4], [1, 15, true, 5], [1, 16, true, 6], [1, 17, true, 7], [1, 18, true, 8], [1, 19, true, 9], [1, 20, true, 10], [1, 21, true, 11], [1, 22, true, 12], [1, 23, true, 13], [1, 24, true, 14]], "pair": [1, 2], "ssid": 15}
+ ],
+ "page_error_commands": [
+  {"now_ms": 1795866126123, "command": {"cmd": "page_error", "message": "boom", "stack": "", "source": "window", "at": "2026-11-28T11:42:06Z", "build": "index-abc.js"}, "ok": true},
+  {"now_ms": 1795866126999, "command": {"cmd": "page_error", "message": "boom", "stack": "", "source": "window", "at": "2026-11-28T11:42:06Z", "build": "index-abc.js"}, "ok": true},
+  {"now_ms": 1795866126000, "command": {"cmd": "page_error", "message": "boom", "stack": "", "source": "window", "at": "2026-11-28T11:42:06Z", "build": "index-abc.js"}, "ok": true},
+  {"now_ms": 0, "command": {"cmd": "page_error", "message": "boom", "stack": "", "source": "window", "at": "1970-01-01T00:00:00Z", "build": "index-abc.js"}, "ok": true}
+ ],
+ "sked_post_commands": [
+  {"now_ms": 1795866126123, "draft": {"day": "2026-11-28", "from": "18:00", "to": "20:00", "dial": "7.0541 MHz USB", "typed": false, "note": "  Mercury, 10 W "}, "command": {"cmd": "sked_post", "from": "2026-11-28T18:00:00Z", "to": "2026-11-28T20:00:00Z", "dial": "7.0541 MHz USB", "note": "Mercury, 10 W"}, "ok": true},
+  {"now_ms": 1795866126123, "draft": {"day": "2026-11-28", "from": "23:30", "to": "00:30", "dial": "7.0541 MHz USB", "typed": false, "note": ""}, "command": {"cmd": "sked_post", "from": "2026-11-28T23:30:00Z", "to": "2026-11-29T00:30:00Z", "dial": "7.0541 MHz USB", "note": ""}, "ok": true}
  ]
 }

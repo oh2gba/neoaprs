@@ -123,6 +123,7 @@ from neoaprs.crossrule import slow_channel  # noqa: E402
 from neoaprs.pairsetting import PairSpec, _fill as fill_pairs  # noqa: E402
 from neoaprs.services.passlimits import SLOW_PASS_MAX, SLOW_PASS_WINDOW_SEC  # noqa: E402
 from neoaprs.chat import MAX_TEXT as CHAT_MAX_TEXT, clean_text  # noqa: E402
+from neoaprs.clock import iso  # noqa: E402
 from neoaprs.skeds import (  # noqa: E402
     KEEP_PAST,
     MAX_PAST_ROWS,
@@ -1609,6 +1610,41 @@ def _pair_call_vector(call: str, rows: list[list[Any]], pair: list[int]) -> dict
     return {"station": call, "pairs": rows, "pair": pair, "ssid": found[(low, high)].ssid}
 
 
+# The commands that carry a time of the page's clock, as the page builds them (ui/src/lib/pageerrors.ts,
+# ui/src/lib/skeds.ts postCommand) from these instants, and whether the daemon's model takes them.
+PAGE_ERROR_INSTANTS_MS = [1795866126123, 1795866126999, 1795866126000, 0]
+SKED_POST_DRAFTS: list[tuple[int, str, str, str, str]] = [
+    (1795866126123, "2026-11-28", "18:00", "20:00", "  Mercury, 10 W "),
+    (1795866126123, "2026-11-28", "23:30", "00:30", ""),
+]
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+
+
+def _command_fits(command: dict[str, Any]) -> bool:
+    try:
+        protocol.COMMANDS.validate_json(json.dumps(command))
+    except ValueError:
+        return False
+    return True
+
+
+def _page_error_vector(now_ms: int) -> dict[str, Any]:
+    """The page_error the page sends for the thrown text "boom" at this instant."""
+    at = iso(EPOCH + timedelta(milliseconds=now_ms))
+    command = {"cmd": "page_error", "message": "boom", "stack": "", "source": "window", "at": at, "build": "index-abc.js"}
+    return {"now_ms": now_ms, "command": command, "ok": _command_fits(command)}
+
+
+def _sked_post_vector(now_ms: int, day: str, start: str, end: str, note: str) -> dict[str, Any]:
+    """The sked_post the page sends for this form, its end on the next day when it is not after the start."""
+    begins = datetime.strptime(f"{day}T{start}", "%Y-%m-%dT%H:%M").replace(tzinfo=UTC)
+    ends = datetime.strptime(f"{day}T{end}", "%Y-%m-%dT%H:%M").replace(tzinfo=UTC)
+    ends += timedelta(days=1) if ends <= begins else timedelta(0)
+    draft = {"day": day, "from": start, "to": end, "dial": "7.0541 MHz USB", "typed": False, "note": note}
+    command = {"cmd": "sked_post", "from": iso(begins), "to": iso(ends), "dial": draft["dial"], "note": note.strip()}
+    return {"now_ms": now_ms, "draft": draft, "command": command, "ok": _command_fits(command)}
+
+
 def _sked_past_vector(rows: list[list[Any]]) -> dict[str, Any]:
     """The ids of the past tests a board of these skeds lists, in their order."""
     now = datetime(2026, 11, 14, 12, 0, tzinfo=UTC)
@@ -1657,6 +1693,8 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "sked_past": [_sked_past_vector(rows) for rows in SKED_PAST],
         "chat_texts": [{"input": t, "text": clean_text(t)} for t in CHAT_TEXTS],
         "pair_calls": [_pair_call_vector(*case) for case in PAIR_CALLS],
+        "page_error_commands": [_page_error_vector(ms) for ms in PAGE_ERROR_INSTANTS_MS],
+        "sked_post_commands": [_sked_post_vector(*case) for case in SKED_POST_DRAFTS],
     }
 
 

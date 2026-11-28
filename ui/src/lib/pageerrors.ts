@@ -14,7 +14,7 @@ export interface PageErrorEntry {
   message: string;
   stack: string;
   source: ErrorSource;
-  /** ISO 8601, UTC: when it first came. */
+  /** ISO 8601, UTC, whole seconds: when it first came. */
   at: string;
   /** When it last came, within the minute after the first. */
   last: string;
@@ -31,6 +31,11 @@ export const SENDS_PER_MINUTE = 10;
 const MESSAGE_MAX = 2000;
 const STACK_MAX = 8000;
 const BUILD_MAX = 64;
+
+/** An instant as the wire writes it: UTC, whole seconds, `2026-11-28T11:42:06Z`. */
+function wireTime(ms: number): string {
+  return `${new Date(ms).toISOString().slice(0, 19)}Z`;
+}
 
 /** The words and stack of whatever was thrown: an Error, a string, or any other value. */
 function describeError(thrown: unknown): { message: string; stack: string } {
@@ -106,10 +111,10 @@ export class PageErrors {
     const same = this.recent.get(message);
     if (same && now - same.at < SAME_MESSAGE_MS) {
       same.entry.count += 1;
-      same.entry.last = new Date(now).toISOString();
+      same.entry.last = wireTime(now);
       return;
     }
-    const at = new Date(now).toISOString();
+    const at = wireTime(now);
     const stack = described.stack.slice(0, STACK_MAX);
     const entry: PageErrorEntry = { message, stack, source, at, last: at, count: 0, component };
     this.ring.push(entry);

@@ -39,8 +39,8 @@ describe("the ring of errors", () => {
         message: "x is undefined",
         stack: thrown.stack ?? "",
         source: "vue",
-        at: "2026-10-21T12:00:00.000Z",
-        last: "2026-10-21T12:00:00.000Z",
+        at: "2026-10-21T12:00:00Z",
+        last: "2026-10-21T12:00:00Z",
         count: 0,
         component: "SettingsForm",
       },
@@ -51,7 +51,7 @@ describe("the ring of errors", () => {
         message: "x is undefined (in SettingsForm)",
         stack: thrown.stack ?? "",
         source: "vue",
-        at: "2026-10-21T12:00:00.000Z",
+        at: "2026-10-21T12:00:00Z",
         build: "index-abc123.js",
       },
     ]);
@@ -107,8 +107,8 @@ describe("the limits on the page's side", () => {
     expect(errors.entries()).toHaveLength(1);
     expect(errors.entries()[0]).toMatchObject({
       count: 2,
-      at: "2026-10-21T12:00:00.000Z",
-      last: "2026-10-21T12:00:30.000Z",
+      at: "2026-10-21T12:00:00Z",
+      last: "2026-10-21T12:00:30Z",
     });
     clock.now += SAME_MESSAGE_MS; // A minute after the first
     errors.record(new Error("boom"), "window");

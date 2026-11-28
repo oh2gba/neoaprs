@@ -209,8 +209,10 @@ export function useDaemon(url: () => string = socketUrl) {
     connection: (state) => (connection.value = state),
     hello: said.hello,
     status: (message) => (status.value = message),
-    error: ({ cmd, key, code, params, text, id }) =>
-      (lastError.value = { cmd, key, code, params, text, id, n: ++toasts }),
+    error: ({ cmd, key, code, params, text, id }) => {
+      // a page error is a report, not the operator's doing: its refusal is nothing he can act on
+      if (cmd !== "page_error") lastError.value = { cmd, key, code, params, text, id, n: ++toasts };
+    },
     stationAlert: (message) => (stationAlert.value = message),
     replaceStations: (rows) => fill(stations, rows, stationsLoaded),
     replacePackets: (rows) => fill(packets, rows),

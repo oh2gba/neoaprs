@@ -167,3 +167,15 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         (5, 10, 3, "NE")
     ] == "PHG2231"
     assert {(c["lat"], c["lon"]): c["text"] for c in v["positions"]}[(60.17, 24.94)] == "6010.20N/02456.40E-"
+
+
+def test_the_commands_the_page_builds_with_its_clock_fit_the_daemons_models() -> None:
+    """The page asserts it builds these very commands (vectors.test.ts); the daemon must take every one."""
+    from neoaprs.web.protocol import COMMANDS
+
+    v = vectors()
+    cases = v["page_error_commands"] + v["sked_post_commands"]
+    assert any(c["now_ms"] % 1000 for c in v["page_error_commands"]), "an instant with milliseconds is among them"
+    for case in cases:
+        assert case["ok"], case["command"]
+        COMMANDS.validate_json(json.dumps(case["command"]))
