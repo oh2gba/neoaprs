@@ -88,8 +88,13 @@ def _number(value: object) -> int | None:
     return int(value) if isinstance(value, str) and value.isdigit() else None
 
 
+def _props(entry: Mapping[str, Any]) -> Mapping[str, Any]:
+    props = entry.get("properties")
+    return props if isinstance(props, dict) else {}
+
+
 def _node(kind: Kind, entry: Mapping[str, Any]) -> Node | None:
-    props = entry.get("properties") or {}
+    props = _props(entry)
     name, index = entry.get("name"), entry.get("index")
     if not isinstance(name, str) or not _NAME.match(name) or not isinstance(index, int):
         return None
@@ -320,11 +325,7 @@ def _entries(text: str | None) -> list[dict[str, Any]] | None:
 
 def clients_of(text: str | None, pid: int) -> set[str]:
     """Return the indexes of the process's clients (`list clients`), as the streams name them."""
-    return {
-        str(e.get("index"))
-        for e in _entries(text) or []
-        if (e.get("properties") or {}).get("application.process.id") == str(pid)
-    }
+    return {str(e.get("index")) for e in _entries(text) or [] if _props(e).get("application.process.id") == str(pid)}
 
 
 def stream_targets(text: str | None, pid: int, field: Kind, clients: Collection[str] = ()) -> list[int] | None:
@@ -339,7 +340,7 @@ def stream_targets(text: str | None, pid: int, field: Kind, clients: Collection[
         for e in entries
         if isinstance(e.get(field), int)
         and e[field] != NO_INDEX
-        and ((e.get("properties") or {}).get("application.process.id") == str(pid) or str(e.get("client")) in clients)
+        and (_props(e).get("application.process.id") == str(pid) or str(e.get("client")) in clients)
     ]
 
 

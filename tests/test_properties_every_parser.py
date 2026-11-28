@@ -18,8 +18,8 @@ PARSERS = """
     aprsparse aprsposition aprsstorm aprstelemetry aprsthirdparty aprsweather ax25 btle btserial btsdp callsign chat
     configvalues digitraffic direwolf gpsfeed gpsfix kiss loraboard loralist mercury mercurycards mercuryscope packet
     packetcodec pmtilesarchive pmtilesformat qrutext radarcape readsb rigctld route satellitelist satellites skeds
-    tcplisten tnc2line tnc2text tncmode tnctextreader updateasset versions web.confighandlers web.dispatch
-    web.scopefeed
+    soundserver tcplisten tnc2line tnc2text tncmode tnctextreader updateasset versions web.confighandlers
+    web.dispatch web.scopefeed
 """.split()
 
 # Modules with a function named as a reader that reads nothing from outside, each with why.
