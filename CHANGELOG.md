@@ -13,6 +13,8 @@
 - **Changed:** the support file counts every time Mercury heard nothing and lists how its last ten starts ended.
 - **Changed:** a port that cannot be opened says why: the device does not answer, is not paired or refused, or another program holds it.
 - **Changed:** a KISS radio that receives text instead of KISS says so in its status line.
+- **Fixed:** an error of the page itself is written to the log again, and never shows "That did not work".
+- **Fixed:** the Internet box names the APRS-IS server without its port.
 - **Fixed:** Ask around shows its whole question in every language.
 - **Fixed:** a Mercury radio no longer stays busy for ever on a noisy band.
 - **Fixed:** on a phone the settings' lists and Feedback / send logs show their whole words, and choosing an aircraft source moves nothing below it.
