@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Yaesu FTDX101 on HF with NeoAPRS: one cable, one menu setting · NeoAPRS</title>
+<meta name="description" content="Tech note: the Yaesu FTDX101 as a Mercury radio on HF with NeoAPRS over its own USB cable. The sound card, RTS keying and the one menu setting that makes the radio transmit.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1f2c" media="(prefers-color-scheme: dark)">
+<meta name="author" content="OH2GBA">
+<link rel="canonical" href="https://neo.oh2gba.eu/yaesu-ftdx101.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="NeoAPRS">
+<meta property="og:title" content="The Yaesu FTDX101 on HF with NeoAPRS: one cable, one menu setting">
+<meta property="og:description" content="The FTDX101 receives fine but never transmits until one menu item is changed. With it, one USB cable makes the radio a Mercury radio for NeoAPRS.">
+<meta property="og:url" content="https://neo.oh2gba.eu/yaesu-ftdx101.html">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
+<meta property="article:published_time" content="2026-11-28">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"The Yaesu FTDX101 on HF with NeoAPRS: one cable, one menu setting","datePublished":"2026-11-28","author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu"},"publisher":{"@type":"Organization","name":"NeoAPRS","url":"https://neo.oh2gba.eu/"},"mainEntityOfPage":"https://neo.oh2gba.eu/yaesu-ftdx101.html","image":"https://neo.oh2gba.eu/shots/og.png"}</script>
+<link rel="stylesheet" href="style.css?v=36">
+<script src="site.js?v=13" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="mast">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
+    <nav aria-label="Page">
+      <a href="./#download">Download</a>
+      <a href="./#features">Features</a>
+      <a href="./#radios">Radios</a>
+      <a href="./#skeds">HF tests</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<article class="sec article tech">
+  <div class="wrap">
+    <p class="flag">Tech note · 28 November 2026</p>
+    <h1 class="article-title">The Yaesu FTDX101 on HF: one cable, one menu setting</h1>
+    <p class="lead-sm">The FTDX101 receives fine, and then it never transmits: NeoAPRS says it is sending and the radio stays on receive. The cause is one menu item on the radio. Change it, and the one USB cable between the radio and the computer is all a Mercury radio on HF needs: no interface box and no audio leads.</p>
+
+    <h2>What the cable brings</h2>
+    <p>The radio's USB socket gives the computer a sound card and two serial ports.</p>
+    <table class="facts">
+      <tbody>
+        <tr><th scope="row">A sound card</th><td>Shown as "USB AUDIO CODEC": the radio's receive and transmit audio</td></tr>
+        <tr><th scope="row">Two serial ports</th><td>Yaesu calls the first the Enhanced COM Port, for CAT, and the second the Standard COM Port, for keying</td></tr>
+      </tbody>
+    </table>
+
+    <h2>In NeoAPRS</h2>
+    <ol class="article-list">
+      <li>Settings → Radio → <b>Add radio</b>: <i>Sound card</i> under Mercury (DATAC3), then Add.</li>
+      <li><b>Sound card</b>: <i>USB AUDIO CODEC</i>.</li>
+      <li><b>Keying</b>: RTS on the second of the radio's two serial ports. On Linux it is the one whose name under /dev/serial/by-id ends in if01-port0. On Windows it is the one Device Manager calls "Standard COM Port".</li>
+    </ol>
+    <p>Test, beside Keying, keys the radio for a second, so you see it go to transmit and come back.</p>
+
+    <h2>On the radio</h2>
+    <p>A new FTDX101 ignores what the computer does on the serial ports. Open <b>RADIO SETTING</b> → <b>MODE PSK/DATA</b> → <b>RPTT SELECT</b> and change it from DAKY, the RTTY/DATA jack on the back, to <b>RTS</b>. The other value is DTR.</p>
+    <p>The item exists once for each mode, so change the one of the mode the radio is in. In the DATA mode that is MODE PSK/DATA; for USB or LSB the same item is under MODE SSB.</p>
+    <p>To key by VOX instead, set Keying to VOX in NeoAPRS. It worked too, but RTS is the more dependable of the two.</p>
+
+    <h2>Tell us</h2>
+    <p>Tried the FTDX101, or another radio with its own USB sound card? Write to <a href="mailto:neo@oh2gba.eu">neo@oh2gba.eu</a>, open an issue on <a href="https://github.com/oh2gba/neoaprs/issues">GitHub</a>, or press Send feedback / logs in the Help group of the NeoAPRS Settings tab.</p>
+    <p class="cta"><a class="btn" href="./#download">Download NeoAPRS</a><a class="btn ghost" href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#yaesu-ftdx101">The radio guide</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="links">
+      <a href="https://github.com/oh2gba/neoaprs">Source</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="faq.html">Questions and answers</a>
+      <a href="mailto:neo@oh2gba.eu">neo@oh2gba.eu</a>
+    </p>
+    <p>GNU GPL v3 or later. By <a href="https://oh2gba.eu">OH2GBA</a>. HF modem: <a href="https://github.com/Rhizomatica/mercury">Mercury</a> by Rhizomatica.</p>
+  </div>
+</footer>
+</body>
+</html>

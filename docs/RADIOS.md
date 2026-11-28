@@ -20,6 +20,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | A sound-card interface on an FM radio: Digirig, SignaLink, AIOC, a radio's data port or USB audio, a USB sound dongle | yes | Sound card, 1200 (VHF/UHF) | NeoAPRS carries Direwolf and starts it itself: nothing to install (Windows, Linux; [Sound card](#sound-card)) |
 | A sound-card interface on an SSB radio, for classic APRS on HF (300 baud, usually 10.1476 MHz USB) | untested on the air | Sound card, 300 (HF) | the same Direwolf with its 300 baud modem, paced as a Mercury radio ([Sound card](#sound-card)) |
 | Yaesu FTX-1 (its own USB sound card) | yes, tried on the air on FM | Sound card, 1200 (VHF/UHF) | the radio's USB cable: its sound card, keyed by RTS on the second of its two serial ports, after one setting on the radio ([Yaesu FTX-1](#yaesu-ftx-1)) |
+| Yaesu FTDX101 (its own USB sound card) | yes, used on HF | Sound card, under Mercury (DATAC3) | the radio's USB cable: its sound card, keyed by RTS on the second of its two serial ports, after one setting on the radio ([Yaesu FTDX101](#yaesu-ftdx101)) |
 | A Direwolf or a soundmodem you run yourself, on this computer or another (on a Mac: the way for a sound-card interface) | yes | Direwolf | the program serves KISS on the network ([Your own Direwolf](#your-own-direwolf)) |
 | A radio with a sound card and the Mercury modem (Rhizomatica): an SSB radio on shortwave, on 6 m or 2 m, or an FM radio's audio | yes | Sound card, under Mercury (DATAC3) | NeoAPRS carries Mercury and starts it itself; only stations with the same modem on the same frequency hear you ([Mercury modem](#mercury-modem)) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
@@ -32,7 +33,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound-card interface and the type Sound card, 1200 (VHF/UHF) work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
 
-Tried on the air: the Kenwood TH-D7 and the Yaesu FTX-1. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
+Tried on the air: the Kenwood TH-D7, the Yaesu FTX-1 and the Yaesu FTDX101. The other entries follow the radios' manuals and users' reports; "unverified" marks a detail nobody has confirmed.
 
 NeoAPRS sends and receives over RF, and can show the stations of the internet round you on the map, marked as such, and put what your radios hear on APRS-IS ([Internet (APRS-IS)](manual/igate.md)). Nothing from the internet goes to the radio.
 
@@ -165,6 +166,15 @@ The FTX-1's USB cable is all it takes: the computer sees one hub with a sound ca
 - VOX instead of RTS: OPERATION SETTING → TX GNRL → VOX SELECT: *USB* (MIC when new), and Keying VOX in NeoAPRS. RTS is the more dependable.
 - On Linux the sound card's own output volume may stand low (38 % on the first one tried): raise it with the **Transmit level** slider in the radio's box, which NeoAPRS puts back at every start.
 - Tried on 17 November 2026 on 144.800 MHz FM: a beacon came back from two digipeaters within four seconds. More in [the tech note](https://neo.oh2gba.eu/yaesu-ftx-1.html).
+
+### Yaesu FTDX101
+
+The FTDX101's USB cable is all it takes: the computer sees a sound card ("USB AUDIO CODEC") and two serial ports, the first the Enhanced COM Port (CAT), the second the Standard COM Port (keying).
+
+1. In NeoAPRS, Add radio: *Sound card* under Mercury (DATAC3). Sound card: *USB AUDIO CODEC*. Keying: RTS on the second of the radio's two serial ports (on Linux the one whose name under /dev/serial/by-id ends in if01-port0; on Windows the one Device Manager calls "Standard COM Port").
+2. On the radio: RADIO SETTING → MODE PSK/DATA → RPTT SELECT: *RTS* (it is DAKY when the radio is new, and the radio then ignores the computer's keying; the other value is DTR). The item exists once per mode: change the one of the mode the radio is in; for USB or LSB it is under MODE SSB.
+
+- VOX instead of RTS worked too. RTS is the more dependable. More in [the tech note](https://neo.oh2gba.eu/yaesu-ftdx101.html).
 
 ### Your own Direwolf
 
