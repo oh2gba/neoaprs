@@ -182,6 +182,16 @@ async def test_a_program_that_is_not_running_at_the_start_holds_the_frames_and_i
     assert fake.keyed == [fake.keyed[0]] and fake.keyed[0].on is False, "only the start's key-up, nothing keyed"
 
 
+async def test_a_refused_connection_is_a_rig_not_keyed_and_the_stop_after_it_logs_no_error() -> None:
+    gone = await FakeRigctld().start()
+    await gone.die()
+    keyer, _ = await keyer_on(gone)
+    keyer.key(True, 5.0)
+    await until(lambda: keyer.problem == "rig_silent" and not keyer.want)
+    assert not keyer.maybe_keyed, "nothing listens there: nothing was keyed"
+    await keyer.stop()
+
+
 async def test_flrig_without_a_radio_and_rigctld_refusing_are_refusals_with_words_for_the_log() -> None:
     flrig = await FakeFlrig(mode="refuse").start()
     with pytest.raises(RigRefused, match="no radio connected"):

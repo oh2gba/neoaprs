@@ -469,7 +469,8 @@ class DirewolfModem(RigFollow, Tuning, ModemLife):
     def _rig_limit(self, frames: int) -> float:
         """Return how long a key-down through a rig program may last: the test's time, or that of its frames."""
         if self.test:
-            return (TUNE_SEC if self.test == "tune" else KEY_TEST_SEC) + RIG_MARGIN_SEC
+            # a calibration run ends when its input closes, or at the end of the program's stop wait
+            return (TUNE_SEC if self.test == "tune" else KEY_TEST_SEC) + direwolfprogram.STOP_WAIT_SEC + RIG_MARGIN_SEC
         return keyed_limit(self.baud, max(1, frames))
 
     def _clear(self) -> None:
