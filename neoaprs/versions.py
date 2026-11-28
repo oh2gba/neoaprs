@@ -45,6 +45,12 @@ def _parts(version: str) -> list[str]:
     return _PART.findall(version.strip())
 
 
+def _number(part: str) -> tuple[int, str] | None:
+    """Return a run of ASCII digits as a key that orders it as a number, of any length; else None."""
+    digits = part.lstrip("0")
+    return (len(digits), digits) if part.isascii() and part.isdigit() else None
+
+
 def compare_versions(a: str, b: str) -> int:
     """Return -1, 0 or 1 as `a` is older than, equal to or newer than `b`.
 
@@ -53,12 +59,13 @@ def compare_versions(a: str, b: str) -> int:
     left, right = _parts(a), _parts(b)
     for i in range(max(len(left), len(right))):
         x, y = left[i] if i < len(left) else "0", right[i] if i < len(right) else "0"
-        if x.isdigit() and y.isdigit():
-            if int(x) != int(y):
-                return -1 if int(x) < int(y) else 1
-        elif x.isdigit() != y.isdigit():
+        nx, ny = _number(x), _number(y)
+        if nx is not None and ny is not None:
+            if nx != ny:
+                return -1 if nx < ny else 1
+        elif (nx is None) != (ny is None):
             # a number comes after a suffix: "1.0.0-rc1" sorts before "1.0.0"
-            return 1 if x.isdigit() else -1
+            return 1 if nx is not None else -1
         elif x.lower() != y.lower():
             return -1 if x.lower() < y.lower() else 1
     return 0

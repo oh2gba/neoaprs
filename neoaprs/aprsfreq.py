@@ -12,7 +12,8 @@ from typing import Any
 from .units import MILE_KM
 
 _MHZ = re.compile(
-    r"(?:(\d{3}\.\d{3}|\d{3}\.\d{2} )|([A-O])(\d{2}\.\d{3}))MHz(?= |$)|(\d{1,2}\.\d{3})GHz(?= |$)", re.IGNORECASE
+    r"(?:(\d{3}\.\d{3}|\d{3}\.\d{2} )|([A-O])(\d{2}\.\d{3}))MHz(?= |$)|(\d{1,2}\.\d{3})GHz(?= |$)",
+    re.IGNORECASE | re.ASCII,
 )
 _NAME = re.compile(r"(\d{3}\.\d{2}\d?+)(?=.)")
 _MICROWAVE_BASE = {

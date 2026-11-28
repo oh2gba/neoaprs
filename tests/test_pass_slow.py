@@ -13,9 +13,11 @@ from neoaprs.coded import Reason
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.recent import KEEP_MAX
 from neoaprs.services.passlimits import BURST_MAX, SLOW_HANDOVER_SEC, SLOW_PASS_MAX
+from neoaprs.services import digipeater
 from neoaprs.source import Source
 from tests.test_digipeater import frame
 from tests.test_pass_rows import msg, pair_rig
+from tests.support.env import until
 from tests.support.logs import warnings_in
 
 KEYED = Reason("the radio is transmitting", "radio.transmitting")
@@ -240,3 +242,40 @@ def test_the_table_of_a_radio_nothing_is_passed_onto_stays_bounded() -> None:
         rig.clock.advance(31)
         rig.hear(frame("WIDE1-1", info=f">{n}".encode()))
     assert len(rig.digi.passer.table(FM_ID)) <= KEEP_MAX + 1
+
+
+async def test_the_started_digipeaters_timer_sends_the_waiting_frame_once_the_radio_is_free(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(digipeater, "TICK_SEC", 0.01)
+    rig = pair_rig()
+    rig.hf.held = KEYED
+    rig.hear(frame("OH2GBA-12", info=msg()))
+    await rig.digi.start()
+    assert [task.get_name() for task in rig.digi.tasks] == ["digipeater-wait"]
+    rig.clock.advance(5)
+    rig.hf.held = ""
+    await until(lambda: len(rig.hf.sent) == 1)
+    await rig.digi.stop()
+    assert len(rig.digi.tasks) == 0
+
+
+@pytest.mark.expects_errors
+async def test_a_failing_round_of_the_digipeaters_timer_is_logged_by_its_name_and_the_timer_goes_on(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(digipeater, "TICK_SEC", 0.01)
+    rig = pair_rig()
+    rounds: list[int] = []
+
+    def fails() -> None:
+        rounds.append(1)
+        raise RuntimeError("boom")
+
+    rig.digi.passer.tick = fails  # type: ignore[method-assign]
+    await rig.digi.start()
+    await until(lambda: len(rounds) >= 3)
+    await rig.digi.stop()
+    assert [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR] == [
+        "the digipeater's wait failed: RuntimeError: boom"
+    ]

@@ -17,7 +17,7 @@ from .radiotype import RadioId
 log = logging.getLogger("neoaprs.pairsetting")
 
 PAIR_FIELDS = ("enabled", "ssid")
-_KEY = re.compile(r"pair/([1-9][0-9]*)/([1-9][0-9]*)/(enabled|ssid)")
+_KEY = re.compile(r"pair/([1-9][0-9]{0,8})/([1-9][0-9]{0,8})/(enabled|ssid)")
 _DEFAULT_TEXT = {"enabled": "false", "ssid": ""}  # a pair with no row
 _SSID = int_in(1, MAX_SSID)
 

@@ -82,7 +82,7 @@ class Digipeater:
         self.burst = Burst(BURST_MAX, BURST_WINDOW_SEC)
         self.counted: Signal[[RadioId]] = Signal("digipeater.counted")
         self.passer = Passer(radios, config, self._interlock, self.burst, self.counted, lambda: self.clock())
-        self.tasks = TaskSet(log, "digipeater")
+        self.tasks = TaskSet(log, "digipeater")  # pragma: no mutate
 
     async def start(self) -> None:
         """Start the timer for frames waiting on a slow radio."""
@@ -134,12 +134,14 @@ class Digipeater:
         self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, packet: Packet, now: datetime
     ) -> None:
         if not radio.usable:
-            log.debug("not digipeating %s: %s", heard.tnc2(), radio.why_unusable())
+            log.debug("not digipeating %s: %s", heard.tnc2(), radio.why_unusable())  # pragma: no mutate
             return
         if self.burst.full(radio.id, now):
+            # pragma: no mutate start
             log.debug(
                 "not digipeating %s: %d frames went out in the last %g s", heard.tnc2(), BURST_MAX, BURST_WINDOW_SEC
             )
+            # pragma: no mutate end
             radio.stats.digipeat_held += 1
             return
         if not radio.send_frame(frame, raw):

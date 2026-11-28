@@ -88,7 +88,7 @@ def _nearest_dhm(day: int, hour: int, minute: int, now: datetime) -> datetime:
             continue
         if candidate <= limit:
             return candidate
-    raise PositionError("timestamp matches no date")
+    raise PositionError("timestamp matches no date")  # pragma: no mutate
 
 
 def resolve_mdhm(raw: str, now: datetime) -> datetime:

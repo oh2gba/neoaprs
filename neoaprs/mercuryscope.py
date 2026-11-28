@@ -97,14 +97,18 @@ def parse_status(text: str) -> UiStatus | None:
     """Return the status in a UI text message, or None for any other message."""
     try:
         message = json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
     if not isinstance(message, dict) or message.get("type") != "status":
         return None
     gain, peak, ok = message.get("tx_gain_db"), message.get("tx_peak_dbfs"), message.get("audio_ok")
     if not isinstance(gain, int | float) or not isinstance(peak, int | float) or not isinstance(ok, bool):
         return None
-    return UiStatus(float(gain), float(peak), ok)
+    try:
+        status = UiStatus(float(gain), float(peak), ok)
+    except OverflowError:
+        return None
+    return status if math.isfinite(status.tx_gain_db) and math.isfinite(status.tx_peak_dbfs) else None
 
 
 def waterfall_command(on: bool) -> str:

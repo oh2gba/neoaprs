@@ -182,9 +182,10 @@ def test_two_radios_of_one_kind_are_watched_each_by_its_id_and_the_time_one_was_
     assert retries._due[2] == at + timedelta(seconds=32 + 20) and retries._due[1] == at + timedelta(seconds=32), (
         "the 20 s away moved on the wait of the message on radio 3 alone"
     )
-    assert "the Packet 2 radio (radio 3) takes frames again after 20 s" in caplog.text, (
-        "a radio other than 1 and 2 is named by its name"
-    )
+    assert [r.getMessage() for r in caplog.records if "takes frames again" in r.getMessage()] == [
+        "the Packet 2 radio (radio 3) takes frames again after 20 s: the waits of the messages on it are moved on by"
+        " that time"
+    ], "a radio other than 1 and 2 is named by its name"
 
 
 # ---- the sender and our objects

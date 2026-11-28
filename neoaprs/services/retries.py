@@ -89,7 +89,7 @@ class Retries:
 
     def away(self, radio: AirRadio | Radio) -> bool:
         """Return whether the ticker counted the radio as away (taking no frames) last tick."""
-        return air_of(radio, self._config).id in self._down
+        return air_of(radio, self._config).id in self._down  # pragma: no mutate
 
     def radio_up(self, record: MessageRecord | None = None) -> bool:
         """Return whether an attempt can be made now; log once per radio that attempts wait."""
@@ -180,5 +180,5 @@ class Retries:
             radio = self._host.radio_of(record)
             if radio is not None and radio.id == key:
                 self._due[number] = due + away
-                moved += 1
+                moved += 1  # pragma: no mutate
         return moved

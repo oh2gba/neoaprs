@@ -118,7 +118,7 @@ def our_call(text: str) -> str:
 
 def _in_time(start: datetime, end: datetime, now: datetime, ended: bool) -> bool:
     """Whether a row is still to come (the board) or ended less than KEEP_PAST ago (the past tests)."""
-    if not start < end <= start + MAX_LENGTH:
+    if not start < end or end - start > MAX_LENGTH:
         return False
     return end > now - KEEP_PAST if ended else now < end and start <= now + MAX_AHEAD
 

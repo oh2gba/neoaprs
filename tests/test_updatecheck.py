@@ -122,6 +122,13 @@ async def test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newe
 ) -> None:
     monkeypatch.setenv(ENV_SWITCH, "1")
     fake = await version_page({"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"})
+    for asks_the_server_too in (
+        "NEOAPRS_CHAT_URL",
+        "NEOAPRS_SKEDS_URL",
+        "NEOAPRS_FREQUENCIES_URL",
+        "NEOAPRS_SATELLITES_URL",
+    ):
+        monkeypatch.setenv(asks_the_server_too, fake.url)  # the switch turns these on too: none goes past this machine
     e = Env(tmp_path, web=True, settings={"update/url": fake.url})
     e.ctl.updatecheck.first_sec = 0.05
     await e.start()
@@ -236,6 +243,13 @@ async def test_the_page_asks_the_daemon_what_is_new_and_gets_the_sections(
 ) -> None:
     monkeypatch.setenv(ENV_SWITCH, "1")
     fake = await version_page({"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"})
+    for asks_the_server_too in (
+        "NEOAPRS_CHAT_URL",
+        "NEOAPRS_SKEDS_URL",
+        "NEOAPRS_FREQUENCIES_URL",
+        "NEOAPRS_SATELLITES_URL",
+    ):
+        monkeypatch.setenv(asks_the_server_too, fake.url)  # the switch turns these on too: none goes past this machine
     e = Env(tmp_path, web=True, settings={"update/url": fake.url})
     e.ctl.updatecheck.first_sec = 0.05
     e.ctl.updatecheck._fetch_url = Changelog("## 9.9.9\n\nEverything is new.\n\n## 0.0.1\n\nOld.\n")  # type: ignore[attr-defined]  # the fetch of the changelog, without the internet

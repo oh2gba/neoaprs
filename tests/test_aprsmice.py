@@ -1,11 +1,12 @@
 """Mic-E: the destination digits and bits, the longitude rules, speed and course, symbol, altitude,
 the comment and the radios' type codes."""
 
+import re
 from datetime import UTC, datetime
 
 import pytest
 
-from neoaprs.aprsmice import MicEError, parse_mice
+from neoaprs.aprsmice import MicEError, MicType, mice_type, parse_mice
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 WORKED = b'(_fn"Oj/'  # 112 07.74 W, 20 knots, 251 degrees, a jeep
@@ -222,3 +223,126 @@ def test_the_symbol_table_and_overlay() -> None:
     assert (p.symbol_table, p.symbol_code) == ("D", "j")
     with pytest.raises(MicEError):
         parse_mice("PPPUVT", WORKED[:6] + b"j?", NOW)
+
+
+def test_custom_digits_and_the_blank_k_carry_the_custom_message() -> None:
+    p = parse_mice("JA0PPP", WORKED, NOW)  # J and A are the digits 9 and 0 with the custom bit
+    assert (p.lat, p.comment) == (pytest.approx(90.0), "Mic-E: Custom 1")
+    p = parse_mice("A3KZZZ", WORKED, NOW)  # K: a blank with the custom bit
+    assert (p.lat, p.ambiguity, p.comment) == (pytest.approx(3.5), 4, "Mic-E: Custom 2")
+
+
+def test_the_blanks_l_and_z_carry_their_message_and_north_bits() -> None:
+    assert parse_mice("S3LZZZ", WORKED, NOW).comment == "Mic-E: Returning"  # L: bit 0
+    assert parse_mice("S3ZZZZ", WORKED, NOW).comment == "Mic-E: In Service"  # Z: bit 1
+    assert parse_mice("S32LZZ", WORKED, NOW).lat < 0  # L in the fourth place: south
+
+
+def test_the_digit_nine_and_the_last_minute() -> None:
+    p = parse_mice("455999", WORKED, NOW)
+    assert (p.lat, p.comment) == (pytest.approx(-(45 + 59.99 / 60)), "Mic-E: Emergency")
+
+
+def test_the_latitude_stops_at_90() -> None:
+    assert parse_mice("900099", WORKED, NOW).lat == -90.0
+
+
+@pytest.mark.parametrize(
+    ("dest", "error"),
+    [
+        ("S32AVT", "bad character 'A' in the destination"),  # A to K only in the first three
+        ("S32KZZ", "bad character 'K' in the destination"),
+        ("S32U!T", "bad character '!' in the destination"),
+        ("5ZZZZZ", "blank digits inside the latitude"),  # four blanks at most
+        ("9100PP", "latitude out of range"),
+        ("4560PP", "latitude out of range"),
+        ("S32UV", "destination shorter than six characters"),
+        ("S32UV-7", "destination shorter than six characters"),
+    ],
+)
+def test_what_is_wrong_with_a_destination_is_said(dest: str, error: str) -> None:
+    with pytest.raises(MicEError, match=f"^{re.escape(error)}$"):
+        parse_mice(dest, WORKED, NOW)
+
+
+def test_only_six_destination_characters_count() -> None:
+    assert parse_mice("S32UVT!", WORKED, NOW) == parse_mice("S32UVT", WORKED, NOW)
+
+
+@pytest.mark.parametrize(
+    ("body", "error"),
+    [
+        (WORKED[:7], "body shorter than eight bytes"),
+        (b"\x1b" + WORKED[1:], "longitude out of range"),
+        (bytes([128]) + WORKED[1:], "longitude out of range"),  # 200 degrees with the offset
+        (WORKED[:1] + bytes([148]) + WORKED[2:], "longitude out of range"),  # 60 minutes after the wrap
+        (WORKED[:2] + bytes([128]) + WORKED[3:], "longitude out of range"),  # 100 hundredths
+        (WORKED[:4] + b"\x1b" + WORKED[5:], "bad speed or course"),
+        (WORKED[:5] + b"\x1b" + WORKED[6:], "bad speed or course"),
+        (WORKED[:3] + bytes([28, 28 + 3, 28 + 61]) + WORKED[6:], "course out of range"),
+        (WORKED[:6] + b" /", "bad symbol"),
+        (WORKED[:6] + b"\x7f/", "bad symbol"),
+        (WORKED[:6] + b"j?", "bad symbol"),
+    ],
+)
+def test_what_is_wrong_with_a_body_is_said(body: bytes, error: str) -> None:
+    with pytest.raises(MicEError, match=f"^{re.escape(error)}$"):
+        parse_mice("S32UVT", body, NOW)
+
+
+def test_a_course_of_400_is_none() -> None:
+    p = parse_mice("S32UVT", WORKED[:3] + bytes([28 + 1, 28 + 4, 28]) + WORKED[6:], NOW)
+    assert (p.course_deg, p.speed_kmh) == (None, pytest.approx(10 * 1.852))
+
+
+def test_the_symbol_codes_at_the_ends_of_the_range() -> None:
+    assert parse_mice("S32UVT", WORKED[:6] + b"!/", NOW).symbol_code == "!"
+    assert parse_mice("S32UVT", WORKED[:6] + b"~/", NOW).symbol_code == "~"
+
+
+def test_the_message_comes_before_the_comment() -> None:
+    assert parse_mice("S32UVT", WORKED + b">Hello", NOW).comment == "Mic-E: Returning - Hello"
+
+
+def test_the_dao_refines_only_a_place_without_blanks() -> None:
+    p = parse_mice("S32UVT", WORKED + b">Hi!W59!", NOW)
+    assert (p.lat, p.lon) == (pytest.approx(33 + 25.645 / 60), pytest.approx(-(112 + 7.749 / 60)))
+    p = parse_mice("S32UVZ", WORKED + b">Hi!W59!", NOW)
+    assert (p.lat, p.lon) == (pytest.approx(33 + 25.65 / 60), pytest.approx(-(112 + 7.75 / 60)))
+
+
+def test_the_locator_telemetry_and_frequency_of_the_comment() -> None:
+    p = parse_mice("PPPUVT", WORKED + b">KP20le/- 146.520MHz Hi|!!!!|", NOW)
+    assert p.locator is not None and (p.locator.grid, p.locator.symbol_code) == ("KP20le", "-")
+    assert p.frequency is not None and p.frequency.mhz == pytest.approx(146.52)
+    assert p.telemetry is not None and (p.telemetry.sequence, p.telemetry.analog) == (0, [0.0])
+    assert p.comment == "Hi"
+
+
+def test_text_after_a_line_end_and_trailing_letters() -> None:
+    def comment(rest: bytes) -> str:
+        return parse_mice("PPPUVT", WORKED + rest, NOW).comment
+
+    assert comment(b"`Hello_ \r\n") == "Hello"
+    assert comment(b">Box X") == "Box X"
+    assert comment(b"`0A1B") == ""  # telemetry and nothing after it
+    assert comment(b"`G0A1Hi") == "G0A1Hi"
+    assert comment(b"'0A1B2C3D4E") == ""
+    assert comment(b"'G0A1B2C3D4Hi") == "G0A1B2C3D4Hi"
+    assert comment(b"\x1d\x01\x02\x03\x04\x05") == ""
+
+
+@pytest.mark.parametrize(
+    ("rest", "split"),
+    [
+        (b"`Hello_ ", MicType(b"`", b"_ ", b"Hello")),
+        (b"`0A1BHi", MicType(b"", b"", b"Hi")),
+        (b"'0A1B2C3D4EHi", MicType(b"", b"", b"Hi")),
+        (b"\x1d\x01\x02\x03\x04\x05Hi", MicType(b"", b"", b"Hi")),
+        (b"Hello", MicType(b"", b"", b"Hello")),
+        (b">Hello=", MicType(b">", b"=", b"Hello")),
+        (b"]Hello", MicType(b"]", b"", b"Hello")),
+    ],
+)
+def test_the_type_code_and_suffix_that_name_the_radio(rest: bytes, split: MicType) -> None:
+    assert mice_type(rest) == split

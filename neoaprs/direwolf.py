@@ -156,13 +156,13 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[st
     return Keying("rts", near[0].device) if len(near) == 1 else Keying("vox")
 
 
-_READY = re.compile(r"^Ready to accept KISS TCP client application \d+ on port (\d+)")
+_READY = re.compile(r"^Ready to accept KISS TCP client application \d+ on port (\d{1,5})(?!\d)")
 _PORT_TAKEN = re.compile(r"^Some other application is probably already using port (\d+)")
-_LEVEL = re.compile(r" audio level = (\d+)\(|receive audio level CH0 (\d+)")
-_LEVEL_NOW = re.compile(r"^RXLEVEL 0 = (\d+)$")
+_LEVEL = re.compile(r" audio level = (\d{1,9})\(|receive audio level CH0 (\d{1,9})(?!\d)")
+_LEVEL_NOW = re.compile(r"^RXLEVEL 0 = (\d{1,9})$")
 _PTT = re.compile(r"^PTT (\d+) = ([01])$")
 _DCD = re.compile(r"^DCD (\d+) = ([01])$")
-_DEVICE = re.compile(r"^ ([* ])  (\d+): (.*?)(?:   \(channels? [\d &]+\))?$")
+_DEVICE = re.compile(r"^ ([* ])  (\d{1,9}): (.*?)(?:   \(channels? [\d &]+\))?$")
 _AUDIO_FAILED = ("Could not open audio device", "Pointless to continue without audio device")
 # Serial port not openable (ptt.c:945-956), no CM108 chip (config.c:2185), HID not openable or
 # writable (cm108.c:1013, 948, 1059).
@@ -206,7 +206,7 @@ def kiss_dump(line: str) -> bool:
 
 def ready_port(line: str) -> int | None:
     m = _READY.match(line)
-    return int(m.group(1)) if m else None
+    return int(m.group(1)) if m and int(m.group(1)) <= 65535 else None
 
 
 def bind_failed(line: str) -> bool:

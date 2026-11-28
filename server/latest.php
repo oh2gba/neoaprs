@@ -20,7 +20,6 @@ function neoaprs_get(string $url): ?string
         ]);
         $body = curl_exec($c);
         $ok = $body !== false && curl_getinfo($c, CURLINFO_RESPONSE_CODE) === 200;
-        curl_close($c);
         return $ok ? $body : null;
     }
     $context = stream_context_create(['http' => [

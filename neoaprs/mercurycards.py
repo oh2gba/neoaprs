@@ -124,7 +124,7 @@ def card_with(cards: Sequence[SoundCard], device: str) -> str:
 
 
 # ALSA card numbers change after a reboot or replug; the name (CARD=) is stable, so it is kept.
-_ALSA_NUMBERED = re.compile(r"^(?P<plug>plughw|hw):(?P<card>\d+),(?P<dev>\d+)$")
+_ALSA_NUMBERED = re.compile(r"^(?P<plug>plughw|hw):(?P<card>\d{1,9}),(?P<dev>\d+)$")
 
 
 def stable_alsa_id(ident: str, card_names: Mapping[int, str]) -> str:
@@ -141,7 +141,7 @@ def parse_sound_cards(text: str, card_names: Mapping[int, str] | None = None) ->
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.endswith("devices:"):
-            section = stripped.split()[0]
+            section = stripped.split()[0] if stripped.split()[0] in ("playback", "capture") else ""
             continue
         m = _DEVICE.match(stripped)
         if m is None or not section:

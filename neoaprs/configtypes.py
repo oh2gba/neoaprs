@@ -170,7 +170,11 @@ def optional_float(low: float, high: float) -> Callable[[str], float | None]:
 def web_address(text: str) -> str:
     """Return an http or https address with a host and no blanks."""
     value = text.strip()
-    parts = urlsplit(value)
+    refused = CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
+    try:
+        parts = urlsplit(value)
+    except ValueError:  # an IPv6 address without its closing ]
+        raise refused from None
     if (
         parts.scheme not in ("http", "https")
         or not parts.netloc
@@ -178,7 +182,7 @@ def web_address(text: str) -> str:
         or not value.isprintable()
         or len(value) > 500
     ):
-        raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
+        raise refused
     return value
 
 

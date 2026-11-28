@@ -298,7 +298,16 @@ def test_a_tnc_that_does_not_take_the_frame_counts_nothing(caplog: pytest.LogCap
     rig = Rig()
     rig.tnc.takes = False
     rig.hear(frame())
-    assert rig.stats.digipeated == 0 and any("not sent" in r.getMessage() for r in caplog.records)
+    assert rig.stats.digipeated == 0 and rig.stats.digipeat_held == 0
+    assert [r.getMessage() for r in caplog.records] == [
+        "the digipeated frame of OH2XYZ was not sent: the TNC would not take it"
+    ]
+
+
+def test_a_packet_on_the_air_that_names_no_radio_is_one_heard_on_radio_1() -> None:
+    rig = Rig()
+    rig.hear(frame("WIDE1-1"), radio_id=None)
+    assert rig.lines() == [f"OH2XYZ>APRS,OH2GBA*:{INFO.decode()}"]
 
 
 def test_only_the_path_differs_from_the_frame_that_was_heard() -> None:

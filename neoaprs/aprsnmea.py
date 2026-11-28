@@ -49,7 +49,7 @@ def _place(fields: list[str], at: int) -> tuple[float, float]:
 
 def _time(field: str, now: datetime) -> datetime | None:
     """Return the latest time of day (UTC) of hhmmss[.sss] not in the future; None if empty."""
-    if len(field) < 6 or not field[:6].isdigit():
+    if len(field) < 6 or not field[:6].isdecimal():
         return None
     try:
         return resolve_timestamp(field[:6].encode() + b"h", now)
@@ -79,7 +79,7 @@ def _measured(field: str) -> float | None:
 def _date_time(time_field: str, date_field: str, now: datetime) -> datetime | None:
     """Return an RMC date and time; two-digit years are 1970 to 2069."""
     at = _time(time_field, now)
-    if at is None or len(date_field) != 6 or not date_field.isdigit():
+    if at is None or len(date_field) != 6 or not date_field.isdecimal():
         return at
     year = 2000 + int(date_field[4:]) if int(date_field[4:]) < 70 else 1900 + int(date_field[4:])
     try:
@@ -112,7 +112,10 @@ def parse_nmea(info: bytes, source: str, destination: str, now: datetime) -> Pos
     if kind == "RMC":
         if len(fields) < 9 or not _valid(fields, 1, "A"):
             return None
-        course, speed = motion(round(_measured(fields[7]) or 0), _measured(fields[6]) or 0.0)
+        knots = _measured(fields[6]) or 0.0
+        if knots < 0:
+            raise NmeaError(f"negative speed {fields[6]!r}")
+        course, speed = motion(round(_measured(fields[7]) or 0), knots)
         return _position(
             *_place(fields, 2),
             source,
@@ -122,7 +125,7 @@ def parse_nmea(info: bytes, source: str, destination: str, now: datetime) -> Pos
             at=_date_time(fields[0], fields[8], now),
         )
     # GGA: field 5 is the quality, 0 is no fix
-    if len(fields) < 9 or not fields[5].isdigit() or int(fields[5]) == 0:
+    if len(fields) < 9 or not fields[5].isdecimal() or int(fields[5]) == 0:
         return None
     altitude = _measured(fields[8]) if len(fields) > 9 and fields[9].upper() == "M" else None
     return _position(*_place(fields, 1), source, destination, altitude=altitude, at=_time(fields[0], now))

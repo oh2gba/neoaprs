@@ -67,7 +67,6 @@ function sats_download(string $url): ?string
         ]);
         $body = curl_exec($c);
         $ok = is_string($body) && curl_getinfo($c, CURLINFO_RESPONSE_CODE) === 200;
-        curl_close($c);
         return $ok && str_starts_with($body, 'OBJECT_NAME,') ? $body : null;
     }
     $context = stream_context_create(['http' => [

@@ -65,6 +65,10 @@ def mutmut_program() -> Path:
     return program
 
 
+# the folder of the page's English sentences, which tests/support/english.py reads (mutmut copies a folder whole)
+CATALOGUE = "ui/src/i18n/en"
+
+
 def copy_tree(into: Path) -> None:
     """The tree's tracked and new files (what git would commit), without what it ignores."""
     listed = subprocess.run(
@@ -74,7 +78,7 @@ def copy_tree(into: Path) -> None:
         shutil.rmtree(into)
     for rel in filter(None, listed.split("\0")):
         source = ROOT / rel
-        if source.is_file() and not rel.startswith(("ui/", "site/", "server/")):
+        if source.is_file() and (rel.startswith(CATALOGUE + "/") or not rel.startswith(("ui/", "site/", "server/"))):
             target = into / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
@@ -85,6 +89,8 @@ def settings(row: dict) -> str:
         "[mutmut]",
         "source_paths = neoaprs",
         f"only_mutate = {row['path']}",
+        "also_copy =",
+        f"    {CATALOGUE}",
         "pytest_add_cli_args_test_selection =",
     ]
     lines += [f"    {test}" for test in row["tests"]]

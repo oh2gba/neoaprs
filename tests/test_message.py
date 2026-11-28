@@ -10,6 +10,7 @@ import pytest
 from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError
 from neoaprs.clock import utc
+from neoaprs.coded import CodedError
 from neoaprs.message import (
     EMAIL_ATTEMPTS,
     FINAL_WAIT_SEC,
@@ -24,12 +25,18 @@ from neoaprs.message import (
     is_telemetry_definition,
     next_msg_id,
     normal_call,
+    normal_path,
+    path_choice,
+    query_text,
+    request_path,
+    retry_pause,
     same_call,
     schedule_sec,
     wait_after,
 )
 
 from neoaprs.radiotype import FM_ID, HF_ID
+from tests.support.english import page_english
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
 
@@ -249,3 +256,141 @@ def test_a_definition_of_telemetry_channels_begins_with_parm_unit_eqns_or_bits_a
     text: str, expected: bool
 ) -> None:
     assert is_telemetry_definition(text) is expected
+
+
+# ---- the reasons a text, a path or a query is refused, as the page shows them
+
+
+@pytest.mark.parametrize(
+    "text, code, params",
+    [
+        ("", "message.empty", {}),
+        (" ", "message.empty", {}),
+        ("x" * 68, "message.too_long", {"length": 68, "max": 67}),
+        ("a\tb", "message.control", {}),
+    ],
+)
+def test_a_refused_text_has_the_code_and_values_the_page_says_it_with(text: str, code: str, params: dict) -> None:
+    with pytest.raises(MessageError) as refused:
+        check_text(text)
+    assert (refused.value.code, refused.value.params) == (code, params)
+    assert str(refused.value) == page_english(refused.value)
+
+
+def test_a_text_with_characters_a_message_cannot_carry_names_each_of_them_once_in_their_order() -> None:
+    with pytest.raises(MessageError) as refused:
+        check_text("a~b|c~")
+    assert (refused.value.code, refused.value.params) == ("message.forbidden", {"chars": "| ~"})
+    assert str(refused.value) == "the text has | ~, which a message cannot carry (| ~ { are not allowed)"
+
+
+@pytest.mark.parametrize(
+    "text, chars, said",
+    [
+        ("Hyvää päivää", "ä", "ä"),
+        ("café ok ö é", "éö", "éö"),
+        ("a\u200bb", "", "a character"),
+    ],
+)
+def test_a_text_that_is_not_printable_ascii_names_its_printable_characters_once_or_says_a_character(
+    text: str, chars: str, said: str
+) -> None:
+    with pytest.raises(MessageError) as refused:
+        check_text(text)
+    assert (refused.value.code, refused.value.params) == ("message.not_ascii", {"chars": chars})
+    assert str(refused.value) == (
+        f"the text has {said} that is not printable ASCII: a message carries printable ASCII only"
+    )
+
+
+def test_a_path_is_its_calls_in_upper_case_with_the_empty_pieces_left_out() -> None:
+    assert normal_path(" wide1-1, ,WIDE2-2,oh2rch-0,") == ("WIDE1-1", "WIDE2-2", "OH2RCH")
+    assert normal_path(",".join(["WIDE2-2"] * 8)) == ("WIDE2-2",) * 8
+
+
+@pytest.mark.parametrize(
+    "text, code, params",
+    [
+        ("WIDE1-1,direct", "path.direct_alone", {"word": "DIRECT"}),
+        (",".join(["WIDE2-2"] * 9), "path.too_long", {"count": 9, "max": 8}),
+    ],
+)
+def test_a_path_with_direct_among_its_calls_or_more_than_eight_is_refused(text: str, code: str, params: dict) -> None:
+    with pytest.raises(CodedError) as refused:
+        normal_path(text)
+    assert (refused.value.code, refused.value.params) == (code, params)
+    assert str(refused.value) == page_english(refused.value)
+
+
+def test_an_empty_path_is_the_automatic_one_direct_alone_is_none_and_any_other_its_calls() -> None:
+    assert path_choice("") is None and path_choice("   ") is None
+    assert path_choice("direct") == () and path_choice(" DIRECT ") == ()
+    assert path_choice("wide1-1") == ("WIDE1-1",)
+
+
+def test_the_path_of_a_request_is_the_typed_one_or_the_automatic_one_and_rf_only_adds_rfonly_last() -> None:
+    auto = ("WIDE1-1", "WIDE2-1")
+    assert request_path(None, auto, False) == auto and request_path("  ", auto, False) == auto
+    assert request_path("oh2rch", auto, False) == ("OH2RCH",)
+    assert request_path("direct", auto, False) == ()
+    assert request_path(None, auto, True) == (*auto, "RFONLY")
+    assert request_path("direct", auto, True) == ("RFONLY",)
+    assert request_path("WIDE1-1,NOGATE", auto, True) == ("WIDE1-1", "NOGATE"), "NOGATE keeps it off already"
+    assert request_path(",".join(["WIDE2-2"] * 7), auto, True) == ("WIDE2-2",) * 7 + ("RFONLY",)
+
+
+def test_a_path_of_eight_with_rf_only_is_refused_with_its_count() -> None:
+    with pytest.raises(CodedError) as refused:
+        request_path(",".join(["WIDE2-2"] * 8), (), True)
+    assert (refused.value.code, refused.value.params) == ("path.too_long_rf_only", {"count": 8, "max": 8})
+    assert str(refused.value) == (
+        "path too long for RF only: 8 digipeaters and RFONLY make more than the 8 a path may have"
+    )
+
+
+def test_a_query_is_sent_trimmed_and_in_upper_case() -> None:
+    assert query_text("  ?aprsp ") == "?APRSP" and query_text("?x") == "?X"
+
+
+@pytest.mark.parametrize("text", ["?", " ? ", "", "APRSP?", "x?y"])
+def test_a_query_that_does_not_begin_with_a_question_mark_and_say_something_after_it_is_refused(text: str) -> None:
+    with pytest.raises(MessageError) as refused:
+        query_text(text)
+    assert refused.value.code == "query.form" and str(refused.value) == page_english(refused.value)
+
+
+def test_a_query_is_held_to_the_rules_of_a_text() -> None:
+    with pytest.raises(MessageError) as refused:
+        query_text("?APRS|")
+    assert refused.value.code == "message.forbidden"
+
+
+# ---- the pause before a retry
+
+
+def test_a_retry_pause_is_none_without_jitter_before_the_first_attempt_and_after_the_last() -> None:
+    assert retry_pause(sending(1, T0), 0) == timedelta(0)
+    assert retry_pause(sending(1, T0), -5) == timedelta(0)
+    assert retry_pause(sending(0), 20) == timedelta(0)
+    assert retry_pause(sending(STATION_ATTEMPTS, T0), 20) == timedelta(0)
+    assert retry_pause(sending(STATION_ATTEMPTS + 1, T0), 20) == timedelta(0)
+
+
+def test_a_retry_pause_is_the_same_for_the_same_attempt_and_spreads_over_the_jitter_for_others() -> None:
+    def pause(to: str, number: int, attempts: int, jitter: int = 20) -> float:
+        record = replace(sending(attempts, T0), to_call=to, id=number)
+        return retry_pause(record, jitter).total_seconds()
+
+    assert pause("OH2RDG", 1, 1) == pause("OH2RDG", 1, 1)
+    pauses = [pause(f"OH2R{n % 10}", n, 1 + n % 3) for n in range(300)]
+    assert all(0 <= p <= 20 for p in pauses)
+    assert min(pauses) < 1 and max(pauses) > 19, "the whole span from no pause to the jitter is used"
+    assert pause("OH2RDG", 1, 1) != pause("OH2RDG", 1, 2) != pause("OH2RDG", 2, 2) != pause("OH2RDX", 2, 2)
+    assert pause("OH2RDG", 1, STATION_ATTEMPTS - 1) > 0
+    assert max(pause(f"OH2R{n}", n, 1, 3) for n in range(100)) <= 3
+    assert 0 < max(pause(f"OH2R{n}", n, 1, 1) for n in range(10)) <= 1, "a jitter of one second is one"
+
+
+def test_a_message_counted_as_sent_with_no_time_of_its_attempt_is_due_when_it_was_made() -> None:
+    assert due_at(replace(sending(2, T0), last_attempt_at=None)) == T0
+    assert due_at(replace(sending(0), last_attempt_at=T0 + timedelta(seconds=5))) == T0

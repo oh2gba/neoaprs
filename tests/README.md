@@ -595,8 +595,10 @@ in `support/finderrig.py`.
 ## Properties
 
 Hypothesis is in the `dev` group. `HYPOTHESIS_PROFILE=ci` (the default) is derandomised and keeps no example database, so a run is reproducible;
-`HYPOTHESIS_PROFILE=dev` explores with a random seed and 2000 examples. The properties of KISS, AX.25 and the APRS coders are `test_properties_kiss.py`,
-`test_properties_ax25.py` and `test_properties_aprs.py`.
+`HYPOTHESIS_PROFILE=dev` explores with a random seed and 2000 examples; `nightly` (the nightly workflow) 4000 with a new seed each night. Every parser of
+outside input has a random-input test in a `test_properties_*.py` file: it never raises anything but its documented refusal, what it returns stays in
+its domain, and what an encoder writes reads back. Real inputs, damaged, are the best seeds: `support/mutation.py` damages bytes, text and JSON,
+`support/damaged.py` also puts awkward Unicode into them. `test_properties_every_parser.py` fails for a module that reads outside input and has no such test.
 
 ## Order
 

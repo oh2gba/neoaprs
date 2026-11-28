@@ -12,7 +12,7 @@ from neoaprs.web.dispatch import FAILED, REGISTRY, Ctx, Dispatcher, Handler, Use
 from neoaprs.web.hostwire import Ping
 from neoaprs.web.session import Connection
 
-CTL, HUB, ERRORS, SCOPES, LEVELS, LAYERS, SATELLITES = (object() for _ in range(7))
+CTL, HUB, ERRORS, SCOPES, LEVELS, LAYERS, SATELLITES, IGATE = (object() for _ in range(8))
 
 
 async def status() -> dict[str, Any]:
@@ -51,6 +51,7 @@ class Rig:
             LEVELS,  # type: ignore[arg-type]
             LAYERS,  # type: ignore[arg-type]
             SATELLITES,  # type: ignore[arg-type]
+            IGATE,  # type: ignore[arg-type]
         )
 
     async def handler(self, ctx: Ctx, cmd: Any) -> None:
@@ -97,6 +98,16 @@ def test_a_handler_goes_into_the_registry_it_is_given_and_a_second_for_one_comma
     assert registry["ping"].fn is first
 
 
+def test_with_no_registry_given_a_handler_goes_into_the_programs_own(monkeypatch: pytest.MonkeyPatch) -> None:
+    own: dict[str, Handler] = {}
+    monkeypatch.setattr("neoaprs.web.dispatch.REGISTRY", own)
+
+    async def handler(ctx: Ctx, cmd: Ping) -> None: ...
+
+    command(Ping)(handler)
+    assert own == {"ping": Handler("ping", Ping, handler)}
+
+
 def test_with_no_registry_given_the_dispatcher_runs_the_programs_own() -> None:
     assert Dispatcher(CTL, HUB, status).registry is REGISTRY  # type: ignore[arg-type]
 
@@ -109,7 +120,13 @@ async def test_a_command_reaches_its_handler_as_its_model_with_everything_the_di
     [(ctx, cmd)] = rig.called
     assert isinstance(cmd, Ping)
     assert (ctx.ctl, ctx.conn, ctx.hub, ctx.status, ctx.page_errors) == (CTL, rig.conn, HUB, status, ERRORS)
-    assert (ctx.scopes, ctx.levels, ctx.layers, ctx.satellites) == (SCOPES, LEVELS, LAYERS, SATELLITES)
+    assert (ctx.scopes, ctx.levels, ctx.layers, ctx.satellites, ctx.igate) == (
+        SCOPES,
+        LEVELS,
+        LAYERS,
+        SATELLITES,
+        IGATE,
+    )
 
 
 async def test_set_config_reaches_its_handler_with_its_values_and_its_id(rig: Rig) -> None:
@@ -147,7 +164,10 @@ async def test_a_command_that_does_not_fit_its_model_is_answered_invalid_and_log
     assert answer["text"].startswith("set_config: values: "), "the text names the command and then the field"
     assert rig.called == []
     [record] = caplog.records
-    assert record.levelno == logging.WARNING and record.getMessage().endswith(answer["text"])
+    assert (record.levelno, record.getMessage()) == (
+        logging.WARNING,
+        f"a command that does not fit its model: {answer['text']}",
+    )
 
 
 # ---- the id of a request
@@ -175,6 +195,11 @@ async def test_a_refusal_is_answered_with_its_text_code_key_and_params_and_not_l
         answer = await rig.run({"cmd": "set_config", "values": {}, "id": 4})
     assert answer == error("the call is not set", "set_config", "setting.missing", "station/call", {"max": 6}, id=4)
     assert caplog.records == []
+
+
+async def test_a_refusal_with_no_code_is_answered_as_other(rig: Rig) -> None:
+    rig.raise_ = UserError("that cannot be done now")
+    assert await rig.run({"cmd": "beacon_now"}) == error("that cannot be done now", "beacon_now", "other")
 
 
 async def test_a_refusal_the_operator_cannot_act_on_is_logged_as_a_warning_too(

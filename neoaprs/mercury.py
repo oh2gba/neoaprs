@@ -3,6 +3,7 @@ Pure values and functions, no I/O; mercuryhelper.py and mercurycontrol.py run th
 The mode is fixed at DATAC3; a frame carries 126 bytes, 3 of them header (see `overflow`).
 """
 
+import math
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -316,7 +317,7 @@ WINDOWS_IN_USE, WINDOWS_MISSING = frozenset({5, 32}), frozenset({2, 3})
 POSIX_IN_USE = frozenset({"Device or resource busy"})
 POSIX_MISSING = frozenset({"No such file or directory", "No such device", "No such device or address"})
 _KEYING_OPEN_WINDOWS = re.compile(
-    re.escape(KEYING_OPEN_WINDOWS).replace(r"\{port\}", r"(\S+)").replace(r"\{error\}", r"(\d+)")
+    re.escape(KEYING_OPEN_WINDOWS).replace(r"\{port\}", r"(\S+)").replace(r"\{error\}", r"(\d{1,10})")
 )
 _KEYING_OPEN_POSIX = re.compile(
     re.escape(KEYING_OPEN_POSIX).replace(r"\{port\}", r"(\S+?)").replace(r"\{error\}", r"(.+?)") + "$"
@@ -370,9 +371,12 @@ def parse_control_line(line: str) -> ControlEvent:
         return ControlEvent(words[0].lower(), on=words[1] == "ON", text=text)
     if len(words) == 2 and words[0] in ("SN", "BUFFER"):
         try:
-            return ControlEvent("snr" if words[0] == "SN" else "buffer", value=float(words[1]), text=text)
+            value = float(words[1])
         except ValueError:
             return ControlEvent("other", text=text)
+        if math.isfinite(value):
+            return ControlEvent("snr" if words[0] == "SN" else "buffer", value=value, text=text)
+        return ControlEvent("other", text=text)
     if text == "IAMALIVE":
         return ControlEvent("alive", text=text)
     return ControlEvent("other", text=text)

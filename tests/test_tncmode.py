@@ -6,9 +6,21 @@ from datetime import UTC, datetime
 import pytest
 
 from neoaprs import ax25, kiss
+from neoaprs.packet import Position
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.reading import Reading
-from neoaprs.tncmode import Mode, ModeDetector, TextAfterKiss, is_ui, looks_valid, printable, read_frame, typed_text
+from neoaprs.tncmode import (
+    Mode,
+    ModeDetector,
+    TextAfterKiss,
+    TextWatch,
+    is_ui,
+    looks_valid,
+    packet_of,
+    printable,
+    read_frame,
+    typed_text,
+)
 
 T = datetime(2026, 11, 28, 12, 0, tzinfo=UTC)
 FRAME = ax25.Frame(
@@ -124,6 +136,7 @@ def test_a_stretch_that_starts_with_a_byte_that_is_no_text_is_a_frame() -> None:
     assert not typed_text(b"")
     assert not typed_text(b"\x00" + PROMPT)
     assert not typed_text(b"\x7f" + PROMPT) and not typed_text(b"\x12" + PROMPT)
+    assert not typed_text(b"\x00\r" + PROMPT), "a frame whose data has a line that reads cmd:"
 
 
 def test_a_line_is_judged_by_its_text_up_to_the_first_byte_that_is_none() -> None:
@@ -161,6 +174,41 @@ def test_text_after_kiss_is_judged_by_the_last_bytes_alone() -> None:
     assert not watch.feed(b"\x01" * TextAfterKiss.TAIL_BYTES)
 
 
+# ---- lines of text and no frame
+
+LINE = b"A" * TextWatch.MIN_LINE
+
+
+def test_two_lines_of_text_hold_sec_apart_raise_the_watch_and_a_frame_clears_it() -> None:
+    watch = TextWatch()
+    assert watch.alarm is False and watch.feed(b"", 100.0) is False
+    assert watch.feed(LINE + b"\r\n", 100.0) is False and watch.alarm is False
+    assert watch.feed(LINE + b"\r\n", 100.0 + TextWatch.HOLD_SEC / 2) is False, "half the hold is not enough"
+    assert watch.feed(LINE + b"\r", 100.0 + TextWatch.HOLD_SEC) is True and watch.alarm is True
+    assert watch.feed(LINE + b"\r", 200.0) is False, "it went on once"
+    assert watch.frame() is True and watch.alarm is False and watch.frame() is False
+
+
+def test_a_line_shorter_than_min_line_is_not_counted() -> None:
+    watch = TextWatch()
+    watch.feed(LINE[1:] + b"\r\n", 0.0)
+    assert not watch.feed(LINE + b"\r\n", TextWatch.HOLD_SEC), "the first line was too short to start the hold"
+    assert watch.feed(LINE + b"\r\n", 2 * TextWatch.HOLD_SEC)
+
+
+def test_a_run_of_text_max_run_long_with_no_line_end_is_a_line() -> None:
+    watch = TextWatch()
+    run = b"0123456789ABCDEF" * (TextWatch.MAX_RUN // 16)
+    watch.feed(run + b"\x00", 0.0)
+    assert watch.feed(run + b"\x00", TextWatch.HOLD_SEC), "a non-text byte after it does not undo the line"
+
+
+def test_text_cut_by_a_byte_that_is_no_text_is_not_a_line() -> None:
+    watch = TextWatch()
+    for now in (0.0, TextWatch.HOLD_SEC, 2 * TextWatch.HOLD_SEC):
+        assert not watch.feed(LINE[:8] + b"\x00" + LINE[8:] + b"\r\n", now)
+
+
 # ---- the packet in a frame
 
 
@@ -180,6 +228,31 @@ def test_a_ui_frame_is_its_packet_on_the_radio_that_heard_it() -> None:
     assert (packet.snr, packet.rssi) == (4.5, -80.0)
     dummy = read_frame(kiss_frame(UI), T, True)
     assert not isinstance(dummy, str) and (dummy[0].via, dummy[0].radio_id) == ("dummy", FM_ID)
+
+
+@pytest.mark.parametrize(
+    ("source", "destination", "info", "symbol", "timestamp"),
+    [
+        (
+            "OH2XYZ-9",
+            "APRS",
+            b"$GPRMC,063909,A,3349.4302,N,11700.3721,W,43.022,89.3,291099,13.6,E*52",
+            ">",
+            datetime(1999, 10, 29, 6, 39, 9, tzinfo=UTC),
+        ),
+        ("OH2XYZ-9", "S32UVT", b'`(_fn"Oj/', "j", None),
+        ("OH2XYZ-9", "APRS", b"@281130z6010.00N/02450.00E>hi", ">", datetime(2026, 11, 28, 11, 30, tzinfo=UTC)),
+    ],
+    ids=["a tracker's symbol from its source's ssid", "mic-e from the destination", "a day and time from now"],
+)
+def test_a_packet_is_decoded_from_its_source_destination_and_the_time_it_was_heard(
+    source: str, destination: str, info: bytes, symbol: str, timestamp: datetime | None
+) -> None:
+    frame = ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), info=info)
+    packet = packet_of("out", ax25.encode(frame), frame, T)
+    assert isinstance(packet.decoded, Position)
+    assert (packet.decoded.symbol_code, packet.decoded.timestamp) == (symbol, timestamp)
+    assert (packet.direction, packet.via, packet.radio_id) == ("out", "rf", FM_ID), "a radio is no dummy unless said"
 
 
 def test_a_third_party_packet_is_rf_gated() -> None:
@@ -212,7 +285,7 @@ def test_a_frame_that_breaks_the_reader_is_logged_and_answered_as_an_internal_er
     with caplog.at_level("ERROR", logger="neoaprs.tnc"):
         assert read_frame(kiss_frame(UI), T) == "internal error"
     [record] = caplog.records
-    assert record.exc_info is not None and "could not be handled" in record.getMessage()
+    assert record.exc_info is not None and record.getMessage() == "tnc: a frame could not be handled"
 
 
 def test_printable_shows_what_cannot_be_printed_as_a_question_mark() -> None:

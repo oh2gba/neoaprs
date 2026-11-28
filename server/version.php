@@ -28,11 +28,11 @@ const HF_DIAL      = '7.0541 MHz USB';
 
 require __DIR__ . '/latest.php';
 
-$clean = static function (string $value, int $max): string {
-    return substr(preg_replace('/[^0-9A-Za-z._ -]/', '', $value), 0, $max);
+$clean = static function (mixed $value, int $max): string {
+    return is_string($value) ? substr(preg_replace('/[^0-9A-Za-z._ -]/', '', $value), 0, $max) : '';
 };
-$version = $clean((string)($_GET['v'] ?? ''), 20);
-$os      = $clean((string)($_GET['os'] ?? ''), 40);
+$version = $clean($_GET['v'] ?? '', 20);
+$os      = $clean($_GET['os'] ?? '', 40);
 
 $id      = $_GET['id'] ?? '';
 // ("0" is false in PHP: the column is chosen by the length, not by ?:)

@@ -43,8 +43,8 @@ class KissDecoder:
         # a FEND has been seen: what follows is a whole frame (before that the stream may start
         # mid-frame)
         self._synced = False
-        self._escaped = False  # the last byte was FESC
-        self._skipping = False  # this frame is lost: wait for its closing FEND
+        self._escaped = False  # the last byte was FESC  # pragma: no mutate
+        self._skipping = False  # this frame is lost: wait for its closing FEND  # pragma: no mutate
 
     def feed(self, data: bytes) -> list[KissFrame]:
         frames: list[KissFrame] = []

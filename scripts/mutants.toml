@@ -2,38 +2,43 @@
 # against its short list of tests, and .github/workflows/mutants.yml runs one group a night and fails
 # when a module's score is below its floor. The floor is the score last recorded here; raise it when
 # tests are added, never lower it without a reason in the commit. Score: the mutants caught (killed
-# or timed out) in 100 of those mutmut made. neoaprs/migrations.py is not here: mutmut makes 651
+# or timed out) in 100 of those mutmut made. The target of every module is 90. neoaprs/migrations.py is not here: mutmut makes 651
 # mutants of it and its tests take minutes a run, many hours a night; it needs a short list first.
 
 [modules.kiss]
 path = "neoaprs/kiss.py"
 group = 1
 tests = ["tests/test_kiss.py", "tests/test_properties_kiss.py", "tests/test_tnc2text.py"]
-floor = 88.6
+floor = 95.6
 
 [modules.ax25]
 path = "neoaprs/ax25.py"
 group = 1
 tests = ["tests/test_ax25.py", "tests/test_properties_ax25.py"]
-floor = 85.6
+floor = 94.1
 
 [modules.aprsposition]
 path = "neoaprs/aprsposition.py"
 group = 1
-tests = ["tests/test_aprsposition.py", "tests/test_aprsposition_compressed.py", "tests/test_properties_aprs.py"]
-floor = 79.7
+tests = [
+    "tests/test_aprsposition.py",
+    "tests/test_aprsposition_compressed.py",
+    "tests/test_properties_aprs.py",
+    "tests/test_aprsparse.py",
+]
+floor = 97.7
 
 [modules.aprsmice]
 path = "neoaprs/aprsmice.py"
 group = 1
-tests = ["tests/test_aprsmice.py", "tests/test_aprsmiceout.py"]
-floor = 77.2
+tests = ["tests/test_aprsmice.py", "tests/test_aprsmiceout.py", "tests/test_properties_mice.py"]
+floor = 98.1
 
 [modules.digipeater]
 path = "neoaprs/services/digipeater.py"
 group = 2
-tests = ["tests/test_digipeater.py", "tests/test_digi_rows.py"]
-floor = 79.1
+tests = ["tests/test_digipeater.py", "tests/test_digi_rows.py", "tests/test_pass_rows.py", "tests/test_pass_slow.py"]
+floor = 100.0
 
 [modules.crossrule]
 path = "neoaprs/crossrule.py"
@@ -44,8 +49,8 @@ floor = 96.7
 [modules.retries]
 path = "neoaprs/services/retries.py"
 group = 2
-tests = ["tests/test_radio_of_frame.py"]
-floor = 63.6
+tests = ["tests/test_radio_of_frame.py", "tests/test_retries.py"]
+floor = 99.5
 
 [modules.smartbeacon]
 path = "neoaprs/smartbeacon.py"
@@ -56,29 +61,29 @@ floor = 93.2
 [modules.tncmode]
 path = "neoaprs/tncmode.py"
 group = 3
-tests = ["tests/test_tncmode.py"]
-floor = 93.8
+tests = ["tests/test_tncmode.py", "tests/test_properties_tncmode.py", "tests/test_properties_textwatch.py"]
+floor = 98.8
 
 [modules.configvalues]
 path = "neoaprs/configvalues.py"
 group = 3
 tests = ["tests/test_configvalues.py"]
-floor = 83.8
+floor = 100.0
 
 [modules.dispatch]
 path = "neoaprs/web/dispatch.py"
 group = 3
 tests = ["tests/test_web_dispatch.py"]
-floor = 94.8
+floor = 97.1
 
 [modules.message]
 path = "neoaprs/message.py"
 group = 4
 tests = ["tests/test_message.py"]
-floor = 42.5
+floor = 99.0
 
 [modules.updateasset]
 path = "neoaprs/updateasset.py"
 group = 4
-tests = ["tests/test_updateasset.py"]
-floor = 37.8
+tests = ["tests/test_updateasset.py", "tests/test_updatesign.py", "tests/test_properties_releases.py"]
+floor = 96.2

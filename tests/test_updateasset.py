@@ -45,6 +45,7 @@ def test_the_file_of_the_release_for_each_kind_and_architecture(kind: str, arch:
         ("1.0.0-alpha", "1.0.0a0"),
         ("1.0.0-beta.2", "1.0.0b2"),
         ("1.0.0-dev3", "1.0.0.dev3"),
+        ("1.0.0-dev", "1.0.0.dev0"),
     ],
 )
 def test_the_sdist_is_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written(
@@ -108,8 +109,9 @@ def test_the_address_is_the_github_release_of_the_tag_of_the_version_and_nothing
     )
     assert asset_url("0.7.0", "SHA256SUMS") == "https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS"
     for name in ("../x", "a/b", "", "x?y", ".hidden", "x\n"):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as refused:
             asset_url("0.7.0", name)
+        assert str(refused.value) == f"no release address for '0.7.0' and {name!r}"
 
 
 @pytest.mark.parametrize(
