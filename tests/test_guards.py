@@ -9,6 +9,7 @@ import socket
 import subprocess
 import sys
 import textwrap
+import threading
 import types
 from pathlib import Path
 from typing import Any
@@ -1194,3 +1195,20 @@ def test_the_doors_of_the_session_refuse_and_keep_what_a_fixture_reached_for_and
     with pytest.raises(AssertionError, match="a fixture of the module reached for"):
         guards.fail_for(["192.0.2.1:80"], "the module")
     guards.fail_for([], "the module")
+
+
+def test_a_thread_a_test_left_running_is_found_and_one_that_ends_soon_or_is_allowed_is_not() -> None:
+    before = set(threading.enumerate())
+    stop = threading.Event()
+    left = threading.Thread(target=stop.wait, name="left-behind", daemon=True)
+    soon = threading.Thread(target=lambda: stop.wait(0.2), name="ends-soon", daemon=True)
+    allowed = threading.Thread(target=stop.wait, name="serial-close socket://127.0.0.1:1", daemon=True)
+    for thread in (left, soon, allowed):
+        thread.start()
+    try:
+        assert guards.threads_left(before, seconds=1.0) == [left]
+    finally:
+        stop.set()
+        for thread in (left, soon, allowed):
+            thread.join()
+    assert guards.threads_left(before, seconds=1.0) == []

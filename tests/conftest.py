@@ -88,6 +88,7 @@ from tests.support.guards import (  # noqa: E402
     isolated_machine,  # noqa: F401
     logging_restored,  # noqa: F401
     no_leaked_db_threads,  # noqa: F401
+    no_leaked_threads,  # noqa: F401
     no_leaked_tasks,  # noqa: F401
     no_unexpected_errors,  # noqa: F401
 )

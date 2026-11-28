@@ -48,17 +48,25 @@ def radio() -> Iterator[str]:
     """A TCP server on the loopback that accepts and says nothing: a radio for a daemon that nobody
     started in the test itself."""
     server = socket.create_server(("127.0.0.1", 0))
+    # (a close does not wake an accept that waits on another thread: it looks for the end now and then)
+    server.settimeout(0.1)
     held: list[socket.socket] = []
+    over = threading.Event()
 
     def accept() -> None:
-        while True:
+        while not over.is_set():
             try:
                 held.append(server.accept()[0])
+            except TimeoutError:
+                continue
             except OSError:
                 return
 
-    threading.Thread(target=accept, daemon=True).start()
+    thread = threading.Thread(target=accept, daemon=True)
+    thread.start()
     yield f"socket://127.0.0.1:{server.getsockname()[1]}"
+    over.set()
+    thread.join()
     server.close()
     for client in held:
         client.close()

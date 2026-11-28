@@ -405,6 +405,7 @@ def test_a_second_apps_quit_ends_an_app_whose_window_engine_never_came_up(
     until(lambda: ended == [0])
     thread.join(60)
     assert not thread.is_alive()
+    launch.close()  # (the session that came after the quit has a watch; the process would have ended)
 
 
 def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_the_browser_and_quit_ends_the_app(
@@ -440,6 +441,7 @@ def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_th
     thread.join(60)
     assert not thread.is_alive() and "destroy" not in rig.toolkits.windows[0].calls
     assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"
+    rig.ctx.close()
 
 
 def late_engine(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> tuple[threading.Event, list[int]]:
@@ -483,6 +485,7 @@ def test_an_engine_that_comes_after_the_fallback_gets_the_page_and_quit_ends_the
     item.action(rig.toolkits.icons[0], item)
     thread.join(60)
     assert not thread.is_alive() and "destroy" in window.calls and ended == [], "no end of the process needed"
+    rig.ctx.close()
 
 
 # ---- the daemon ends (its watch quits the app) at every moment of the window's start
@@ -506,7 +509,7 @@ def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_after_the_short_
     before the engine was up, not after the long wait (60 s here, which the bound below never reaches)."""
     monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 1.0)
     rig = Rig(tmp_path, monkeypatch)
-    up = threading.Event()
+    up, over = threading.Event(), threading.Event()
 
     def start(func: Any = None, **kwargs: Any) -> None:
         rig.toolkits.started.append(kwargs)
@@ -515,7 +518,7 @@ def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_after_the_short_
         for handler in list(window.events.shown.handlers):
             handler()  # the window's `shown`, after the quit
         func()
-        threading.Event().wait(30)  # E_ABORT: the loop does not return
+        over.wait(60)  # E_ABORT: the loop does not return while the test looks
 
     monkeypatch.setattr(sys.modules["webview"], "start", start)
     thread = threading.Thread(target=rig.run, daemon=True)
@@ -527,6 +530,9 @@ def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_after_the_short_
     assert not any("did not end in" in r.getMessage() for r in caplog.records), "not the long wait's"
     assert "destroy" not in rig.toolkits.windows[0].calls, "a WebView2 in its start is not destroyed"
     assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"
+    over.set()
+    thread.join(60)
+    rig.ctx.close()
 
 
 def test_the_daemon_ends_before_the_window_is_made_and_no_window_loop_is_started(
@@ -560,6 +566,7 @@ def test_the_daemon_ends_between_the_window_and_its_loop_and_the_loop_is_not_sta
     assert rig.run() == 0
     assert rig.toolkits.started == [] and "destroy" not in rig.toolkits.windows[0].calls
     assert _no_end_of_the_test_process == [], "the run returns by itself"
+    rig.ctx.close()
 
 
 def test_the_daemon_ends_after_the_window_is_up_and_the_app_ends_the_normal_way(
@@ -573,6 +580,7 @@ def test_the_daemon_ends_after_the_window_is_up_and_the_app_ends_the_normal_way(
     thread.join(60)
     assert not thread.is_alive() and "destroy" in rig.toolkits.windows[0].calls
     assert _no_end_of_the_test_process == [], "the window loop returned: no end of the process needed"
+    rig.ctx.close()
 
 
 def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
@@ -583,11 +591,11 @@ def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
 ) -> None:
     monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 1.0)
     rig = Rig(tmp_path, monkeypatch)
-    up = threading.Event()
+    up, over = threading.Event(), threading.Event()
 
     def start(func: Any = None, **kwargs: Any) -> None:
         rig.toolkits.started.append(kwargs)
-        threading.Event().wait(30)  # an engine that never comes up
+        over.wait(60)  # an engine that never comes up while the test looks
 
     monkeypatch.setattr(sys.modules["webview"], "start", start)
     thread = threading.Thread(target=rig.run, daemon=True)
@@ -598,6 +606,9 @@ def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
     until(lambda: _no_end_of_the_test_process == [0], 45.0)
     up.set()
     assert any("its engine was not up" in r.getMessage() for r in caplog.records), "the short grace's end"
+    over.set()
+    thread.join(60)
+    rig.ctx.close()
 
 
 def test_quit_pressed_twice_before_the_page_stops_the_daemon_once(

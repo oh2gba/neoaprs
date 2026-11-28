@@ -360,6 +360,9 @@ def launch(rig: Rig) -> threading.Thread:
         )
     )
     until(lambda: rig.ctx.watch is not None)
+    # The tray is up before the window's loop starts: a window that was made is waited for in its loop
+    # too, or a test reads the toolkit while the shell is still on its way to it
+    until(lambda: not rig.toolkits.windows or rig.toolkits.start_fails or rig.toolkits.started)
     return thread
 
 
@@ -1196,9 +1199,6 @@ def test_on_wayland_or_off_every_screen_the_window_opens_in_the_middle(
     quit_through_the_menu(rig, thread)
 
 
-@pytest.mark.nightly(
-    "quarantined 2026-11-28: the window was not destroyed within 60 s of Quit once on GitHub's Linux runner (docs/flakes.md)"
-)
 def test_the_close_button_hides_the_window_while_the_desktop_has_a_tray_and_quits_when_it_has_none(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1248,7 +1248,7 @@ def test_an_icon_that_cannot_be_made_leaves_the_window_without_one_and_with_no_w
     monkeypatch.setattr(sys.modules["pystray"], "Icon", refused)
     thread = threading.Thread(target=rig.run, daemon=True)
     thread.start()
-    until(lambda: rig.ctx.watch is not None)
+    until(lambda: rig.ctx.watch is not None and rig.toolkits.started)
     assert handler(rig.toolkits.windows[0].events.closing)() is False
     thread.join(60)
     assert not thread.is_alive()

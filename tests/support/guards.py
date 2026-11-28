@@ -1092,6 +1092,35 @@ def no_leaked_db_threads() -> Iterator[None]:
     )
 
 
+# A thread the test started is over when the test is: what is still running after this, once its
+# fixtures are torn down, fails the test (it would run on into the tests after it)
+THREAD_END_SEC = 2.0
+# The threads that may outlive their test, by the start of their name, and why
+THREADS_LEFT_ALLOWED = {
+    "serial-close ": "a port's close is made off the loop and may still run a moment after its port was closed",
+    "neoaprs-app-single": "the desktop app's single-instance listener, blocked on a socket of the test's folder",
+}
+
+
+def threads_left(before: set[threading.Thread], seconds: float = THREAD_END_SEC) -> list[threading.Thread]:
+    """The threads started since `before` that do not end within `seconds`, those allowed left out."""
+    deadline = time.monotonic() + seconds
+    started = [t for t in threading.enumerate() if t not in before and not isinstance(t, threading.Timer)]
+    for thread in started:
+        thread.join(max(0.0, deadline - time.monotonic()))
+    return [t for t in started if t.is_alive() and not any(t.name.startswith(name) for name in THREADS_LEFT_ALLOWED)]
+
+
+@pytest.fixture(autouse=True)
+def no_leaked_threads() -> Iterator[None]:
+    before = set(threading.enumerate())
+    yield
+    left = threads_left(before)
+    assert not left, "the test left threads running (end and join every thread a test starts):\n  " + "\n  ".join(
+        f"{t.name} ({getattr(getattr(t, '_target', None), '__qualname__', '?')})" for t in left
+    )
+
+
 # How long stopping what a test started may take when the test is over. A stop that hangs (on
 # Windows 11 a teardown sat 25 minutes in the loop's `_poll`) fails the test by its name after this,
 # with what still runs: the stacks that faulthandler_timeout (pyproject.toml, 120 s) prints end

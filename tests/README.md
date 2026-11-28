@@ -610,5 +610,5 @@ slow. A slow test says why with `@pytest.mark.slow("why it takes this long")`, o
 the gate and CI leave out (`-m "not nightly"`) and `.github/workflows/nightly.yml` runs each night; a marker without a reason of a few words is refused
 at collection. With `NEOAPRS_TEST_BUDGET_SEC` (the gate sets it) the run fails when its tests took longer in sum, or when a test with neither marker
 took over 5 s. A flaky test is quarantined the same way, `@pytest.mark.nightly("quarantined DATE: why")`, and has its row in `docs/flakes.md`.
-`test_flake_rules.py` refuses the forms of a flaky test that can be read from the source: a fixed port, a sleep in a test's body, a thread asserted dead
+The guard `no_leaked_threads` (`support/guards.py`) fails a test whose threads still run 2 s after its teardown (`THREADS_LEFT_ALLOWED` names the few of the program that end by themselves, each with its reason). `test_flake_rules.py` refuses the forms of a flaky test that can be read from the source: a fixed port, a sleep in a test's body, a thread asserted dead
 without a generous join, a wait for what is expected that gives up within seconds; an exception is an entry with its reason in the file.
