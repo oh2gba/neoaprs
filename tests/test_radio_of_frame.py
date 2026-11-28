@@ -449,6 +449,59 @@ async def test_an_object_on_fm_repeats_by_the_net_cycle_of_its_path_one_on_hf_al
     )
 
 
+def test_a_message_waiting_for_its_radio_is_told_once_an_outage_however_many_ticks_it_lasts(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    given, radios, lines = two(BOTH, False)
+    clock = FixedClock()
+    host = Host(radios, [record(1, "OH2B", clock() - timedelta(seconds=60))])
+    retries = Retries(host, given, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0)
+    retries.plan(host.records[1])
+    lines[FM_ID].state = Source.State.SILENT
+
+    def waits() -> int:
+        return sum("its attempts wait for the radio" in r.getMessage() for r in caplog.records)
+
+    with caplog.at_level("WARNING", logger="neoaprs.messaging"):
+        for _ in range(5):
+            clock.advance(1)
+            retries.tick()
+        assert waits() == 1 and host.attempted == [], "five ticks of one outage: one warning, no attempt"
+        lines[FM_ID].state = Source.State.CONNECTED
+        clock.advance(1)
+        retries.tick()
+        assert host.attempted == [1]
+        retries.plan(replace(host.records[1], last_attempt_at=clock() - timedelta(seconds=600)))
+        lines[FM_ID].state = Source.State.SILENT
+        for _ in range(3):
+            clock.advance(1)
+            retries.tick()
+    assert waits() == 2, "a new outage is told again, once"
+
+
+@pytest.mark.parametrize(
+    ("attempts_max", "state", "level"),
+    [(1, "unconfirmed", "INFO"), (2, "unconfirmed", "INFO"), (5, "failed", "WARNING")],
+)
+def test_a_message_that_used_its_last_attempt_ends_unconfirmed_when_it_had_two_at_most_else_failed(
+    caplog: pytest.LogCaptureFixture, attempts_max: int, state: str, level: str
+) -> None:
+    given, radios, _ = two(BOTH, False)
+    clock = FixedClock()
+    last = replace(record(1, "OH2B", clock() - timedelta(seconds=3600), attempts_max), attempts_max=attempts_max)
+    host = Host(radios, [last])
+    retries = Retries(host, given, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0)
+    retries.plan(last)
+    with caplog.at_level("INFO", logger="neoaprs.messaging"):
+        retries.tick()
+    assert host.attempted == [] and host.records[1].state == state
+    [told] = [r for r in caplog.records if "no answer after" in r.getMessage()]
+    assert (told.levelname, told.getMessage()) == (
+        level,
+        f"message 1 to OH2B is {state}: no answer after {attempts_max} attempts",
+    )
+
+
 def test_a_radio_that_comes_back_with_no_message_waiting_on_it_is_not_told_above_debug(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

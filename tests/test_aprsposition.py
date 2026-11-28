@@ -255,6 +255,25 @@ def test_the_cs_bytes_of_a_compressed_weather_position_are_the_wind() -> None:
     assert parse_position(b"/5L!!<*e7_{?!", NOW).weather is None  # "{": a range, not a wind
 
 
+def test_the_radio_range_of_a_compressed_position_is_in_kilometres_to_a_tenth() -> None:
+    """The spec's `{` in c with s 47: 2 * 1.08 ** 47 miles, 119.838 km."""
+    p = parse_position(b"/5L!!<*e7>{PA", NOW)
+    assert p.extensions is not None and p.extensions.range_km == 119.8
+    assert parse_position(b"/5L!!<*e7>{!A", NOW).extensions.range_km == 3.2  # type: ignore[union-attr]
+
+
+def test_a_compressed_weather_station_is_where_its_bytes_say() -> None:
+    p = parse_position(b"/5L!!<*e7_7P[", NOW)
+    assert (p.lat, p.lon) == (pytest.approx(49.5), pytest.approx(-72.75, abs=1e-5))
+
+
+def test_a_compressed_longitude_past_180_is_refused_and_180_itself_is_taken() -> None:
+    # x of 91**4 - 1 is 180.04 degrees; 360 * 190463 is exactly 180
+    with pytest.raises(PositionError, match="out of range"):
+        parse_position(b"/5L!!{{{{>  A", NOW)
+    assert parse_position(b"/5L!!{{!!>  A", NOW).lon == 180.0
+
+
 def test_compressed_stationary_has_no_motion() -> None:
     p = parse_position(b"/5L!!<*e7>!!A", NOW)
     assert (p.course_deg, p.speed_kmh) == (None, None)
