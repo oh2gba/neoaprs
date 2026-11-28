@@ -110,10 +110,24 @@ _RELEASE_URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/releases/downl
 _EXACT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*==\s*([^;\s]+)")
 _STABLE = re.compile(r"^v?(\d+!)?\d+(\.\d+)*(\.post\d+)?$")
 _UV_PINS = (
-    re.compile(r"setup-uv@[0-9a-f]+[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+version:\s*\"([\d.]+)\""),
     re.compile(r"astral\.sh/uv/([\d.]+)/install\.sh"),
     re.compile(r"^ARG UV_VERSION=([\d.]+)$", re.M),
 )
+_UV_STEP_VERSION = re.compile(r"^[ \t]+version:\s*\"([\d.]+)\"\s*$")
+
+
+def uv_step_versions(text: str) -> list[str]:
+    """The `version:` of every setup-uv step of a workflow: the first one after the step's
+    `uses:` line and before the next step."""
+    found: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        if "uses:" in line:
+            inside = "setup-uv@" in line
+        elif inside and (version := _UV_STEP_VERSION.match(line)):
+            found.append(version.group(1))
+            inside = False
+    return found
 
 
 @dataclass(frozen=True)
@@ -225,9 +239,8 @@ def tool_pins(root: Path) -> list[Pin]:
     for path in uv_files:
         if path.is_file():
             text = path.read_text(encoding="utf-8")
-            for pattern in _UV_PINS:
-                for version in pattern.findall(text):
-                    pins.append(Pin("github", UV_REPO, version, (path.relative_to(root).as_posix(),)))
+            for version in [*uv_step_versions(text), *(v for pattern in _UV_PINS for v in pattern.findall(text))]:
+                pins.append(Pin("github", UV_REPO, version, (path.relative_to(root).as_posix(),)))
     for repo, name in MODEM_FILES.items():
         path = root / name
         found = re.search(r'^VERSION = "([^"]+)"', path.read_text(encoding="utf-8"), re.M) if path.is_file() else None
