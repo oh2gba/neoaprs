@@ -37,21 +37,8 @@ from .mercury import (
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim, take_folder
-from .mercuryhelper import (
-    Command,
-    PortsTaken,
-    Program,
-    audio_lost,
-    choose_setup,
-    expected_program,
-    find,
-    foreign_listeners,
-    free_ports,
-    is_shipped,
-    list_sound_cards,
-    first_pair,
-    next_modem_ports,
-)
+from .mercuryhelper import Command, PortsTaken, Program, audio_lost, choose_setup, expected_program, find
+from .mercuryhelper import first_pair, foreign_listeners, free_ports, is_shipped, list_sound_cards, next_modem_ports
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryruns import PORTS_TAKEN, REASONS as REASONS, Runs, owners_of, owners_words
 from .mercuryscoping import Scoping
