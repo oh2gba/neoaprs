@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.1
+
 - **Changed:** Mercury 1.9.26, Rhizomatica's newest, is the HF modem NeoAPRS carries.
 - **Changed:** Updated the libraries and the bundled Python.
 

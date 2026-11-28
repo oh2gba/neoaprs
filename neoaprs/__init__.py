@@ -1,6 +1,6 @@
 """NeoAPRS: an APRS client daemon with a web page, in pure Python."""
 
-VERSION = "0.26.0"
+VERSION = "0.26.1"
 # The destination call of every frame we send. APZ is the experimental range; a registered tocall
 # is requested (github.com/aprsorg/aprs-deviceid/issues/427).
 TOCALL = "APZNEO"
