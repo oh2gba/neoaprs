@@ -129,7 +129,7 @@ class ModemState(_Model):
         'five; the page shows them in the Mercury radio\'s box as they are, with the words "suggested": they are not read from the radio',
     )
     keying: str = Field(
-        description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`"
+        description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT`, `dtr:PORT`, or through a rig program the operator runs, `flrig` or `rigctld`, each with `:HOST:PORT` after it unless it is this computer on the program's default port (12345, 4532)"
     )
     scope: bool = Field(
         description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)"
@@ -202,6 +202,8 @@ RadioProblemCode = Literal[
     "modem.ports_taken",
     "modem.receive_stalled",
     "modem.receive_deaf",
+    "modem.rig_silent",
+    "modem.rig_keyed_long",
     "transmit.off",
     "beacon.not_sent",
 ]
@@ -213,7 +215,7 @@ class RadioProblem(_Model):
     code: RadioProblemCode = Field(
         description="`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: "
         "when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.port_in_use` another program has its port; `radio.no_answer` its Bluetooth device does not answer (switched off, asleep or out of range); `radio.not_paired` its Bluetooth device is not paired with this computer; `radio.refused` its Bluetooth device refused the connection; `radio.open_failed` its Bluetooth port could not be opened for another reason (the log says Windows' words); `radio.sends_text` its line is open and the KISS device on it sends text lines (monitor text, GPS sentences, KISS written as text) and no KISS frame; `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
-        "`GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; `modem.receive_deaf` its Mercury modem runs and hears nothing (its receive side stalled) and is started again soon; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, "
+        "`GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; `modem.receive_deaf` its Mercury modem runs and hears nothing (its receive side stalled) and is started again soon; `modem.rig_silent` the rig program it is keyed through (flrig, rigctld) does not answer, refused a key-down or has not confirmed a key-up: its frames wait; `modem.rig_keyed_long` a key-down through the rig program outlasted its frame and the daemon let the radio go, shown until a key-down ends by itself; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, "
         "and that reason's values)"
     )
     params: dict[str, str | int | float] = Field(

@@ -96,6 +96,9 @@ class Runs:
     def hold(self) -> str:
         raise NotImplementedError
 
+    def _rig_holds(self) -> Reason | str:
+        raise NotImplementedError
+
     def _clear_channel(self) -> None:
         raise NotImplementedError
 
@@ -140,7 +143,7 @@ class Runs:
 
     def frame_hold(self) -> str:
         """Return why the radio takes no frame now: the modem is not running, keyed or the channel is busy; else ""."""
-        return NOT_RUNNING if self.state != "running" else self.hold()
+        return NOT_RUNNING if self.state != "running" else self._rig_holds() or self.hold()
 
     def _keying_failed(self, reason: str, line: str) -> None:
         """Called on the loop when Mercury cannot set up its keying: it then never ends, so it is ended."""

@@ -17,6 +17,11 @@ from .clock import Clock, utcnow
 from .direwolf import (
     CONF_FILE,
     FIRST_PORT,
+    KEY_TEST_SEC,
+    RIG_MARGIN_SEC,
+    TUNE_SEC,
+    frame_sec,
+    keyed_limit,
     mode_of,
     PID_FILE,
     PORT_TRIES,
@@ -47,6 +52,7 @@ from .mercuryhelper import find as mercury_program
 from .mercurymodem import system_serial_ports
 from .radiotype import RadioId
 from .reading import NO_READING, Reading
+from .rigfollow import RigFollow
 from .serialprobe import PortInfo, claim_value, holder_words
 from .modemstate import ModemLife
 from .signal import Signal
@@ -73,7 +79,7 @@ STATES = ("stopped", "starting", "running", "waiting")
 REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying")
 
 
-class DirewolfModem(Tuning, ModemLife):
+class DirewolfModem(RigFollow, Tuning, ModemLife):
     PROGRAM, LOG, STARTING = "Direwolf", log, ("starting", "running")
 
     def __init__(
@@ -146,6 +152,7 @@ class DirewolfModem(Tuning, ModemLife):
         await self._tasks.cancel_all()
         self._test_task = None
         await asyncio.to_thread(self._program.stop)
+        await self._rig_end()
         self._release_claims()
         self.test = ""
         self._clear()
@@ -185,6 +192,7 @@ class DirewolfModem(Tuning, ModemLife):
             )
             return self._failed(SOUND_CARD_NOT_FOUND, "sound_card")
         self._numbers = numbers if self.windows else None
+        await self._rig_begin(self.keying)
         await self._run(program)
 
     async def _choose_setup(self) -> tuple[str, str, dict[str, str]]:
@@ -335,18 +343,27 @@ class DirewolfModem(Tuning, ModemLife):
             self._end_run(KEYING_FAILED, "keying", line)
         elif kiss_from_client(line):
             self._handed += 1  # a frame held until the channel is clear: a test waits
+            if self.keyed and self.rig is not None:
+                self.rig.extend(frame_sec(self.baud))  # Direwolf sends it in the same key-down
         elif (keyed := ptt_of(line)) is not None:
-            if keyed and not self.keyed:
-                self.frames_keyed += 1
-                self._keyed_upto = self._handed
-            self.keyed = keyed
-            self.changed.emit()
+            self._ptt(keyed)
         elif (busy := dcd_of(line)) is not None:
             self.busy = busy
             self.changed.emit()
         elif (level := level_of(line)) is not None and level != self.rx_level:
             self.rx_level = level
             self.changed.emit()
+
+    def _ptt(self, keyed: bool) -> None:
+        """Direwolf keys or lets go: so does the rig program of a radio keyed through one."""
+        if keyed and not self.keyed:
+            self.frames_keyed += 1
+            self._rig_ptt(True, self._rig_limit(self._handed - self._keyed_upto))
+            self._keyed_upto = self._handed
+        elif not keyed:
+            self._rig_ptt(False, 0.0)
+        self.keyed = keyed
+        self.changed.emit()
 
     def _windows_line(self, line: str) -> bool:
         """Windows: return whether the line ended the run (another device chosen, several CM108)."""
@@ -449,7 +466,14 @@ class DirewolfModem(Tuning, ModemLife):
         """Return the Direwolf of this installation; none under the no-devices switch."""
         return None if nodevices.refused("Direwolf is not started") else self._finder()
 
+    def _rig_limit(self, frames: int) -> float:
+        """Return how long a key-down through a rig program may last: the test's time, or that of its frames."""
+        if self.test:
+            return (TUNE_SEC if self.test == "tune" else KEY_TEST_SEC) + RIG_MARGIN_SEC
+        return keyed_limit(self.baud, max(1, frames))
+
     def _clear(self) -> None:
+        self._rig_release()
         self.keyed = self.busy = False
         self.rx_level = None  # a stopped program hears nothing: the bar is empty
 

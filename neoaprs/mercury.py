@@ -69,9 +69,20 @@ def modem_gain(gain_db: float) -> float:
 DIAL_BAND = 40  # the band the page shows
 DIAL_TEXT = dict(SUGGESTED)[f"{DIAL_BAND} m"]
 
-PTT_KINDS = ("vox", "cm108", "rts", "dtr")
+# keyed by a rig program the operator runs; an address may follow: `rigctld:192.168.1.5:4532`
+RIG_KINDS = ("flrig", "rigctld")
+PTT_KINDS = ("vox", "cm108", "rts", "dtr", *RIG_KINDS)
 # these name a port after a colon: `rts:/dev/ttyUSB0`
 PTT_WITH_DEVICE = ("rts", "dtr")
+# where each rig program listens unless the keying names an address
+RIG_ADDRESS = {"flrig": ("127.0.0.1", 12345), "rigctld": ("127.0.0.1", 4532)}
+# Mercury's wait from its keying to the frame's audio for a rig program (docs/mercury.md)
+RIG_TX_DELAY_MS = 300
+# what Mercury waits by default
+TX_DELAY_MS = 10
+# a key-down through a rig program lasts at most its frame, tone or test and this
+RIG_MARGIN_SEC = 1.0
+RIG_FRAME_SEC = FRAME_SEC + (RIG_TX_DELAY_MS - TX_DELAY_MS) / 1000
 
 # Tune and the keying test use Mercury's TUNE command on the control port.
 TUNE_TONE_HZ = 1000
@@ -112,25 +123,48 @@ class Keying:
     def text(self) -> str:
         return f"{self.kind}:{self.device}" if self.device else self.kind
 
+    @property
+    def rig(self) -> bool:
+        """Whether a rig program keys the radio (flrig, rigctld)."""
+        return self.kind in RIG_KINDS
+
+    @property
+    def address(self) -> tuple[str, int]:
+        """Return the rig program's host and port: the keying's own or the program's default."""
+        if not self.device:
+            return RIG_ADDRESS[self.kind]
+        host, _, port = self.device.rpartition(":")
+        return host.strip("[]"), int(port)
+
+
+def _address_ok(text: str) -> bool:
+    host, _, port = text.rpartition(":")
+    return bool(host.strip("[]")) and port.isascii() and port.isdigit() and 1 <= int(port) <= 65535
+
 
 def keying_of(text: str) -> Keying:
-    """Return the keying named by a setting: `vox`, `cm108`, `rts:PORT` or `dtr:PORT`.
+    """Return the keying named by a setting: `vox`, `cm108`, `rts:PORT`, `dtr:PORT`, `flrig[:HOST:PORT]`, `rigctld[:HOST:PORT]`.
 
-    Raise CodedError (`setting.not_keying`) for anything else, including the empty setting.
-    """
+    Raise CodedError (`setting.not_keying`) for anything else, including the empty setting; `setting.not_hostport`
+    for a rig program's address that is not one."""
     value = text.strip()
     kind, _, device = value.partition(":")
     kind, device = kind.strip().lower(), device.strip()
     # a port is one word, so it cannot add a line to a configuration
+    if kind in RIG_KINDS and 0 < len(device) <= 255 and device.isprintable() and not any(c.isspace() for c in device):
+        if not _address_ok(device):
+            raise CodedError(f"{device!r} is not host:port", "setting.not_hostport", value=device)
+        return Keying(kind, device)
     if (
         kind not in PTT_KINDS
         or (kind in PTT_WITH_DEVICE) != bool(device)
+        or (kind in RIG_KINDS and bool(device))
         or len(device) > 255
         or not device.isprintable()
         or any(c.isspace() for c in device)
     ):
         raise CodedError(
-            f"{text!r} is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT",
+            f"{text!r} is not a way of keying the radio: vox, cm108, rts:PORT, dtr:PORT, flrig or rigctld",
             "setting.not_keying",
             value=text,
         )
@@ -184,7 +218,7 @@ def command(
         argv += ["-i", capture]
     if playback:
         argv += ["-o", playback]
-    if keying.kind == "vox":
+    if keying.kind == "vox" or keying.rig:
         argv += ["-P", "none"]
     elif keying.kind == "cm108":
         argv += ["-P", "cm108"]
@@ -196,7 +230,13 @@ def command(
 def ini_text(keying: Keying, tx_gain_db: int = 0, ui_port: int = 0) -> str:
     """Return Mercury's configuration file, written at every start."""
     line = keying.kind if keying.kind in PTT_WITH_DEVICE else "rts"
-    leadin = f"tx_leadin_ms = {LEADIN_MS}\n" if keying.kind == "vox" else ""
+    leadin = (
+        f"tx_leadin_ms = {LEADIN_MS}\n"
+        if keying.kind == "vox"
+        else f"tx_delay_ms = {RIG_TX_DELAY_MS}\n"
+        if keying.rig
+        else ""
+    )
     ui = f"[main]\nui_enabled = true\nui_port = {ui_port}\nwaterfall_enabled = false\n" if ui_port else ""
     return (
         "; written by NeoAPRS at every start; the command line carries the rest\n"

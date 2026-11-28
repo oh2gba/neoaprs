@@ -91,6 +91,15 @@ def shown_state(line: Line) -> Source.State:
     return line.state
 
 
+def _running_problem(modem: Modem) -> str:
+    """Return the problem of a modem behind an open line: stalled, deaf, or its rig program's; else ""."""
+    if modem.state == "waiting" and modem.reason in DEAF_REASONS:
+        return f"modem.{modem.reason}"
+    if modem.deaf:
+        return "modem.receive_deaf"
+    return f"modem.{modem.rig_problem}" if modem.rig_problem else ""
+
+
 def _problem(line: Line) -> tuple[str | None, Mapping[str, Param]]:
     state, stuck, modem = line.state, line.write_stuck, line.modem_in_use
     # the write timeout is the problem while the line is open again, or waits after that very loss
@@ -100,11 +109,8 @@ def _problem(line: Line) -> tuple[str | None, Mapping[str, Param]]:
     ):
         return "radio.write_timeout", code_of(stuck)[1]
     if state is Source.State.CONNECTED:
-        if modem is not None and not modem.test:
-            if modem.state == "waiting" and modem.reason in DEAF_REASONS:
-                return f"modem.{modem.reason}", {}
-            if modem.deaf:
-                return "modem.receive_deaf", {}
+        if modem is not None and not modem.test and (code := _running_problem(modem)):
+            return code, {}
         if code_of(line.why_unusable())[0] == "radio.text_lines":
             return "radio.text_lines", {}
         return ("radio.sends_text", {}) if line.sends_text else (None, {})

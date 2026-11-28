@@ -15,13 +15,16 @@ class Modem(Protocol):
     `starting`: a refused line is no fault yet; `hold`: why no frame may go now; `reason`: why it waits,
     a code; `test`: the tune tone or the keying test that has the radio; `deaf`: it runs and hears nothing;
     `refuses_line`: why the line may not be opened now (the program on its port is not the modem's);
-    `frame_hold`: why no frame may go now, the modem not running included, the one question of the frame path.
+    `frame_hold`: why no frame may go now, the modem not running included, the one question of the frame path;
+    `rig_problem`: `rig_silent` or `rig_keyed_long` for a radio keyed through a rig program, else "".
     """
 
     @property
     def problem(self) -> str: ...
     @property
     def deaf(self) -> bool: ...
+    @property
+    def rig_problem(self) -> str: ...
     @property
     def state(self) -> str: ...
     @property

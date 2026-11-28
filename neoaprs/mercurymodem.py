@@ -61,6 +61,7 @@ from .mercurystall import GAP_SEC, STALL_SEC, StallWatch
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLine
 from .radiotype import HF_ID, RadioId
 from .radiotypes import kind_field
+from .rigfollow import RigFollow
 from .serialprobe import PortInfo, claim_value, holder_words, named_ports, offered_ports
 from .modemstate import ModemLife
 from .signal import Signal
@@ -147,7 +148,7 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
+class Mercury(RigFollow, Channel, Tuning, Scoping, Holding, ModemLife, Runs):
     PROGRAM, LOG = "Mercury", log
     _program: Program
 
@@ -213,6 +214,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
         self.backoff.reset()
         self.stall.fresh()
         self._held.forget()
+        await self._rig_begin(keying_of(keying) if keying and not speaker else Keying("vox"))
         if not speaker and attach:
             self.attached = attach
             _, port = _address(self.attached)
@@ -243,10 +245,10 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
         await asyncio.to_thread(self._audio.stop)
         await self._stop_ui()
         await asyncio.to_thread(self._program.stop)
+        await self._rig_end()
         self._forget_test()
         self._release_claims()
-        self.attached = ""
-        self.speaker = False
+        self.attached, self.speaker = "", False
         self._clear_channel()
         self.snr = None
         self._set("stopped", "")
