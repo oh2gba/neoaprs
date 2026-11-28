@@ -114,6 +114,7 @@ class Demo:
     ships_address: str = ""
     process: subprocess.Popen[bytes] | None = None
     output: Path = field(init=False)
+    radios: dict[str, int] = field(default_factory=dict)  # the id of each radio, by its type
 
     def __post_init__(self) -> None:
         self.output = self.folder.parent / f"{self.folder.name}-demo-daemon.log"
@@ -127,7 +128,9 @@ class Demo:
             if value:
                 neoaprs_db(self.folder, "set", key, value)
         for kind in RADIOS:
-            neoaprs_db(self.folder, "radios", "add", kind)
+            said = re.match(r"radio (\d+) ", neoaprs_db(self.folder, "radios", "add", kind))
+            assert said is not None, f"radios add {kind}: no radio said"
+            self.radios[kind] = int(said.group(1))
 
     def start(self) -> None:
         with self.output.open("wb") as out:
@@ -194,11 +197,14 @@ def opened(
     theme: str = "light",
     view: str = "panel",
     stored: dict[str, str] | None = None,
+    height: int | None = None,
+    init: str | None = None,
 ) -> Iterator[Any]:
     """A page of its own (a fresh context): the language, the tab and, on a phone, the panel or the map
-    stored before it starts, as the person's earlier choices would be."""
+    stored before it starts, as the person's earlier choices would be; `init` runs before the page's own
+    script."""
     context = browser.new_context(
-        viewport={"width": width, "height": HEIGHT.get(width, 900)},
+        viewport={"width": width, "height": height or HEIGHT.get(width, 900)},
         color_scheme=theme,
         locale="en-GB",
         timezone_id="Europe/Helsinki",
@@ -207,6 +213,8 @@ def opened(
     keys = {"language": language, "tab": tab, "panel": "open", "view": view, **(stored or {})}
     context.add_init_script("".join(f"localStorage.setItem({('NeoAPRS.' + k)!r}, {v!r});" for k, v in keys.items()))
     context.add_init_script(path=str(PAGE_JS))
+    if init:
+        context.add_init_script(init)
     context.add_init_script(
         f"document.addEventListener('DOMContentLoaded', () => document.documentElement.style.setProperty('--font', {FONT!r}));"
     )

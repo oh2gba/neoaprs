@@ -641,10 +641,10 @@ The bins are those of the modem's own spectrum (512 of {m.MODEM_RATE / 2 / m.MOD
 A row is wholly of reception or wholly of our own transmission. A row carries no time: it is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
 (`ui/src/lib/waterfallfloor.ts`); the daemon sends the modem's dB and keeps no floor for these frames.
 
-The daemon makes the rows all the time and keeps those of the last {m.HISTORY_SEC} s (at most {m.HISTORY_ROWS}). A page that asks for the scope is sent them first, in **one frame of the rows kept**, and then every row made after the newest of them, none twice and none
+The daemon makes the rows all the time and keeps those of the last {m.HISTORY_SEC} s (at most {m.HISTORY_ROWS}). A page that asks for the scope is sent those of the seconds it asks for (`seconds` of `radio_scope`) first, in **one frame of the rows kept**, and then every row made after the newest of them, none twice and none
 left out. A page that is behind when it asks is sent no rows kept, only the rows that follow once it has read. When the rows kept would lie (the modem stopped, ended or started anew, its control line or the link to its interface made
 anew, the radio's type, sound card or keying changed), they are forgotten and every page that has the scope open is sent the frame with no row, which says to forget them too (a page that is behind, as soon as it has read).
-A page that asks again on the same socket is sent the rows from the one before the newest it was sent on, while they are kept, and finds by those two where they go on from what it holds. The frame is the kind and the daemon's
+A page that asks again on the same socket for as many seconds as before or fewer is sent the rows from the one before the newest it was sent on, while they are kept, and finds by those two where they go on from what it holds. The frame is the kind and the daemon's
 clock, then each row, oldest first, {m.HISTORY_ROW.size + m.ROW_BINS} bytes each (a full one is about {(m.HISTORY_HEADER.size + m.HISTORY_ROWS * (m.HISTORY_ROW.size + m.ROW_BINS)) // 1000} KB):
 
 | offset | size | field | meaning |

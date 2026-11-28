@@ -755,7 +755,7 @@ def test_the_made_up_waterfall_is_the_daemons_own_frames_of_a_channel_with_frame
     the kind byte; then rows of their own; the bins of a frame on the air stand well over the noise
     between 1200 and 1800 Hz. The modem the page is told of is one the wire's model takes."""
     import json
-    from neoaprs.mercuryscope import HISTORY_HEADER, HISTORY_SEC, ROW_BINS, history_clock, parse_history, parse_row
+    from neoaprs.mercuryscope import HISTORY_HEADER, ROW_BINS, history_clock, parse_history, parse_row
     from neoaprs.web.scopefeed import parse_radio_frame
     from neoaprs.web.tncwire import ModemState
 
@@ -763,7 +763,7 @@ def test_the_made_up_waterfall_is_the_daemons_own_frames_of_a_channel_with_frame
     history, live = shots.scope_frames(7)
     radio, inner = parse_radio_frame(history)
     rows = parse_history(inner)
-    assert radio == 7 and rows is not None and len(rows) == HISTORY_SEC * 10 and history_clock(inner) == 0.0
+    assert radio == 7 and rows is not None and len(rows) == shots.SCOPE_KEPT_SEC * 10 and history_clock(inner) == 0.0
     assert (
         [age for _, age in rows] == sorted((age for _, age in rows), reverse=True)
         and rows[0][1] == 119900
@@ -784,7 +784,8 @@ def test_the_made_up_waterfall_is_the_daemons_own_frames_of_a_channel_with_frame
     )
     assert HISTORY_HEADER.format == "<Bd", "the page's script writes the clock as a float64 after the kind byte"
     given = json.loads(shots.scope_page(7).split("const P = ", 1)[1].split(";\n", 1)[0])
-    assert given["radio"] == 7 and given["clockAt"] == 6 and given["everyMs"] == 100 and len(given["live"]) == 300
+    assert given["radio"] == 7 and given["clockAt"] == 6 and given["everyMs"] == 100 and given["rowBytes"] == 313
+    assert len(given["live"]) == 300
     ModemState.model_validate(given["modem"])
 
 

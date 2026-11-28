@@ -32,7 +32,7 @@ import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
 import { useIgateLook } from "@/composables/useIgateLook";
 import { useRadioAsks } from "@/composables/useRadioAsks";
-import { useScopeLooks } from "@/composables/useScopeLooks";
+import { useScopeLooks, type ScopeParts } from "@/composables/useScopeLooks";
 import { useSettings } from "@/composables/useSettings";
 import { useSkeds } from "@/composables/useSkeds";
 import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
@@ -54,6 +54,12 @@ import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues, RadioRow } from "@/protocol/protocol";
 
 const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
+
+/** The radios that may have a scope, and the page's memory of their rows kept as long as asked. */
+const scopeParts = (daemon: ReturnType<typeof useDaemon>): ScopeParts => ({
+  radios: daemon.radios,
+  keep: (radio, ms) => daemon.scopeOf(radio).keepFor(ms),
+});
 
 function useShellRadios(daemon: ReturnType<typeof useDaemon>) {
   const all = computed(() => pageRadios(daemon.radios.value ?? NO_RADIOS, daemon.config.value));
@@ -327,7 +333,7 @@ export function useAppShell() {
     },
     blocked: escBlocked,
   });
-  const scope = useScopeLooks(send, connection, pageVisible(), { radios: daemon.radios });
+  const scope = useScopeLooks(send, connection, pageVisible(), scopeParts(daemon));
   const level = useRadioAsks("radio_level", send, connection, pageVisible(), () => null);
   const igateLook = useIgateLook(send, connection, pageVisible());
   const mapwrap = ref<HTMLElement | null>(null);

@@ -1,4 +1,4 @@
-// The HF waterfall memory (lib/scopememory.ts): rows kept for two minutes, rows the daemon kept
+// The HF waterfall memory (lib/scopememory.ts): rows kept for the time its pictures ask for, rows the daemon kept
 // filling the gap without doubling or moving held rows, heard stations placed by the daemon's
 // clock, clock steps, and listeners.
 import { describe, expect, it } from "vitest";
@@ -42,7 +42,7 @@ const aged = (ns: number[], made: (n: number) => number, now: number): AgedRow[]
 const sent = (rows: AgedRow[], now: number, ahead = 0): ScopeHistory => ({ rows, clock: now + ahead });
 
 describe("what the page keeps of the waterfall", () => {
-  it("keeps each row at the moment it came, as the floor tells it, for two minutes and no longer", () => {
+  it("keeps each row at the moment it came, as the floor tells it, for ten minutes before a picture asks, and no longer", () => {
     const { clock, kept, told, live } = memory();
     live(1, 2, 3);
     expect(first(kept.rows)).toEqual([1, 2, 3]);
@@ -51,7 +51,27 @@ describe("what the page keeps of the waterfall", () => {
     expect(told).toEqual(["row 1", "row 2", "row 3"]);
     clock.now = START + LIMITS.scope.historySec * 1000 + 200;
     live(4);
-    expect(first(kept.rows)).toEqual([3, 4]); // older than two minutes is dropped
+    expect(first(kept.rows)).toEqual([3, 4]); // older than ten minutes is dropped
+  });
+
+  it("keeps the rows and stations of the seconds its pictures ask for: fewer forgets the older at once, more keeps them longer", () => {
+    const { clock, kept, live } = memory();
+    kept.keepFor(60_000);
+    live(1);
+    kept.hear("OH2OLD", null, clock.now);
+    clock.now = START + 50_000;
+    live(2);
+    clock.now = START + 61_000;
+    live(3);
+    expect(first(kept.rows)).toEqual([2, 3]);
+    kept.keepFor(300_000);
+    clock.now = START + 290_000;
+    live(4);
+    expect(first(kept.rows)).toEqual([2, 3, 4]); // the longer time keeps those it held
+    kept.hear("OH2NEW", null, clock.now);
+    kept.keepFor(5_000);
+    expect(first(kept.rows)).toEqual([4]);
+    expect(kept.heard.map((heard) => heard.call)).toEqual(["OH2NEW"]);
   });
 
   it("takes the rows the daemon kept as all of it when it holds none, each at the moment its age says, oldest first", () => {
@@ -123,18 +143,18 @@ describe("what the page keeps of the waterfall", () => {
 
   it("writes down the stations heard in the time kept, in the order of their moments, and tells the listeners: one heard just now at this moment with the SNR, one told later at its time with the call alone", () => {
     const { clock, kept, told } = memory();
-    clock.now = START + 200_000;
-    kept.hear("OH2NEW", -3, START + 199_000); // the daemon writes whole seconds, and the packet took a tick to arrive
-    kept.hear("OH2OLD", -3, START + 190_000); // told ten seconds late: the SNR is now from another frame
+    clock.now = START + 700_000;
+    kept.hear("OH2NEW", -3, START + 699_000); // the daemon writes whole seconds, and the packet took a tick to arrive
+    kept.hear("OH2OLD", -3, START + 690_000); // told ten seconds late: the SNR is now from another frame
     kept.hear("OH2GONE", null, START);
     expect(kept.heard.map(({ at, call, snr }) => ({ at, call, snr }))).toEqual([
-      { at: START + 190_500, call: "OH2OLD", snr: null },
-      { at: START + 200_000, call: "OH2NEW", snr: -3 },
+      { at: START + 690_500, call: "OH2OLD", snr: null },
+      { at: START + 700_000, call: "OH2NEW", snr: -3 },
     ]);
     expect(told).toEqual(["heard OH2NEW", "heard OH2OLD"]);
   });
 
-  it("lets go of the stations heard longer ago than the time kept, also on a radio whose rows never come (Packet, LoRa): the newest two minutes, in order", () => {
+  it("lets go of the stations heard longer ago than the time kept, also on a radio whose rows never come (Packet, LoRa): the newest of the time kept, in order", () => {
     const clock = { now: START };
     const kept = new ScopeMemory(() => clock.now);
     for (let i = 0; i < 2000; i++) {

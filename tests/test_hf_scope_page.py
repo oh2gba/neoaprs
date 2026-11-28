@@ -92,6 +92,26 @@ async def test_a_page_asks_for_the_scope_gets_the_rows_kept_and_then_the_rows_an
     await air.aclose()
 
 
+async def test_a_page_is_sent_the_rows_kept_of_the_seconds_it_asks_for(tmp_path: Path) -> None:
+    air = Air(frame_sec=0.2)
+    e = Env(tmp_path, radio=air.station(), web=True)
+    await e.start()
+    page = await e.ws()
+    await page.until(lambda: (page.topics.get("radios", {}).get("2", {}).get("modem") or {}).get("state") == "running")
+    old, new = replace(ROW, level=-50), replace(ROW, level=-45)
+    e.mercury.scope_history.add(old, scope_clock() - 90)
+    e.mercury.scope_history.add(new, scope_clock() - 10)
+    await page.send({**ON, "seconds": 60})
+    history = history_of((await page.frames(1))[0])
+    assert history is not None and [row for row, _ in history] == [new], "the last minute: the newer row alone"
+    await page.send({**ON, "seconds": 120})
+    history = history_of((await page.frames(2))[1])
+    assert history is not None and [row for row, _ in history] == [old, new], "two minutes: both"
+    await page.aclose()
+    await e.stop()
+    await air.aclose()
+
+
 async def test_the_rows_of_the_waterfall_are_binary_frames_to_the_pages_that_asked_and_not_to_a_page_that_is_behind(
     tmp_path: Path,
 ) -> None:

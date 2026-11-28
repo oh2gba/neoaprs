@@ -13,23 +13,26 @@ import type { PacketRow, RadioRow } from "@/protocol/protocol";
 import { fmRow, hfRow, modemState, packet, radioRow, radiosTopic } from "@/test/fixtures";
 
 function setup(scope = true) {
-  const send = vi.fn((_command: unknown) => true);
+  const kept: [number, number][] = [];
+  /** What the page kept when each command went: a daemon may answer before `send` returns. */
+  const keptWhenSent: ([number, number] | undefined)[] = [];
+  const send = vi.fn((_command: unknown) => (keptWhenSent.push(kept.at(-1)), true));
   const radios = shallowRef<ReadonlyMap<string, RadioRow> | null>(radiosTopic(fmRow(), hfRow({}, { scope })));
   const connection = shallowRef<Connection>("open");
   const visible = shallowRef(true);
-  const looks = useScopeLooks(send, connection, visible, { radios });
-  /** A pane that looks while `looking` is true. */
-  const pane = (looking: { value: boolean }) =>
+  const looks = useScopeLooks(send, connection, visible, { radios, keep: (radio, ms) => kept.push([radio, ms]) });
+  /** A pane that looks while `looking` is true, showing `reach` ms of the waterfall. */
+  const pane = (looking: { value: boolean }, reach?: { value: number }) =>
     mount(
       defineComponent({
         setup() {
-          looks.look(() => looking.value);
+          looks.look(() => looking.value, undefined, reach && (() => reach.value));
           return () => h("div");
         },
       }),
     );
   const asked = () => send.mock.calls.map(([c]) => c);
-  return { looks, pane, asked, connection, visible };
+  return { looks, pane, asked, connection, visible, kept, keptWhenSent };
 }
 
 describe("who looks at the scope", () => {
@@ -52,6 +55,36 @@ describe("who looks at the scope", () => {
     await nextTick();
     expect(looks.lookers.value).toBe(0);
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+  });
+
+  it("asks for the seconds the panes show, the longest in whole minutes, again when that changes, and keeps as much of the radio's rows", async () => {
+    const { pane, asked, kept, keptWhenSent } = setup();
+    const [small, tall] = [shallowRef(50_000), shallowRef(250_000)];
+    const [one, two] = [shallowRef(true), shallowRef(false)];
+    pane(one, small);
+    pane(two, tall);
+    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
+    expect(kept).toEqual([[2, 60_000]]);
+    two.value = true;
+    await nextTick();
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 300 });
+    expect(kept.at(-1)).toEqual([2, 300_000]);
+    expect(keptWhenSent.at(-1)).toEqual([2, 300_000]); // kept longer before the rows are asked for
+    small.value = 55_000;
+    tall.value = 260_000;
+    await nextTick();
+    expect(asked()).toHaveLength(2); // the same minutes: not asked again
+    tall.value = 400_000;
+    await nextTick();
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 420 });
+    two.value = false;
+    await nextTick();
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 60 });
+    expect(kept.at(-1)).toEqual([2, 60_000]);
+    one.value = false;
+    await nextTick();
+    expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
+    expect(kept.at(-1)).toEqual([2, 60_000]); // what is kept stays for a picture opened again
   });
 
   it("takes a pane that goes away out of the count, and asks no more when it was the last", () => {

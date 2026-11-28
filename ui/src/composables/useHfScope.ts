@@ -10,10 +10,19 @@ export function useHfScope(radio: RadioId) {
   const { scope } = useDaemonContext();
   const open = usePersistedFlag(`settings.fold.${fieldId(`radio/${radio}/scope`)}`, ["open", "folded"], false);
   const shown = ref(false);
+  const reach = ref(0);
   const available = computed(() => scope.has(radio));
   scope.look(
     () => open.value && shown.value && available.value,
     () => radio,
+    () => reach.value,
   );
-  return { radio, open, shown, available, wanted: computed(() => open.value && scope.asked.value.includes(radio)) };
+  return {
+    radio,
+    open,
+    shown,
+    reach,
+    available,
+    wanted: computed(() => open.value && scope.asked.value.includes(radio)),
+  };
 }

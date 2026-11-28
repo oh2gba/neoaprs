@@ -527,8 +527,11 @@ seventeen on reception). A row byte b is ROW_OFFSET_DB + b * 0.5 dB, from -110 t
 channel noise reads -58 to -31 dB, a frame -15 dB at its strongest, our own signal +8 dB. The floor
 under the rows is the page's business (`lib/waterfallfloor.ts`).
 
-History is kept for two minutes: the monitor card's 400 lines are 80 s, and two minutes keep a larger
-box whole. The bands of `bands_db` are cut as `channel_busy_update` cuts them (bins from 300 Hz up in
+History is kept for ten minutes (6,000 rows, 1.9 MB as a frame): the monitor card can be made as tall
+as the screen, and at Slow a line is 0.4 s, so 1,500 lines of picture are ten minutes. In memory a full
+history takes 3.1 MB a radio (a row is its 307 bytes, its two small objects, its time and number), and
+`HISTORY_BYTES` (3.5 MB) is the bound a test holds it to; the deque's length bounds it whatever the clock
+does. A page is sent only the seconds it asks for, so the Settings box costs what it shows. The bands of `bands_db` are cut as `channel_busy_update` cuts them (bins from 300 Hz up in
 bands of 19, the last one short) so that the daemon's detector sees what Mercury's sees.
 `scope_clock` uses the boot clock on Linux so that a row from before a suspend is correctly old after
 it; Windows' monotonic clock already counts sleep.
@@ -1692,12 +1695,13 @@ deflate state of a few hundred kilobytes per direction per socket, so connection
 
 ## neoaprs/web/scopefeed.py
 
-A page that starts looking first gets the rows the modem keeps (the last two minutes), then every row
-newer than the newest it was sent or passed over, so no row repeats or is lost while the history is
-written. A page that is behind when it asks gets no history. When the modem forgets its rows, looking
-pages get an empty history. A page that looks again on the same socket gets only the rows from the two
-it already holds, when the modem still has them. Every history carries the daemon's clock so the page
-can place times.
+A page that starts looking first gets the rows the modem keeps of the seconds it asks for (what its
+tallest picture shows, at most ten minutes), then every row newer than the newest it was sent or passed
+over, so no row repeats or is lost while the history is written. A page that is behind when it asks gets
+no history. When the modem forgets its rows, looking pages get an empty history. A page that looks again
+on the same socket for as many seconds or fewer gets only the rows from the two it already holds, when
+the modem still has them; one that asks for more (its picture grew) gets all of them, since it holds
+only the fewer. Every history carries the daemon's clock so the page can place times.
 
 ## neoaprs/web/secureside.py
 
@@ -2236,3 +2240,15 @@ is looked at, which the page stops doing when the tab is hidden. Each step sets 
 data once, at most 20 times a second: placing 300 things and turning them into the GeoJSON the
 map takes costs about 0.25 ms a step on a desktop (Node 22, measured 27 Nov 2026), so the cost is
 the map's own setData; 20 a second is smooth at every zoom where a mark moves visibly.
+
+## ui/src/lib/waterfallpainter.ts and ui/src/lib/scopememory.ts
+
+A picture keeps as many lines as it shows (its canvas height over the line height of its speed), and
+the page keeps a radio's rows for the longest picture that looks at it, asked of the daemon in whole
+minutes (`askSeconds`) so that a card being resized asks a few times, not at every pixel. A card made
+taller keeps its top: the lines it holds stay where they are, the rows kept are drawn again under them
+at once, and the rows the daemon sends for the longer time fill the rest when they come. A card made
+smaller asks for fewer seconds, and the daemon then sends only the rows the page lacks. In the page a
+row is its dB as 307 floats, its bytes over the floor and two small objects, about 1.7 KB, so ten
+minutes of one radio (Slow on a screen 1,500 px tall) are about 10 MB; the Settings box alone asks for
+one minute, about 1 MB.

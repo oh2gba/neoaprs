@@ -36,8 +36,10 @@ HISTORY_KIND = 2
 HISTORY_HEADER = struct.Struct("<Bd")
 # per row: flags, level, age in ms; the bins follow
 HISTORY_ROW = struct.Struct("<BbI")
-HISTORY_SEC = 120
+HISTORY_SEC = 600
 HISTORY_ROWS = HISTORY_SEC * 10
+# What a full history of a radio takes in memory at most (measured: 3.1 MB)
+HISTORY_BYTES = 3_500_000
 # A bin of a row is one byte: ROW_OFFSET_DB + b * ROW_STEP_DB dB, -110 to +17.5; values clip.
 ROW_OFFSET_DB = -110.0
 ROW_STEP_DB = 0.5
@@ -136,7 +138,7 @@ def level_dbfs(spectrum: Spectrum, lo_hz: float = SCOPE_LO_HZ, hi_hz: float = SC
     return 10 * math.log10(variance + 1e-30) - SAMPLE_FULL_SCALE_DB
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ScopeRow:
     bins: bytes
     level: int
@@ -197,7 +199,7 @@ def scope_clock() -> float:
         return time.monotonic()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class KeptRow:
     seq: int
     at: float
@@ -223,11 +225,12 @@ class ScopeHistory:
             self._rows.popleft()
         return kept
 
-    def after(self, seq: int, now: float) -> list[KeptRow]:
-        """Return the rows newer than number `seq` and within the kept time, oldest first."""
+    def after(self, seq: int, now: float, within: float | None = None) -> list[KeptRow]:
+        """Return the rows newer than number `seq` and of the last `within` seconds of the kept time, oldest first."""
+        keep = self._keep if within is None else min(within, self._keep)
         newer: list[KeptRow] = []
         for kept in reversed(self._rows):
-            if kept.seq <= seq or now - kept.at > self._keep:
+            if kept.seq <= seq or now - kept.at > keep:
                 break
             newer.append(kept)
         return newer[::-1]

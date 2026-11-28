@@ -152,11 +152,11 @@ describe("the asking for the rows", () => {
     const fold = box.find<HTMLDetailsElement>("details.hf-scope");
     fold.element.open = true;
     await fold.trigger("toggle");
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
     fold.element.open = false;
     await fold.trigger("toggle");
     expect(scopeCalls(daemon)).toEqual([
-      { cmd: "radio_scope", radio: 2, on: true },
+      { cmd: "radio_scope", radio: 2, on: true, seconds: 60 },
       { cmd: "radio_scope", radio: 2, on: false },
     ]);
   });
@@ -164,11 +164,11 @@ describe("the asking for the rows", () => {
   it("asks at once when the fold was left open, says no more when the page goes, and asks again when the socket is open anew", async () => {
     writeStored("settings.fold.radio-2-scope", "open");
     const { wrapper, daemon } = make();
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
     await tell(daemon, { connection: "closed" });
     expect(scopeCalls(daemon)).toHaveLength(1); // (a closed socket is told nothing: the toast would say it was refused)
     await tell(daemon, { connection: "open" });
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 60 });
     const before = scopeCalls(daemon).length;
     wrapper.unmount();
     expect(scopeCalls(daemon)).toHaveLength(before + 1);
@@ -186,7 +186,7 @@ describe("the asking for the rows", () => {
     visibility.mockReturnValue("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     await flushPromises();
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 60 });
   });
 
   it("asks when the interface comes up after the fold was opened, not before", async () => {
@@ -194,7 +194,7 @@ describe("the asking for the rows", () => {
     const { daemon } = make({ scope: false });
     expect(scopeCalls(daemon)).toEqual([]);
     await tellModem(withModem({ scope: true }));
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
   });
 });
 
@@ -355,7 +355,7 @@ describe("the picture and the receive level", () => {
       expect(scopeCalls(daemon)).toEqual([]);
       width.set(420);
       await flushPromises();
-      expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
+      expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
       await say(scopeRow(), scopeRow(), scopeRow());
       expect(lines()).toBe(1);
       width.set(0);
@@ -479,7 +479,7 @@ describe("the scope in each radio's box", () => {
     fold.element.open = true;
     await fold.trigger("toggle");
     await flushPromises();
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 5, on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 5, on: true, seconds: 60 }]);
     expect(readStored("settings.fold.radio-5-scope")).toBe("open");
     expect(readStored("settings.fold.radio-3-scope")).toBeNull();
     expect(three.find<HTMLDetailsElement>("details.hf-scope").element.open).toBe(false);

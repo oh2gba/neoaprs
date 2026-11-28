@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from neoaprs.mercuryscope import HISTORY_SEC
 from neoaprs.radioedits import MAX_POSITION
 
 from .wirebase import Call, _Command, _Message
@@ -85,6 +86,11 @@ class RadioScope(_Command):
     cmd: Literal["radio_scope"]
     radio: RadioRef
     on: bool = Field(description="true starts the rows for this page, false stops them")
+    seconds: int = Field(
+        default=HISTORY_SEC,
+        ge=1,
+        description=f"with `on`, the rows kept of the last this many seconds come first (at most the {HISTORY_SEC} kept); a page that asks again for more is sent all of them, for as many or fewer only what it lacks",
+    )
 
 
 class RadioLevel(_Command):
