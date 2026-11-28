@@ -762,6 +762,23 @@ def test_every_action_of_every_workflow_is_pinned_by_commit_with_its_tag_beside_
     assert re.search(r'package-ecosystem: "github-actions"\n\s+directory: "/"', dependabot)
 
 
+def test_dependabot_proposes_the_python_and_page_packages_weekly_grouped_with_majors_apart() -> None:
+    """One pull request for the minor and patch steps of each ecosystem, a major step on its own,
+    every Monday, pins kept exact; nothing in the file merges a proposal."""
+    text = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    blocks = {
+        m.group(1): m.group(0) for m in re.finditer(r'- package-ecosystem: "([\w-]+)"\n(?:\s{4}.*\n?)+', text)
+    }
+    assert set(blocks) == {"uv", "npm", "github-actions"}, blocks
+    assert re.search(r'directory: "/"\n', blocks["uv"]) and re.search(r'directory: "/ui"\n', blocks["npm"])
+    for name, block in blocks.items():
+        assert 'interval: "weekly"' in block and 'day: "monday"' in block, name
+    for name in ("uv", "npm"):
+        assert 'versioning-strategy: "increase"' in blocks[name], name
+        assert 'update-types: ["minor", "patch"]' in blocks[name], name
+    assert "automerge" not in text.lower() and "auto-merge" not in text.lower()
+
+
 def test_the_installers_are_built_from_the_lock_with_every_hash_required() -> None:
     """The lock holds the hash of every file; an installer is built only from files that have it, so
     a package that PyPI serves changed cannot get into the program."""

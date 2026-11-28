@@ -1,10 +1,33 @@
-# Dependabot proposes the moves of the actions the workflows use. Each is pinned to a commit with its release in the comment beside it (tests/test_release.py); a proposal moves both.
+# Dependabot proposes the moves of the Python packages (pyproject.toml and uv.lock), the page's packages (ui/) and the actions the workflows use, every Monday; nothing is merged automatically.
+# The minor and patch steps of an ecosystem come as one pull request, a major step as one of its own. Pins stay exact. Each action is pinned to a commit with its release in the comment beside it (tests/test_release.py); a proposal moves both.
+# The stage level of scripts/check says what is behind; docs/development.md, "Staying level".
 version: 2
 updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: "increase"
+    groups:
+      python:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: "increase"
+    groups:
+      page:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     groups:
       actions:
         patterns: ["*"]
