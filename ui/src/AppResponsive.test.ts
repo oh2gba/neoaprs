@@ -169,17 +169,17 @@ describe("several station cards on a desktop (1400 by 900)", () => {
     expect(wrapper.find("#pane-messages").text()).toContain("OH2ZWC");
   });
 
-  it("opens the conversation with a call that is not in the Stations table, from the Message button under the empty result", async () => {
+  it("opens the conversation with a call that is not in the Stations table from the + of Messages alone", async () => {
     const { wrapper } = await open(1400, 900);
     await wrapper.find("#tab-stations").trigger("click");
     await wrapper.find("#pane-stations input[type='search']").setValue("oh9new");
-    await wrapper.find("#pane-stations tr.stranger button").trigger("click");
+    expect(wrapper.find("#pane-stations tbody").text()).not.toContain("OH9NEW");
+    await wrapper.find("#tab-messages").trigger("click");
+    await wrapper.find("#pane-messages button.convlist-add").trigger("click");
+    await wrapper.find("#msg-new-call").setValue("oh9new");
+    await wrapper.find("#pane-messages form.convlist-new").trigger("submit");
     await flushPromises();
-    expect(wrapper.find("[aria-selected='true']").text()).toContain("Messages");
     expect(wrapper.find("#pane-messages").text()).toContain("OH9NEW");
-    await wrapper.find("#tab-stations").trigger("click");
-    await wrapper.find("#pane-stations input[type='search']").setValue("OH2GBA"); // (our own call: no button)
-    expect(wrapper.find("#pane-stations tr.stranger").exists()).toBe(false);
   });
 
   it("opens the conversation from the speech bubble of a row, without opening the row's card, and forgets from its trash can on the second press, closing the card of that station", async () => {

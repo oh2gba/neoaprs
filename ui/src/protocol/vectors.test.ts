@@ -4,7 +4,7 @@
 // page's own function. A rule changed on one side alone fails a test.
 import { describe, expect, it } from "vitest";
 import { bytesLeft, lockedRoom } from "@/lib/messages";
-import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
+import { boardKind, canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
 import { chatText } from "@/lib/chat";
 import { DIAL, pastGroups, postCommand } from "@/lib/skeds";
@@ -164,6 +164,10 @@ describe("the vectors of the daemon", () => {
       expect(isAlias(input), JSON.stringify(input)).toBe(alias);
       expect(isMarker(input), JSON.stringify(input)).toBe(marker);
     }
+  });
+
+  it("say which addressees are the board's and not a station's", () => {
+    for (const { input, kind } of vectors.board_names) expect(boardKind(input), JSON.stringify(input)).toBe(kind);
   });
 
   it("say which of two versions is the newer", () => {

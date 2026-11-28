@@ -113,7 +113,7 @@ describe("StationsTable with several cards", () => {
     expect(cssRule(".grid th")).toMatch(/position:\s*sticky/);
   });
 
-  describe("Message OH2XYZ under an empty result", () => {
+  describe("a button to write to the filter's call under an empty result", () => {
     const withFilter = async (text: string, ownCall: string | null = "OH2GBA") => {
       const wrapper = mount(StationsTable, {
         props: { selected: null, others: [] },
@@ -122,54 +122,20 @@ describe("StationsTable with several cards", () => {
       await wrapper.find("input[type='search']").setValue(text);
       return wrapper;
     };
-    const button = (wrapper: Awaited<ReturnType<typeof withFilter>>) => wrapper.find("tr.stranger button");
 
-    it("is a button for a call that no station has been heard under, which asks to write to it", async () => {
-      const wrapper = await withFilter("oh2xyz");
-      expect(wrapper.find("td.empty").text()).toContain("No station matches");
-      expect(button(wrapper).text()).toBe("Message OH2XYZ");
-      expect(button(wrapper).classes()).toContain("primary");
-      await button(wrapper).trigger("click");
-      expect(wrapper.emitted("message")).toEqual([["OH2XYZ"]]);
+    it("is not there: a call no station was heard under is written to by the + of Messages alone", async () => {
+      for (const text of ["oh2xyz", " oh2xyz-9 ", "OH2GBA"]) {
+        const wrapper = await withFilter(text, text === "OH2GBA" ? null : "OH2GBA");
+        expect(wrapper.find("td.empty").text(), text).toContain("No station matches");
+        expect(wrapper.findAll("tbody button").length, text).toBe(0);
+        expect(wrapper.text(), text).not.toContain("Message ");
+      }
     });
 
-    it("is there although our own row is always listed, and not when only the filter makes the list empty of a station that matches", async () => {
-      const withUs = table(station("OH2GBA", { is_me: true }), station("OH2ZWA"));
-      const make = (text: string) => {
-        const wrapper = mount(StationsTable, {
-          props: { selected: null },
-          global: withDaemon(fakeDaemon({ stations: withUs, aging: { defaultMin: 0 }, call: "OH2GBA" })),
-        });
-        return wrapper
-          .find("input[type='search']")
-          .setValue(text)
-          .then(() => wrapper);
-      };
-      expect((await make("OH9NEW")).find("tr.stranger button").text()).toBe("Message OH9NEW");
-      expect((await make("OH2ZWA")).find("tr.stranger").exists()).toBe(false);
-      expect((await make("OH2GBA")).find("tr.stranger").exists()).toBe(false);
-    });
-
-    it("takes a call with an SSID, and spaces round it", async () => {
-      expect(button(await withFilter(" oh2xyz-9 ")).text()).toBe("Message OH2XYZ-9");
-    });
-
-    it("is not there for text that is no call: too long, a bad SSID, a word, an empty filter", async () => {
-      for (const text of ["OH2XYZABC", "OH2XYZ-16", "hello there", "OH2 XYZ", ""])
-        expect(button(await withFilter(text)).exists(), text).toBe(false);
-    });
-
-    it("is not there when a station matches the filter, even when the text is a whole call", async () => {
-      expect(button(await withFilter("OH2ZWA")).exists()).toBe(false);
-      expect(button(await withFilter("ZW")).exists()).toBe(false);
-    });
-
-    it("is not for the email gateway, whose messages are the Email tab's, and not for our own call", async () => {
-      expect(button(await withFilter("EMAIL-2")).exists()).toBe(false);
-      expect(button(await withFilter("email-2")).exists()).toBe(false);
-      expect(button(await withFilter("oh2gba")).exists()).toBe(false);
-      // While our call is unknown, nothing is ours.
-      expect(button(await withFilter("OH2GBA", null)).exists()).toBe(true);
+    it("leaves the Message button of a station that is in the list", async () => {
+      const wrapper = await withFilter("OH2ZWA");
+      await wrapper.find("button[aria-label='Message OH2ZWA']").trigger("click");
+      expect(wrapper.emitted("message")).toEqual([["OH2ZWA"]]);
     });
   });
 });

@@ -149,6 +149,7 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         "message_texts",
         "bulletin_texts",
         "bulletin_free_slots",
+        "board_names",
         "object_names",
         "object_comments",
         "qru_groups",

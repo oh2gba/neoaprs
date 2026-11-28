@@ -54,6 +54,21 @@
   flex: 1 0 auto;
   max-width: 100%;
 }
+/* the + row stands in the cell of Services while it is open, so the list below keeps its place */
+.convlist-slot {
+  display: grid;
+  min-width: 0;
+}
+.convlist-slot > * {
+  grid-area: 1 / 1;
+}
+.convlist-services.held {
+  visibility: hidden;
+}
+.convlist-new input {
+  flex: 1 1 0;
+  min-width: 0;
+}
 .convs {
   flex: 1;
   min-height: 0;

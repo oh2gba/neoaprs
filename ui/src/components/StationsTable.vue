@@ -10,8 +10,7 @@
 // Enter, or Up, Down, Home and End (useRowKeys) also show the station in the panel at the
 // bottom of the tab (StationPanel, composables/useStationPanel.ts); its cross or Esc closes it
 // with focus back on the row. Every row is one line high, so nothing in the list opens or grows.
-// When the filter text is a call no station has been heard under (not ours, not the email
-// gateway), a "Message OH2XYZ" button under the empty result writes to it. A timed-out
+// A timed-out
 // station is off the map: its row is dim and says "timed out" after the time. Under the list
 // are the count and Forget all (asks twice, 5 s; has an (i)), which removes every heard
 // station with its packets and keeps ours. At the right end of a row are a message button and
@@ -27,7 +26,6 @@ import BearingArrow from "@/components/BearingArrow.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
-import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationMenu from "@/components/StationMenu.vue";
 import StationPanel from "@/components/StationPanel.vue";
 import StationsFilters from "@/components/StationsFilters.vue";
@@ -43,10 +41,8 @@ import { usePersistedFlag } from "@/composables/usePersisted";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
-import { normalizeCall, validCall } from "@/lib/calls";
 import { heardTags, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText } from "@/lib/format";
-import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
 import { STATIONS_TWO_RADIOS } from "@/lib/layout";
 import { heardDirect } from "@/lib/routes";
@@ -71,7 +67,7 @@ const props = withDefaults(
   }>(),
   { others: () => [] },
 );
-const { stations, now, aging, call: ownCall, send, qru, prefs } = useDaemonContext();
+const { stations, now, aging, send, qru, prefs } = useDaemonContext();
 const radios = useRadios();
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
@@ -161,14 +157,6 @@ const onRowKey = useRowKeys({
     emit("select", call, multi);
     if (!multi) panel.show(call);
   },
-});
-
-/** The filter text is a call no station has been heard under (not our own, not the email
- * gateway, which has its own tab): a button writes to it anyway. */
-const strangerCall = computed(() => {
-  const typed = normalizeCall(filter.value);
-  const ours = ownCall.value ? normalizeCall(ownCall.value) : "";
-  return rows.value.every((row) => row.is_me) && validCall(typed) && !isGateway(typed) && typed !== ours ? typed : null;
 });
 
 function sortBy(key: SortKey | null): void {
@@ -298,14 +286,6 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
           <tr v-if="rows.length === 0">
             <td :colspan="columns.length" class="empty">
               {{ stations.size === 0 ? t("station.table.none_yet") : t("station.table.none_match") }}
-            </td>
-          </tr>
-          <tr v-if="strangerCall !== null" class="stranger">
-            <td :colspan="columns.length" class="empty">
-              <button type="button" class="btn primary msgbtn" @click="emit('message', strangerCall)">
-                <MessageGlyph :size="14" />
-                {{ t("station.table.message_call", { call: strangerCall }) }}
-              </button>
             </td>
           </tr>
         </tbody>

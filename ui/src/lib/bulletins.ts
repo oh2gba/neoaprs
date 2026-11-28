@@ -42,6 +42,22 @@ export function sections<T extends BulletinRow>(rows: Iterable<T>): Section<T>[]
   })).filter((s) => s.rows.length > 0);
 }
 
+const GROUP_MESSAGES: readonly string[] = ["ALL", "CQ", "QST"];
+const BULLETIN = new RegExp(`^BLN([0-9A-Z])([0-9A-Z-]{0,${LIMITS.bulletin.groupMax}})$`);
+const WEATHER = /^(NWS-[0-9A-Z_]{1,5}|(SKY|CWA)[0-9A-Z]{0,3})$/;
+
+/** The kind of board slot a message to the addressee is for, as the daemon reads one
+ * (neoaprs/bulletin.py `board_slot`); null if it is for a station. */
+export function boardKind(addressee: string): Kind | null {
+  const name = addressee.trim().toUpperCase();
+  if (GROUP_MESSAGES.includes(name)) return "group";
+  if (WEATHER.test(name)) return "nws";
+  const found = BULLETIN.exec(name);
+  if (found === null) return null;
+  if (found[2] !== "") return "group";
+  return /\d/.test(found[1] ?? "") ? "bulletin" : "announcement";
+}
+
 /** What a row is addressed to: the group of a group bulletin ("HAMS"), else the slot ("BLN1"). */
 export function targetOf(row: BulletinRow): string {
   return row.group === "" ? row.slot : row.group;

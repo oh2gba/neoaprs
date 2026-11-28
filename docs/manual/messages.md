@@ -89,7 +89,6 @@ Resize the panel and the layout follows, with the same conversation open.
 - The conversations are listed with the newest message first. A row has the call (an overheard pair as "OH2AAA > OH2BBB"), the age, the last text on one line ("You: " before one of yours; "You asked for its status" for a query you sent), the number of messages that came in since you last looked, and a trash can at its right end.
 - The open conversation is the filled row. A conversation with messages not seen that is not the open one has its text in bold and a bar at its left. A row is a button, so Tab walks the list.
 - A chat starts from a station: the **Message** button of its card on the map or in the Stations table opens the conversation, or creates it. For a station you have not heard, press **+** at the top of the list, type its call and press **Write** (or Enter): the conversation opens empty, and its **Route** sets the radio and the path, for example the call of a digipeater or gateway that hears it. Write is off while the call is not one a message can go to, or is your own.
-- In the Stations tab you can also type a call that was never heard into the filter, and **Message OH2XYZ** writes to it all the same.
 - **Show overheard** (with an (i)) at the top of the list is off by default and remembered.
 - **Services** under it starts a message to a service station without remembering its format ([below](#messages-to-services)).
 

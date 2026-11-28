@@ -92,6 +92,7 @@ from neoaprs.radiotype import HF_BEACON_MIN_MIN, KINDS, RadioType  # noqa: E402
 from neoaprs.radiotypes import DEFAULT_TYPE, type_of, types_of  # noqa: E402
 from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
 from neoaprs.services import generalask  # noqa: E402
+from neoaprs.bulletin import board_slot  # noqa: E402
 from neoaprs.ownbulletin import (  # noqa: E402
     DEFAULT_HOURS,
     GROUP_MAX,
@@ -1403,6 +1404,36 @@ ROUTE_ELEMENTS = [
     "RFONLYX",
     "",
 ]
+BOARD_NAMES = [
+    "BLN1",
+    "bln1",
+    " BLN9 ",
+    "BLNA",
+    "BLNZ",
+    "BLN3HAMS",
+    "BLNAWX",
+    "BLN1HAMS-",
+    "BLN1HAMSXX",
+    "BLN",
+    "ALL",
+    "CQ",
+    "QST",
+    "QSTX",
+    "ALLEN",
+    "NWS-WARN",
+    "NWS-ABCDE",
+    "NWS-ABCDEF",
+    "NWS",
+    "SKY",
+    "SKYABC",
+    "SKYABCD",
+    "CWA",
+    "CWA1",
+    "OH2GBA",
+    "OH2GBA-9",
+    "WINLINK",
+    "EMAIL-2",
+]
 VERSION_PAIRS = [
     ("0.10.0", "0.9.0"),
     ("0.9.0", "0.10.0"),
@@ -1671,6 +1702,11 @@ def _sked_past_vector(rows: list[list[Any]]) -> dict[str, Any]:
     return {"skeds": rows, "listed": [s.id for s in past_tests(skeds, (), now)]}
 
 
+def _board_kind(addressee: str) -> str | None:
+    slot = board_slot(addressee)
+    return None if slot is None else slot.kind
+
+
 def vectors() -> dict[str, list[dict[str, Any]]]:
     return {
         "calls": [_call_vector(t) for t in CALLS],
@@ -1680,6 +1716,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "route_elements": [
             {"input": text, "alias": is_alias(text), "marker": is_marker(text)} for text in ROUTE_ELEMENTS
         ],
+        "board_names": [{"input": text, "kind": _board_kind(text)} for text in BOARD_NAMES],
         "compare_versions": [{"a": a, "b": b, "order": compare_versions(a, b)} for a, b in VERSION_PAIRS],
         "message_texts": [_message_vector(t) for t in MESSAGE_TEXTS],
         "locked_rooms": [{"text_max": n, "room": locked_room(n)} for n in (0, 2, 18, 40, 52, 59, 66, 67)],

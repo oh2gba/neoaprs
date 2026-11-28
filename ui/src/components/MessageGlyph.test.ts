@@ -23,7 +23,7 @@ describe("MessageGlyph", () => {
     ).toBe("14");
   });
 
-  it("is the same picture in every place that says message: the icon button, the header's unread badge, the Stations table's row button and its button under an empty result", () => {
+  it("is the same picture in every place that says message: the icon button, the header's unread badge, the Stations table's row button", () => {
     const own = mount(MessageGlyph).find("path").attributes("d");
     const button = mount(IconButton, { props: { kind: "message", label: "Message OH2XYZ" } });
     expect(button.find(".msgglyph path").attributes("d")).toBe(own);
@@ -35,12 +35,6 @@ describe("MessageGlyph", () => {
       props: { selected: null },
       global: withDaemon(fakeDaemon({ stations, call: "OH2GBA" })),
     });
-    expect(wrapper.find("tr:not(.stranger) td.actions .msgglyph path").attributes("d")).toBe(own);
-    return wrapper
-      .find("input[type='search']")
-      .setValue("OH9NEW")
-      .then(() => {
-        expect(wrapper.find("tr.stranger button .msgglyph path").attributes("d")).toBe(own);
-      });
+    expect(wrapper.find("td.actions .msgglyph path").attributes("d")).toBe(own);
   });
 });

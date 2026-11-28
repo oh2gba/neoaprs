@@ -14,7 +14,9 @@ import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
+import { boardKind } from "@/lib/bulletins";
 import { normalizeCall, validName } from "@/lib/calls";
+import { isAlias } from "@/lib/chain";
 import { ageText } from "@/lib/format";
 import { shownText } from "@/lib/lock";
 import { askedNote, conversationName, isHighlighted, overheardPair, type Conversation } from "@/lib/messages";
@@ -47,9 +49,11 @@ const sure = useSure<string>();
 const adding = ref(false);
 const typed = ref("");
 const field = ref<HTMLInputElement | null>(null);
-/** Whether the typed call is one a message may go to: a station's name, not our own call. */
+/** Whether the typed call is one a message may go to: a station's name, not our own call, not a
+ * name of the board (BLN1, QST) or of a path (WIDE1-1). */
 function writable(text: string): boolean {
-  return validName(text) && normalizeCall(text) !== normalizeCall(props.ours ?? "");
+  const call = normalizeCall(text);
+  return validName(call) && call !== normalizeCall(props.ours ?? "") && boardKind(call) === null && !isAlias(call);
 }
 async function toggleAdding(): Promise<void> {
   adding.value = !adding.value;
@@ -105,27 +109,33 @@ function remove(call: string): void {
         <InfoTip :label="t('messages.overheard_help_label')">{{ t("messages.overheard_help") }}</InfoTip>
         <IconButton kind="add" class="convlist-add" :label="t('messages.new_label')" @click="toggleAdding" />
       </div>
-      <form
-        v-if="adding"
-        class="convlist-services convlist-new"
-        @submit.prevent="openTyped"
-        @keydown.esc.stop="adding = false"
-      >
-        <label for="msg-new-call">{{ t("messages.new_call") }}</label>
-        <input
-          id="msg-new-call"
-          ref="field"
-          v-model="typed"
-          class="input"
-          :class="{ invalid: typed.trim() !== '' && !writable(typed) }"
-          :aria-invalid="typed.trim() !== '' && !writable(typed)"
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
+      <div class="convlist-slot">
+        <form
+          v-if="adding"
+          class="convlist-services convlist-new"
+          @submit.prevent="openTyped"
+          @keydown.esc.stop="adding = false"
+        >
+          <label for="msg-new-call">{{ t("messages.new_call") }}</label>
+          <input
+            id="msg-new-call"
+            ref="field"
+            v-model="typed"
+            class="input"
+            :class="{ invalid: typed.trim() !== '' && !writable(typed) }"
+            :aria-invalid="typed.trim() !== '' && !writable(typed)"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button type="submit" class="btn" :disabled="!writable(typed)">{{ t("messages.service_write") }}</button>
+        </form>
+        <MessageServices
+          :class="{ held: adding }"
+          :inert="adding || undefined"
+          @write="(to, text) => emit('write', to, text)"
         />
-        <button type="submit" class="btn" :disabled="!writable(typed)">{{ t("messages.service_write") }}</button>
-      </form>
-      <MessageServices @write="(to, text) => emit('write', to, text)" />
+      </div>
     </div>
     <ul class="convs">
       <li v-for="c in conversations" :key="c.call" class="conv-item" :class="{ open: c.call === selected }">

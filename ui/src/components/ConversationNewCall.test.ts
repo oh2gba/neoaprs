@@ -2,6 +2,8 @@
 // call and opens an empty conversation with it, and there Route chooses the radio and sets the path
 // as for a station heard, the daemon saying them back in the topic `call_routes`. The box to write
 // in counts the room the radio's frame leaves (a station row's `text_max`).
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
@@ -88,6 +90,40 @@ describe("the + of the conversation list", () => {
     expect(wrapper.emitted("write")).toBeUndefined();
   });
 
+  it("marks at once a name the daemon takes for the board or a path, Write off", async () => {
+    const wrapper = list();
+    await wrapper.find("button.convlist-add").trigger("click");
+    const field = wrapper.find("#msg-new-call");
+    const write = wrapper.find<HTMLButtonElement>(".convlist-new button[type='submit']");
+    for (const typed of ["BLN1", "bln1", "BLNA", "BLN3HAMS", "ALL", "CQ", "QST", "NWS-WARN", "SKYABC", "CWA"]) {
+      await field.setValue(typed);
+      expect([typed, write.element.disabled, field.classes("invalid")]).toEqual([typed, true, true]);
+    }
+    for (const typed of ["WIDE1-1", "wide2-2", "TRACE3-3", "RELAY", "ARISS", "SS3-3"]) {
+      await field.setValue(typed);
+      expect([typed, write.element.disabled, field.classes("invalid")]).toEqual([typed, true, true]);
+    }
+    for (const typed of ["QSTX", "NWS", "ALLEN", "OH2DPN-9"]) {
+      await field.setValue(typed);
+      expect([typed, write.element.disabled]).toEqual([typed, false]);
+    }
+  });
+
+  it("takes the place of Services while it is open, in one cell that keeps its room, and gives it back", async () => {
+    const wrapper = list();
+    const services = () => wrapper.find(".convlist-slot > .convlist-services:not(.convlist-new)");
+    expect([services().exists(), services().attributes("inert")]).toEqual([true, undefined]);
+    await wrapper.find("button.convlist-add").trigger("click");
+    expect(wrapper.find(".convlist-slot > form.convlist-new").exists()).toBe(true);
+    expect([services().exists(), services().classes("held"), services().attributes("inert")]).toEqual([true, true, ""]);
+    const css = readFileSync(resolve(__dirname, "../styles/messages.css"), "utf8");
+    expect(css).toMatch(/\.convlist-slot > \* \{\s*grid-area: 1 \/ 1;/);
+    expect(css).toMatch(/\.convlist-services\.held \{\s*visibility: hidden;/);
+    expect(css).toMatch(/\.convlist-new input \{\s*flex: 1 1 0;\s*min-width: 0;/);
+    await wrapper.find("#msg-new-call").trigger("keydown", { key: "Escape" });
+    expect([services().classes("held"), services().attributes("inert")]).toEqual([false, undefined]);
+  });
+
   it("closes on Esc and on a second press", async () => {
     const wrapper = list();
     await wrapper.find("button.convlist-add").trigger("click");
@@ -124,7 +160,9 @@ describe("Route of a call no radio heard", () => {
   });
 
   it("keeps radio 1's path as for any station, and RF only live on Mercury", async () => {
-    const wrapper = conversation(NEW, { callRoutes: routes({ [NEW]: { radio_choice: 2, radio_now: 2, paths: {}, text_max: null } }) });
+    const wrapper = conversation(NEW, {
+      callRoutes: routes({ [NEW]: { radio_choice: 2, radio_now: 2, paths: {}, text_max: null } }),
+    });
     const box = await opened(wrapper);
     const rfOnly = box.find<HTMLInputElement>(".rfonly input");
     expect(rfOnly.element.disabled).toBe(false);
