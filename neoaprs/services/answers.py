@@ -18,11 +18,11 @@ from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
 from neoaprs.policy import DIGI_DUPLICATE_SEC
 from neoaprs.recent import Recent
-from neoaprs.route import rf_only_path
+from neoaprs.route import NO_GATE_MARKERS, rf_only_path
 from neoaprs.services.common import ConfigSource, OldAir, Paths, Radio, our_frame
 from neoaprs.services.common import as_pick as as_pick  # re-exported for the messaging services
 from neoaprs.services.pace import SPACING_SEC
-from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender, reply_path_on
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender, path_on
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.queries")
@@ -232,9 +232,13 @@ class Answers:
             log.warning("a query of %s is not answered: %s", asker, NO_RADIO if tnc is None else tnc.why_unusable())
             return False
         try:
-            # a radio that carries no path keeps the way back through a gateway, as a reply does
-            calls = reply_path_on(tnc, self._config(), self._paths(asker, None, tnc.id))
-            calls = rf_only_path(calls) if rf_only else calls
+            calls = self._paths(asker, None, tnc.id)
+            rf_only = rf_only or any(call in NO_GATE_MARKERS for call in calls)
+            if tnc.allowed.paths:
+                calls = path_on(tnc, self._config(), rf_only_path(calls) if rf_only else calls)
+            else:
+                # no path, but what is RF only keeps the way back through a gateway before RFONLY
+                calls = rf_only_path(calls) if rf_only else ()
             if len(calls) > ax25.MAX_PATH:
                 raise MessagingError(f"path too long for RF only: {len(calls)} digipeaters")
             path = tuple(ax25.Address.parse(call) for call in calls)

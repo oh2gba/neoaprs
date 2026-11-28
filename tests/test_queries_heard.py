@@ -264,9 +264,9 @@ async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -
     )
 
 
-async def test_an_answer_on_a_radio_that_carries_no_path_goes_back_by_the_gateway_the_asker_came_through() -> None:
-    """On Mercury a station behind another's pair of radios is reached through that pair's call; RF only
-    puts RFONLY after it, never in its place."""
+async def test_an_rf_only_answer_on_a_radio_that_carries_no_path_goes_back_by_the_gateway_the_asker_came_through() -> None:
+    """On Mercury an answer goes with no path; one that is RF only goes back through the pair of radios
+    the asker came by, with RFONLY after its call, never in its place."""
     rig = Rig()
     hf = StubTnc(max_frame=123)
     pick = pick_of(rig, hf)
@@ -282,7 +282,7 @@ async def test_an_answer_on_a_radio_that_carries_no_path_goes_back_by_the_gatewa
     remember_stop(rig.q.stop)
     rig.q.on_packet(replace(rig.packet("OH2FAR", Message("OH2GBA", "?APRSD", None)), radio_id=HF_ID))
     await until(lambda: len(hf.sent) == 1)
-    assert hf.sent[0].path_text == "OH3GWX-12"
+    assert hf.sent[0].path_text == ""
     frame = rig.q._answers.message("OH2FAR", "hello")
     assert rig.q._answers.deliver("OH2FAR", "qru", [frame], rig.clock(), False, rf_only=True, radio=pick.radios[-1])
     await until(lambda: len(hf.sent) == 2)
