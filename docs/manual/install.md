@@ -194,7 +194,7 @@ The page is on port 7303, on this computer only unless you allow access from the
 
 ## Updating
 
-NeoAPRS asks once a day whether a newer version is out ([the update check](#the-update-check)). When one is, an **Update** mark appears at the top of the page, which opens Settings → Update check; the **Update** button there opens the steps.
+NeoAPRS asks every six hours whether a newer version is out ([the update check](#the-update-check)). When one is, an **Update** mark appears at the top of the page, which opens Settings → Update check; the **Update** button there opens the steps.
 
 A click opens a window in the middle of the page: **NeoAPRS <version> is available**, the version you have, what is new (the project's note, and the release notes of every version between yours and the new one, fetched from the project's changelog on GitHub; when they cannot be fetched, a button to the release page), and what to do for the way this copy was installed. Your settings, messages, packets and map stay in every case, and open pages load the new version by themselves.
 
@@ -236,7 +236,7 @@ The window shows the steps for this copy, each file as a button and each command
 
 ## The update check
 
-Once a day the daemon asks the project's version page whether a newer NeoAPRS is out, so that you hear of it and the project can count how many copies are in use. The first question comes a minute after the daemon starts, then one every 24 hours. A desktop app and the daemon it starts count once, and opening the page asks nothing.
+Every six hours the daemon asks the project's version page whether a newer NeoAPRS is out, so that you hear of it and the project can count how many copies are in use. The first question comes a minute after the daemon starts, then one every 6 hours. A desktop app and the daemon it starts count once, and opening the page asks nothing.
 
 - **What is sent.** One request with the version and the kind of system in the address, `https://neo.oh2gba.eu/version.php?v=<version>&os=linux&id=<number>`, and a User-Agent that says the same. The system is `windows`, `macos`, `linux`, `linux-appimage` or `linux-arm` (a Raspberry Pi). The number is a random number made once for this installation (so that installations can be counted; it says nothing about you). Nothing else: no call, no position, no setting.
   - A clone of the repository, and an installation marked as a test machine (`neoaprs db set update/not_counted true`), send `0` in place of the number, which is not counted.
@@ -244,4 +244,4 @@ Once a day the daemon asks the project's version page whether a newer NeoAPRS is
 - **What is kept.** The server adds a line with the time (to the minute, UTC), the version, the system and the number to a log, and hands the version, the system and the number to the project's status page, where they are counted. Your address is not used. The source of the page is `server/version.php` in the repository.
 - **The answer** is a few lines of JSON: the latest release, the address of the project page and an optional note. When it is newer than yours, the page shows the **Update** mark and the note is in the update window. A page that cannot be reached, or answers something else, is ignored: nothing is shown and the next question is the next day.
 - **Switching it off.** The check has no setting. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run. The setting `update/url` can point at a page of your own (`neoaprs db set update/url ADDRESS`).
-- **Check now** is a button in the Settings tab, in the Update check group. It asks at once and says next to the button, after the version of NeoAPRS, `checking…` and then `up to date`, `<version> available` with an **Update** button that opens the update window, or why there was no answer. It works with the daily check switched off, and does not move the daily schedule.
+- **Check now** is a button in the Settings tab, in the Update check group. It asks at once and says next to the button, after the version of NeoAPRS, `checking…` and then `up to date`, `<version> available` with an **Update** button that opens the update window, or why there was no answer. It works with the regular check switched off, and does not move its schedule.

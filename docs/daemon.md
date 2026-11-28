@@ -526,7 +526,7 @@ new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log;
 
 ## The update check
 
-`neoaprs/services/updatecheck.py` asks `update/url` through `neoaprs/updatefetch.py`, `FIRST_SEC` (60) after the start and every `EVERY_SEC` (24 hours);
+`neoaprs/services/updatecheck.py` asks `update/url` through `neoaprs/updatefetch.py`, `FIRST_SEC` (60) after the start and every `EVERY_SEC` (6 hours);
 `neoaprs/versions.py` compares the versions and reads the answer. It keeps the answer only if it is newer than ours, and the `status` message carries it.
 `check_now` is the same question on request (`update_check`, answered by `update_result`). `NEOAPRS_UPDATE_CHECK=0` switches it off for the run.
 `neoaprs/services/frequencies.py` asks the project's file of suggested frequencies (`FREQUENCIES_URL`, `site/frequencies.json`) `FIRST_SEC` after the start and when a page sends `frequencies` (a Mercury radio's box is shown), at most every `FREQUENCIES_EVERY_SEC` (15 minutes), and not at all with `NEOAPRS_UPDATE_CHECK=0`; the last good list is the row `update/frequencies`, and `NEOAPRS_FREQUENCIES_URL` names a server on this computer for the tests.

@@ -597,7 +597,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.check": "Buscar ahora",
   "settings.update.tip_label": "Acerca de la búsqueda de actualizaciones",
   "settings.update.tip":
-    "Una vez al día NeoAPRS pregunta si hay una versión más nueva y muestra arriba la marca Actualizar.",
+    "Cada seis horas NeoAPRS pregunta si hay una versión más nueva y muestra arriba la marca Actualizar.",
   "settings.update.available": "{version} disponible",
   "settings.update.current": "al día",
   "settings.update.checking": "comprobando…",

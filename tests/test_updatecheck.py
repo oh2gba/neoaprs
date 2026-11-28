@@ -85,7 +85,7 @@ async def test_it_asks_a_minute_after_the_start_and_then_every_day() -> None:
     await service.start()
     await until(lambda: len(page.asked) == 3)
     await service.stop()
-    assert (FIRST_SEC, EVERY_SEC) == (60.0, 86400.0)
+    assert (FIRST_SEC, EVERY_SEC) == (60.0, 21600.0)
     assert service.latest is not None
 
 

@@ -1,6 +1,6 @@
-"""The daily update check: ask the version page which version is the latest.
+"""The update check, every six hours: ask the version page which version is the latest.
 
-The daemon asks daily, sending its version, platform and a random installation number (0 for a
+The daemon asks every six hours, sending its version, platform and a random installation number (0 for a
 source-tree run). `NEOAPRS_UPDATE_CHECK=0` switches the check off for one run."""
 
 import asyncio
@@ -25,7 +25,7 @@ from neoaprs.versions import NOT_COUNTED, Update, compare_versions, parse_update
 log = logging.getLogger("neoaprs.update")
 
 FIRST_SEC = 60.0
-EVERY_SEC = 24 * 3600.0
+EVERY_SEC = 6 * 3600.0
 WHILE_OFF_SEC = 3600.0
 # "0" is off for this run, whatever the setting says
 ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"
@@ -206,7 +206,7 @@ class UpdateCheck:
         return (between(found, self.version, version) if newer else section_of(found, version)), ""
 
     async def check_now(self) -> CheckResult:
-        """Ask on request even if the daily check is off; `latest` follows, the timer is kept."""
+        """Ask on request even if the regular check is off; `latest` follows, the timer is kept."""
         async with self._asking:
             answer, reason = await self._ask()
             if answer is None:

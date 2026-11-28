@@ -2010,7 +2010,7 @@ export const fr: Catalogue = {
   "settings.update.check": "Vérifier maintenant",
   "settings.update.tip_label": "À propos de la recherche de mise à jour",
   "settings.update.tip":
-    "Une fois par jour, NeoAPRS demande si une version plus récente est sortie et affiche en haut la pastille Mise à jour.",
+    "Toutes les six heures, NeoAPRS demande si une version plus récente est sortie et affiche en haut la pastille Mise à jour.",
   "settings.update.available": "{version} disponible",
   "settings.update.current": "à jour",
   "settings.update.checking": "vérification…",

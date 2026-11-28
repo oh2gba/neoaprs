@@ -601,8 +601,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.label": "Nieuwe versie",
   "settings.update.check": "Nu controleren",
   "settings.update.tip_label": "Over het zoeken naar updates",
-  "settings.update.tip":
-    "Eén keer per dag vraagt NeoAPRS of er een nieuwere versie is; zo ja, dan staat bovenaan Update.",
+  "settings.update.tip": "Elke zes uur vraagt NeoAPRS of er een nieuwere versie is; zo ja, dan staat bovenaan Update.",
   "settings.update.available": "{version} beschikbaar",
   "settings.update.current": "bijgewerkt",
   "settings.update.checking": "controleren…",

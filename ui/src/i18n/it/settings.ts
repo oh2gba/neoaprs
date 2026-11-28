@@ -597,7 +597,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.update.check": "Controlla ora",
   "settings.update.tip_label": "Informazioni sul controllo aggiornamenti",
   "settings.update.tip":
-    "Una volta al giorno NeoAPRS chiede se è uscita una versione più recente e mostra in alto il contrassegno Aggiorna.",
+    "Ogni sei ore NeoAPRS chiede se è uscita una versione più recente e mostra in alto il contrassegno Aggiorna.",
   "settings.update.available": "{version} disponibile",
   "settings.update.current": "aggiornato",
   "settings.update.checking": "controllo…",

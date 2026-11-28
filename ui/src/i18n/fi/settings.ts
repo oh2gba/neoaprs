@@ -590,7 +590,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.check": "Tarkista nyt",
   "settings.update.tip_label": "Tietoa: päivitysten tarkistus",
   "settings.update.tip":
-    "NeoAPRS kysyy kerran päivässä, onko uudempi versio ilmestynyt, ja näyttää ylhäällä Päivitys-merkin.",
+    "NeoAPRS kysyy kuuden tunnin välein, onko uudempi versio ilmestynyt, ja näyttää ylhäällä Päivitys-merkin.",
   "settings.update.available": "{version} saatavilla",
   "settings.update.current": "ajan tasalla",
   "settings.update.checking": "tarkistetaan…",

@@ -584,7 +584,7 @@ export const settings = {
   "settings.update.label": "New version",
   "settings.update.check": "Check now",
   "settings.update.tip_label": "About the update check",
-  "settings.update.tip": "Once a day NeoAPRS asks if a newer version is out, and shows an Update mark at the top.",
+  "settings.update.tip": "Every six hours NeoAPRS asks if a newer version is out, and shows an Update mark at the top.",
   "settings.update.available": "{version} available",
   "settings.update.current": "up to date",
   "settings.update.checking": "checking…",

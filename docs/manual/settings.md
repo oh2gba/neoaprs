@@ -165,7 +165,7 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 - Every frame you send has the tocall `APZNEO`. The beacon of a station that stays is the plain uncompressed position; a moving station's (`gps/source` is not `off`) is a compressed one, with the altitude in its comment.
 - A GPS fix older than 120 seconds is not used: a moving station sends no beacon on it, and never the home position instead.
 - At most 50 objects and items, and 36 bulletins, of your own at once. A bulletin is sent for 1, 2, 4, 8 or 12 hours and an announcement for 1, 3 or 7 days, as chosen under Sent for (4 hours and 3 days until you choose).
-- The update check asks the version page every 24 hours.
+- The update check asks the version page every 6 hours.
 - A beacon interval below a radio's floor is raised to it: 30 minutes on a Mercury radio and on a packet radio on HF, 30 on a LoRa radio, 20 on a packet radio on VHF or UHF. Everything a radio sends by the clock waits a random extra time first (up to 300 seconds on a Mercury radio and on a packet radio on HF, 300 on LoRa, 30 on VHF or UHF), so that stations started together do not key up together.
 - A frame on a Mercury radio is at most 123 bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.
 <!-- /doc-settings -->

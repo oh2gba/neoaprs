@@ -590,7 +590,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.check": "Verificar agora",
   "settings.update.tip_label": "Sobre a verificação de atualização",
   "settings.update.tip":
-    "Uma vez por dia o NeoAPRS pergunta se há uma versão mais nova e mostra no alto a marca Atualizar.",
+    "A cada seis horas o NeoAPRS pergunta se há uma versão mais nova e mostra no alto a marca Atualizar.",
   "settings.update.available": "{version} disponível",
   "settings.update.current": "atualizado",
   "settings.update.checking": "verificando…",

@@ -2113,7 +2113,7 @@ export const de: Catalogue = {
   "settings.update.check": "Jetzt prüfen",
   "settings.update.tip_label": "Über die Update-Prüfung",
   "settings.update.tip":
-    "Einmal am Tag fragt NeoAPRS, ob eine neuere Version erschienen ist, und zeigt oben die Markierung Update.",
+    "Alle sechs Stunden fragt NeoAPRS, ob eine neuere Version erschienen ist, und zeigt oben die Markierung Update.",
   "settings.update.available": "{version} verfügbar",
   "settings.update.current": "aktuell",
   "settings.update.checking": "prüfe…",

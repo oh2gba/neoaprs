@@ -559,7 +559,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.update.label": "新しいバージョン",
   "settings.update.check": "今すぐ確認",
   "settings.update.tip_label": "更新の確認について",
-  "settings.update.tip": "1日に1回、新しいバージョンが出ているか確認し、あれば上部に「更新」マークを表示します。",
+  "settings.update.tip": "6時間ごとに、新しいバージョンが出ているか確認し、あれば上部に「更新」マークを表示します。",
   "settings.update.available": "{version}が利用可能",
   "settings.update.current": "最新です",
   "settings.update.checking": "確認中…",
