@@ -219,6 +219,17 @@ describe("SkedsPane", () => {
       expect(sent("sked_delete")).toEqual([]);
     });
 
+    it("have the trash only once the daemon tells them past: a board row ended by this device's clock has none yet", async () => {
+      daemon.now.value = Date.parse(at(10));
+      const board = [sked("b", { from: at(5), to: at(6) })];
+      const wrapper = pane(board, { past: [gone("p1")] });
+      expect(pastRows(wrapper)).toHaveLength(2);
+      expect(pastRows(wrapper).map((r) => r.find(".xbtn").exists())).toEqual([false, true]);
+      expect(pastRows(wrapper)[0]?.find(".sked-actions").exists()).toBe(true);
+      await tell(daemon, { skeds: skedsState([], { past: [gone("b", { from: at(5), to: at(6) }), gone("p1")] }) });
+      expect(pastRows(wrapper).map((r) => r.find(".xbtn").exists())).toEqual([true, true]);
+    });
+
     it("lose the row the daemon no longer tells, and nothing above it changes", async () => {
       const board = [sked("a"), sked("b", { from: at(5), to: at(6) })];
       const past = [gone("p1", { from: at(-3), to: at(-2) }), gone("p2"), gone("p3", { from: at(-9), to: at(-8) })];

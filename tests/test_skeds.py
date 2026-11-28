@@ -1279,6 +1279,19 @@ async def test_only_a_past_test_of_the_board_as_the_daemon_has_it_can_be_taken_o
     assert [r.id for r in s.service.rows()] == ["aaaaaaaaaaaa", "7f3a9c21d4e0"], "the running and the coming test stay"
 
 
+async def test_a_test_whose_end_has_passed_by_the_daemons_clock_can_be_taken_off_before_the_list_is_told_again() -> (
+    None
+):
+    """The page moves an ended row to the past tests by its own clock; the daemon's list is told again
+    only at its next round: a press on the trash in between is no error."""
+    net = Net(good(GOOD, row("aaaaaaaaaaaa", start=-1, end=1)))
+    s = Setup(net)
+    await s.service.ask()
+    s.clock.now = NOW + timedelta(hours=1, seconds=1)
+    assert await s.service.hide(["aaaaaaaaaaaa"]) is True
+    assert "aaaaaaaaaaaa" not in [p.id for p in s.service.past()]
+
+
 async def test_what_the_server_no_longer_lists_is_forgotten_and_an_unread_past_list_forgets_nothing(
     tmp_path: Path,
 ) -> None:

@@ -35,6 +35,9 @@ const canPost = computed(() => state.value === "ok" && mayPostAs(call.value));
 const remove = (g: SkedGroup): void => g.ours.forEach((row) => void send({ cmd: "sked_delete", id: row.id }));
 const pastKey = (g: SkedGroup): string => `past:${g.key}`;
 const removePast = (g: SkedGroup): void => void send({ cmd: "sked_past_delete", ids: g.rows.map((row) => row.id) });
+/** The daemon takes off what it tells as past: a board row this device's clock already ended waits for it. */
+const toldPast = computed(() => new Set((skeds.value?.past ?? []).map((row) => row.id)));
+const deletable = (g: SkedGroup): boolean => g.rows.every((row) => toldPast.value.has(row.id));
 const joining = useCommandInFlight("sked_post", () => skeds.value?.rows);
 const join = (g: SkedGroup): boolean =>
   joining.run(() => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" }));
@@ -79,6 +82,7 @@ const join = (g: SkedGroup): boolean =>
         <ul v-else class="board">
           <SkedItem v-for="g in past" :key="g.key" :group="g">
             <IconButton
+              v-if="deletable(g)"
               kind="delete"
               :armed="sure.armed.value === pastKey(g)"
               :label="t('skeds.past_delete_label', { when: whenText(g.from, g.to) })"
