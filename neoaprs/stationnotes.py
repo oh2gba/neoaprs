@@ -184,6 +184,9 @@ def _note_hour(station: Station, packet: Packet) -> None:
 def expire_hours(stations: Iterable[Station], now: datetime, changed: Callable[[Station], None]) -> None:
     """Expire hour-old packets and call `changed` for each station whose count fell."""
     for station in [s for s in stations if s.hour.total and s.hour.expire(now)]:
+        # the internet's and the gateways' packets are among the hour's: they leave with them
+        station.hour_is.expire(now)
+        station.hour_gated.expire(now)
         changed(station)
 
 

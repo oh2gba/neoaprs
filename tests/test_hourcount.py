@@ -5,6 +5,8 @@ from datetime import timedelta
 
 from neoaprs.clock import utc
 from neoaprs.hourcount import HourCount
+from neoaprs.station import Station
+from neoaprs.stationnotes import expire_hours
 
 T0 = utc(2026, 10, 21, 12, 0, 30)
 
@@ -45,3 +47,18 @@ def test_a_busy_station_costs_at_most_an_hours_worth_of_minutes() -> None:
         hour.note(T0 + timedelta(seconds=second))
         hour.expire(T0 + timedelta(seconds=second))
     assert len(hour._minutes) <= 61 and hour.total <= 61 * 30
+
+
+def test_over_a_day_a_stations_counts_of_the_internet_and_of_gateways_stay_within_the_hour() -> None:
+    """A station heard every 10 minutes through APRS-IS and through an iGate for a day keeps an hour of
+    minutes in each of its counts, as the daemon's minute expiry runs (stationnotes.expire_hours)."""
+    station = Station("OH2ABC", first_heard=T0, last_heard=T0)
+    changed: list[str] = []
+    for step in range(24 * 60):
+        now = T0 + timedelta(minutes=step)
+        if step % 10 == 0:
+            for count in (station.hour, station.hour_is if step % 20 == 0 else station.hour_gated):
+                count.note(now)
+        expire_hours([station], now, lambda s: changed.append(s.call))
+    for count in (station.hour, station.hour_is, station.hour_gated):
+        assert len(count._minutes) <= 6, "an hour of minutes, not a day of them"
