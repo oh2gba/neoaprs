@@ -12,15 +12,17 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
 
 describe("SymbolField", () => {
-  it("is the symbol's picture and name as one button, named Change symbol, and no other button", () => {
+  it("is the symbol's picture and name as one button, named by its label and the name it shows, and no other button", () => {
     const wrapper = mount(SymbolField, { props: { id: "s", symbol: "/-" } });
     const buttons = wrapper.findAll("button:not(.info-toggle)");
     expect(buttons).toHaveLength(1);
-    expect(buttons[0]?.attributes("aria-label")).toBe("Change symbol");
+    expect(buttons[0]?.attributes("aria-label")).toBeUndefined();
     expect(buttons[0]?.attributes("title")).toBe("Change symbol");
+    const label = wrapper.find("label").attributes("id");
+    const name = buttons[0]?.find(".symbolfield-name").attributes("id");
+    expect(buttons[0]?.attributes("aria-labelledby")).toBe(`${label} ${name}`);
     expect(buttons[0]?.find(".symicon").exists()).toBe(true);
     expect(buttons[0]?.find(".symbolfield-name").text()).toBe("House");
-    expect(buttons[0]?.attributes("aria-describedby")).toBe(buttons[0]?.find(".symbolfield-name").attributes("id"));
     expect(wrapper.text()).not.toMatch(/Change|More/);
   });
 
@@ -60,7 +62,7 @@ describe("SymbolField", () => {
     const setup = mount(SetupGuide, { global: withDaemon(fakeDaemon({ config, guide })) });
     for (const wrapper of [beacon, objects]) {
       const button = wrapper.find(".symbolfield button.symbolbtn");
-      expect(button.attributes("aria-label")).toBe("Change symbol");
+      expect(button.attributes("title")).toBe("Change symbol");
       expect(wrapper.findAll(".symbolfield button:not(.symbolbtn):not(.info-toggle)")).toHaveLength(0);
       await button.trigger("click");
       expect(wrapper.find(".sympick").exists()).toBe(true);

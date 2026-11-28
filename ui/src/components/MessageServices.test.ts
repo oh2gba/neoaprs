@@ -34,7 +34,7 @@ describe("MessageServices", () => {
     await wrapper.find("button").trigger("click");
     await wrapper.find("select").setValue("ota_chase");
     expect(wrapper.find("button").attributes("title")).toBe("To OTA: CHASE");
-    expect(wrapper.find("button").attributes("aria-label")).toBe("To OTA: CHASE");
+    expect(wrapper.find("button").attributes("aria-label")).toBeUndefined(); // (named Write, its words)
     await wrapper.find("button").trigger("click");
     expect(wrapper.emitted("write")).toEqual([
       ["ANSRVR", "CQ HOTG "],

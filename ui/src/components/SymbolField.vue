@@ -33,6 +33,7 @@ const overlay = computed(() => takesOverlay(table.value, code.value));
 const open = ref(false);
 const change = ref<HTMLButtonElement | null>(null);
 const nameId = useId();
+const labelId = useId();
 
 function pick(newTable: string, newCode: string): void {
   // Keep the earlier letter or digit on a symbol that takes one.
@@ -55,7 +56,7 @@ function typed(event: Event): void {
 
 <template>
   <div class="field" :class="{ changed }">
-    <label :for="`${id}-change`">{{ label ?? t("settings.symbol.label") }}</label>
+    <label :id="labelId" :for="`${id}-change`">{{ label ?? t("settings.symbol.label") }}</label>
     <div class="field-control symbolfield">
       <template v-if="more">
         <span class="symbolshown">
@@ -79,8 +80,7 @@ function typed(event: Event): void {
         ref="change"
         class="symbolbtn"
         type="button"
-        :aria-label="t('settings.symbol.change')"
-        :aria-describedby="nameId"
+        :aria-labelledby="`${labelId} ${nameId}`"
         :title="t('settings.symbol.change')"
         @click="open = true"
       >

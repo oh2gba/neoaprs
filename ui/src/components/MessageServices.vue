@@ -35,7 +35,7 @@ const what = computed(() => t("messages.service_title", { to: service.value.to, 
         </template>
       </template>
     </select>
-    <button type="button" class="btn" :title="what" :aria-label="what" @click="emit('write', service.to, service.text)">
+    <button type="button" class="btn" :title="what" @click="emit('write', service.to, service.text)">
       {{ t("messages.service_write") }}
     </button>
   </div>

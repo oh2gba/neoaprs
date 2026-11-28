@@ -133,7 +133,7 @@ describe("the Symbol field", () => {
     expect(field?.find("input").exists()).toBe(false);
     expect(field?.findAll("button:not(.info-toggle)")).toHaveLength(1); // (the symbol is the control: no Change button)
     expect(field?.find("button").classes()).toContain("symbolbtn");
-    expect(field?.find("button").attributes("aria-label")).toBe("Change symbol");
+    expect(field?.find("button").attributes("title")).toBe("Change symbol");
     expect(field?.find("button").element.contains(field?.find(".symicon").element ?? null)).toBe(true);
     expect(wrapper.find("#set-station-symbol_table").exists()).toBe(false);
     expect(wrapper.find("#set-station-symbol_code").exists()).toBe(false);

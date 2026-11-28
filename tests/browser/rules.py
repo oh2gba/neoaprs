@@ -32,30 +32,18 @@ OVERLAPS: dict[str, str] = {}
 # Text that may touch the side of the box it stands in.
 EDGES: dict[str, str] = {}
 
-# Selects that may cut even the entry they show: a known fault that waits for the same decision.
-SELECTS_CUT: dict[str, str] = {
-    ".size-phone [id^=set-radio-][id$=-type]": "a Dummy radio's type, a few pixels short in en, de, es, fi, ja, pt-BR",
-    ".size-phone #set-station-call-ssid": "the SSID none with its meaning (es, fr, it, pt-BR)",
-}
+# Selects that may cut even the entry they show: a known fault that waits for a decision.
+SELECTS_CUT: dict[str, str] = {}
 
 # Words that do not fit their box: a known fault that waits for a decision.
-CUT: dict[str, str] = {
-    ".size-phone #set-help-send": "Feedback / send logs on a phone in de, es, fr: its words are wider than the column",
-}
+CUT: dict[str, str] = {}
 
 # Selects that may be narrower than an entry they do not show: never narrower than the one they show.
-# Each is a known fault that waits for a decision: on a phone the label and the control share the row,
-# which is narrower than the longest entries of these lists in some of the languages.
+# Each is a known fault that waits for a decision.
 SELECTS: dict[str, str] = {
-    ".size-phone #set-radio-add": "Add radio's types",
-    ".size-phone [id^=set-radio-][id$=-type]": "a radio's types",
-    ".size-phone [id^=set-radio-][id$=-path]": "a radio's paths (two pixels short in English)",
-    ".size-phone #set-map-aircraft": "the aircraft sources (de, fr, nl, pt-BR)",
-    ".size-phone #set-map-ships": "the ships sources (de, fr, nl, pt-BR)",
-    ".size-phone #set-status-source": "the status sources",
-    ".size-phone #set-station-call-ssid": "the SSIDs with their meaning",
-    ".size-phone #set-gps-source": "the position sources",
-    ".size-phone #v-1-category": "the object categories (de, fr, it)",
+    ".size-phone [id^=set-radio-][id$=-type]": "a radio's types: the longest names (Packet, Kenwood TH-D7 / TM-D700 / "
+    "TS-2000, TNC-2; LoRa, tracker or iGate on USB or Bluetooth in most languages) are longer than a phone's row in a "
+    "radio's box can show, with its label above it: their words wait for a decision",
 }
 
 # Controls the suite does not change, by their id.
@@ -87,10 +75,7 @@ RESHAPES: dict[str, str] = {
 # Faults of the page that are known and wait for a decision (the round's report lists each with a
 # picture): judged as a control that shows the rest of its group, so they may move what is under them up
 # or down, never sideways.
-KNOWN_MOVES: dict[str, str] = {
-    "set-map-aircraft": "the Aircraft box has the receiver's address row only for an own receiver or a "
-    "Radarcape, so the boxes under it move when the source changes (the Ships box keeps the row's room)",
-}
+KNOWN_MOVES: dict[str, str] = {}
 
 # Failed requests and console lines of the demo that are not faults.
 QUIET: dict[str, str] = {
@@ -178,8 +163,4 @@ AXE: dict[tuple[str, str], str] = {
         r"\.disabled\.field",
     ): "the words of a field that does not apply now are dimmed with it: an inactive "
     "control, which the contrast rule of WCAG leaves out",
-    ("label-content-name-mismatch", r"button\[title="): "Write is named by what it writes (To ANSRVR: CQ HOTG), "
-    "not by its word; a known fault that waits for a decision",
-    ("label-content-name-mismatch", r"symbol-change"): "the symbol's button is named Change symbol and shows the "
-    "symbol's name; a known fault that waits for a decision",
 }
