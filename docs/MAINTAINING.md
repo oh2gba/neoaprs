@@ -78,6 +78,8 @@ GitHub's runners and the container of `scripts/check-in-container` follow `packa
 3. `scripts/check-in-container`, `scripts/check-in-container --job sim`, `scripts/check-installs` and `scripts/check-windows`, all green.
 4. Push to a `ci/**` branch first and read the lines of the facts step there.
 
+Dated: after 1 December 2026 GitHub's `windows-2025` label moves to Visual Studio 2027 (announcement 15373, marked read until 2026-12-15 in `runner.json`). Dispatch `release.yml` on a branch and read the `windows` job (the compile of PyInstaller's bootloader finds the compiler) before that announcement is marked read for good.
+
 uv moves the same way, in one commit: `UV_VERSION` and `UV_SHA256` of the Dockerfile, `UV` of `scripts/check-windows` and the `version:` of every setup-uv step (the tests hold them together).
 
 ## A release
