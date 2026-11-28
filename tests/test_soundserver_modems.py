@@ -11,9 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import direwolfmodem, soundserver, soundwatch
+from neoaprs import direwolfmodem, mercuryclaims, soundserver, soundwatch
 from neoaprs.claims import Claims
 from neoaprs.direwolf import CONF_FILE
+from neoaprs.direwolfmodem import levels_card
 from neoaprs.mercuryclaims import card_claims
 from neoaprs.soundserver import Node
 from tests.support.env import until, until_started
@@ -151,3 +152,24 @@ def test_a_device_on_a_card_is_claimed_as_the_card_and_one_a_user_made_by_its_na
     assert claims.holder_of("sound_card", "plughw:CARD=CODEC,DEV=0") == 3, "the FM radio's card is this one"
     virtual: list[Node] = soundserver.list_nodes(lambda args: fixture_text(f"pactl/virtual-{args[1]}.json")) or []
     assert [c.value for c in card_claims(SETTING, 3, virtual, {})] == [SOURCE, SINK]
+
+
+def test_the_levels_and_the_usb_tie_of_a_device_on_a_card_are_that_cards_and_a_made_ones_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    station = soundserver.list_nodes(lambda args: fixture_text(f"pactl/station-{args[1]}.json")) or []
+    virtual = soundserver.list_nodes(lambda args: fixture_text(f"pactl/virtual-{args[1]}.json")) or []
+    for module in (soundwatch, mercuryclaims):
+        monkeypatch.setattr(module, "alsa_card_names", lambda: {0: "CODEC"})
+    codec = "BurrBrown_from_Texas_Instruments_USB_AUDIO_CODEC-00.analog-stereo"
+    pair = f"pulse:DEVICE=alsa_input.usb-{codec}|pulse:DEVICE=alsa_output.usb-{codec}"
+    dw, hf = direwolf_modem(tmp_path), mercury_modem(tmp_path)
+    for m in (dw, hf):
+        m.sound_card, m.nodes = pair, tuple(station)
+        assert m.claims is not None
+        for claim in card_claims(pair, m.holder, station, {0: "CODEC"}):
+            m.claims.hold(claim)
+        assert m._behind() == "plughw:CARD=CODEC,DEV=0", "the card's mixer and its place on the USB"
+    assert levels_card(dw) == hf.held_card() == "plughw:CARD=CODEC,DEV=0"
+    dw.sound_card, dw.nodes = SETTING, tuple(virtual)
+    assert dw._behind() == "" and levels_card(dw) == "", "a device a user made: no levels row, no tie"
