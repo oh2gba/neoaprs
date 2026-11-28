@@ -4,10 +4,12 @@ opened."""
 
 import http.server
 import os
+import socketserver
 import sqlite3
 import sys
+import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -673,3 +675,41 @@ def test_an_installer_install_is_told_to_tick_start_at_sign_in_not_to_install_a_
     assert doctor.check_service(tmp_path, "wheel").fix == "neoaprs service install"
     monkeypatch.setenv("NEOAPRS_INSTALL_KIND", "windows-installer")
     assert doctor.check_service(tmp_path).fix == doctor.APP_START_FIX, "found from the install itself"
+
+
+def _rigctld_in_a_thread() -> tuple[int, Callable[[], None]]:
+    """A rigctld that answers `t` with `0`, served from a thread (the doctor runs its own loop)."""
+
+    class Answer(socketserver.StreamRequestHandler):
+        def handle(self) -> None:
+            for line in self.rfile:
+                if line.strip() == b"t":
+                    self.wfile.write(b"0\n")
+
+    server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Answer)
+    server.daemon_threads = True
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    def stop() -> None:
+        server.shutdown()
+        server.server_close()
+
+    return server.server_address[1], stop
+
+
+def test_a_radio_keyed_through_a_rig_program_says_whether_the_program_answers(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    port, stop = _rigctld_in_a_thread()
+    try:
+        data = radios_of(
+            tmp_path / "data", station_call="OH2GBA", hf_enabled="true", mercury_keying=f"rigctld:127.0.0.1:{port}"
+        )
+        code, out = run(data, capsys)
+    finally:
+        stop()
+    assert code == 0, out
+    assert f"ok    radio Mercury keyed through rigctld at 127.0.0.1:{port}: it answers" in out
+    code, out = run(data, capsys)
+    assert code == 0 and f"warn  radio Mercury keyed through rigctld at 127.0.0.1:{port}: it does not answer" in out
+    assert "fix: start rigctld (it is not started by NeoAPRS), or correct the address in the radio's Keying" in out
