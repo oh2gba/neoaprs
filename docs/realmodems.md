@@ -26,7 +26,7 @@ instead of radios, and the tests of `tests/realmodems/` drive them through their
 - The real Mercury, started with the daemon's command line and configuration on the two ends of the HF cable, writes the lines the daemon
   reads: its start lines, `IAMALIVE`, `PTT ON` and `PTT OFF` for a frame, `BUSY ON`, `BUSY OFF` and `SN` at the other end with the frame
   handed over, `PTT ON` and `PTT OFF` for `TUNE` and `TUNE OFF`, and the line of a sound card that is not there; its four ports answer on
-  127.0.0.1 and are refused from the runner's own address (`test_mercury_program.py`). It also records DATAC3 frames for the Windows job.
+  127.0.0.1 and are refused from the runner's own address (`test_mercury_program.py`).
 
 After the stations the job runs the suite's tests of the real programs (`tests/test_direwolf_real.py`, `tests/test_mercury_leadin.py`,
 `tests/test_mercury_scope_real.py`), which the suite's guard keeps from every other run. The job `windows` then runs `test_windows.py` on
@@ -39,7 +39,7 @@ the configuration and command line the daemon writes for them.
 
 - Keying: every radio is keyed by VOX into a cable, so no keying line, CM108 pin or serial port is used.
 - Real radios and real sound cards: the levels, the card's own delays, a radio's VOX and squelch times, noise and fading. The cables are clean and without delay.
-- Windows and macOS: the stations run on Linux, and the cables are PipeWire's; Windows decodes recordings only.
+- Windows and macOS: the stations run on Linux, and the cables are PipeWire's; on Windows only Direwolf's demodulator decodes recordings.
 - ALSA hardware devices (`plughw:CARD=…`): the daemons are given the cables' ALSA device names as their sound cards, so the listing of cards (`mercury -z`) and
   the card's own volume controls are not used.
 
@@ -81,5 +81,4 @@ gh run watch <id> --exit-status
 
 or Actions, realmodems, Run workflow (a workflow that is not on master yet is dispatched by its number: `gh workflow run <workflow id> --ref <branch>`). It
 also runs on every push to master and every night, and `scripts/release` waits for its run of the release commit. The folders of the stations (each
-daemon's log and output, the modems' configurations) are the artifact `realmodems-stations` of every run, the recording for Windows
-`realmodems-recordings`. Run it by hand on a branch after a change to the pair, the Mercury or Direwolf driver, or a modem's pin.
+daemon's log and output, the modems' configurations) are the artifact `realmodems-stations` of every run. Run it by hand on a branch after a change to the pair, the Mercury or Direwolf driver, or a modem's pin.

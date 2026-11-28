@@ -1,10 +1,9 @@
 """Tests for the Windows builds of the two modems on GitHub's Windows runner, which has no sound device:
-mercury.exe decodes the recording of DATAC3 frames that the Linux job made with the Linux build
-(test_mercury_program.py), Direwolf's demodulator built for Windows (atest.exe) decodes the recorded
-audio of tests/fixtures/audio/, and mercury.exe asked to end the way the daemon asks it (Ctrl-Break to
-its own process group, packaging/mercury/sigbreak.patch) shuts down in order instead of being cut off.
-NEOAPRS_WINDOWS_MODEMS is the folder that holds mercury/mercury.exe and direwolf/dev/atest.exe,
-NEOAPRS_RECORDINGS the Linux job's recordings."""
+Direwolf's demodulator built for Windows (atest.exe) decodes the recorded audio of tests/fixtures/audio/,
+mercury.exe asked to end the way the daemon asks it (Ctrl-Break to its own process group,
+packaging/mercury/sigbreak.patch) shuts down in order instead of being cut off, and it writes its log
+lines through a pipe as it runs (flush.patch). NEOAPRS_WINDOWS_MODEMS is the folder that holds
+mercury/mercury.exe and direwolf/dev/atest.exe."""
 
 import os
 import subprocess
@@ -18,13 +17,12 @@ import pytest
 from neoaprs import mercury, winchild
 from neoaprs.childprogram import HIDDEN_WINDOW, OWN_GROUP
 from neoaprs.mercuryhelper import free_ports
-from tests.realmodems.probe import Modem, decode_file
+from tests.realmodems.probe import Modem
 from tests.support import direwolfaudio
 
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="the Windows job's")
 
 MODEMS = Path(os.environ.get("NEOAPRS_WINDOWS_MODEMS", "."))
-RECORDINGS = Path(os.environ.get("NEOAPRS_RECORDINGS", "."))
 MERCURY = MODEMS / "mercury" / "mercury.exe"
 ATEST = MODEMS / "direwolf" / "dev" / "atest.exe"
 END_SEC = 20.0
@@ -35,13 +33,6 @@ SHUTTING_DOWN = "Signal received, shutting down"
 def test_the_programs_are_there() -> None:
     assert MERCURY.is_file() and ATEST.is_file(), f"{MERCURY}, {ATEST}"
     assert mercury.VERSION.encode("ascii") in MERCURY.read_bytes(), f"mercury.exe is Mercury {mercury.VERSION}"
-
-
-async def test_mercury_for_windows_decodes_every_frame_the_linux_mercury_recorded(tmp_path: Path) -> None:
-    recording = RECORDINGS / "mercury-datac3.s32le"
-    expected = set((RECORDINGS / "mercury-datac3.txt").read_bytes().splitlines())
-    heard = await decode_file(str(MERCURY), recording, tmp_path, dict(os.environ), free_ports(18300), expected)
-    assert set(heard.frames) == expected, f"heard {sorted(set(heard.frames))}:\n{heard.said()[-3000:]}"
 
 
 @pytest.mark.parametrize("name", sorted(direwolfaudio.FILES))

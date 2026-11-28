@@ -5,7 +5,7 @@
 # message at 300 baud, the Mercury pinned now and the one pinned before carry a message and its ack both
 # ways, and the lines the daemon reads of Mercury are the ones it writes (tests/realmodems,
 # docs/realmodems.md); then the suite's tests of the real programs. On Windows, the two modems built
-# for it decode what the Linux builds recorded, and Mercury ends in order on Ctrl-Break. Keying is VOX
+# for it: Direwolf's demodulator decodes the recordings, Mercury ends in order on Ctrl-Break. Keying is VOX
 # into a null sink, so nothing is keyed. On every push to master, every night and by hand; no secrets.
 name: realmodems
 
@@ -108,7 +108,6 @@ jobs:
       - name: The stations and the scenarios
         env:
           NEOAPRS_REAL_MODEMS: "1"
-          NEOAPRS_RECORDINGS: ${{ runner.temp }}/recordings
         run: >-
           uv run pytest -v -p no:cacheprovider --confcutdir tests/realmodems
           -o faulthandler_timeout=0 -o tmp_path_retention_policy=all
@@ -128,11 +127,6 @@ jobs:
           name: realmodems-stations
           path: realmodems-stations.tar.gz
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: realmodems-recordings
-          path: ${{ runner.temp }}/recordings
-          if-no-files-found: error
 
   # The two modems for Windows, as the release builds them (release.yml, mercury-windows and
   # direwolf-windows), with Direwolf's decoder of recorded audio beside it for the job below.
@@ -159,7 +153,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    needs: [realmodems, windows-builds]
+    needs: windows-builds
     runs-on: windows-2025
     timeout-minutes: 30
     steps:
@@ -176,15 +170,10 @@ jobs:
         with:
           name: realmodems-windows-builds
           path: ${{ runner.temp }}/modems
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: realmodems-recordings
-          path: ${{ runner.temp }}/recordings
-      - name: The modems for Windows on what Linux recorded, and Mercury's end on Ctrl-Break
+      - name: Direwolf's demodulator for Windows on the recordings, Mercury's end on Ctrl-Break and its log through a pipe
         env:
           NEOAPRS_REAL_MODEMS: "1"
           NEOAPRS_WINDOWS_MODEMS: ${{ runner.temp }}/modems
-          NEOAPRS_RECORDINGS: ${{ runner.temp }}/recordings
         run: uv run pytest -v -p no:cacheprovider --confcutdir tests/realmodems tests/realmodems/test_windows.py
       - name: mercury.exe listens on 127.0.0.1 only
         run: uv run python packaging/windows/smoke_mercury.py "${{ runner.temp }}/modems/mercury/mercury.exe"

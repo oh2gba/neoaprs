@@ -21,7 +21,7 @@ Direwolf on macOS.
 |---|---|---|---|---|---|
 | Mercury | builds, every patch applies and is found in the source | realmodems, sim, release | realmodems (`windows-builds`), release | release | release |
 | Mercury | starts and ends cleanly | realmodems (`test_mercury_program`), sim | realmodems: ends in order on Ctrl-Break, the daemon's way | release: `mercury -V` | release: `-V` and its sockets |
-| Mercury | carries frames between two stations | realmodems: the daemons on two ALSA ends of a cable; sim: daemons on the fifo backend | one way: decodes the frames the Linux build recorded | no | no |
+| Mercury | carries frames between two stations | realmodems: the daemons on two ALSA ends of a cable; sim: daemons on the fifo backend | no (below) | no | no |
 | Mercury | the pinned version against the previous, both ways | realmodems (`test_old_and_new`: G new and B old, then G old and B new; a message and its ack each way) | no | no | no |
 | Mercury | the patches hold | loopback: refused from the runner's own address, and the build reads the socket table; lead-in: `tests/test_mercury_leadin.py`; ffcpu: the build links on Ubuntu 26.04 | loopback: `smoke_mercury.py` (realmodems, release); sigbreak and flush: `test_windows`; dsound: the build refuses a program that imports dsound.dll | the build | the build, and the socket table |
 | Mercury | the lines NeoAPRS reads still appear | realmodems (`test_mercury_program`): the start lines, `PTT ON` and `OFF`, `BUSY ON` and `OFF`, `SN`, `IAMALIVE`, `TUNE` and `TUNE OFF`, a sound card that is not there | no | no | no |
@@ -36,10 +36,12 @@ Direwolf on macOS.
 
 - **Windows, two stations live.** A virtual sound cable would let the daemons carry frames between two stations on the Windows
   runner, which has no sound device. VB-CABLE is donationware whose terms ask a paid licence for professional use and for use
-  in an organisation, so the job installs none: the Windows job proves the builds by recordings
-  instead (Mercury decodes the Linux Mercury's DATAC3 frames, Direwolf's demodulator the recorded audio), and the transmit side
-  on Windows is not heard by anything. The installed programs on real sound cards are the Windows 11 N VM's (`scripts/check-windows`,
-  [direwolf.md](direwolf.md)).
+  in an organisation, so the job installs none. Nor can mercury.exe be given a recording: its `fifo` backend opens the path
+  with `O_NONBLOCK`, which Mercury's `common/os_interop.h` defines for Windows as `0200000`, the C runtime's `_O_WTEXT`, so
+  the audio is read as wide text and the read fails ("Invalid argument", seen on the runner). So on Windows only
+  Direwolf's demodulator is proven on audio (`atest.exe` on the recordings); Mercury there is proven to start, listen on
+  127.0.0.1 alone, write its log as it runs and end in order. The installed programs on real sound cards are the
+  Windows 11 N VM's (`scripts/check-windows`, [direwolf.md](direwolf.md)).
 - **Mercury's lines of a lost sound card** (`the capture device delivers no audio`, `is no longer listed`, a reopen that fails with
   `AUDCLNT_E_DEVICE_INVALIDATED`) and **`Buffer full in capture buffer!`** come only from real hardware; `-z` (the list of cards)
   needs real cards. They are compared by hand with the source of a new version (MAINTAINING.md).
@@ -55,8 +57,7 @@ Direwolf on macOS.
 its ack and a status) at 1200 and at 300 baud, and 20 frames of 1200 baud under rising noise. The pinned Direwolf must decode
 the four frames of each file unchanged and 5 of the 20. When a new Direwolf decodes more of the noisy ones, the count in
 `tests/support/direwolfaudio.py` moves up with it; fewer is a finding. `python -m tests.support.direwolfaudio GEN_PACKETS FOLDER`
-makes the files again. The Mercury recording is made fresh by each run of the Linux job (`NEOAPRS_RECORDINGS`) and passed to the
-Windows job.
+makes the files again.
 
 ## The previous Mercury
 

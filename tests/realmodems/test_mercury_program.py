@@ -1,13 +1,10 @@
 """Tests for the real Mercury itself on the Linux runner, started with the command line and the
 configuration the daemon writes: every line NeoAPRS reads of it that can be provoked without a radio
 is the line its parser expects; its ports cannot be reached from the runner's own network address
-(packaging/mercury/loopback.patch); and the recording of its frames that the Windows job decodes
-(test_windows.py) is made here."""
+(packaging/mercury/loopback.patch)."""
 
-import asyncio
 import os
 import socket
-import threading
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -18,9 +15,8 @@ from neoaprs import mercury, mercuryhelper
 from neoaprs.childprogram import environment
 from neoaprs.mercury import Keying, audio_open_error, command, ini_text, unstamped
 from neoaprs.mercuryhelper import free_ports, pair_ports
-from tests.realmodems.probe import Modem, decode_file
+from tests.realmodems.probe import Modem
 from tests.realmodems.stations import programs, read_machine, refusal
-from tests.support.hfchannel import Channel
 from tests.support.realmercury import fifo
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -29,13 +25,6 @@ PROGRAM = str(programs()[0])
 PAYLOAD = b"OH2GW>APZNEO:>the lines of the real Mercury"
 FRAME_SEC = 30.0  # a frame keyed, played, heard and handed over
 ALIVE_SEC = 30.0  # the daemon writes keepalive_s = 10
-RECORDINGS = os.environ.get("NEOAPRS_RECORDINGS", "")
-PAD_SEC = 5
-RECORDED = (
-    b"OH2AA>APZNEO:!6010.20N/02456.40E-recorded on Linux",
-    b"OH2AA>APZNEO::OH2BB    :recorded on Linux{1",
-    b"OH2BB>APZNEO::OH2AA    :ack1",
-)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -161,69 +150,3 @@ async def test_its_ports_answer_on_the_loopback_and_are_refused_from_the_runners
                 pass
     finally:
         await modem.close()
-
-
-class Recorder:
-    """What the far end of the channel hears, read from its pipe as it is written, at the channel's pace."""
-
-    def __init__(self, path: str) -> None:
-        self.path, self.data = path, bytearray()
-        self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
-
-    def _run(self) -> None:
-        with open(self.path, "rb", buffering=0) as pipe:
-            while not self._stop.is_set() and (chunk := pipe.read(1 << 16)):
-                self.data.extend(chunk)
-
-    def stop(self) -> bytes:
-        self._stop.set()
-        self._thread.join(10)
-        return bytes(self.data)
-
-
-@pytest.mark.skipif(not RECORDINGS, reason="NEOAPRS_RECORDINGS names the folder of the Windows job's recordings")
-async def test_it_records_its_frames_for_the_windows_job_and_another_mercury_here_hears_them(tmp_path: Path) -> None:
-    channel = Channel(snr_db=60.0)
-    pipes = {name: (fifo(tmp_path, f"{name}-rx"), fifo(tmp_path, f"{name}-tx")) for name in ("tx", "rec")}
-    for name, (rx, tx) in pipes.items():
-        channel.add(name, rx, tx)
-    recorder = Recorder(pipes["rec"][0])
-    holder = os.open(pipes["rec"][1], os.O_RDWR)  # the far end transmits nothing
-    channel.start()
-    ports = free_ports(18700)
-    ini = tmp_path / "tx.ini"
-    ini.write_text(ini_text(Keying("vox")), encoding="utf-8")
-    argv = command([PROGRAM], str(ini), "", Keying("vox"), *ports, audio=mercury.speaker_audio(*pipes["tx"]))
-    modem = Modem("tx", argv, tmp_path, environment([PROGRAM]))
-    try:
-        await modem.open(*ports)
-        await asyncio.sleep(2.0)
-        for payload in RECORDED:
-            after = len(modem.events)
-            modem.send(payload)
-            await modem.until("PTT OFF", lambda after=after: bool(modem.seen("ptt", False, after)), FRAME_SEC)
-            await asyncio.sleep(1.0)
-        await asyncio.sleep(2.0)
-    finally:
-        await modem.close()
-        channel.stop()
-        os.close(holder)
-        audio = recorder.stop()
-    folder = Path(RECORDINGS)
-    folder.mkdir(parents=True, exist_ok=True)
-    # silence around it: the decoder of the far end takes a frame only with audio after its end
-    pad = bytes(4 * 8000 * PAD_SEC)
-    (folder / "mercury-datac3.s32le").write_bytes(pad + audio + pad)
-    (folder / "mercury-datac3.txt").write_bytes(b"\n".join(RECORDED) + b"\n")
-    assert len(audio) > 8000 * 4 * 10, f"{len(audio)} bytes recorded"
-    heard = await decode_file(
-        PROGRAM,
-        folder / "mercury-datac3.s32le",
-        tmp_path / "decode",
-        environment([PROGRAM]),
-        free_ports(18800),
-        set(RECORDED),
-    )
-    assert set(heard.frames) == set(RECORDED), f"heard {sorted(set(heard.frames))}:\n{heard.said()[-3000:]}"
