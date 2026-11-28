@@ -399,8 +399,8 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
 
     def _ended(self, code: int | None, lines: list[str]) -> None:
         """Called from the reader thread when the program ended by itself: restart it."""
-        if self.state == "stopped":
-            return
+        if self.state == "stopped" or (self._run_stopping is not None and not self._run_stopping.done()):
+            return  # (a run the daemon is ending: its reason is said and its start again is due)
         log.warning(
             "Mercury ended (exit %s) after %d frames keyed; its last lines: %s",
             code,

@@ -7,6 +7,7 @@ other program, ends its own hung run at once and tries again for as long as the 
 import logging
 import socket
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,7 @@ from neoaprs.source import Backoff, Source
 from tests.support import fakemercury
 from tests.support.clock import FixedClock
 from tests.support.env import Env, idle_for, until_started
+from tests.support.patience import PATIENCE_SEC
 from tests.support.fakemercury import Air, of_radio
 from tests.support.modemports import base_of_this_test, own_ports
 from tests.test_mercury_modem import HF, _alive, stopped
@@ -145,6 +147,34 @@ async def test_the_hung_run_is_ended_and_a_full_capture_buffer_after_it_is_no_st
             m._capture_full(float(s))
         assert m.stall.stalls == 0 and not m.deaf, "a Mercury that said Radio init failed never hears nothing"
     finally:
+        await stopped(m)
+
+
+async def test_a_run_that_cannot_key_and_then_ends_by_itself_keeps_its_reason_and_one_start_again(
+    tmp_path: Path,
+) -> None:
+    """Mercury may end by itself right after it said so, before the daemon's own end of it has begun."""
+    m = modem(tmp_path, keying_fails="COM10 (Windows error 5)")
+    m.backoff = Backoff([30.0])
+    stop, let_go = m._program.stop, threading.Event()
+
+    def slow_stop() -> None:
+        if m._program._process is not None:  # (the daemon's end of a run, not the stop before the first)
+            let_go.wait(PATIENCE_SEC)
+        stop()
+
+    m._program.stop = slow_stop  # type: ignore[method-assign]
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.reason == "keying_in_use")
+        waits, process = m._waits, m._program._process
+        assert process is not None
+        process.kill()  # it ends by itself
+        await until_started(lambda: m._program._run.crashed_at is not None)
+        await idle_for(0.3)  # (the reader's word of the end reaches the loop)
+        assert m.reason == "keying_in_use" and m._waits == waits
+    finally:
+        let_go.set()
         await stopped(m)
 
 
