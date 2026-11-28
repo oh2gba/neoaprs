@@ -261,7 +261,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.gate_tip2": "Näin radiossa kuultu viesti esimerkiksi EMAIL-2-palvelulle päätyy perille.",
   "settings.igate.show_gated_label": "Näytä radiossa kuullut Internet-paketit",
   "settings.igate.show_gated_tip_label": "Tietoa: radiossa kuullut Internet-paketit",
-  "settings.igate.show_gated_tip1": "Jotkin iGatet lähettävät Internetin paketteja radioon. Ilman rastia ne jätetään pois, paitsi sinulle tullut viesti.",
+  "settings.igate.show_gated_tip1":
+    "Jotkin iGatet lähettävät Internetin paketteja radioon. Ilman rastia ne jätetään pois, paitsi sinulle tullut viesti.",
   "settings.igate.line.off": "Pois",
   "settings.igate.line.connecting": "Yhdistetään: {server}…",
   "settings.igate.line.no_server": "Ei yhteyttä: palvelinta ei ole asetettu",

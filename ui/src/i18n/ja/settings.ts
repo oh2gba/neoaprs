@@ -254,7 +254,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.gate_tip2": "無線で受信した、EMAIL-2などのサービス宛てのメッセージも、こうして届きます。",
   "settings.igate.show_gated_label": "無線で受信したインターネットのパケットを表示",
   "settings.igate.show_gated_tip_label": "「無線で受信したインターネットのパケット」について",
-  "settings.igate.show_gated_tip1": "インターネットのパケットを無線で送信するiGateがあります。チェックを外すと、あなた宛てのメッセージ以外は表示しません。",
+  "settings.igate.show_gated_tip1":
+    "インターネットのパケットを無線で送信するiGateがあります。チェックを外すと、あなた宛てのメッセージ以外は表示しません。",
   "settings.igate.line.off": "オフ",
   "settings.igate.line.connecting": "{server}に接続中…",
   "settings.igate.line.no_server": "未接続: サーバーが未設定です",

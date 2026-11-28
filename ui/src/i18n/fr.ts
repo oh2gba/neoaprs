@@ -1673,7 +1673,8 @@ export const fr: Catalogue = {
   "settings.igate.gate_tip2": "Ainsi, un message entendu à la radio pour un service comme EMAIL-2 lui parvient.",
   "settings.igate.show_gated_label": "Afficher les paquets Internet entendus à la radio",
   "settings.igate.show_gated_tip_label": "À propos des paquets Internet entendus à la radio",
-  "settings.igate.show_gated_tip1": "Certains iGates mettent sur les ondes des paquets venus d'Internet. Décoché, ils sont laissés de côté, sauf un message pour vous.",
+  "settings.igate.show_gated_tip1":
+    "Certains iGates mettent sur les ondes des paquets venus d'Internet. Décoché, ils sont laissés de côté, sauf un message pour vous.",
   "settings.igate.line.off": "Désactivé",
   "settings.igate.line.connecting": "Connexion à {server}…",
   "settings.igate.line.no_server": "Non connecté : aucun serveur indiqué",

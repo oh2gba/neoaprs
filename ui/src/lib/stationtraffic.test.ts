@@ -72,7 +72,13 @@ describe("the traffic of a station", () => {
         tnc2: `OH7JHF-1>APRS:}OH2RDG>APRS,TCPIP,OH7JHF-1*::${addressee}:${id}`,
         decoded: { type: "message", addressee, text: ack ? "" : "hi", msg_id: null, ack_id: ack, rej_id: null },
       });
-    const rows = [position(1, 1, gated), position(2, 2), message(3, "OH2GBA", null), message(4, "OH2GBA", "1"), message(5, "OH2XYZ", null)];
+    const rows = [
+      position(1, 1, gated),
+      position(2, 2),
+      message(3, "OH2GBA", null),
+      message(4, "OH2GBA", "1"),
+      message(5, "OH2XYZ", null),
+    ];
     expect(mergeTraffic(rows, [], true).map((r) => r.id)).toEqual([5, 4, 3, 2, 1]);
     expect(mergeTraffic(rows, [], true, false, "OH2GBA").map((r) => r.id)).toEqual([4, 3, 2]);
     expect(mergeTraffic(rows, [], false, false, "oh2gba").map((r) => r.id)).toEqual([4, 3, 2]);

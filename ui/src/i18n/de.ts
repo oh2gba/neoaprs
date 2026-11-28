@@ -1739,7 +1739,8 @@ export const de: Catalogue = {
   "settings.igate.gate_tip2": "So erreicht eine im Funk gehörte Nachricht an einen Dienst wie EMAIL-2 diesen Dienst.",
   "settings.igate.show_gated_label": "Internetpakete aus dem Funk zeigen",
   "settings.igate.show_gated_tip_label": "Zu Internetpaketen aus dem Funk",
-  "settings.igate.show_gated_tip1": "Manche iGates senden Pakete aus dem Internet in den Funk. Ohne Haken werden sie weggelassen, außer einer Nachricht an dich.",
+  "settings.igate.show_gated_tip1":
+    "Manche iGates senden Pakete aus dem Internet in den Funk. Ohne Haken werden sie weggelassen, außer einer Nachricht an dich.",
   "settings.igate.line.off": "Aus",
   "settings.igate.line.connecting": "Verbinde mit {server}…",
   "settings.igate.line.no_server": "Nicht verbunden: kein Server festgelegt",

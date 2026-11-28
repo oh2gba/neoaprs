@@ -271,7 +271,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.gate_tip2": "Zo bereikt een op de radio gehoord bericht voor een dienst als EMAIL-2 die dienst.",
   "settings.igate.show_gated_label": "Internetpakketten via de radio tonen",
   "settings.igate.show_gated_tip_label": "Over internetpakketten via de radio",
-  "settings.igate.show_gated_tip1": "Sommige iGates zenden pakketten van internet uit via de radio. Zonder vinkje worden ze weggelaten, behalve een bericht aan jou.",
+  "settings.igate.show_gated_tip1":
+    "Sommige iGates zenden pakketten van internet uit via de radio. Zonder vinkje worden ze weggelaten, behalve een bericht aan jou.",
   "settings.igate.line.off": "Uit",
   "settings.igate.line.connecting": "Verbinden met {server}…",
   "settings.igate.line.no_server": "Niet verbonden: geen server ingesteld",
