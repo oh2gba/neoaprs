@@ -280,21 +280,21 @@ async def test_a_sound_card_or_a_keying_device_that_cannot_be_opened_is_the_reas
 
 
 async def test_a_kiss_port_taken_by_another_program_gives_another_port_and_the_line_is_pointed_at_it(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # (the first port is someone else's: one the system gave, so that it is surely free to take)
+    blocker = await asyncio.start_server(lambda r, w: None, "127.0.0.1", 0)
+    taken = blocker.sockets[0].getsockname()[1]
+    monkeypatch.setattr(direwolfmodem, "FIRST_PORT", taken)
     m = modem(tmp_path, "--port-taken")
     moved: list[int] = []
     m.ports_changed.connect(lambda: moved.append(m.kiss_port))
-    # (the first port is someone else's)
-    blocker = await asyncio.start_server(lambda r, w: None, "127.0.0.1", base_of_this_test())
     try:
         await m.start(CARD, "vox", 0)
         first = m.kiss_port
         await until_started(lambda: m.reason == "no_port")
         await until_started(lambda: m.starts >= 2)
-        assert m.kiss_port != base_of_this_test() and first != base_of_this_test(), (
-            "the probe passes over the port that is taken"
-        )
+        assert m.kiss_port != taken and first != taken, "the probe passes over the port that is taken"
     finally:
         blocker.close()
         await m.stop()

@@ -111,8 +111,9 @@ class Rig:
         self.window = window
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def rig(tmp_path_factory: pytest.TempPathFactory, page_url: str, qapp: QApplication) -> Iterator[Rig]:
+    """A window of its own for each test: what one test does to it (a size, a page moved) is not the next one's."""
     data = tmp_path_factory.mktemp("appdata")
     rig = Rig(data, page_url, qapp)
     loaded: list[bool] = []
