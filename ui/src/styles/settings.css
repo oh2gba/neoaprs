@@ -355,6 +355,30 @@ fieldset.composebox > legend {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+/* the lines put on APRS-IS (IgateSent.vue): a fixed height, so that a new line moves nothing, and a
+   long line wraps inside it */
+.igatesent {
+  height: 12em;
+  padding: 8px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.igatesent-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 7em) minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: baseline;
+}
+.igatesent-tag {
+  min-width: 0;
+  overflow: hidden;
+}
+.igatesent-line {
+  overflow-wrap: anywhere;
+}
 .beaconstatus .problem {
   margin: 4px 0;
 }

@@ -10,6 +10,7 @@ import type {
   Command,
   ErrorMessage,
   HelloMessage,
+  IgateSentMessage,
   LayerThingsMessage,
   Message,
   MessageRow,
@@ -69,6 +70,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   radio_level: "radioLevel",
   layer_things: "layerThings",
   satellites: "satellites",
+  igate_sent: "igateSent",
 };
 
 type TopicName = keyof TopicValues;
@@ -106,6 +108,8 @@ export interface Store {
   layerThings(message: LayerThingsMessage): void;
   /** The satellites layer of now, sent to a page that looks at it (`satellite_look`). */
   satellites(message: SatellitesMessage): void;
+  /** The lines put on APRS-IS, sent to a page that looks at them (`igate_look`). */
+  igateSent(message: IgateSentMessage): void;
   /** An alert set on a station fired (sent once to every page, not an answer). */
   stationAlert(message: StationAlertMessage): void;
   /**

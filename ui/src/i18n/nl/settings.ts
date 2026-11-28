@@ -295,6 +295,7 @@ export const settings: Record<keyof typeof source, Message> = {
     other: "Doorgestuurd: {n} pakketten sinds NeoAPRS startte",
   },
   "settings.igate.fold.named": "{name} ({server})",
+  "settings.igate.sent_label": "Naar APRS-IS verzonden pakketten",
 
   "settings.alert.tip1": "Is Meld mij aangevinkt, dan wordt de Opdracht uitgevoerd als er een bericht binnenkomt.",
   "settings.alert_command.name": "Meldingsopdracht",

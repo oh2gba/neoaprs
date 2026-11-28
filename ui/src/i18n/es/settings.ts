@@ -290,6 +290,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     other: "Enviados: {n} paquetes desde que se inició NeoAPRS",
   },
   "settings.igate.fold.named": "{name} ({server})",
+  "settings.igate.sent_label": "Paquetes enviados a APRS-IS",
 
   "settings.alert.tip1": "Con Notificarme activado, el comando se ejecuta cuando llega un mensaje.",
   "settings.alert_command.name": "Comando de alerta",

@@ -285,6 +285,7 @@ export const settings: Record<keyof typeof source, Message> = {
     other: "Lähetetty: {n} pakettia NeoAPRS:n käynnistyksestä",
   },
   "settings.igate.fold.named": "{name} ({server})",
+  "settings.igate.sent_label": "APRS-IS:ään lähetetyt paketit",
 
   "settings.alert.tip1": "Kun Ilmoita minulle on päällä, komento suoritetaan viestin saapuessa.",
   "settings.alert_command.name": "Hälytyskomento",

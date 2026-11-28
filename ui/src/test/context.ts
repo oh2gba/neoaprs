@@ -10,6 +10,7 @@ import { useFindRadio } from "@/composables/useFindRadio";
 import { useLayerTables, useLayerThings, type TrafficParts } from "@/composables/useLayerThings";
 import { useSatelliteStore, useSatellites } from "@/composables/useSatellites";
 import { usePanel } from "@/composables/usePanel";
+import { useIgateLook } from "@/composables/useIgateLook";
 import { useRadioAsks } from "@/composables/useRadioAsks";
 import { useScopeLooks, type ScopeLooks } from "@/composables/useScopeLooks";
 import { scopeMemories } from "@/composables/useScopeRows";
@@ -54,6 +55,15 @@ function scopeOf(
   radios: Ref<RadioTopic>,
 ): ScopeLooks {
   return over.scope ?? useScopeLooks(send, connection, pageVisible(), { radios });
+}
+
+/** The lines put on APRS-IS and who looks at them: those a test gave, else the page's own counting. */
+function igateOf(over: Given, send: FakeDaemon["send"], connection: Ref<Connection>) {
+  const sent = over.igateSent;
+  return {
+    igateSent: isRef(sent) ? sent : shallowRef(sent ?? []),
+    igateLook: over.igateLook ?? useIgateLook(send, connection, pageVisible()),
+  };
 }
 
 type RadioTopic = ReadonlyMap<string, RadioRow> | null;
@@ -126,6 +136,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     radioAdded: part(over.radioAdded, null),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
+    ...igateOf(over, sender, connection),
     qru: part(over.qru, null),
     general: part(over.general, null),
     skeds: part(over.skeds, null),

@@ -9,6 +9,7 @@ import type {
   SkedsState,
   GpsState,
   HelloMessage,
+  IgateSentLine,
   IgateState,
   InstallInfo,
   MapState,
@@ -30,6 +31,7 @@ import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
 import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
+import { sentAfter } from "@/lib/igatesent";
 import { fillTable, Hub, type Connection, type Store } from "@/lib/hub";
 import { describeMismatch, reloadForDaemon, type Mismatch } from "@/lib/reload";
 import { takeUnits } from "@/lib/units";
@@ -67,6 +69,7 @@ function useWholeTopics() {
     selfUpdate: shallowRef<UpdateState | null>(null),
     gps: shallowRef<GpsState | null>(null),
     igate: shallowRef<IgateState | null>(null),
+    igateSent: shallowRef<readonly IgateSentLine[]>([]),
     qru: shallowRef<QruState | null>(null),
     general: shallowRef<GeneralState | null>(null),
     skeds: shallowRef<SkedsState | null>(null),
@@ -88,6 +91,7 @@ function useWholeTopics() {
     | "radioLevel"
     | "layerThings"
     | "satellites"
+    | "igateSent"
   > = {
     replaceConfig: (value) => {
       refs.config.value = value;
@@ -103,6 +107,7 @@ function useWholeTopics() {
     ...radios.handlers,
     ...layers.handlers,
     ...satellites.handlers,
+    igateSent: (message) => (refs.igateSent.value = sentAfter(refs.igateSent.value, message)),
   };
   return { refs, handlers };
 }

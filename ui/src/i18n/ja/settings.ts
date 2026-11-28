@@ -275,6 +275,7 @@ export const settings: Record<keyof typeof source, Message> = {
     other: "送信: NeoAPRSの起動から{n}パケット",
   },
   "settings.igate.fold.named": "{name}({server})",
+  "settings.igate.sent_label": "APRS-IS に送ったパケット",
 
   "settings.alert.tip1": "「通知」をオンにすると、メッセージが届いたときにコマンドを実行します。",
   "settings.alert_command.name": "アラートのコマンド",
