@@ -12,6 +12,7 @@ import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
 import { radioBlockedReason } from "@/lib/compose";
+import { internetCarries } from "@/lib/messages";
 import { checkingMail } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -21,7 +22,7 @@ const props = withDefaults(
     freshAfter: Number.MAX_SAFE_INTEGER,
   },
 );
-const { heardDirect, settings } = useDaemonContext();
+const { heardDirect, settings, igate } = useDaemonContext();
 const emit = defineEmits<{
   send: [to: string, text: string];
   forget: [name: string];
@@ -37,8 +38,11 @@ const radios = useRadios();
 /** The radio email goes on, as the daemon reports it; null while no sending radio is on. */
 const mail = computed(() => radios.email.value);
 const named = computed(() => mail.value !== null && radios.named(mail.value.id));
-/** Why email cannot go: no radio to send on, or its link is down; undefined when it can. */
-const offline = computed(() => radioBlockedReason(mail.value, named.value));
+/** Why email cannot go: no radio to send on, or its link is down; undefined when it can (or goes over the Internet
+ * connection). */
+const offline = computed(() =>
+  internetCarries(igate.value) ? undefined : radioBlockedReason(mail.value, named.value),
+);
 /** The radios offered in the list: every sending radio while several are on; none with one. */
 const choices = computed(() => (radios.severalSenders.value ? radios.senders.value : []));
 /** The list's id, which the label Send on points at. */

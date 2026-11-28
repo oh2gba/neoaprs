@@ -15,7 +15,6 @@ import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useCameOn } from "@/composables/useStationRadio";
-import { radioTone } from "@/lib/channels";
 import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
@@ -115,9 +114,7 @@ const copy = useCopyMenu((bubble) => {
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
         <p v-if="m.route || on || reading(m) !== null" class="bubble-route muted" :title="t('messages.route_title')">
-          <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{
-            on.name
-          }}</TagMark>
+          <TagMark v-if="on" :tone="on.tone" :title="on.title">{{ on.label }}</TagMark>
           {{ routeWords(m.route)
           }}<template v-if="reading(m) !== null"
             ><template v-if="m.route || on"> · </template>{{ reading(m) }}</template

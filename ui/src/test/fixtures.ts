@@ -292,7 +292,15 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
 }
 
 export function attemptRow(extra: Partial<AttemptRow> = {}): AttemptRow {
-  return { sent_at: "2026-10-22T12:00:00Z", hops: [], internet: null, acked: false, radio_id: 1, ...extra };
+  return {
+    sent_at: "2026-10-22T12:00:00Z",
+    hops: [],
+    internet: null,
+    acked: false,
+    radio_id: 1,
+    by_internet: false,
+    ...extra,
+  };
 }
 
 export function incoming(id: number, from: string, extra: Partial<MessageRow> = {}): MessageRow {

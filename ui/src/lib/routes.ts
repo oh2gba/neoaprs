@@ -10,6 +10,8 @@ type Counts = Pick<StationRow, "heard_direct" | "heard_via" | "heard_rf_gated" |
 
 /** A station heard direct within this long has a ring on its marker. */
 const DIRECT_RECENT_SEC = 3600;
+/** The route of a message that came over the Internet connection (neoaprs/message.py INTERNET_ROUTE). */
+export const INTERNET_ROUTE = "internet";
 type Suggestion = Pick<StationRow, "best_route" | "suggested_path">;
 
 /** A station we heard a packet from, in words: `?` is a repeater that put no call in the packet
@@ -23,6 +25,8 @@ export function viaName(call: string): string {
  * text that is no route stays as it is. */
 export function routeWords(text: string, unnamed = "?"): string {
   if (text === "direct") return t("route.direct");
+  // (a message from the Internet connection: its tag says it)
+  if (text === INTERNET_ROUTE) return "";
   const route = routeHops(text);
   if (route === null) return text;
   const gate = route.gate === null ? [] : [t("route.hop.gate", { call: route.gate })];

@@ -12,10 +12,22 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import ConversationView from "@/components/ConversationView.vue";
+import MessageChain from "@/components/MessageChain.vue";
 import EmailPane from "@/components/EmailPane.vue";
 import type { MessageRow, RadioRow, StationRow } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, heardBy, incoming, message, radioRow, radiosTopic, station, status } from "@/test/fixtures";
+import {
+  attemptRow,
+  configValues,
+  heardBy,
+  igateState,
+  incoming,
+  message,
+  radioRow,
+  radiosTopic,
+  station,
+  status,
+} from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
@@ -581,5 +593,61 @@ describe("a station whose position takes no messages", () => {
         .find(".convo-maynot")
         .exists(),
     ).toBe(false);
+  });
+});
+
+describe("a message to an internet service over the Internet connection", () => {
+  const connected = igateState();
+  const youMark = (row: MessageRow, given: Given = {}) =>
+    mount(MessageChain, { props: { row }, global: withDaemon(fakeDaemon({ radios: HF_OFF, ...given })) })
+      .find(".chain-latest .chip-hop")
+      .text();
+
+  it("names the Internet on the chip of an attempt that went over it, with one radio on too, and a radio as before", () => {
+    const over = attemptRow({ by_internet: true, radio_id: null });
+    expect(youMark(message(1, { to_call: "OTA", attempts_detail: [over] }))).toBe("youInternet");
+    expect(youMark(message(1, { to_call: "OTA", attempts_detail: [attemptRow()] }))).toBe("you");
+  });
+
+  it("tags an answer that came over the Internet connection Internet, in the place of a radio's tag, with no route words", () => {
+    const answer = incoming(2, "OTA", { radio_id: null, route: "internet", text: "Chase logged" });
+    const route = mount(ConversationThread, {
+      props: { thread: [answer], peer: "OTA" },
+      global: withDaemon(fakeDaemon({ radios: HF_OFF })),
+    }).find(".bubble-route");
+    expect([route.text(), route.find(".tag").classes(), route.find(".tag").attributes("title")]).toEqual([
+      "Internet",
+      expect.arrayContaining(["tag-info"]),
+      "Received over the internet (APRS-IS), not on the radio",
+    ]);
+  });
+
+  it("lets Send go while the radio is down and the Internet connection carries messages, and holds it for a station", async () => {
+    const down = radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }));
+    expect(await sendOf(header("OTA", [], [], { radios: down, igate: shallowRef(connected) }))).toEqual([
+      false,
+      undefined,
+    ]);
+    expect(await sendOf(header("OH2RDG", [], [], { radios: down, igate: shallowRef(connected) }))).toEqual([
+      true,
+      "The radio is not connected",
+    ]);
+    const listening = igateState({ gate: false, state: "listening" });
+    expect((await sendOf(header("OTA", [], [], { radios: down, igate: shallowRef(listening) })))[0]).toBe(true);
+  });
+
+  it("lets email go while its radio is down and the Internet connection carries messages", async () => {
+    const wrapper = mount(EmailPane, {
+      props: { thread: [], addresses: [] },
+      global: withDaemon(
+        fakeDaemon({
+          radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" })),
+          igate: shallowRef(connected),
+        }),
+      ),
+    });
+    await wrapper.find("#mail-to").setValue("a@example.org");
+    await wrapper.find("#mail-text").setValue("hello");
+    expect(wrapper.find<HTMLButtonElement>(".mailform button[type='submit']").element.disabled).toBe(false);
   });
 });

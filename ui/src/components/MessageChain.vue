@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // The delivery chain under a message of ours (lib/chain.ts): the chips of its latest attempt,
-// the first naming the radio where radios are named. Nothing for a message with no attempt kept.
+// the first naming the radio where radios are named, and the Internet for an attempt over the Internet connection. Nothing for a message with no attempt kept.
 import { computed } from "vue";
 import ChainChips from "@/components/ChainChips.vue";
 import { useRadios } from "@/composables/useRadios";
+import { t } from "@/i18n";
 import { chainOf } from "@/lib/chain";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -22,7 +23,14 @@ const latest = computed(() => {
   const attempt = props.row.attempts_detail.at(-1);
   return attempt === undefined
     ? null
-    : chainOf(props.row, attempt, true, props.heardDirect, props.mail, radioName(attempt.radio_id));
+    : chainOf(
+        props.row,
+        attempt,
+        true,
+        props.heardDirect,
+        props.mail,
+        attempt.by_internet ? t("channel.is") : radioName(attempt.radio_id),
+      );
 });
 </script>
 
