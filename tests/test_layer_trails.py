@@ -113,6 +113,7 @@ async def test_nothing_is_asked_once_the_grace_has_passed(tmp_path: Path, look_g
     await tab.expect("layer_things")
     await tab.send({"cmd": "layer_look", "layer": "aircraft", "on": False})
     await until(lambda: "aircraft" not in e.ctl.layers._watched, 10.0)
+    await tab.quiet(1.0)  # a request already on its way when the look ended still arrives
     asked = len(receiver.paths())
     await tab.quiet(1.0)
     assert len(receiver.paths()) == asked
