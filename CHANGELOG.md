@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.27.0
+
 - **New:** on Windows a paired Bluetooth radio is listed by its name and connected to directly.
 - **New:** the HF tests tab has a chat: a line to everyone using the tab, over the Internet, never on the air.
 - **New:** a new line in the chat tells you as a message does; Notifications has HF tests chat to switch it off.
