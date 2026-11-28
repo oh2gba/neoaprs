@@ -46,7 +46,10 @@ class Rig(ServiceRig):
             lambda: self.config,
             self.objects,
             self.book,
-            lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls),
+            # as the station book: a radio that carries no path has no path of its own for a station
+            lambda call, attempt=None, radio=1: (
+                () if radio == HF_ID else self.paths.get(call, self.config.beacon_path_calls)
+            ),
             self.clock,
             spacing_sec=0.02,
             first_wait_sec=first_wait_sec,

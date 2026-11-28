@@ -264,6 +264,31 @@ async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -
     )
 
 
+async def test_an_answer_on_a_radio_that_carries_no_path_goes_back_by_the_gateway_the_asker_came_through() -> None:
+    """On Mercury a station behind another's pair of radios is reached through that pair's call; RF only
+    puts RFONLY after it, never in its place."""
+    rig = Rig()
+    hf = StubTnc(max_frame=123)
+    pick = pick_of(rig, hf)
+    rig.q = Queries(
+        pick,
+        lambda: rig.config,
+        rig.beacon,
+        lambda radio=None: None,
+        rig.book,
+        lambda call, attempt=None, radio=1: ("OH3GWX-12",) if radio == HF_ID else (),
+        rig.clock,
+    )
+    remember_stop(rig.q.stop)
+    rig.q.on_packet(replace(rig.packet("OH2FAR", Message("OH2GBA", "?APRSD", None)), radio_id=HF_ID))
+    await until(lambda: len(hf.sent) == 1)
+    assert hf.sent[0].path_text == "OH3GWX-12"
+    frame = rig.q._answers.message("OH2FAR", "hello")
+    assert rig.q._answers.deliver("OH2FAR", "qru", [frame], rig.clock(), False, rf_only=True, radio=pick.radios[-1])
+    await until(lambda: len(hf.sent) == 2)
+    assert hf.sent[1].path_text == "OH3GWX-12,RFONLY"
+
+
 async def test_aprsd_on_a_radio_that_carries_paths_leaves_out_a_station_heard_direct_only_on_another() -> None:
     rig = Rig()
     pick = pick_of(rig)
@@ -382,4 +407,4 @@ async def test_an_rf_only_asker_whose_fm_path_is_too_long_for_rfonly_is_answered
     rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSP", None)), radio_id=HF_ID))
     await until(lambda: len(hf.sent) == 1)
     await idle_for(0.1)
-    assert rig.tnc.sent == [] and hf.sent[0].path_text == ""
+    assert rig.tnc.sent == [] and hf.sent[0].path_text == "RFONLY", "direct, RF only"
