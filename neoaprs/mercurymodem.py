@@ -12,7 +12,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 
-from . import mercuryhelper, nodevices
+from . import nodevices
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import Config
@@ -49,8 +49,8 @@ from .mercuryhelper import (
     free_ports,
     is_shipped,
     list_sound_cards,
+    first_pair,
     next_modem_ports,
-    pair_ports,
 )
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryruns import PORTS_TAKEN, REASONS as REASONS, Runs, owners_of, owners_words
@@ -387,14 +387,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
         """Return a free pair of ports: the first the probe finds that no other modem holds."""
         if self.claims is None:
             return free_ports()
-        try:
-            first = free_ports()[0]
-        except PortsTaken as e:
-            # a Mercury on a pair another radio of ours holds is that radio's, not a stranger's: pass it over
-            held = {p for h in self.claims.held_by_others(self.holder, "modem_ports") for p in pair_ports(int(h))}
-            if not held.issuperset(e.ports):
-                raise
-            first = mercuryhelper.OWN_PAIR
+        first = first_pair(self.claims, self.holder, free_ports)
         return ports_from(next_modem_ports(self.claims, self.holder, first=first))
 
     def _ended(self, code: int | None, lines: list[str]) -> None:

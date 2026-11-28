@@ -193,6 +193,18 @@ def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES, mercury: bo
     raise OSError(f"no free pair of ports from {first} to {first + tries}")
 
 
+def first_pair(claims: Claims, holder: RadioId, probe: Callable[[], tuple[int, int]]) -> int:
+    """Return the broadcast port the probe finds free; a Mercury on a pair another radio of ours holds is
+    that radio's, not a stranger's, and is passed over (then the search starts at OWN_PAIR)."""
+    try:
+        return probe()[0]
+    except PortsTaken as e:
+        held = {port for h in claims.held_by_others(holder, "modem_ports") for port in pair_ports(int(h))}
+        if not held.issuperset(e.ports):
+            raise
+        return OWN_PAIR
+
+
 def next_modem_ports(
     claims: Claims,
     holder: RadioId,
