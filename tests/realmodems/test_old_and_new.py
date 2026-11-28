@@ -3,6 +3,8 @@ on one HF cable: operators run other versions beside ours. A, G and B as in test
 with B's daemon on the previous Mercury and once with G's; each time a message crosses from A to B by
 way of the pair's call and its ack comes back, and the same from B to A."""
 
+# The cases are one story told in order on one set of stations (tests/realmodems/conftest.py).
+
 import asyncio
 import os
 from collections.abc import AsyncIterator

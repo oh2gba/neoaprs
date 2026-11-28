@@ -3,6 +3,8 @@ and Mercury, its pair on) and B (Mercury) the HF cable. Messages and acks cross 
 alone and a message to G itself stay off HF, and a beacon by way of the pair's call reaches B. H1 and H2
 (Direwolf at 300 baud) share a cable of their own: a message and its ack."""
 
+# The cases are one story told in order on one set of stations (tests/realmodems/conftest.py).
+
 import asyncio
 import os
 import re
