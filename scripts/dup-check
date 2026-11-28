@@ -33,7 +33,7 @@ else
         newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
         [ -n "$newest" ] && PATH="$newest:$PATH"
     fi
-    if [ -x ui/node_modules/.bin/jscpd ]; then jscpd="$root/ui/node_modules/.bin/jscpd"; else jscpd="npx --yes jscpd@5.4.2"; fi
+    if [ -x ui/node_modules/.bin/jscpd ]; then jscpd="$root/ui/node_modules/.bin/jscpd"; else jscpd="npx --yes jscpd@5.4.3"; fi
 fi
 paths=(neoaprs tests/support)
 

@@ -5,6 +5,7 @@ tested."""
 import importlib.util
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -189,3 +190,9 @@ def test_a_missing_report_or_a_bad_argument_is_an_error_not_a_pass(tree: Path) -
     failed = dup_check(tree, env)
     assert failed.returncode == 1 and "jscpd did not produce a report" in failed.stderr
     assert dup_check(tree, env, "--bogus").returncode == 2
+
+
+def test_the_jscpd_fetched_when_the_page_is_not_installed_is_the_one_the_page_pins() -> None:
+    pinned = json.loads((ROOT / "ui" / "package.json").read_text(encoding="utf-8"))["devDependencies"]["jscpd"]
+    fetched = re.findall(r"jscpd@([\d.]+)", (ROOT / "scripts" / "dup-check").read_text(encoding="utf-8"))
+    assert fetched == [pinned], "the baseline is made with the pinned jscpd"
