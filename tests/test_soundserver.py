@@ -22,6 +22,7 @@ def pactl_of(*names: str) -> soundserver.Run:
         ("list", "sources"): "sources",
         ("list", "sink-inputs"): "sink-inputs",
         ("list", "source-outputs"): "source-outputs",
+        ("list", "clients"): "clients",
     }
 
     def run(args: Sequence[str]) -> str | None:
@@ -132,25 +133,39 @@ def test_a_channel_the_source_does_not_have_stops_the_start() -> None:
     assert soundserver.missing("pulse:DEVICE=pro_in,CHANNEL=front-left|pulse:DEVICE=Radio_remap", nodes) != ""
 
 
-def test_the_modem_is_given_our_alsa_names() -> None:
+def test_the_modem_is_given_our_alsa_names_by_the_devices_index() -> None:
     nodes = nodes_of("virtual")
     assert (
         soundserver.alsa_setting("pulse:DEVICE=quad_in,CHANNEL=rear-right|pulse:DEVICE=Radio_remap", nodes, "pulse")
-        == "neoaprs_pulse_ch3:DEVICE=quad_in,CHANNELS=4|neoaprs_pulse:DEVICE=Radio_remap"
+        == "neoaprs_pa_ch3:82,4|neoaprs_pa:60"
     )
     assert (
         soundserver.alsa_setting("plughw:CARD=CODEC,DEV=0|pulse:DEVICE=Radio_remap", nodes, "pipewire")
-        == "plughw:CARD=CODEC,DEV=0|neoaprs_pipewire:DEVICE=Radio_remap"
+        == "plughw:CARD=CODEC,DEV=0|neoaprs_pw:60"
     )
     assert soundserver.alsa_setting("plughw:CARD=CODEC,DEV=0", nodes, "pulse") == "plughw:CARD=CODEC,DEV=0"
 
 
-def test_every_alsa_name_given_is_defined_in_the_configuration() -> None:
-    conf = soundserver.CONF.read_text(encoding="utf-8")
+def test_an_alsa_name_given_is_short_enough_for_direwolf() -> None:
+    # Direwolf opens no more than the first 29 characters of a name (audio.c, audio_in_name[30]); a
+    # cut name is one the server does not know, and that plays on the default device
+    long = Node(
+        "source", 999999, "alsa_input.usb-Roland_Rubix44-00.analog-surround-71", "Rubix", soundserver.ALSA_ORDER
+    )
     for via in soundserver.PLUGINS:
-        assert f"pcm.neoaprs_{via} {{" in conf
+        for channel in ("", *soundserver.ALSA_ORDER):
+            assert len(soundserver.alsa_name(soundserver.server_id(long.name, channel), "source", [long], via)) <= 29
+
+
+def test_every_alsa_name_given_is_defined_in_the_configuration_which_takes_in_the_systems_first() -> None:
+    conf = soundserver.CONF.read_text(encoding="utf-8")
+    assert [line for line in conf.splitlines() if line and not line.startswith("#")][
+        0
+    ] == f"<{soundserver.SYSTEM_CONF}>"
+    for via in soundserver.PLUGINS.values():
+        assert f"pcm.{via.prefix} {{" in conf
         for n in range(len(soundserver.ALSA_ORDER)):
-            assert f"pcm.neoaprs_{via}_ch{n} {{" in conf and f"ttable.0.{n} 1" in conf
+            assert f"pcm.{via.prefix}_ch{n} {{" in conf and f"ttable.0.{n} 1" in conf
 
 
 def test_the_card_behind_gives_the_levels_and_the_claims() -> None:
@@ -207,6 +222,15 @@ def test_a_device_gone_while_running_is_found() -> None:
     assert soundserver.misplaced("plughw:CARD=X,DEV=0|pulse:DEVICE=Radio_gone", play, pactl_of("virtual")) != ""
 
 
+def test_a_stream_of_pipewires_own_alsa_plugin_is_found_by_its_client() -> None:
+    # that plug-in's stream has no process id of its own: its client has (pipewire-clients.json)
+    run = pactl_of("pipewire")
+    play, rec = 46, 47  # the aplay and arecord of the fixture
+    assert soundserver.misplaced("plughw:CARD=X,DEV=0|pulse:DEVICE=Radio_remap", play, run) == ""
+    assert soundserver.misplaced("pulse:DEVICE=quad_in|plughw:CARD=X,DEV=0", rec, run) == ""
+    assert "not on Radio_null" in soundserver.misplaced("plughw:CARD=X,DEV=0|pulse:DEVICE=Radio_null", play, run)
+
+
 def test_no_stream_yet_is_no_fault() -> None:
     assert soundserver.misplaced("pulse:DEVICE=quad_in|pulse:DEVICE=Radio_remap", 999999, pactl_of("virtual")) == ""
 
@@ -218,14 +242,25 @@ def test_the_plugin_folder_is_found_where_the_system_keeps_it(tmp_path: Path) ->
     debian, fedora, arch = (tmp_path / d for d in ("x86_64-linux-gnu", "lib64", "lib"))
     for folder in (debian, fedora, arch):
         folder.mkdir()
-    (fedora / soundserver.PLUGINS["pipewire"]).write_bytes(b"")
+    (fedora / soundserver.PLUGINS["pipewire"].file).write_bytes(b"")
     assert soundserver.plugin_dir({}, [debian, fedora, arch]) == fedora
     assert soundserver.plugin(fedora) == "pipewire"
-    (arch / soundserver.PLUGINS["pulse"]).write_bytes(b"")
+    (arch / soundserver.PLUGINS["pulse"].file).write_bytes(b"")
     assert soundserver.plugin_dir({}, [debian, arch]) == arch
     assert soundserver.plugin(arch) == "pulse"
     assert soundserver.plugin_dir({}, [debian]) is None
     assert soundserver.plugin_dir({"ALSA_PLUGIN_DIR": str(debian)}, [fedora]) == debian
+
+
+def test_the_systems_alsa_library_is_the_one_beside_its_plugins(tmp_path: Path) -> None:
+    plugins = tmp_path / "lib64" / "alsa-lib"
+    plugins.mkdir(parents=True)
+    (plugins / soundserver.PLUGINS["pulse"].file).write_bytes(b"")
+    conf = tmp_path / "alsa.conf"
+    assert soundserver.system_alsa(plugins, conf) is None, "no library, no configuration"
+    (tmp_path / "lib64" / "libasound.so.2").write_bytes(b"")
+    conf.write_text("")
+    assert soundserver.system_alsa(plugins, conf) == soundserver.SystemAlsa(tmp_path / "lib64", conf)
 
 
 def test_a_device_of_the_server_is_never_proposed_nor_chosen() -> None:

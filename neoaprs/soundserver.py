@@ -12,7 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -30,10 +30,21 @@ _NAME = re.compile(r"^[A-Za-z0-9_.:@+-]+$")
 # The order of the channels the ALSA plug-ins of both servers give a reader of 4, 5, 6 or 8 channels.
 ALSA_ORDER = ("front-left", "front-right", "rear-left", "rear-right", "front-center", "lfe", "side-left", "side-right")
 _PICKABLE = (4, 5, 6, 8)
-PLUGINS = {"pulse": "libasound_module_pcm_pulse.so", "pipewire": "libasound_module_pcm_pipewire.so"}
 
 Kind = Literal["sink", "source"]
 Run = Callable[[Sequence[str]], str | None]
+
+
+@dataclass(frozen=True)
+class Plugin:
+    file: str  # the ALSA plug-in of the server
+    prefix: str  # the names of soundserver.conf that go through it
+
+
+PLUGINS = {
+    "pulse": Plugin("libasound_module_pcm_pulse.so", "neoaprs_pa"),
+    "pipewire": Plugin("libasound_module_pcm_pipewire.so", "neoaprs_pw"),
+}
 
 
 @dataclass(frozen=True)
@@ -216,30 +227,47 @@ def plugin_dir(env: Mapping[str, str] | None = None, roots: Sequence[Path] | Non
         Path("/usr/lib64/alsa-lib"),
         Path("/usr/lib/alsa-lib"),
     ):
-        if any((folder / f).is_file() for f in PLUGINS.values()):
+        if any((folder / p.file).is_file() for p in PLUGINS.values()):
             return folder
     return None
 
 
+@dataclass(frozen=True)
+class SystemAlsa:
+    lib: Path  # the folder of the system's libasound.so.2
+    conf: Path  # its alsa.conf
+
+
+SYSTEM_CONF = Path("/usr/share/alsa/alsa.conf")
+
+
+def system_alsa(plugins: Path | None = None, conf: Path = SYSTEM_CONF) -> SystemAlsa | None:
+    """Return the system's ALSA library beside its plug-ins of the sound server, None without one.
+
+    The plug-ins are built for that library: the shipped one may be older (Fedora's need ALSA_1.2.15)."""
+    plugins = plugin_dir() if plugins is None else plugins
+    lib = None if plugins is None else plugins.parent
+    return SystemAlsa(lib, conf) if lib is not None and (lib / "libasound.so.2").is_file() and conf.is_file() else None
+
+
 def plugin(folder: Path | None) -> str:
     """Return the server plug-in an ALSA name goes through: Pulse's where it is, else PipeWire's."""
-    return (
-        "pipewire"
-        if folder is not None and not (folder / PLUGINS["pulse"]).is_file() and (folder / PLUGINS["pipewire"]).is_file()
-        else "pulse"
-    )
+    have = {name for name, p in PLUGINS.items() if folder is not None and (folder / p.file).is_file()}
+    return "pipewire" if have == {"pipewire"} else "pulse"
 
 
 def alsa_name(half: str, kind: Kind, nodes: Sequence[Node], via: str) -> str:
-    """Return the ALSA name a modem opens for one half of the setting; an ALSA card's id stays as it is."""
+    """Return the ALSA name a modem opens for one half of the setting; an ALSA card's id stays as it is.
+
+    The device goes by its index of this listing: Direwolf opens only the first 29 characters of a name."""
     node = find(nodes, kind, half) if is_server(half) else None
     if node is None:
         return half
     parsed = parse_id(half)
-    channel = parsed[1] if parsed else ""
+    channel, prefix = parsed[1] if parsed else "", PLUGINS[via].prefix
     if channel:
-        return f"neoaprs_{via}_ch{ALSA_ORDER.index(channel)}:DEVICE={node.name},CHANNELS={len(node.positions)}"
-    return f"neoaprs_{via}:DEVICE={node.name}"
+        return f"{prefix}_ch{ALSA_ORDER.index(channel)}:{node.index},{len(node.positions)}"
+    return f"{prefix}:{node.index}"
 
 
 def alsa_setting(setting: str, nodes: Sequence[Node], via: str) -> str:
@@ -281,25 +309,36 @@ def claims(setting: str, nodes: Sequence[Node], card_names: Mapping[int, str]) -
 _STREAMS: dict[Kind, str] = {"sink": "sink-inputs", "source": "source-outputs"}
 
 
-def stream_targets(text: str | None, pid: int, field: Kind) -> list[int] | None:
-    """Return the sinks or sources the process's streams sit on (`list sink-inputs|source-outputs`)."""
-    if text is None:
-        return None
+def _entries(text: str | None) -> list[dict[str, Any]] | None:
     try:
-        entries = json.loads(text)
+        entries = json.loads(text) if text is not None else None
     except ValueError:
         return None
-    return (
-        [
-            e[field]
-            for e in entries
-            if isinstance(e, dict)
-            and isinstance(e.get(field), int)
-            and (e.get("properties") or {}).get("application.process.id") == str(pid)
-        ]
-        if isinstance(entries, list)
-        else None
-    )
+    return [e for e in entries if isinstance(e, dict)] if isinstance(entries, list) else None
+
+
+def clients_of(text: str | None, pid: int) -> set[str]:
+    """Return the indexes of the process's clients (`list clients`), as the streams name them."""
+    return {
+        str(e.get("index"))
+        for e in _entries(text) or []
+        if (e.get("properties") or {}).get("application.process.id") == str(pid)
+    }
+
+
+def stream_targets(text: str | None, pid: int, field: Kind, clients: Collection[str] = ()) -> list[int] | None:
+    """Return the sinks or sources the process's streams sit on (`list sink-inputs|source-outputs`).
+
+    A stream of PipeWire's own ALSA plug-in has no process id of its own; its client, one of `clients`, has."""
+    entries = _entries(text)
+    if entries is None:
+        return None
+    return [
+        e[field]
+        for e in entries
+        if isinstance(e.get(field), int)
+        and ((e.get("properties") or {}).get("application.process.id") == str(pid) or str(e.get("client")) in clients)
+    ]
 
 
 def misplaced(setting: str, pid: int, run: Run | None = None) -> str:
@@ -310,11 +349,12 @@ def misplaced(setting: str, pid: int, run: Run | None = None) -> str:
         return ""
     if why := missing(setting, nodes):
         return why
+    clients = clients_of(run(["list", "clients"]), pid)
     for kind, half in halves(setting):
         node = find(nodes, kind, half) if is_server(half) else None
         if node is None:
             continue
-        on = stream_targets(run(["list", _STREAMS[kind]]), pid, kind)
+        on = stream_targets(run(["list", _STREAMS[kind]]), pid, kind, clients)
         if on and any(i != node.index for i in on):
             return f"the {kind} stream of process {pid} is not on {node.name} but on {sorted(set(on) - {node.index})}"
     return ""

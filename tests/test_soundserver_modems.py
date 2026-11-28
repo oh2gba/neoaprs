@@ -51,6 +51,8 @@ class Server:
     def __call__(self, args: Sequence[str]) -> str | None:
         self.asked += 1
         part = args[1]
+        if part == "clients":
+            return "[]"  # (the streams of the fixture carry their process's id themselves)
         if part in ("sinks", "sources"):
             return json.dumps([e for e in self._entries(part) if e["name"] not in self.gone])
         field, at = ("sink", 0) if part == "sink-inputs" else ("source", 1)
@@ -88,7 +90,8 @@ async def test_direwolf_opens_the_named_devices_by_our_alsa_names(tmp_path: Path
     await m.start(f"{SOURCE},CHANNEL=rear-right|{SINK}", "vox", 0)
     await until_started(lambda: m.state == "running")
     conf = (m.home / CONF_FILE).read_text(encoding="utf-8")
-    assert "ADEVICE neoaprs_pulse_ch3:DEVICE=quad_in,CHANNELS=4 neoaprs_pulse:DEVICE=Radio_remap\n" in conf
+    assert m._program.system_sound, "on the system's ALSA library, for whose version its plug-ins are built"
+    assert "ADEVICE neoaprs_pa_ch3:82,4 neoaprs_pa:60\n" in conf
     await m.stop()
 
 
@@ -121,8 +124,8 @@ async def test_mercury_is_given_our_alsa_names_and_ended_when_its_device_goes(tm
     await m.start(replace(HF, mercury_sound_card=SETTING))
     await until_started(lambda: m.state == "running")
     argv = started[-1]
-    assert argv[argv.index("-i") + 1] == "neoaprs_pulse:DEVICE=quad_in"
-    assert argv[argv.index("-o") + 1] == "neoaprs_pulse:DEVICE=Radio_remap"
+    assert argv[argv.index("-i") + 1] == "neoaprs_pa:82"
+    assert argv[argv.index("-o") + 1] == "neoaprs_pa:60"
     pid = m.pid
     server.gone.add("Radio_remap")
     await until(lambda: m.reason == "sound_card")
@@ -134,7 +137,7 @@ async def test_an_alsa_card_starts_as_before_and_asks_the_server_nothing(tmp_pat
     m = direwolf_modem(tmp_path)
     await m.start("plughw:1,0", "vox", 0)
     await until_started(lambda: m.state == "running")
-    assert server.asked == 0
+    assert server.asked == 0 and not m._program.system_sound
     await m.stop()
 
 

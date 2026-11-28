@@ -175,9 +175,7 @@ def test_the_bundled_alsa_configuration_is_given_to_the_program_through_the_envi
     conf = tmp_path / "mercury" / "share" / "alsa" / "alsa.conf"
     conf.parent.mkdir(parents=True)
     conf.write_text("")
-    assert environment([str(program)])["ALSA_CONFIG_PATH"] == f"{conf}:{soundserver.CONF}", (
-        "then the names of the sound server's devices (neoaprs/soundserver.conf)"
-    )
+    assert environment([str(program)])["ALSA_CONFIG_PATH"] == str(conf)
     assert "ALSA_CONFIG_PATH" not in environment([sys.executable, "-m", "tests.support.fakemercury"]), (
         "the fake that stands in for the program is not a bundle"
     )
@@ -1374,20 +1372,24 @@ async def test_on_windows_mercurys_own_log_goes_into_the_radios_folder_not_the_i
         await stopped(m)
 
 
-def test_the_bundled_alsa_library_is_told_where_the_system_keeps_its_plugins(
+def test_a_program_on_a_sound_servers_device_runs_on_the_systems_alsa_library(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The shipped libasound looks for plug-ins in Debian's folder only; Fedora, openSUSE and Arch keep
-    the sound server's plug-in elsewhere."""
-    monkeypatch.delenv("ALSA_PLUGIN_DIR", raising=False)
+    """The system's plug-in of the sound server is built for the system's libasound (Fedora's needs
+    ALSA_1.2.15, newer than the shipped one, measured): such a run takes the system's library and its
+    configuration, the shipped one stays for a card."""
     program = tmp_path / "mercury" / "mercury"
     (tmp_path / "mercury" / "share" / "alsa").mkdir(parents=True)
     program.write_text("")
     (tmp_path / "mercury" / "share" / "alsa" / "alsa.conf").write_text("")
-    plugins = tmp_path / "lib64" / "alsa-lib"
-    plugins.mkdir(parents=True)
-    (plugins / soundserver.PLUGINS["pipewire"]).write_bytes(b"")
-    monkeypatch.setattr(soundserver, "plugin_dir", lambda env=None, roots=None: plugins)
-    assert environment([str(program)])["ALSA_PLUGIN_DIR"] == str(plugins)
-    monkeypatch.setattr(soundserver, "plugin_dir", lambda env=None, roots=None: None)
-    assert "ALSA_PLUGIN_DIR" not in environment([str(program)])
+    system = soundserver.SystemAlsa(tmp_path / "lib64", tmp_path / "share" / "alsa.conf")
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: system)
+    env = environment([str(program)], system_sound=True)
+    # (one file: openSUSE's ALSA reads no list of them; ours includes the system's alsa.conf first)
+    assert env["LD_LIBRARY_PATH"] == str(system.lib) and env["ALSA_CONFIG_PATH"] == str(soundserver.CONF)
+    card = environment([str(program)])
+    assert "LD_LIBRARY_PATH" not in card and card["ALSA_CONFIG_PATH"] == str(
+        tmp_path / "mercury" / "share" / "alsa" / "alsa.conf"
+    )
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: None)
+    assert "LD_LIBRARY_PATH" not in environment([str(program)], system_sound=True), "none found: the shipped one"

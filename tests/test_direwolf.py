@@ -349,8 +349,6 @@ def test_a_keying_holds_its_serial_port_and_on_windows_cm108_holds_the_one_chip_
 
 def test_a_record_and_a_play_device_are_both_written_as_adevice() -> None:
     # a sound server's source and sink are two ALSA names (Direwolf's ADEVICE takes the input, then the output)
-    assert adevice("neoaprs_pulse:DEVICE=quad_in|neoaprs_pulse:DEVICE=Radio_remap") == (
-        "neoaprs_pulse:DEVICE=quad_in neoaprs_pulse:DEVICE=Radio_remap"
-    )
+    assert adevice("neoaprs_pa_ch3:82,4|neoaprs_pa:60") == "neoaprs_pa_ch3:82,4 neoaprs_pa:60"
     with pytest.raises(ValueError):
-        adevice("neoaprs_pulse:DEVICE=quad_in|")
+        adevice("neoaprs_pa:82|")

@@ -7,6 +7,7 @@ must sit on them: a name the server does not know plays on the default device, t
 import asyncio
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from .mercuryhelper import alsa_card_names
 from .mercurycards import SoundCard
@@ -23,6 +24,7 @@ class SoundServing:
     LOG: logging.Logger
     sound_card: str
     _tasks: TaskSet
+    _program: Any  # the modem's childprogram.Program
     nodes: tuple[Node, ...] = ()  # the server's devices at the last start that named one
     _via = "pulse"
 
@@ -50,7 +52,9 @@ class SoundServing:
         return server_cards(alsa_card_names())
 
     def _alsa(self) -> str:
-        """Return the sound card setting as the ALSA names the program opens."""
+        """Return the sound card setting as the ALSA names the program opens, and have the run take
+        the system's ALSA library where they are a sound server's (childprogram.environment)."""
+        self._program.system_sound = uses_server(self.sound_card)
         return alsa_setting(self.sound_card, self.nodes, self._via)
 
     def _behind(self) -> str:
