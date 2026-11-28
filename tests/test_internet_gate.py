@@ -170,9 +170,10 @@ def test_the_connection_to_aprs_is_has_one_outlet_for_what_it_reads_and_it_is_th
     readers = [
         (name, value) for name, value in vars(e.ctl.aprsis).items() if hasattr(value, "emit") and name != "heard"
     ]
-    assert [name for name, _ in readers] == ["state_changed", "changed"], (
+    assert [name for name, _ in readers] == ["state_changed", "changed", "written"], (
         "the connection's other signals carry no packet"
     )
+    assert e.ctl.aprsis.written._handlers == [e.ctl.igate.written], "what it wrote goes to the list of sent lines alone"
     taken = packet_takers(e)
     assert "aprsis" not in taken, (
         "(no method of the connection takes a packet: it only makes them, from the lines of the server)"
