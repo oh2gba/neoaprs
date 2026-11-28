@@ -5,6 +5,8 @@
 name: nightly
 
 on:
+  push:
+    branches: ["try/r21-t"]
   schedule:
     - cron: "43 1 * * *"
   workflow_dispatch:
