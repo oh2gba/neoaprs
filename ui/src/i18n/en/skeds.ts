@@ -16,6 +16,7 @@ export const skeds = {
   "skeds.join_label": "Join the test of {calls}, {when}",
   "skeds.delete_title": "Delete (take it off the board)",
   "skeds.delete_label": "Delete our test, {when}",
+  "skeds.past_delete_label": "Delete the past test, {when}",
 
   "skeds.post_label": "Plan a test",
   "skeds.day": "Day",

@@ -4,7 +4,8 @@
 // the Bulletins tab's kind. Skeds with the same times and dial are one row (lib/skeds.ts, SkedItem).
 // A row with a sked of ours has Delete (two presses); other rows have Join, which posts a sked with
 // the same times and dial. That column keeps its width and Join is off, not gone, while a post is not
-// possible; a past test has neither. The past tests are the last thing of the scrolling pane, so
+// possible. A past test has the trash there (two presses), which takes it off this installation's
+// list only (`sked_past_delete`). The past tests are the last thing of the scrolling pane, so
 // nothing moves when they come or change. An unreachable board shows the skeds and past tests last
 // read; a closed board shows them without the form. The form is fixed at the bottom (SkedCompose),
 // and under it the chat (ChatBox).
@@ -32,6 +33,8 @@ const state = computed(() => skeds.value?.state ?? null);
 const listed = computed(() => state.value === "ok" || state.value === "closed");
 const canPost = computed(() => state.value === "ok" && mayPostAs(call.value));
 const remove = (g: SkedGroup): void => g.ours.forEach((row) => void send({ cmd: "sked_delete", id: row.id }));
+const pastKey = (g: SkedGroup): string => `past:${g.key}`;
+const removePast = (g: SkedGroup): void => void send({ cmd: "sked_past_delete", ids: g.rows.map((row) => row.id) });
 const joining = useCommandInFlight("sked_post", () => skeds.value?.rows);
 const join = (g: SkedGroup): boolean =>
   joining.run(() => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" }));
@@ -74,7 +77,14 @@ const join = (g: SkedGroup): boolean =>
         <legend class="board-title">{{ t("skeds.past_title") }}</legend>
         <p v-if="past.length === 0" class="empty">{{ t("skeds.past_empty") }}</p>
         <ul v-else class="board">
-          <SkedItem v-for="g in past" :key="g.key" :group="g" />
+          <SkedItem v-for="g in past" :key="g.key" :group="g">
+            <IconButton
+              kind="delete"
+              :armed="sure.armed.value === pastKey(g)"
+              :label="t('skeds.past_delete_label', { when: whenText(g.from, g.to) })"
+              @click="sure.press(pastKey(g), () => removePast(g))"
+            />
+          </SkedItem>
         </ul>
       </fieldset>
     </div>

@@ -19,6 +19,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.join_label": "Participar do teste de {calls}, {when}",
   "skeds.delete_title": "Excluir (tirar do quadro)",
   "skeds.delete_label": "Excluir nosso teste, {when}",
+  "skeds.past_delete_label": "Excluir o teste anterior, {when}",
 
   "skeds.post_label": "Marcar um teste",
   "skeds.day": "Dia",

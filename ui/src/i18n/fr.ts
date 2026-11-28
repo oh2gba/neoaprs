@@ -622,6 +622,7 @@ export const fr: Catalogue = {
   "skeds.join_label": "Rejoindre l'essai de {calls}, {when}",
   "skeds.delete_title": "Supprimer (le retirer du tableau)",
   "skeds.delete_label": "Supprimer notre essai, {when}",
+  "skeds.past_delete_label": "Supprimer l'essai passé, {when}",
 
   "skeds.post_label": "Prévoir un essai",
   "skeds.day": "Jour",

@@ -622,6 +622,7 @@ export const de: Catalogue = {
   "skeds.join_label": "Beim Test von {calls} mitmachen, {when}",
   "skeds.delete_title": "Löschen (von der Tafel nehmen)",
   "skeds.delete_label": "Unseren Test löschen, {when}",
+  "skeds.past_delete_label": "Vergangenen Test löschen, {when}",
 
   "skeds.post_label": "Test planen",
   "skeds.day": "Tag",

@@ -19,6 +19,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.join_label": "Liity testiin: {calls}, {when}",
   "skeds.delete_title": "Poista (ota pois taululta)",
   "skeds.delete_label": "Poista oma testimme, {when}",
+  "skeds.past_delete_label": "Poista mennyt testi, {when}",
 
   "skeds.post_label": "Suunnittele testi",
   "skeds.day": "Päivä",
