@@ -766,9 +766,7 @@ def test_dependabot_proposes_the_python_and_page_packages_weekly_grouped_with_ma
     """One pull request for the minor and patch steps of each ecosystem, a major step on its own,
     every Monday, pins kept exact; nothing in the file merges a proposal."""
     text = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
-    blocks = {
-        m.group(1): m.group(0) for m in re.finditer(r'- package-ecosystem: "([\w-]+)"\n(?:\s{4}.*\n?)+', text)
-    }
+    blocks = {m.group(1): m.group(0) for m in re.finditer(r'- package-ecosystem: "([\w-]+)"\n(?:\s{4}.*\n?)+', text)}
     assert set(blocks) == {"uv", "npm", "github-actions"}, blocks
     assert re.search(r'directory: "/"\n', blocks["uv"]) and re.search(r'directory: "/ui"\n', blocks["npm"])
     for name, block in blocks.items():
