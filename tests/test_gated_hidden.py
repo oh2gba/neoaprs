@@ -132,6 +132,21 @@ async def test_a_gated_packet_heard_while_unticked_is_kept_and_shown_once_the_ti
     await e.stop()
 
 
+async def test_the_route_to_a_sender_heard_only_through_an_igate_is_told_while_its_row_is_hidden(
+    tmp_path: Path,
+) -> None:
+    e, page = await start(tmp_path, show=False)
+    await page.until(lambda: "call_routes" in page.topics and overheard(page) == ["OH2MSG received"])
+    assert "OH2MSG" not in page.topics["stations"]
+    await page.send({"cmd": "set_station_path", "call": "OH2MSG", "path": "OH2RCH-2", "radio": 1})
+    await page.until(lambda: "OH2MSG" in page.topics["call_routes"])
+    assert page.topics["call_routes"]["OH2MSG"]["paths"] == {"1": "OH2RCH-2"}, "the reply's Route has a row to read"
+    await tick(page, True)
+    await page.until(lambda: "OH2MSG" in page.topics["stations"] and "OH2MSG" not in page.topics["call_routes"])
+    assert page.topics["stations"]["OH2MSG"]["paths"] == {"1": "OH2RCH-2"}
+    await e.stop()
+
+
 async def test_the_counts_the_traffic_the_replay_and_the_track_leave_the_gated_packets_out_while_unticked(
     tmp_path: Path,
 ) -> None:

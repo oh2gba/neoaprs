@@ -170,13 +170,13 @@ class Topics:
         self.connected = False
 
     def _routes(self) -> tuple[StationRadios, CallRoutes]:
-        """Return what a station's row says of the radios, and the same for calls the book does not hold."""
+        """Return what a station's row says of the radios, and the same for calls with no row shown."""
         ctl = self.ctl
         radios = StationRadios(
             self._radio_choice, self._radio_now, self._paths_of, self._replies_of, ctl.messaging.text_max
         )
         return radios, CallRoutes(
-            lambda call: ctl.stationbook.get(call) is not None,
+            lambda call: self._station(call) is not None,
             lambda: ctl.radios.chosen(),
             lambda radio: ctl.prefbook.paths(radio),
             lambda: (spec.id for spec in ctl.config.live_radios),
@@ -548,6 +548,7 @@ class Topics:
         if "igate/enabled" in keys or "igate/show_gated" in keys:
             self.hub.changed("packets")
             moved = True  # tell the stations whole: the internet ones appear or go
+            self.hub.changed("call_routes")  # a call whose row goes or comes back
         if "igate/show_gated" in keys:
             self.hub.changed("messages")
         self.hub.changed("config")

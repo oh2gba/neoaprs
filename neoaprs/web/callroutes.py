@@ -1,7 +1,7 @@
-"""The topic `call_routes`: how messages go to a call the station book does not hold.
+"""The topic `call_routes`: how messages go to a call the page is shown no station row of.
 
-A call has an entry while it has a radio chosen or a path set on a radio and the book does not
-hold it; once it is heard, its station's row says the same."""
+A call has an entry while it has a radio chosen or a path set on a radio and no row is shown of
+it (never heard, or heard only in what a tick leaves out); once its row is shown, it says the same."""
 
 from collections.abc import Callable, Iterable
 from typing import Any
