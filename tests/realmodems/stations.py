@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from neoaprs.bundled import tools_dir
-from tests.support.realmercury import Page, stop, wait_for_page
+from neoaprs.policy import DIGI_DUPLICATE_SEC
+from tests.support.realmercury import Failure, Page, stop, wait_for_page
 
 ENV = "NEOAPRS_REAL_MODEMS"
 CARDS = Path("/proc/asound/cards")
@@ -303,12 +304,24 @@ async def heard_over_the_pair(world: World, sender: str, hearer: str) -> None:
     """`hearer` hears a beacon of `sender` by way of the pair's call: a station on an HF radio has no path of
     its own and answers by the way it heard (prefbook.path_for)."""
     page, far = world[sender], world[hearer]
+    if any(f"{PAIR_CALL}*" in p["path"] for p in far.packets(0, direction="in", sender=sender)):
+        return  # heard so already (the gateway passes no copy of a beacon it passed lately)
     await page.set_config({"radio/1/path": PAIR_CALL})
     after = far.last_packet()
-    await page.send({"cmd": "beacon_now"})
-    await far.until(
-        f"{hearer} hearing {sender} over the pair", lambda: bool(crossed(far, after, sender, "position")), CROSS_SEC
-    )
+    # a beacon the gateway heard in the last DIGI_DUPLICATE_SEC (another test's) makes this one a copy it
+    # rightly does not pass: the beacon is said again once that time is over
+    for attempt in range(4):
+        await page.send({"cmd": "beacon_now"})
+        try:
+            await far.until(
+                f"{hearer} hearing {sender} over the pair",
+                lambda: bool(crossed(far, after, sender, "position")),
+                DIGI_DUPLICATE_SEC + CROSS_SEC / 4,
+            )
+            return
+        except Failure:
+            if attempt == 3:
+                raise
 
 
 async def exchange(world: World, sender: str, addressee: str, text: str) -> None:
