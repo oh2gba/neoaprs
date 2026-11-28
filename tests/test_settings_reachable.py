@@ -24,6 +24,7 @@ NOT_ON_THE_PAGE = {
     "serial/skip": "which ports the search leaves alone; a port that is named works whatever it says",
     "web/port": "the page's own port; the daemon moves to a free one and says which in the log",
     "web/allowed_hosts": "the host names the page answers to; the default suits nearly everyone and the log says a refusal",
+    "web/proxy": "a reverse proxy on this computer; only who set one up needs it, and the refusal names the setting",
     "igate/server": "the APRS-IS server of the Internet switch; a wrong one only leaves the switch connecting, which the page says",
     "igate/password": "a passcode set by hand in place of the one worked out from the call; its absence never blocks anything",
     "map/maxzoom": "the detail of the detailed map; any value works",

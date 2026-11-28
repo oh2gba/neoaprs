@@ -36,6 +36,9 @@ class FakeGate:
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool:
         return True
 
+    def take_proxy(self, request: tornado.httputil.HTTPServerRequest) -> bool:
+        return True
+
 
 class FakePageHost:
     """Everything a Socket asks of its server: the checks say yes, the Api writes down."""
