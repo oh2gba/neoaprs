@@ -79,7 +79,10 @@ Read = AisPosition | AisStatic | Confirmed | Refused | None
 def _number(value: object) -> float | None:
     if not isinstance(value, int | float) or isinstance(value, bool):
         return None
-    number = float(value)
+    try:
+        number = float(value)
+    except OverflowError:
+        return None
     return number if math.isfinite(number) else None
 
 

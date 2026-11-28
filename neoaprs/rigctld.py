@@ -34,7 +34,7 @@ def _line(raw: bytes) -> str:
 def _hz(line: str) -> int:
     try:
         hz = round(float(line))
-    except ValueError:
+    except (ValueError, OverflowError):
         raise RigError(f"rigctld gave {line!r} for the frequency") from None
     if hz <= 0:
         raise RigError(f"rigctld gave {line!r} for the frequency")

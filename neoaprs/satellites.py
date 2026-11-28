@@ -88,9 +88,9 @@ class Pass:
 def _epoch(text: str) -> datetime | None:
     try:
         when = datetime.fromisoformat(text.strip().removesuffix("Z"))
-    except ValueError:
+        return when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
+    except (ValueError, OverflowError):  # OverflowError: a time zone takes it past the calendar
         return None
-    return when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
 
 
 def orbit_of(fields: Mapping[str, object]) -> Orbit | None:
