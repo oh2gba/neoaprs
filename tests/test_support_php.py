@@ -33,11 +33,12 @@ PHP = shutil.which("php")
 REF = re.compile(r"^NEO-\d{8}-\d{4}-[0-9A-F]{4}$")
 STUB = """<?php
 // stands in for mail(): the subject and the body, with the headers the real one adds, go to a file
-function support_send_mail(string $subject, string $body): bool
+function support_send_mail(string $subject, string $body, string $replyTo = ''): bool
 {
     if (getenv('MAIL_FAILS')) return false;
     if (preg_match('/[\\r\\n]/', $subject)) return false;
-    file_put_contents(getenv('MAIL_OUT'), json_encode(['subject' => $subject, 'body' => $body]) . "\\n", FILE_APPEND);
+    $mail = ['subject' => $subject, 'body' => $body, 'headers' => support_mail_headers($replyTo)];
+    file_put_contents(getenv('MAIL_OUT'), json_encode($mail) . "\\n", FILE_APPEND);
     return true;
 }
 """
@@ -362,7 +363,28 @@ def test_an_address_for_a_reply_is_kept_in_the_json_and_named_in_the_mail_with_a
         )
     mails = endpoint.mail_sent()
     assert all("Email:     oh2xyz@example.org" in m["body"] and "oh2xyz@" not in m["subject"] for m in mails)
+    assert all("\r\nReply-To: oh2xyz@example.org\r\n" in m["headers"] for m in mails), "a reply goes to the person"
     assert len(mails) == 2
+
+
+def test_a_reply_goes_to_nobody_when_the_address_is_none_or_could_not_stand_in_a_header(endpoint: Endpoint) -> None:
+    endpoint.start()
+    odd = [
+        "",
+        "two,oh2xyz@example.org",
+        "<oh2xyz@example.org>",
+        '"x"@example.org;b',
+        "ö@example.org",
+        "oh2xyz@localhost",
+    ]
+    for address in odd:
+        (endpoint.stored / "rate.json").unlink(missing_ok=True)
+        assert endpoint.post({"note": "x", "email": address})[0] == 200, address
+    mails = endpoint.mail_sent()
+    assert len(mails) == len(odd)
+    for m in mails:
+        assert "Reply-To" not in m["headers"], m["headers"]
+        assert m["headers"].startswith("From: NeoAPRS <noreply@oh2gba.eu>\r\n") and m["headers"].count("\r\n") == 3
 
 
 @pytest.mark.slow("makes a support bundle from a daemon and its database")
