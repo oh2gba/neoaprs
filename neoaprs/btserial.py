@@ -68,6 +68,8 @@ def listed_channels(address: str) -> list[int]:
 
         try:
             return winbluetooth.serial_channels(address, winbluetooth.ws2_32())
+        except TimeoutError:
+            raise  # a device that does not answer: no connect waits its own time after this
         except OSError as e:
             log.info("%s: the service directory was not read: %s", address, e)
             return []

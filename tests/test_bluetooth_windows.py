@@ -173,6 +173,35 @@ def test_a_direct_connection_says_what_each_measured_number_proves(error: OSErro
     assert (f"(Windows error {number})" in why) is (number is not None)
 
 
+def test_a_device_whose_com_port_another_program_holds_is_said_to_be_in_use() -> None:
+    """Measured: connecting to the device by name while another program has its COM port gives 10048."""
+    error = win_error(10048, "Only one usage of each socket address is normally permitted")
+    wrapped = serial.SerialException(f"Could not open port bt://{ADDRESS}: {error}")
+    wrapped.__cause__ = error
+    why = openfailure.failure(f"bt://{ADDRESS}", wrapped, "words", in_use=False, bluetooth=True)
+    assert code_of(why) == ("radio.port_in_use", {}) and "(Windows error 10048)" in why
+
+
+def test_a_device_off_is_said_after_the_service_directory_times_out_with_no_connect_after_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(TimeoutError):
+        winbluetooth.serial_channels(ADDRESS, FakeWinsock([], begins=-1), lambda: winbluetooth.WSA_TIMED_OUT)
+    monkeypatch.setattr(btserial, "_on_windows", lambda: True)
+    monkeypatch.setattr(winbluetooth, "ws2_32", lambda: FakeWinsock([], begins=-1))
+    real = winbluetooth.serial_channels
+    monkeypatch.setattr(
+        winbluetooth, "serial_channels", lambda address, api: real(address, api, lambda: winbluetooth.WSA_TIMED_OUT)
+    )
+    made: list[int] = []
+    monkeypatch.setattr(btserial, "new_rfcomm_socket", lambda: made.append(1))
+    with pytest.raises(OSError) as raised:
+        btserial.connect(ADDRESS, None)
+    assert made == [], "no connect waits its own 5 s after the look-up's"
+    why = openfailure.failure(f"bt://{ADDRESS}", raised.value, "words", in_use=False, bluetooth=True)
+    assert code_of(why) == ("radio.no_answer", {})
+
+
 def test_no_number_is_made_up_where_the_system_gave_none() -> None:
     error = OSError(16, "Device or resource busy")
     assert openfailure.windows_error(serial.SerialException("could not open port /dev/ttyUSB0: [Errno 16]")) is None

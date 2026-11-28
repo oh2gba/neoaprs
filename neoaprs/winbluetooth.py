@@ -18,6 +18,7 @@ ERROR_NO_MORE_ITEMS = 259
 NS_BTH = 16
 LUP_RETURN_ADDR, LUP_FLUSHCACHE = 0x0100, 0x1000
 WSA_E_NO_MORE, WSASERVICE_NOT_FOUND = 10110, 10108
+WSA_TIMED_OUT = 10060  # the device did not answer
 LOOKUP_BYTES = 4096
 NAME_CHARS = 248
 
@@ -208,7 +209,9 @@ def serial_channels(address: str, api: Any, error: Callable[[], int] = last_erro
     flags = LUP_FLUSHCACHE | LUP_RETURN_ADDR
     handle = _HANDLE()
     if api.WSALookupServiceBeginW(ctypes.byref(query), flags, ctypes.byref(handle)) != 0:
-        log.info("%s: the service directory was not read (Windows error %d)", address, error())
+        if (code := error()) == WSA_TIMED_OUT:
+            raise TimeoutError(f"{address}: the device did not answer for its service directory (Windows error {code})")
+        log.info("%s: the service directory was not read (Windows error %d)", address, code)
         return []
     found: list[int] = []
     try:

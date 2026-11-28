@@ -11,6 +11,8 @@ from .coded import Reason
 
 ACCESS_DENIED, SEMAPHORE_TIMEOUT = 5, 121
 WSA_NET_UNREACHABLE, WSA_TIMED_OUT, WSA_HOST_DOWN = 10051, 10060, 10064
+# a connect to a device by name while another program on this computer holds its COM port (measured)
+WSA_ADDR_IN_USE = 10048
 NO_ANSWER = frozenset({SEMAPHORE_TIMEOUT, WSA_TIMED_OUT})
 # pyserial writes the system's error as its repr: `PermissionError(13, 'Access is denied.', None, 5)`
 _REPR_NUMBER = re.compile(r", None, (\d+)\)")
@@ -49,7 +51,7 @@ def _numbered(reason: Reason, number: int | None) -> Reason:
 def failure(path: str, e: BaseException, words: str, *, in_use: bool, bluetooth: bool) -> Reason:
     """Return why `path` did not open; `words` is the system's, said for a cause the error does not prove."""
     number = windows_error(e)
-    if in_use:
+    if in_use or (bluetooth and number == WSA_ADDR_IN_USE):
         why = Reason(
             f"{path}: in use by another program (close it: a terminal, Direwolf, a rig program)", "radio.port_in_use"
         )
