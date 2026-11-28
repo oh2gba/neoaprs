@@ -30,6 +30,7 @@ TRACKED = [
     "server/neo/private/.htaccess",
     "site/index.html",
     "site/shots/a.png",
+    "site/signals/a.wav",
     "site/gone.html",
 ]
 LEFT_OUT = [
@@ -108,6 +109,7 @@ def test_the_site_upload_has_the_tracked_files_and_not_an_untracked_ignored_or_d
         "server/log/.htaccess",
         "site/index.html",
         "site/shots/a.png",
+        "site/signals/a.wav",
         "server/neo/.htaccess",
         "server/neo/support/send.php",
         "server/neo/private/.htaccess",

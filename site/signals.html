@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What NeoAPRS sounds like · NeoAPRS</title>
+<meta name="description" content="Listen to the three signals NeoAPRS sends: Mercury, Packet at 1200 baud and Packet at 300 baud, each with a waterfall picture.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1f2c" media="(prefers-color-scheme: dark)">
+<meta name="author" content="OH2GBA">
+<link rel="canonical" href="https://neo.oh2gba.eu/signals.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="NeoAPRS">
+<meta property="og:title" content="What NeoAPRS sounds like">
+<meta property="og:description" content="Mercury, Packet at 1200 baud and Packet at 300 baud: listen to each and see it on a waterfall.">
+<meta property="og:url" content="https://neo.oh2gba.eu/signals.html">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
+<link rel="stylesheet" href="style.css?v=37">
+<script src="site.js?v=13" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="mast">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
+    <nav aria-label="Page">
+      <a href="./#download">Download</a>
+      <a href="./#features">Features</a>
+      <a href="./#radios">Radios</a>
+      <a href="./#skeds">HF tests</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<article class="sec article tech signals">
+  <div class="wrap">
+    <p class="flag">On the air</p>
+    <h1 class="article-title">What NeoAPRS sounds like</h1>
+    <p class="lead-sm">NeoAPRS sends three kinds of signal. Listen to each one here and see what it looks like on a waterfall.</p>
+    <p>Every clip is one position beacon, with a few seconds of receiver noise before and after. The pictures share one scale: time runs to the right, audio from 0 to 3 kHz upwards.</p>
+
+    <h2 id="mercury">Mercury</h2>
+    <audio controls preload="none" src="signals/mercury.wav"><a href="signals/mercury.wav">Mercury (WAV)</a></audio>
+    <figure class="wf mercury"><picture><source type="image/webp" srcset="signals/mercury.webp"><img src="signals/mercury.png" width="817" height="291" loading="lazy" decoding="async" alt="Waterfall of a Mercury transmission: band noise, then a solid block between 1.2 and 1.8 kHz for 3.4 seconds, then noise again"></picture></figure>
+    <ul class="article-list">
+      <li><b>Sound:</b> a steady hiss, 3.4 seconds long. Every Mercury transmission has this length.</li>
+      <li><b>Waterfall:</b> a solid block about 560 Hz wide, between 1.2 and 1.8 kHz.</li>
+      <li><b>Where:</b> on HF, on the <a href="./#frequencies">suggested dials</a>, for example 14.1070 MHz USB.</li>
+    </ul>
+
+    <h2 id="packet-1200">Packet at 1200 baud</h2>
+    <audio controls preload="none" src="signals/packet-1200.wav"><a href="signals/packet-1200.wav">Packet at 1200 baud (WAV)</a></audio>
+    <figure class="wf p1200"><picture><source type="image/webp" srcset="signals/packet-1200.webp"><img src="signals/packet-1200.png" width="609" height="291" loading="lazy" decoding="async" alt="Waterfall of a 1200 baud packet on an FM receiver: hiss, then two tones at 1.2 and 2.2 kHz for just under a second with the hiss gone, then hiss again"></picture></figure>
+    <ul class="article-list">
+      <li><b>Sound:</b> a short, harsh burst, usually under a second. On an FM receiver the hiss drops away while it lasts.</li>
+      <li><b>Waterfall:</b> two tones, at 1200 and 2200 Hz.</li>
+      <li><b>Where:</b> on VHF, for example 144.800 MHz.</li>
+    </ul>
+
+    <h2 id="packet-300">Packet at 300 baud</h2>
+    <audio controls preload="none" src="signals/packet-300.wav"><a href="signals/packet-300.wav">Packet at 300 baud (WAV)</a></audio>
+    <figure class="wf p300"><picture><source type="image/webp" srcset="signals/packet-300.webp"><img src="signals/packet-300.png" width="683" height="291" loading="lazy" decoding="async" alt="Waterfall of a 300 baud packet: band noise, then a narrow stripe between 1.6 and 1.8 kHz for under two seconds, then noise again"></picture></figure>
+    <ul class="article-list">
+      <li><b>Sound:</b> a warble of two close tones, one to two seconds long.</li>
+      <li><b>Waterfall:</b> a narrow stripe around 1600 and 1800 Hz.</li>
+      <li><b>Where:</b> on HF, usually 10.1476 MHz USB.</li>
+    </ul>
+
+    <h2 id="which-radio">What you need to receive them</h2>
+    <table class="facts">
+      <tbody>
+        <tr><th scope="row">Mercury</th><td>A Mercury radio. Only Mercury hears Mercury.</td></tr>
+        <tr><th scope="row">Packet at 1200 baud</th><td>A Packet radio at 1200 baud: a sound card or a KISS TNC.</td></tr>
+        <tr><th scope="row">Packet at 300 baud</th><td>A Packet radio at 300 baud: a sound card, or a KISS TNC with <b>On HF</b> ticked.</td></tr>
+      </tbody>
+    </table>
+    <p>The clips were made with the Mercury and Direwolf modems NeoAPRS uses. The noise was added.</p>
+    <p class="cta"><a class="btn" href="./#download">Download NeoAPRS</a><a class="btn ghost" href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">The radio guide</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="links">
+      <a href="https://github.com/oh2gba/neoaprs">Source</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="faq.html">Questions and answers</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/oh2gba/neoaprs/issues">Issues</a>
+      <a href="mailto:neo@oh2gba.eu">neo@oh2gba.eu</a>
+    </p>
+    <p>Free software by <a href="https://oh2gba.eu">OH2GBA</a>. <a href="https://github.com/oh2gba/neoaprs#more">Credits and licence</a>.</p>
+  </div>
+</footer>
+</body>
+</html>
