@@ -429,7 +429,6 @@ async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that
             os.kill(orphan, signal.SIGTERM)
 
 
-@pytest.mark.nightly("quarantined 2026-11-28: a listener not ours on the new run's port, once, in the final gate")
 async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_a_fresh_one(tmp_path: Path) -> None:
     m = modem(tmp_path)
     await m.start(HF)
@@ -449,6 +448,24 @@ async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_
     await until_started(lambda: m.state == "running")
     assert m.pid != first_pid and m.starts == 2
     await stopped(m)
+
+
+@pytest.mark.slow("a Mercury that takes a second to end, twice")
+async def test_a_run_slow_to_end_is_gone_before_the_next_start_asks_who_listens_on_the_pair(tmp_path: Path) -> None:
+    """An off and on, and a relaunch: the run before is never taken for another program."""
+    m = modem(tmp_path)
+    m._finder = lambda: fakemercury.program(linger_sec=1.0)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        await m.start(HF)  # (a settings change: stop, then start)
+        await until_started(lambda: m.state == "running")
+        assert m.reason == "" and m.starts == 2
+        m._end_run("for the test")  # a relaunch: ended on a thread, started again after the back-off
+        await until_started(lambda: m.starts == 3 and m.state == "running")
+        assert m.reason == "" and [s.words() for s in m.start_log].count("failed: ports_taken") == 0
+    finally:
+        await stopped(m)
 
 
 # ---- the control port

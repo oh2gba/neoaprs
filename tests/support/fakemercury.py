@@ -296,12 +296,16 @@ def of_radio(data_dir: Path, holder: RadioId = HF_ID, claims: Claims | None = No
     }
 
 
+LINGER_SEC = [0.0]
+
+
 def program(
     die_after_sec: float | None = None,
     audio_error: bool = False,
     no_ui: bool = False,
     audio_lost: bool = False,
     keying_fails: str = "",
+    linger_sec: float = 0.0,
 ) -> list[str]:
     """The command that runs this module as the Mercury program, whatever the working directory (the
     daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With
@@ -322,6 +326,7 @@ def program(
         *(["--audio-lost"] if audio_lost else []),
         *(["--no-ui"] if no_ui else []),
         *(["--keying-fails", keying_fails] if keying_fails else []),
+        *(["--linger", str(linger_sec)] if linger_sec else []),
     ]
 
 
@@ -422,6 +427,8 @@ async def _serve(
         # can print a traceback on Windows, which would then be its last lines
         os._exit(3)
     finally:
+        # --linger SEC: as a program slow to end, its ports listen a while after the TERM
+        await asyncio.sleep(LINGER_SEC[0])
         kiss_server.close()
         control_server.close()
         if ui is not None:
@@ -458,6 +465,7 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
         return 0
     if args.get("--keying-fails"):
         return hang_after_keying(args["--keying-fails"])
+    LINGER_SEC[0] = float(args.get("--linger") or 0)
     die_after = (
         float(args["--die-after"])
         if args.get("--die-after")
