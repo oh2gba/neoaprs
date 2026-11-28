@@ -231,6 +231,7 @@ extend-include = [
     "scripts/flaky",
     "scripts/mutants",
     "scripts/mercury-bench",
+    "scripts/site-sounds",
     "scripts/mercury-measure",
     "scripts/mercury-sim",
     "scripts/migration-size",

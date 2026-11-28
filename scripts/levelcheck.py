@@ -72,6 +72,12 @@ NOT_FOLLOWED = (
         "a digest of a tag that is rebuilt, not a release",
     ),
     (
+        "the Ubuntu image the site's sounds are made in",
+        "scripts/site-sounds",
+        "FROM ubuntu:26.04@sha256:",
+        "a digest of a tag that is rebuilt, not a release",
+    ),
+    (
         "the PHP image Psalm runs in",
         "scripts/security-tools",
         "PHP_IMAGES",
