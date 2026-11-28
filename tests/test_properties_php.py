@@ -829,13 +829,13 @@ def test_the_update_check_with_a_version_given_as_a_list_is_answered_with_json_a
     assert parse_update(answer.body) is not None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="fault: a note of control characters alone passes the dialog and the daemon, and send.php refuses it",
-)
-def test_a_note_alone_the_daemon_sends_is_taken(site: Site) -> None:
+def test_a_note_alone_the_daemon_sends_is_taken_and_one_of_control_characters_alone_is_refused_first(
+    site: Site,
+) -> None:
     site.fresh()
-    note, file = SupportSend.words(cast(SupportSend, None), {"note": "\x00", "file": False})
-    assert file is False
+    with pytest.raises(tornado.web.HTTPError):
+        SupportSend.words(cast(SupportSend, None), {"note": "\x00\x07 \x1b", "file": False})
+    note, file = SupportSend.words(cast(SupportSend, None), {"note": "\x00help\x07", "file": False})
+    assert (note, file) == ("help", False), "cleaned as send.php cleans it"
     sent = run(send_bundle(f"{site.base}/support/send.php", None, note, "", "OH2GBA", "0.26.1", "linux"))
     assert sent.ok, sent

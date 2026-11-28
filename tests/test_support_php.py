@@ -409,6 +409,21 @@ def test_a_form_without_an_address_is_taken_as_before_and_one_that_is_not_an_add
         assert meta["email"] == (case["input"] if case["ok"] else ""), case
 
 
+def test_the_server_keeps_of_a_note_what_the_daemon_and_the_page_say_it_keeps(endpoint: Endpoint) -> None:
+    """The vectors of the daemon's cleaning (support_notes): what send.php stores, or its refusal of an empty one."""
+    endpoint.start()
+    cases = json.loads((ROOT / "ui" / "src" / "protocol" / "vectors.json").read_text(encoding="utf-8"))
+    for case in cases["support_notes"]:
+        (endpoint.stored / "rate.json").unlink(missing_ok=True)
+        code, answer = endpoint.post({"note": case["input"]})
+        if case["note"] == "":
+            assert code == 400, case
+            continue
+        assert code == 200, (case, answer)
+        kept = json.loads((endpoint.stored / f"{answer['ref']}.json").read_text(encoding="utf-8"))
+        assert kept["note"] == case["note"], case
+
+
 def test_a_bundle_says_in_its_json_that_a_file_came(endpoint: Endpoint, bundle: bytes) -> None:
     endpoint.start()
     ref = str(endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[1]["ref"])

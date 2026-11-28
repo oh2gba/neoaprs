@@ -39,6 +39,15 @@ function notInAddress(code: number): boolean {
 }
 
 /** Whether the text is an address for a reply: one "@" with something on each side, no blank, at most EMAIL_MAX characters. */
+/** The note as the project's server keeps it: control characters dropped, cut, trimmed (vectors `support_notes`). */
+export function cleanNote(text: string): string {
+  const kept = text.replace(/\r\n?/g, "\n").replace(/[^\t\n\x20-\x7E\u{A0}-\u{10FFFF}]/gu, "");
+  return [...kept]
+    .slice(0, NOTE_MAX)
+    .join("")
+    .replace(/^[ \t\n\r\0\v]+|[ \t\n\r\0\v]+$/g, "");
+}
+
 export function replyAddressOk(text: string): boolean {
   const chars = [...text];
   const at = text.indexOf("@");

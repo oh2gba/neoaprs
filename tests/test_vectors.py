@@ -158,6 +158,7 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         "positions",
         "beacons",
         "reply_addresses",
+        "support_notes",
         "sked_calls",
         "sked_dials",
         "sked_times",

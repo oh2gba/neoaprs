@@ -11,7 +11,7 @@ import { DIAL, pastGroups, postCommand } from "@/lib/skeds";
 import { PageErrors } from "@/lib/pageerrors";
 import type { PageErrorCommand } from "@/protocol/protocol";
 import { pairCall } from "@/lib/settingspair";
-import { replyAddressOk } from "@/lib/support";
+import { cleanNote, replyAddressOk } from "@/lib/support";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
 import { callOk, problemOf } from "@/lib/fieldcheck";
@@ -26,6 +26,10 @@ describe("the vectors of the daemon", () => {
 
   it("say which addresses for a reply Send logs takes", () => {
     for (const { input, ok } of vectors.reply_addresses) expect(replyAddressOk(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say what the project's server keeps of a note of Send logs", () => {
+    for (const { input, note } of vectors.support_notes) expect(cleanNote(input), JSON.stringify(input)).toBe(note);
   });
 
   it("say what a line of the chat keeps of its text", () => {

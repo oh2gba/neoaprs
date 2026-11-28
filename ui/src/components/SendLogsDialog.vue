@@ -16,7 +16,7 @@ import { useDialogFocus } from "@/composables/useDialogFocus";
 import type { SupportLogs } from "@/composables/useSupportLogs";
 import { t } from "@/i18n";
 import { openTip } from "@/lib/infotip";
-import { EMAIL_MAX, NOTE_MAX, replyAddressOk } from "@/lib/support";
+import { EMAIL_MAX, NOTE_MAX, cleanNote, replyAddressOk } from "@/lib/support";
 
 const props = withDefaults(
   defineProps<{
@@ -62,7 +62,7 @@ const name = computed(() => `neoaprs-support-${props.call || "nocall"}.zip`);
 const on = ref(props.attached);
 watch(on, (now) => emit("attached", now), { flush: "sync" });
 const sendable = computed(
-  () => !props.download.running.value && !addressBad.value && (on.value || note.value.trim() !== ""),
+  () => !props.download.running.value && !addressBad.value && (on.value || cleanNote(note.value) !== ""),
 );
 const keys = useDialogFocus(dialog, () => emit("close"), {
   first: () => dialog.value?.querySelector<HTMLElement>("textarea") ?? null,

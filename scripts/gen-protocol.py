@@ -141,7 +141,7 @@ from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.views import CONFIG_KEYS  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
 from neoaprs.web.wirebase import HISTORY_MAX_HOURS  # noqa: E402
-from neoaprs.web.supportsend import MAX_EMAIL, reply_address  # noqa: E402
+from neoaprs.web.supportsend import MAX_EMAIL, reply_address, support_note  # noqa: E402
 
 SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
 TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
@@ -1112,6 +1112,8 @@ POSITIONS = [
     (-0.00001, -0.00001),
     (0.0083333, 100.0),
 ]
+# the notes of Send logs as send.php keeps them (support_note): control characters dropped, trimmed
+SUPPORT_NOTES = ["\x00", "\x00\x07 \x1b", "help\x00", "\r\nok\r", "\x85a\x7f", "  \t ", "ä\tö\nx", "\u2003word\u2003"]
 REPLY_ADDRESSES = [
     "ham@example.org",
     "oh2xyz+aprs@mail.example.fi",
@@ -1743,6 +1745,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
         "status_templates": [_template_vector(t) for t in STATUS_TEMPLATES],
         "reply_addresses": [{"input": t, "ok": reply_address(t) != ""} for t in REPLY_ADDRESSES],
+        "support_notes": [{"input": t, "note": support_note(t)} for t in SUPPORT_NOTES],
         "sked_calls": [{"input": t, "call": our_call(t)} for t in SKED_CALLS],
         "sked_dials": [{"input": t, "ok": is_dial(t)} for t in SKED_DIALS],
         "sked_times": [{"input": t, "ok": when(t) is not None} for t in SKED_TIMES],

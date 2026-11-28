@@ -24,6 +24,15 @@ log = logging.getLogger("neoaprs.web")
 # Tests: the address of a fake server on this computer, instead of SUPPORT_URL.
 ENV_URL = "NEOAPRS_SUPPORT_URL"
 MAX_NOTE = 2000  # characters; the dialog applies the same limit
+# what send.php keeps of a note (support_note): tab, line break and printable text
+_NOT_KEPT = re.compile("[^\t\n\x20-\x7e\xa0-\U0010ffff]")
+
+
+def support_note(text: str) -> str:
+    """Return the note as send.php keeps it: control characters dropped, cut to MAX_NOTE, trimmed."""
+    # A lone surrogate from JSON cannot be encoded; it becomes "?".
+    text = text.encode("utf-8", "replace").decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    return _NOT_KEPT.sub("", text)[:MAX_NOTE].strip(" \t\n\r\0\x0b")
 MAX_SEND_BYTES = 10 * 1024 * 1024  # what the server takes in one request
 MAX_EMAIL = 254  # characters, the longest address RFC 5321 lets through
 # blanks and controls, Unicode white space and lone surrogates; send.php and the page refuse the same
@@ -128,8 +137,7 @@ class SupportSend(SupportBundle):
             raise tornado.web.HTTPError(
                 400, reason="Bad Request: the file is true, false or the name of a downloaded one"
             )
-        # A lone surrogate from JSON cannot be encoded; it becomes "?".
-        note = note.strip()[:MAX_NOTE].encode("utf-8", "replace").decode("utf-8")
+        note = support_note(note)
         if file is False and note == "":
             raise tornado.web.HTTPError(400, reason="Bad Request: a note without the file has words")
         return note, file
