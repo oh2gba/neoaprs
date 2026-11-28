@@ -152,6 +152,11 @@ jobs:
       - run: scripts/check --stage page
       # Every outside link the page, the manual, the site and the README offer (scripts/linkcheck.py).
       - run: scripts/check --stage links
+      # Every direct dependency and pinned tool against its newest release (scripts/levelcheck.py).
+      # The job's token is read only to lift GitHub's limit on requests without one.
+      - run: scripts/check --stage level
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       # build-page installs nothing: ui/node_modules is current since the first step.
       - name: The committed page is what ui/ builds
         run: |

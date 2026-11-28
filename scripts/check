@@ -52,8 +52,8 @@ fi
 
 # The stages in the order of their result lines: Python ones, the page's (ui-types ... dup, which
 # need node 22.12 or newer, from the PATH or ~/.nvm), the duplication check, the security checks,
-# the outside links, smoke.
-STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security links smoke)
+# the outside links, the newest releases of the pins, smoke.
+STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security links level smoke)
 EXTRA_STAGES=(sim audit flaky)  # run only by name: sim is minutes long, audit needs the network, flaky is an hour
 ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
 ALONE_FIRST=(lock)  # step 1 of the default run
@@ -237,6 +237,10 @@ stage_security() { "$python" scripts/security-check; }
 # Every outside link the page, the manual, the site and the README offer, asked (scripts/linkcheck.py):
 # one not found or whose host does not exist fails; with no network it says so and passes.
 stage_links() { "$python" scripts/linkcheck.py; }
+# Every direct dependency and pinned tool against the newest release of PyPI, npm or GitHub
+# (scripts/levelcheck.py): one behind for longer than 14 days fails unless scripts/level-allowed.txt
+# lists it; with no network it says so and passes.
+stage_level() { "$python" scripts/levelcheck.py; }
 # The weekly audit also reads GitHub's runner publications against packaging/ci/runner.json; either
 # failing fails the stage.
 stage_audit() { local status=0; "$python" scripts/security-check --audit || status=1; "$python" scripts/runner-facts --published --announcements || status=1; return "$status"; }
