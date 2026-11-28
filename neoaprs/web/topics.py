@@ -123,13 +123,7 @@ class Topics:
                 self._station_pref,
             )
         )
-        hub.add(
-            Topic(
-                "messages",
-                lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records() if self._shown_message(m)},
-                self._message,
-            )
-        )
+        hub.add(Topic("messages", self._messages, self._message))
         hub.add(
             Topic(
                 "station_keys",
@@ -287,6 +281,9 @@ class Topics:
 
     def _own_bulletin_row(self, bulletin: OwnBulletin) -> dict[str, Any]:
         return own_bulletin_row(bulletin, self.ctl.ownbulletins.next_at(bulletin.slot))
+
+    def _messages(self) -> dict[str, Any]:
+        return {str(m.id): self._message_row(m) for m in self.ctl.messaging.records() if self._shown_message(m)}
 
     def _message(self, key: str) -> dict[str, Any] | None:
         record = self.ctl.messaging.get(int(key)) if key.isdigit() else None
