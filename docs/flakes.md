@@ -21,6 +21,7 @@ an entry with its reason.
 
 | what | the right form |
 |---|---|
+| 2026-11-28 | ci 46150865778 (Linux) | `test_updatecheck::test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newer_version` | `the test tried to reach ... neo.oh2gba.eu (name lookup)` at teardown | the update switch the test turns on turns on the chat, skeds, frequencies and satellites too; on a slow runner one asked the project's server before the stop | each of them pointed at the test's own page |
 | 2026-11-28 | ci 46137693465 (Windows) | `test_chat::test_the_daemon_asks_the_chat_at_its_pace_while_it_runs` (the thread guard) | `chat-fetch (in_thread.<locals>.run)` left | the read on its thread when the service stopped asked a server that ended with the test's loop | the test stops the service and waits for the read while the server still serves |
 | 2026-11-28 | builder T's whole runs, here | `test_check_script`: the five HUP cases of the interrupted-run tests | `TimeoutExpired` after 30 s | the suite was started with HUP ignored (nohup), which the gate inherits and rightly runs through; not the machine's load | the gate of these tests starts with INT, TERM and HUP at their defaults and unblocked |
 | a wait for what is expected that gives up within seconds (`until(..., 3.0)`, `wait_for(x, 5)`, `assert done.wait(2)`) | `until(...)` with the suite's patience (`tests/support/patience.py`, 30 s): the wait ends as soon as the thing happens |
