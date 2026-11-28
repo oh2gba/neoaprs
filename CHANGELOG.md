@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **New:** NeoAPRS as a Docker image for Linux servers, the Raspberry Pi and a NAS, with network, USB and sound card radios.
+- **New:** in a container the page is always reachable from the network with its access key, which the container's log shows.
+- **New:** on Linux a radio's sound can be any PipeWire or PulseAudio device, devices you made too, chosen apart for receive and transmit.
+- **New:** one channel of a multichannel sound device can be chosen for receive, so nothing else on it is mixed in.
+- **New:** a + in Messages opens a conversation with a station you have not heard yet; its Route sets the radio and the path.
+- **New:** Settings, Internet (APRS-IS) has a third tick, Show Internet packets heard by radio; a message to you is always shown.
+- **Changed:** the Monitor card's waterfall fills the card however tall it is made, up to ten minutes back, at once.
+- **Changed:** RF only can be ticked for a station on Mercury; Ask around and Local info on Mercury go RF only too.
+- **Changed:** the ack to a message sent RF only goes RF only too.
+- **Changed:** a radio whose sound server device is gone waits instead of playing through the loudspeakers.
+- **Fixed:** the text box counts the room a Mercury frame leaves when RF only and a gateway path are used.
+- **Fixed:** odd or damaged packets, GPS sentences and modem lines no longer stop a packet or a list from being read.
 - **New:** on Windows a paired Bluetooth radio is listed by its name and connected to directly.
 - **New:** the HF tests tab has a chat: a line to everyone using the tab, over the Internet, never on the air.
 - **New:** a new line in the chat tells you as a message does; Notifications has HF tests chat to switch it off.
