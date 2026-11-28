@@ -234,6 +234,7 @@ class Rig:
             "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
             "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
             "ci.yml": {"plan": ["success"]},
+            "realmodems.yml": {"plan": ["success"]},
             "release.yml": {"plan": ["success"]},
             "release": {"made": False, "draft": True, "assets": ASSETS, "files": {**CONTENTS, "SHA256SUMS": SUMS}},
         }
@@ -433,6 +434,9 @@ FULL_RUN = [
     "list ci.yml",
     "list ci.yml",
     "watch ci.yml",
+    "list realmodems.yml",
+    "list realmodems.yml",
+    "watch realmodems.yml",
     f"push tag {TAG}",
     "release view",
     "list release.yml",
@@ -467,7 +471,7 @@ def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one
     assert done.returncode == 0, done.stdout + done.stderr
     assert rig.kinds() == FULL_RUN
     assert_released(rig)
-    steps = re.findall(r"^\[(\d+)/14\] (\w+):", done.stdout, flags=re.M)
+    steps = re.findall(r"^\[(\d+)/15\] (\w+):", done.stdout, flags=re.M)
     assert [name for _, name in steps] == [
         "checks",
         "switches",
@@ -478,6 +482,7 @@ def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one
         "commit",
         "push",
         "ci",
+        "realmodems",
         "tag",
         "release",
         "sign",
@@ -561,7 +566,7 @@ def test_a_dry_run_says_what_a_finished_release_has_done_already(rig: Rig) -> No
     assert done.returncode == 0, done.stdout
     assert (
         "skipped: VERSION is written already" in done.stdout
-        and "skipped" in done.stdout.split("[8/14]")[1]
+        and "skipped" in done.stdout.split("[8/15]")[1]
         and "is on origin/master" in done.stdout
         and f"{TAG} is on" in done.stdout
     )
@@ -680,7 +685,7 @@ def test_a_dry_run_names_what_a_real_run_would_refuse_and_goes_on_with_the_steps
     assert (
         done.returncode == 1
         and "WOULD REFUSE: not on master (on feature)" in done.stdout
-        and "[14/14] deploy" in done.stdout
+        and "[15/15] deploy" in done.stdout
         and "the dry run found" in done.stdout
     )
 
@@ -797,8 +802,8 @@ def test_a_failed_release_run_is_shown_and_run_again_with_rerun_and_the_tag_is_n
     first = rig.release()
     assert (
         first.returncode == 1
-        and "FAILED: run 101" in first.stdout
-        and "release.yml run 101 failed" in first.stdout
+        and "FAILED: run 102" in first.stdout
+        and "release.yml run 102 failed" in first.stdout
         and "the next version (a tag is never moved)" in first.stdout
     )
     tagged = rig.git("rev-parse", TAG, cwd=rig.remote)
@@ -861,7 +866,7 @@ def test_a_release_run_that_ends_without_success_stops_the_script(rig: Rig) -> N
     rig.state["release.yml"]["plan"] = ["cancelled"]
     rig.save_state()
     stopped = rig.release()
-    assert stopped.returncode == 1 and "release.yml run 101 failed" in stopped.stdout and "--rerun" in stopped.stdout
+    assert stopped.returncode == 1 and "release.yml run 102 failed" in stopped.stdout and "--rerun" in stopped.stdout
     assert rig.git("tag", "--list", TAG, cwd=rig.remote) == TAG, (
         "the tag stays: the run is run again, the tag is not made again"
     )
@@ -949,6 +954,9 @@ def test_a_fix_after_a_failed_ci_run_makes_head_the_release_and_the_tag_goes_on_
         "list ci.yml",
         "list ci.yml",
         "watch ci.yml",
+        "list realmodems.yml",
+        "list realmodems.yml",
+        "watch realmodems.yml",
         f"push tag {TAG}",
         "release view",
         "list release.yml",
@@ -1272,6 +1280,6 @@ def test_a_dry_run_asks_for_the_switches_and_names_the_one_that_is_off(rig: Rig)
         done.returncode == 1
         and "WOULD REFUSE: a switch of the repository on GitHub is not on: code scanning (default setup) is off"
         in done.stdout
-        and "[14/14] deploy" in done.stdout
+        and "[15/15] deploy" in done.stdout
     )
     assert rig.changed() == before and len(api_calls(rig)) == 5 and all(c.startswith("gh api ") for c in rig.calls())

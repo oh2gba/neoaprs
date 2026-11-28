@@ -661,6 +661,13 @@ class Release:
             return "skipped: ci.yml has passed for this commit"
         return self.wait_for("ci.yml", f"{str(self.commit)[:9]}", commit=str(self.commit))
 
+    def step_realmodems(self) -> str:
+        if self.dry_run:
+            return f"would wait for the realmodems.yml run of {self.target()} (gh run watch)"
+        if any(r["conclusion"] == "success" for r in self.runs("realmodems.yml", commit=str(self.commit))):
+            return "skipped: realmodems.yml has passed for this commit"
+        return self.wait_for("realmodems.yml", f"{str(self.commit)[:9]}", commit=str(self.commit))
+
     def step_release_run(self) -> str:
         if self.dry_run:
             return f"would wait for the release.yml run of {self.tag}"
@@ -836,6 +843,7 @@ def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
         ("commit", f'commit "{r.version}: the changelog section and the version"', r.step_commit),
         ("push", "push master", r.step_push),
         ("ci", "wait for the CI run of the release commit", r.step_ci),
+        ("realmodems", "wait for the real-modem run of the release commit", r.step_realmodems),
         ("tag", f"tag {r.tag} on the release commit and push the tag (a tag is never moved)", r.step_tag),
         ("release", f"wait for the release run of {r.tag}", r.step_release_run),
         (
