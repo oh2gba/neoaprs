@@ -9,7 +9,7 @@
 // its modem lacks the interface for a moment, the card stays on it. A pane says how long a
 // picture it shows; the radio is asked for the rows of the longest (in whole minutes), and the
 // page keeps that much of them (`keep`).
-import { computed, watch, type Ref } from "vue";
+import { computed, type Ref } from "vue";
 import { usePersistedNumber } from "@/composables/usePersisted";
 import { useRadioAsks } from "@/composables/useRadioAsks";
 import type { Connection } from "@/lib/hub";
@@ -64,16 +64,15 @@ export function useScopeLooks(
 
   const {
     asked,
-    seconds,
     lookers,
     look: looks,
-  } = useRadioAsks("radio_scope", send, connection, visible, () => radios.value);
-  watch(
-    seconds,
-    (now, was) => {
-      for (const [radio, wants] of now) if (wants !== was?.get(radio)) parts.keep?.(radio, wants * 1000);
-    },
-    { flush: "sync" },
+  } = useRadioAsks(
+    "radio_scope",
+    send,
+    connection,
+    visible,
+    () => radios.value,
+    (radio, seconds) => parts.keep?.(radio, seconds * 1000),
   );
 
   const keeps = (radio: RadioId): boolean => (parts.radios?.value ? canHave(parts.radios.value, radio) : has(radio));

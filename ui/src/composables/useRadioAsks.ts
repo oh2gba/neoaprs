@@ -14,8 +14,6 @@ import type { Command } from "@/protocol/protocol";
 
 export interface RadioAsks {
   asked: Readonly<Ref<readonly RadioId[]>>;
-  /** The seconds asked for each radio asked whose panes say how many. */
-  seconds: Readonly<Ref<ReadonlyMap<RadioId, number>>>;
   lookers: Readonly<Ref<number>>;
   /**
    * A pane, from its setup on: it looks at `radio` while `looking` is true and stops when it goes;
@@ -35,6 +33,8 @@ export function useRadioAsks(
   connection: Readonly<Ref<Connection>>,
   visible: Readonly<Ref<boolean>>,
   offered: () => readonly RadioId[] | null,
+  /** Told the seconds a radio is asked for, before it is asked: the daemon may answer at once. */
+  wanting?: (radio: RadioId, seconds: number) => void,
 ): RadioAsks {
   const looking = shallowRef<readonly Pane[]>([]);
   const asked = computed<readonly RadioId[]>((old) => {
@@ -53,12 +53,14 @@ export function useRadioAsks(
     }
     return most;
   });
-  const ask = (radio: RadioId, wants: number | undefined): boolean =>
+  function ask(radio: RadioId, wants: number | undefined): void {
+    if (wants !== undefined) wanting?.(radio, wants);
     send(
       cmd === "radio_scope" && wants !== undefined
         ? { cmd, radio, on: true, seconds: wants }
         : { cmd, radio, on: true },
     );
+  }
   // At once, not on the next tick: a pane that looks from its first moment asks in that moment. A
   // closed socket says no to nothing: the daemon forgets the page by itself.
   watch(
@@ -86,5 +88,5 @@ export function useRadioAsks(
       set(false);
     });
   }
-  return { asked, seconds, lookers: computed(() => looking.value.length), look };
+  return { asked, lookers: computed(() => looking.value.length), look };
 }
