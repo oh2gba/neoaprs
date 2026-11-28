@@ -640,7 +640,7 @@
     },
     "ChatSay": {
       "additionalProperties": false,
-      "description": "Says a line in the chat of the HF tests tab: the daemon posts it to the project's server with our call (the setting `station/call`, as the board has it) and this installation's token, over the Internet and never by radio. Cleaned as the server cleans it (white space\nbecomes single spaces, control and invisible characters go, at most 200 characters). Answered by the topic `chat_lines`, which then has it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter), too many lines were said from here\nin the last minute (`chat.rate`), the chat takes no lines now (`chat.closed`; the topic `chat` then says `closed`), or the project's server could not be reached or would not take it (`chat.unreachable`).",
+      "description": "Says a line in the chat of the HF tests tab: the daemon posts it to the project's server with our call (the setting `station/call`, as the board has it) and this installation's token, over the Internet and never by radio. Cleaned as the server cleans it (white space\nbecomes single spaces, control and invisible characters go, at most 200 characters). Answered by the topic `chat_lines`, which then has it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter), too many lines were said from here\nin the last minute (`chat.rate`), the chat takes no lines now (`chat.closed`; the topic `chat` then says `closed`), the server did not take the line (`chat.refused`), or the project's server could not be reached or would not take it (`chat.unreachable`).",
       "properties": {
         "cmd": {
           "const": "chat_say",

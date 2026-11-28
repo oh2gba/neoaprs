@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import random
+import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, Literal
 from urllib.parse import urljoin
@@ -37,6 +38,8 @@ from neoaprs.versions import on_this_computer
 log = logging.getLogger("neoaprs.chat")
 
 EVERY_SEC = 15.0
+# new lines notify at most once in this time, however many came
+NOTIFY_SEC = 60.0
 # a wait is drawn this share longer or shorter, so that installations do not ask in step
 JITTER = 0.2
 # while the server does not answer, the wait doubles up to this
@@ -69,12 +72,16 @@ class ChatRoom:
         memory: Memory | None = None,
         draw: Callable[[float, float], float] = random.uniform,
         every_sec: float = EVERY_SEC,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.version, self.platform = version, platform
         self._config, self._token = config, token
         self._fetch, self._post = fetch, post
         self._environ, self._memory, self._draw = environ, memory, draw
         self.every_sec = every_sec
+        self._monotonic = monotonic
+        self._read = False  # a read after the start brought its lines
+        self._notified: float | None = None
         self._chat = EMPTY
         self._lines: dict[int, Line] = {}
         # whether the last try reached and understood the server; None before the first
@@ -214,13 +221,22 @@ class ChatRoom:
         lines = {line.id: line for line in chat.lines}
         moved = sorted(set(lines) ^ set(self._lines) | {i for i in lines if self._lines.get(i, lines[i]) != lines[i]})
         self._lines = lines
-        fresh = await self._mark(chat)
+        fresh = self._worth_telling(await self._mark(chat))
         if self.state != before:
             self.changed.emit()
         if moved:
             self.lines_changed.emit(moved)
         if fresh:
             self.fresh.emit(fresh)
+
+    def _worth_telling(self, fresh: list[Line]) -> list[Line]:
+        """None of what the first read after the start brings, and at most one notice in NOTIFY_SEC."""
+        first, self._read = not self._read, True
+        now = self._monotonic()
+        if first or not fresh or (self._notified is not None and now - self._notified < NOTIFY_SEC):
+            return []
+        self._notified = now
+        return fresh
 
     async def _mark(self, chat: Chat) -> list[Line]:
         """The lines of others newer than the newest seen before; the mark moves to the newest of now.
@@ -283,6 +299,9 @@ class ChatRoom:
                 self._shut = call.split("-")[0]
                 self.changed.emit()
             raise ChatError("the chat takes no lines now", "chat.closed")
+        if status == 400:
+            log.info("the chat did not take a line (reason %r)", reason)
+            raise ChatError("the chat did not take that line", "chat.refused")
         log.warning("the chat refused a line (status %s, reason %r)", status, reason)
         raise ChatError("the chat could not be reached just now; try again later", "chat.unreachable")
 

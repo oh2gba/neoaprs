@@ -44,6 +44,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.unreachable": "het bord met HF-tests was zojuist niet bereikbaar; probeer het later opnieuw",
   "error.chat.rate": "vanaf hier zijn zojuist te veel regels gestuurd; probeer het over een minuut opnieuw",
   "error.chat.closed": "de chat neemt nu geen regels aan",
+  "error.chat.refused": "de chat heeft die regel niet aangenomen",
   "error.chat.unreachable": "de chat was zojuist niet bereikbaar; probeer het later opnieuw",
   "error.radio.busy": "de radio wordt al gezocht",
   "error.radio.last_enabled": "minstens één radio blijft aan: zet eerst een andere aan",

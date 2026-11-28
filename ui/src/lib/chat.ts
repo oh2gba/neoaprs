@@ -9,12 +9,15 @@ import { LIMITS } from "@/protocol/lists";
 const SPACES = /[\t-\r \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/gu;
 /** What a line loses: the control, format, private-use, surrogate and unassigned characters. */
 const DROPPED = /\p{C}/gu;
+/** A run of combining marks past the third, which would paint over the lines beside it. */
+const MARKS = /(\p{M}{3})\p{M}+/gu;
 
 /** The line as the daemon and the server make it: one line, at most LIMITS.chat.textMax characters. */
 export function chatText(text: string): string {
   const kept = text
     .replace(SPACES, " ")
     .replace(DROPPED, "")
+    .replace(MARKS, "$1")
     .replace(/ {2,}/g, " ")
     .replace(/^ +| +$/g, "");
   return [...kept]

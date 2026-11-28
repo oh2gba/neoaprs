@@ -43,6 +43,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.sked.unreachable": "no se pudo acceder al tablón de pruebas HF ahora mismo; inténtalo más tarde",
   "error.chat.rate": "se han enviado demasiadas líneas desde aquí ahora mismo; inténtalo dentro de un minuto",
   "error.chat.closed": "el chat no acepta líneas ahora",
+  "error.chat.refused": "el chat no aceptó esa línea",
   "error.chat.unreachable": "no se pudo acceder al chat ahora mismo; inténtalo más tarde",
   "error.radio.busy": "ya hay una búsqueda de la radio en curso",
   "error.radio.last_enabled": "al menos una radio tiene que seguir activada: activa primero otra radio",

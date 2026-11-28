@@ -1276,6 +1276,9 @@ CHAT_TEXTS = [
     "\u00e9" * (CHAT_MAX_TEXT + 20),
     "\U0001f642" * (CHAT_MAX_TEXT + 1),
     "e\u0301\u0301\u0301",
+    "e" + "\u0301" * 10,
+    "\u0301" * (CHAT_MAX_TEXT + 1),
+    "a\u0301\u0302\u0303\u0304b\u0308\u0308",
 ]
 STATUS_TEMPLATES = [
     "QRV {freq} {mode}",

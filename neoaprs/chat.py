@@ -19,6 +19,7 @@ ENDPOINT_PATH = "/api/v1/chat.php"
 SEEN_ROW = "update/chat_seen"
 VERSION = 1
 MAX_TEXT = 200
+MARKS_RUN = 3  # combining marks in a row a line keeps
 # the server's history: the newest lines
 MAX_LINES = 100
 MAX_ID = 2**53
@@ -48,16 +49,39 @@ def _kept(c: str) -> bool:
     return unicodedata.category(c)[0] != "C"
 
 
+def _few_marks(text: str) -> str:
+    """Cut each run of combining marks to MARKS_RUN: a longer one paints over the lines beside it."""
+    out: list[str] = []
+    run = 0
+    for c in text:
+        run = run + 1 if unicodedata.category(c)[0] == "M" else 0
+        if run <= MARKS_RUN:
+            out.append(c)
+    return "".join(out)
+
+
 def clean_text(text: str) -> str:
     """Make a line of the chat as the server does: white space becomes one space, control and
     invisible characters go, cut to MAX_TEXT characters."""
-    kept = "".join(c for c in NOTE_SPACE.sub(" ", text) if _kept(c))
+    kept = _few_marks("".join(c for c in NOTE_SPACE.sub(" ", text) if _kept(c)))
     return re.sub(" {2,}", " ", kept).strip(" ")[:MAX_TEXT].strip(" ")
 
 
 def plain_text(text: object) -> bool:
     """Whether a text is a line as the server writes it: cleaned already and not empty."""
     return isinstance(text, str) and text != "" and clean_text(text) == text
+
+
+def shown_text(text: object) -> bool:
+    """Whether a text is shown as the server wrote it: one line, trimmed, not empty, no control character.
+
+    The server's table of characters may be newer than this Python's: what it kept stays."""
+    return (
+        isinstance(text, str)
+        and 0 < len(text) <= MAX_TEXT
+        and text.strip(" ") == text
+        and not any(unicodedata.category(c) in ("Cc", "Cs") for c in text)
+    )
 
 
 def line_of(entry: object) -> Line | None:
@@ -69,7 +93,7 @@ def line_of(entry: object) -> Line | None:
         return None
     if at is None or not isinstance(call, str) or not call:
         return None
-    if our_call(call) != call or not plain_text(text):
+    if our_call(call) != call or not shown_text(text):
         return None
     return Line(ident, at, call, str(text))
 

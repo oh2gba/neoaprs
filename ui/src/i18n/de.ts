@@ -152,6 +152,7 @@ export const de: Catalogue = {
   "error.sked.unreachable": "die Tafel der KW-Tests war gerade nicht erreichbar; versuche es später noch einmal",
   "error.chat.rate": "von hier wurden gerade zu viele Zeilen gesagt; versuche es in einer Minute noch einmal",
   "error.chat.closed": "der Chat nimmt jetzt keine Zeilen an",
+  "error.chat.refused": "der Chat hat diese Zeile nicht angenommen",
   "error.chat.unreachable": "der Chat war gerade nicht erreichbar; versuche es später noch einmal",
   "error.radio.busy": "die Suche nach dem Funkgerät läuft bereits",
   "error.radio.last_enabled": "mindestens ein Funkgerät bleibt an: schalte zuerst ein anderes an",

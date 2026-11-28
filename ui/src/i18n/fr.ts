@@ -154,6 +154,7 @@ export const fr: Catalogue = {
   "error.sked.unreachable": "le tableau des essais HF n'a pas pu être joint à l'instant ; réessayez plus tard",
   "error.chat.rate": "trop de lignes ont été envoyées d'ici à l'instant ; réessayez dans une minute",
   "error.chat.closed": "la discussion n'accepte aucune ligne en ce moment",
+  "error.chat.refused": "la discussion n'a pas accepté cette ligne",
   "error.chat.unreachable": "la discussion n'a pas pu être jointe à l'instant ; réessayez plus tard",
   "error.radio.busy": "une recherche de la radio est déjà en cours",
   "error.radio.last_enabled": "au moins une radio reste activée : activez d'abord une autre radio",

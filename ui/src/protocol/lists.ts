@@ -1075,7 +1075,7 @@ export const RADIO_TYPES = [
       {
         "key": "tcp_port",
         "kind": "int",
-        "range": [1, 65535],
+        "range": [1, 65335],
         "choices": [],
         "default": "8100",
         "together": "tcp",

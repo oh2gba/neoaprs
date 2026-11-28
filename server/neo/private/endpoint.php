@@ -196,6 +196,7 @@ function neo_line(mixed $value, int $max, string $kept): ?string
     if (!is_string($value) || !preg_match('//u', $value)) return null;
     $spaced = (string) preg_replace(SPACES, ' ', $value);
     $left = (string) preg_replace('/[^' . $kept . ']/u', '', $spaced);
+    $left = (string) preg_replace('/(\p{M}{3})\p{M}+/u', '$1', $left);  // a longer run of marks paints over the lines beside it
     $left = trim((string) preg_replace('/ {2,}/', ' ', $left));
     $chars = preg_split('//u', $left, $max + 1, PREG_SPLIT_NO_EMPTY);
     return trim(implode('', array_slice($chars === false ? [] : $chars, 0, $max)));

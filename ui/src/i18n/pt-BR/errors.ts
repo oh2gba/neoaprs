@@ -43,6 +43,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.unreachable": "não foi possível acessar o quadro de testes HF agora; tente de novo mais tarde",
   "error.chat.rate": "foram enviadas linhas demais daqui agora; tente de novo em um minuto",
   "error.chat.closed": "o chat não aceita linhas agora",
+  "error.chat.refused": "o chat não aceitou essa linha",
   "error.chat.unreachable": "não foi possível acessar o chat agora; tente de novo mais tarde",
   "error.radio.busy": "já há uma busca do rádio em andamento",
   "error.radio.last_enabled": "pelo menos um rádio precisa ficar ligado: ligue outro rádio primeiro",

@@ -43,6 +43,7 @@ export const errors = {
   "error.sked.unreachable": "the HF test board could not be reached just now; try again later",
   "error.chat.rate": "too many lines were said from here just now; try again in a minute",
   "error.chat.closed": "the chat takes no lines now",
+  "error.chat.refused": "the chat did not take that line",
   "error.chat.unreachable": "the chat could not be reached just now; try again later",
   "error.radio.busy": "a search for the radio is running already",
   "error.radio.last_enabled": "at least one radio stays on: turn another radio on first",

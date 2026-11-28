@@ -42,6 +42,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.unreachable": "HF-testitaulua ei tavoitettu juuri nyt; yritä myöhemmin uudelleen",
   "error.chat.rate": "täältä on juuri lähetetty liian monta riviä; yritä minuutin päästä uudelleen",
   "error.chat.closed": "chat ei ota nyt rivejä vastaan",
+  "error.chat.refused": "chat ei ottanut riviä vastaan",
   "error.chat.unreachable": "chattia ei tavoitettu juuri nyt; yritä myöhemmin uudelleen",
   "error.radio.busy": "radion haku on jo käynnissä",
   "error.radio.last_enabled": "vähintään yksi radio pysyy käytössä: ota ensin toinen radio käyttöön",

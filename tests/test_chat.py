@@ -70,6 +70,9 @@ def test_the_text_of_a_line_is_cleaned_as_the_vectors_say_and_the_server_holds()
     assert texts["5° up € \U0001f642 \U0001f4fb x"] == "5° up € \U0001f642 \U0001f4fb x", "symbols stay"
     assert texts["<b>&amp;</b> <script>alert(1)</script>"] == "<b>&amp;</b> <script>alert(1)</script>", "markup is text"
     assert {len(c["text"]) for c in cases} >= {0, MAX_TEXT} and max(len(c["text"]) for c in cases) == MAX_TEXT
+    assert texts["e" + "\u0301" * 10] == "e" + "\u0301" * 3, "a run of marks cannot paint over the lines beside it"
+    assert texts["\u0301" * (MAX_TEXT + 1)] == "\u0301" * 3
+    assert texts["a\u0301\u0302\u0303\u0304b\u0308\u0308"] == "a\u0301\u0302\u0303b\u0308\u0308"
 
 
 def hostile_lines() -> dict[str, Any]:
@@ -90,6 +93,13 @@ def hostile_lines() -> dict[str, Any]:
         bad[f"{name} time"] = {**line(), "at": at}
     bad["not an object"] = ["1", "OH2XYZ"]
     return bad
+
+
+def test_a_line_the_server_kept_is_shown_as_it_is_with_a_character_this_python_does_not_know() -> None:
+    """The host's tables may be newer: a character it kept that Python takes as unassigned stays."""
+    kept = line_of(line(text="new \u0378 sign"))
+    assert kept is not None and kept.text == "new \u0378 sign"
+    assert line_of(line(text="a\x07b")) is None, "a control character is no line the server writes"
 
 
 @pytest.mark.parametrize("entry", list(hostile_lines().values()), ids=list(hostile_lines()))
@@ -184,7 +194,7 @@ async def test_a_host_without_an_etag_is_asked_by_last_modified_and_one_without_
     assert room.moved == [[1], [2]] and room.fresh == [["OH3ABC: new"]]
 
 
-async def test_after_a_restart_only_lines_newer_than_the_newest_seen_notify(tmp_path: Path) -> None:
+async def test_after_a_restart_only_lines_newer_than_the_newest_seen_and_after_the_first_read_notify(tmp_path: Path) -> None:
     server = await chat_server()
     server.add("OH2XYZ", "seen")
     store = await store_at(tmp_path / "neoaprs.sqlite")
@@ -192,7 +202,27 @@ async def test_after_a_restart_only_lines_newer_than_the_newest_seen_notify(tmp_
     server.add("OH3ABC", "while we were off")
     again = Room(server, store)
     await again.service.poll()
-    assert again.fresh == [["OH3ABC: while we were off"]] and len(again.service.lines()) == 2
+    assert again.fresh == [] and len(again.service.lines()) == 2, "what the first read after a start brings is shown only"
+    server.add("OH3ABC", "after the start")
+    await again.service.poll()
+    assert again.fresh == [["OH3ABC: after the start"]]
+
+
+async def test_new_lines_notify_at_most_once_a_minute_however_many_came_and_every_line_shows() -> None:
+    server = await chat_server()
+    now = [1000.0]
+    server.add("OH2XYZ", "history")
+    room = Room(server, monotonic=lambda: now[0])
+    await room.service.poll()
+    for n in range(3):
+        server.add("OH3ABC", f"flood {n}")
+        await room.service.poll()
+        now[0] += 10.0
+    assert room.fresh == [["OH3ABC: flood 0"]] and len(room.service.lines()) == 4
+    now[0] += 60.0
+    server.add("OH3ABC", "a minute on")
+    await room.service.poll()
+    assert room.fresh[-1] == ["OH3ABC: a minute on"] and len(room.fresh) == 2
 
 
 async def test_a_chat_whose_ids_went_back_is_the_new_baseline_and_notifies_of_nothing(tmp_path: Path) -> None:
@@ -334,6 +364,10 @@ async def test_a_refusal_says_its_code_and_a_closed_chat_is_closed_for_that_call
     assert e.value.code == "chat.closed" and room.service.state == "closed", "blocked: closed for this call"
     room.call = "OH3ABC"
     assert room.service.state == "ok"
+    server.refuse = ("bad_request", 400)
+    with pytest.raises(ChatError) as e:
+        await room.service.say("hi")
+    assert e.value.code == "chat.refused", "the server did not take the line: not an unreachable server"
     server.refuse = ("storage", 500)
     with pytest.raises(ChatError) as e:
         await room.service.say("hi")
