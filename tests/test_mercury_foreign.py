@@ -21,7 +21,7 @@ from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryclaims import radio_folder
 from neoaprs.radiodriver import RunOverrides
 from neoaprs.radiospec import RadioSpec
-from neoaprs.tncprofile import MERCURY_OWN
+from neoaprs.tncprofile import MERCURY_OWN, tcp_url
 from tests.support.faketnc import UI
 from neoaprs.cli.supportsummary import _mercury
 from neoaprs.mercuryruns import PORTS_TAKEN, StartEnd
@@ -221,6 +221,29 @@ async def test_another_mercury_on_mercurys_own_ports_on_every_address_is_never_s
         assert m.frame_hold() == "" and m.refuses_line() == ""
     finally:
         await stopped(m)
+
+
+async def test_a_mercury_radio_of_your_own_program_on_mercurys_own_pair_leaves_a_neoaprs_run_one_the_next_pair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The operator's own Mercury listens on every address on 8100 and a "Your own program" radio is pointed at it."""
+    kiss, control = listening_pair("0.0.0.0")
+    port = kiss.getsockname()[1]
+    monkeypatch.setattr(mercuryhelper, "OWN_PAIR", port)
+    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=0, tries=50: mercuryhelper.free_ports(port, tries))
+    claims = Claims()
+    own = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, **of_radio(tmp_path, 5, claims))
+    run = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, **of_radio(tmp_path, HF_ID, claims))
+    own.ports = run.ports = lambda: []
+    with kiss, control:
+        try:
+            await own.start(HF, attach=tcp_url("127.0.0.1", port))
+            await run.start(HF)
+            await until_started(lambda: run.state == "running" or run.reason == "ports_taken")
+            assert run.reason == "" and run.broadcast_port != port and run.starts == 1
+        finally:
+            await stopped(run)
+            await stopped(own)
 
 
 async def test_another_neoaprss_mercury_on_the_loopback_is_passed_over_as_before(

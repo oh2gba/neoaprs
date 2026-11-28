@@ -12,7 +12,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 
-from . import nodevices
+from . import mercuryhelper, nodevices
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import Config
@@ -50,6 +50,7 @@ from .mercuryhelper import (
     is_shipped,
     list_sound_cards,
     next_modem_ports,
+    pair_ports,
 )
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryruns import PORTS_TAKEN, REASONS as REASONS, Runs, owners_of, owners_words
@@ -384,8 +385,17 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
 
     def _free_pair(self) -> tuple[int, int]:
         """Return a free pair of ports: the first the probe finds that no other modem holds."""
-        pair = free_ports()
-        return pair if self.claims is None else ports_from(next_modem_ports(self.claims, self.holder, first=pair[0]))
+        if self.claims is None:
+            return free_ports()
+        try:
+            first = free_ports()[0]
+        except PortsTaken as e:
+            # a Mercury on a pair another radio of ours holds is that radio's, not a stranger's: pass it over
+            held = {p for h in self.claims.held_by_others(self.holder, "modem_ports") for p in pair_ports(int(h))}
+            if not held.issuperset(e.ports):
+                raise
+            first = mercuryhelper.OWN_PAIR
+        return ports_from(next_modem_ports(self.claims, self.holder, first=first))
 
     def _ended(self, code: int | None, lines: list[str]) -> None:
         """Called from the reader thread when the program ended by itself: restart it."""
