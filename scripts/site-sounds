@@ -6,8 +6,8 @@
   scripts/site-sounds --keep     the same, and keeps the container's work folder work/sounds/
 
 The modems run only in the container: no device, no sound card, no network (`--network none`). Each
-clip is the modem's own output, decoded back before it is written: Mercury by a second Mercury,
-Packet by Direwolf's atest. Needs docker; the image is built once from the Ubuntu of
+clip is the modem's own output in receiver noise made here, decoded back from the finished file
+before it is written: Mercury by a second Mercury, Packet by Direwolf's atest. Needs docker; the image is built once from the Ubuntu of
 scripts/check-in-container (the packages need the network then). The source archives come from
 ~/.cache/neoaprs-build, where scripts/build-mercury and scripts/build-direwolf keep them."""
 
@@ -15,7 +15,9 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 import os
+import random
 import re
 import shutil
 import socket
@@ -42,16 +44,39 @@ RUN apt-get update \\
 """
 IMAGE = "neoaprs-sounds:" + hashlib.sha256(DOCKERFILE.encode()).hexdigest()[:12]
 
-# The packet of all three clips: a status from a call that is nobody's.
-SOURCE_CALL, STATUS = "N0CALL", b">NeoAPRS"
+# The packet of all three clips: a beacon from a call that is nobody's, at a round position at sea.
+SOURCE_CALL, INFO = "N0CALL", b"=6000.00N/02500.00E-NeoAPRS"
 PEAK = 10 ** (-3 / 20)  # -3 dBFS
-SILENCE_SEC = 0.25
+MERCURY_RATE = 8000
+# The Packet clips: Direwolf's 44100 a second resampled by sox; the signal is below 3 kHz
+PACKET_RATE = 12000
+
+# The receiver around each signal: noise before, under and after it, the same bytes at every run
+SEED = 20261128
+NOISE_SEC = 2.5
+FADE_SEC = 0.05
+NOISE_TAPS = 101
+# HF, an SSB receiver on a quiet band: white noise through its passband (a windowed-sinc filter,
+# so the edges slope gently), steady under the signal, which stands this far above the noise in
+# its own bandwidth (Mercury: DATAC3's 562 Hz; 300 baud: 200 Hz of shift and 300 Hz of keying)
+SSB_PASSBAND_HZ = (300, 2700)
+HF_SNR_DB = 18
+SIGNAL_BAND_HZ = {"mercury": 562, "packet-300": 500}
+# VHF, an FM receiver with the squelch open: with no carrier the discriminator gives a loud hiss
+# over the audio band; a strong station quiets it to almost nothing for as long as it transmits,
+# and the change takes a few milliseconds. Not modelled: de-emphasis, the radio's own filters, a
+# carrier that comes up before its audio.
+FM_AUDIO_HZ = (300, 3000)
+FM_HISS_DB = -3  # the hiss's RMS against the packet's
+FM_QUIETED_DB = -40  # what is left of it under the packet
+FM_EDGE_SEC = 0.005
+
 # The waterfall: 0 to 3 kHz, the same scale for every clip
 PICTURE_RATE = 6000
-PIXELS_PER_SEC = 160
-PICTURE_HEIGHT = 257
-DYNAMIC_RANGE_DB = 90
-MERCURY_RATE = 8000
+PIXELS_PER_SEC = 80
+PICTURE_HEIGHT = 193
+DYNAMIC_RANGE_DB = 70
+PICTURE_COLOURS = 48  # fewer than sox's 249 keep the PNG small
 
 
 def say(text: str) -> None:
@@ -122,7 +147,7 @@ def host(keep: bool) -> int:
 def frame_bytes() -> bytes:
     from neoaprs import TOCALL, ax25
 
-    return ax25.encode(ax25.Frame(ax25.Address(TOCALL), ax25.Address(SOURCE_CALL), info=STATUS))
+    return ax25.encode(ax25.Frame(ax25.Address(TOCALL), ax25.Address(SOURCE_CALL), info=INFO))
 
 
 def build(work: Path) -> tuple[Path, Path]:
@@ -142,15 +167,94 @@ def build(work: Path) -> tuple[Path, Path]:
     return out / "mercury" / "mercury", out / "direwolf"
 
 
-def trimmed(samples: array[int], rate: int) -> tuple[array[int], int]:
-    """The samples from the first to the last that is not zero, scaled to the peak and with silence
-    around them; and how many there were before the silence."""
+def trimmed(samples: array[int]) -> list[float]:
+    """The modem's samples from the first to the last that is not zero, unchanged."""
     first = next(i for i, s in enumerate(samples) if s)
     last = len(samples) - next(i for i, s in enumerate(reversed(samples)) if s)
-    body = samples[first:last]
-    factor = PEAK * 32767 / max(abs(s) for s in body)
-    pad = array("h", bytes(2 * round(SILENCE_SEC * rate)))
-    return pad + array("h", [round(s * factor) for s in body]) + pad, len(body)
+    return [float(s) for s in samples[first:last]]
+
+
+def bandpass(rate: int, band: tuple[int, int]) -> list[float]:
+    """A windowed-sinc band-pass filter of NOISE_TAPS taps (Hamming)."""
+    middle = NOISE_TAPS // 2
+    taps = []
+    for n in range(NOISE_TAPS):
+        k = n - middle
+        ideal = (
+            2 * (band[1] - band[0]) / rate
+            if k == 0
+            else (math.sin(2 * math.pi * band[1] * k / rate) - math.sin(2 * math.pi * band[0] * k / rate))
+            / (math.pi * k)
+        )
+        taps.append(ideal * (0.54 - 0.46 * math.cos(2 * math.pi * n / (NOISE_TAPS - 1))))
+    return taps
+
+
+def band_noise(count: int, rate: int, band: tuple[int, int], rng: random.Random) -> list[float]:
+    """Gaussian noise through the band-pass filter, scaled to an RMS of 1."""
+    taps = bandpass(rate, band)
+    white = [rng.gauss(0.0, 1.0) for _ in range(count + len(taps))]
+    noise = [sum(t * w for t, w in zip(taps, white[i : i + len(taps)])) for i in range(count)]
+    rms = math.sqrt(sum(v * v for v in noise) / count)
+    return [v / rms for v in noise]
+
+
+def power(values: list[float]) -> float:
+    return sum(v * v for v in values) / len(values)
+
+
+def on_a_band(signal: list[float], rate: int, band_hz: int, rng: random.Random) -> tuple[list[float], int]:
+    """An HF clip: the signal NOISE_SEC into steady SSB receiver noise, HF_SNR_DB above it in the
+    signal's own band; and where the signal starts."""
+    lead = round(NOISE_SEC * rate)
+    total = lead + len(signal) + lead
+    in_band = power(signal) / 10 ** (HF_SNR_DB / 10)
+    level = math.sqrt(in_band * (SSB_PASSBAND_HZ[1] - SSB_PASSBAND_HZ[0]) / band_hz)
+    clip = [level * v for v in band_noise(total, rate, SSB_PASSBAND_HZ, rng)]
+    for i, v in enumerate(signal):
+        clip[lead + i] += v
+    return clip, lead
+
+
+def on_fm(signal: list[float], rate: int, rng: random.Random) -> tuple[list[float], int]:
+    """A VHF clip: the hiss of an FM receiver with its squelch open, quieted while the packet is
+    on; and where the packet starts."""
+    lead = round(NOISE_SEC * rate)
+    total = lead + len(signal) + lead
+    hiss = band_noise(total, rate, FM_AUDIO_HZ, rng)
+    loud = math.sqrt(power(signal)) * 10 ** (FM_HISS_DB / 20)
+    quiet = loud * 10 ** (FM_QUIETED_DB / 20)
+    edge = round(FM_EDGE_SEC * rate)
+    clip = []
+    for i, v in enumerate(hiss):
+        # how far into the packet, in samples: the hiss falls over the edge before the packet's
+        # first sample and rises over the edge after its last
+        inside = min(i - (lead - edge), lead + len(signal) + edge - i)
+        share = min(1.0, max(0.0, inside / edge))
+        clip.append(v * (loud + (quiet - loud) * share))
+    for i, v in enumerate(signal):
+        clip[lead + i] += v
+    return clip, lead
+
+
+def finished(clip: list[float], rate: int) -> array[int]:
+    """The clip faded in and out over FADE_SEC, so that it does not click, at a peak of -3 dBFS."""
+    fade = round(FADE_SEC * rate)
+    for i in range(fade):
+        clip[i] *= i / fade
+        clip[-1 - i] *= i / fade
+    factor = PEAK * 32767 / max(abs(v) for v in clip)
+    return array("h", [round(v * factor) for v in clip])
+
+
+def edges(signal: list[float]) -> dict[str, float]:
+    """The largest of the first and of the last eight samples, against the signal's RMS: a hard
+    edge (no ramp) is near or above 1."""
+    rms = math.sqrt(power(signal))
+    return {
+        "start_over_rms": round(max(abs(v) for v in signal[:8]) / rms, 2),
+        "end_over_rms": round(max(abs(v) for v in signal[-8:]) / rms, 2),
+    }
 
 
 def write_wav(path: Path, samples: array[int], rate: int) -> None:
@@ -363,15 +467,13 @@ def atest(dw: Path, clip: Path, baud: int) -> list[str]:
     return [line[4:].strip() for line in text.splitlines() if line.startswith("[0] ")]
 
 
-def measure(clip: Path, body: int, rate: int) -> dict[str, object]:
+def measure(signal: list[float], rate: int) -> dict[str, object]:
     """The length of the transmission, the band within 10 dB of its strongest part (what a waterfall
-    shows of it) and its two strongest peaks at least 150 Hz apart, on the spectrum smoothed over
-    20 Hz."""
+    shows of it) and its two strongest peaks at least 150 Hz apart, on the spectrum of the clean
+    signal smoothed over 20 Hz."""
     import numpy as np
 
-    samples, _ = read_wav(clip)
-    x = np.asarray(samples, dtype=float)
-    x = x[np.flatnonzero(x)[0] : np.flatnonzero(x)[-1] + 1]
+    x = np.asarray(signal, dtype=float)
     spectrum = np.abs(np.fft.rfft(x * np.hanning(len(x)))) ** 2
     freqs = np.fft.rfftfreq(len(x), 1 / rate)
     width = max(1, int(20 * len(x) / rate))
@@ -384,7 +486,7 @@ def measure(clip: Path, body: int, rate: int) -> dict[str, object]:
         if len(peaks) == 2:
             break
     return {
-        "seconds": round(body / rate, 3),
+        "seconds": round(len(signal) / rate, 3),
         "band_10db_hz": [round(float(freqs[band[0]])), round(float(freqs[band[-1]]))],
         "strongest_hz": sorted(round(float(freqs[i])) for i in peaks),
     }
@@ -396,11 +498,20 @@ def picture(clip: Path, out: Path) -> None:
         [
             "sox", str(clip), "-n", "rate", str(PICTURE_RATE), "spectrogram",
             "-X", str(PIXELS_PER_SEC), "-y", str(PICTURE_HEIGHT), "-z", str(DYNAMIC_RANGE_DB),
-            "-t", "", "-c", "", "-o", str(png),
+            "-q", str(PICTURE_COLOURS), "-t", "", "-c", "", "-o", str(png),
         ],
         check=True,
     )  # fmt: skip
-    subprocess.run(["cwebp", "-quiet", "-lossless", str(png), "-o", str(out.with_suffix(".webp"))], check=True)
+    subprocess.run(["cwebp", "-quiet", "-q", "85", str(png), "-o", str(out.with_suffix(".webp"))], check=True)
+
+
+def resampled(samples: array[int], folder: Path) -> array[int]:
+    """Direwolf's 44100 samples a second at PACKET_RATE, by sox without dither, its level lowered
+    where the new samples would clip (-G)."""
+    before, after = folder / "direwolf-44100.wav", folder / "direwolf-12000.wav"
+    write_wav(before, samples, 44100)
+    subprocess.run(["sox", "-D", "-G", str(before), "-r", str(PACKET_RATE), str(after)], check=True)
+    return read_wav(after)[0]
 
 
 def inside() -> int:
@@ -411,28 +522,51 @@ def inside() -> int:
     for folder in (out, runs):
         shutil.rmtree(folder, ignore_errors=True)
         folder.mkdir(parents=True)
+    rng = random.Random(SEED)  # noqa: S311  (noise for a clip, the same at every run)
     report: dict[str, dict[str, object]] = {}
 
     (runs / "mercury").mkdir()
     recorded, heard = asyncio.run(record_mercury(mercury, runs / "mercury"))
-    samples, body = trimmed(recorded, MERCURY_RATE)
+    signal = trimmed(recorded)
     clip = out / "mercury.wav"
-    write_wav(clip, samples, MERCURY_RATE)
+    write_wav(
+        clip, finished(on_a_band(signal, MERCURY_RATE, SIGNAL_BAND_HZ["mercury"], rng)[0], MERCURY_RATE), MERCURY_RATE
+    )
     (runs / "mercury-c").mkdir()
     decoded = asyncio.run(decode_mercury(mercury, runs / "mercury-c", clip))
-    report["mercury"] = {"heard_on_channel": heard, "decoded_from_clip": decoded, **measure(clip, body, MERCURY_RATE)}
+    report["mercury"] = {
+        "heard_on_channel": heard,
+        "decoded_from_clip": decoded,
+        "rate": MERCURY_RATE,
+        "snr_db_in_band": HF_SNR_DB,
+        "edges": edges(signal),
+        **measure(signal, MERCURY_RATE),
+    }
 
     for baud in (1200, 300):
-        raw = record_direwolf(dw, runs / f"direwolf-{baud}", baud)
-        rate = 44100
-        samples, body = trimmed(raw, rate)
-        clip = out / f"packet-{baud}.wav"
-        write_wav(clip, samples, rate)
-        report[f"packet-{baud}"] = {"decoded_from_clip": atest(dw, clip, baud), **measure(clip, body, rate)}
+        name = f"packet-{baud}"
+        folder = runs / f"direwolf-{baud}"
+        signal = trimmed(resampled(record_direwolf(dw, folder, baud), folder))
+        if baud == 300:
+            mixed = on_a_band(signal, PACKET_RATE, SIGNAL_BAND_HZ[name], rng)[0]
+            noise: dict[str, object] = {"snr_db_in_band": HF_SNR_DB}
+        else:
+            mixed = on_fm(signal, PACKET_RATE, rng)[0]
+            noise = {"hiss_db": FM_HISS_DB, "quieted_db": FM_QUIETED_DB}
+        clip = out / f"{name}.wav"
+        write_wav(clip, finished(mixed, PACKET_RATE), PACKET_RATE)
+        report[name] = {
+            "decoded_from_clip": atest(dw, clip, baud),
+            "rate": PACKET_RATE,
+            **noise,
+            **measure(signal, PACKET_RATE),
+        }
 
-    expected = f"{SOURCE_CALL}>APZNEO:{STATUS.decode()}"
+    expected = f"{SOURCE_CALL}>APZNEO:{INFO.decode()}"
     for name, facts in report.items():
         picture(out / f"{name}.wav", out / name)
+        samples, rate = read_wav(out / f"{name}.wav")
+        facts["clip_seconds"] = round(len(samples) / rate, 2)
         facts["bytes"] = (out / f"{name}.wav").stat().st_size
         if expected not in facts["decoded_from_clip"]:  # type: ignore[operator]
             say(f"{name}: the clip does not decode to {expected}: {facts}")
