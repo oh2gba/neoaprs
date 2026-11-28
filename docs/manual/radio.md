@@ -79,7 +79,7 @@ A new installation has no radio. Each radio is added with its type: in **Add rad
 **Choose:** the type of the TNC, under Packet:
 
 - *KISS TNC* for a TNC that is in KISS when it is switched on;
-- *Kenwood TM-D710 / TH-D72*, *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2* or *Kantronics KPC-3+* for a TNC that NeoAPRS puts into KISS itself ([The TNC type](#the-tnc-type)).
+- *Kenwood TM-D710 / TH-D72*, *Kenwood TH-D7, TM-D700, TNC-2* (the TS-2000 too) or *Kantronics KPC-3+* for a TNC that NeoAPRS puts into KISS itself ([The TNC type](#the-tnc-type)).
 
 Then **Port** and, only when the TNC's manual says so, **Speed** (a NinoTNC needs 57600). On Linux the Port may stay *find automatically*. On Windows and macOS pick the port from the list, or press **Find my radio** ([below](#find-my-radio)).
 
@@ -146,7 +146,7 @@ NeoAPRS starts no Mercury of its own for this radio. It is a Mercury radio in ev
 | type | for | what to fill in |
 |---|---|---|
 | *Tracker or iGate on Wi-Fi* | the CA2RXU iGate on WiFi, its TNC server set to KISS | **Address**: the board's address, which you type (nothing is opened until then); **Port** 8001 |
-| *Tracker or iGate on USB or Bluetooth* | the CA2RXU Tracker's TNC image, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs | **Port**: the serial port, or a `bt://` or `ble://` address |
+| *Tracker or iGate, USB or Bluetooth* | the CA2RXU Tracker's TNC image, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs | **Port**: the serial port, or a `bt://` or `ble://` address |
 | *LoRa APRS iGate on USB (RX only)* | the CA2RXU iGate on USB as it comes, its TNC off | **Port**. This radio only receives: nothing is ever sent on it, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)) |
 
 - **Set the board to KISS.** A board left in TNC2 text is heard and sends nothing; its status says "the board sends text lines: set it to KISS". A CA2RXU Tracker on classic Bluetooth is turned to KISS by NeoAPRS itself.
@@ -160,7 +160,7 @@ NeoAPRS starts no Mercury of its own for this radio. It is a Mercury radio in ev
 
 **For:** a Yaesu FTM-100, FTM-400 or FTM-500 on the data cable that comes with it (the FTM-300 has not been tried), or a TAPR TNC-2 (or clone), a Kantronics or an AEA PK-232 left in its own monitor mode. They print what they hear as text, and they cannot be sent through.
 
-**Choose:** *Yaesu FTM, TNC in monitor mode (RX only)* under Packet, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
+**Choose:** *Yaesu FTM, receive only* under Packet (for a TNC in monitor mode too), then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
 **When it works:** what the radio hears is on the map, and with Send what I hear on the station gates what it hears to APRS-IS. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the switch at the top right of the page reads **RX only**.
 
@@ -318,12 +318,12 @@ The type of a packet radio (its key in brackets, as `neoaprs db radios` shows it
 |---|---|---|---|---|
 | *KISS TNC* (`kiss`) | Mobilinkd TNC3 and TNC4, NinoTNC (speed 57600), TNC-Pi, TNC-X, the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio (`[F]` then `[LIST]` on the D75), any TNC that is in KISS when it is switched on | nothing | nothing | no |
 | *Kenwood TM-D710 / TH-D72* (`kenwood-d710`) | Kenwood TM-D710A/E/G/GA/GE, TH-D72A/E | `TC 1` (1 s), `TN 2,0` (3 s), `HBAUD 1200` (1 s), `KISS ON` (1 s), `RESTART` (1 s), each ended by a carriage return | `C0 FF C0` | yes, and the check enters again with the whole sequence |
-| *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2* (`kenwood-tnc2`) | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
+| *Kenwood TH-D7, TM-D700, TNC-2* (`kenwood-tnc2`) | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | *Kantronics KPC-3+* (`kantronics`) | Kantronics KPC-3+, KPC-3, KAM | `\rINTFACE KISS\rRESET\r` (3 s) | `C0 FF C0` | yes |
 | *Direwolf* (`kiss-tcp`) | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100) | nothing | nothing | no |
-| *Yaesu FTM, TNC in monitor mode (RX only)* (`tnc-text`) | a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
+| *Yaesu FTM, receive only* (`tnc-text`) | a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
 
-- **RX only** (*Yaesu FTM, TNC in monitor mode (RX only)*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never a message's, the beacon's, an object's or a bulletin's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the switch reads RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-tnc-in-monitor-mode-rx-only).
+- **RX only** (*Yaesu FTM, receive only*): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never a message's, the beacon's, an object's or a bulletin's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the switch reads RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#yaesu-ftm-receive-only).
 - **A TNC that is not asked** (*KISS TNC*, *Direwolf*): nothing is written to it but KISS frames. There is no keep-alive check and no silent state. The open line is all NeoAPRS can know of the radio.
 - A TNC in command mode that sends text is told in the radio status; it is not answered. The Kenwood TH-D74 and TH-D75 have no command mode and cannot be asked: put them in KISS at the radio.
 - **The wait after the last step** is the settle time. What the TNC says meanwhile is thrown away and no frame is sent.

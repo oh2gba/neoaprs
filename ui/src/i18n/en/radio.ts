@@ -29,19 +29,19 @@ export const radio = {
   "radio.more": "+{n}",
 
   // A type's name says what the operator has in hand (a model, or the class word: sound card, KISS TNC, tracker), as Add radio's list says it under its kind's heading, and in the case it has in the middle of a
-  // sentence: the list gives it a capital, and elsewhere it stands after its kind's word (radio.kind_type). A program is named only where the operator runs it himself (Direwolf). "(RX only)" ends a name and "Dummy" starts one.
+  // sentence: the list gives it a capital, and elsewhere it stands after its kind's word (radio.kind_type). A program is named only where the operator runs it himself (Direwolf). "(RX only)" ends a name ("receive only" the Yaesu's, to fit a phone's row) and "Dummy" starts one.
   "radio.type.direwolf": "sound card, 1200",
   "radio.type.direwolf_300": "sound card, 300",
   "radio.type.kiss": "KISS TNC",
   "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
-  "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+  "radio.type.kenwood_tnc2": "Kenwood TH-D7, TM-D700, TNC-2",
   "radio.type.kantronics": "Kantronics KPC-3+",
   "radio.type.kiss_tcp": "Direwolf",
-  "radio.type.tnc_text": "Yaesu FTM, TNC in monitor mode (RX only)",
+  "radio.type.tnc_text": "Yaesu FTM, receive only",
   "radio.type.mercury": "sound card",
   "radio.type.mercury_own": "your own program",
   "radio.type.lora_tcp": "tracker or iGate on Wi-Fi",
-  "radio.type.lora_serial": "tracker or iGate on USB or Bluetooth",
+  "radio.type.lora_serial": "tracker or iGate, USB or Bluetooth",
   "radio.type.lora_console": "iGate on USB (RX only)",
   "radio.type.dummy": "Dummy packet radio",
   "radio.type.dummy_hf": "Dummy Mercury radio",

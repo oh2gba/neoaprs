@@ -101,7 +101,7 @@ KISS = Profile(
 # Kenwood TH-D7, TNC-2 and clones: silent after RESTART until a packet is heard, so it is probed
 KENWOOD_TNC2 = Profile(
     "kenwood-tnc2",
-    "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+    "Kenwood TH-D7, TM-D700, TNC-2",
     "serial",
     9600,
     ((b"\rKISS ON\rRESTART\r", 3.0),),
@@ -224,7 +224,7 @@ LORA_TCP = Profile(
 )
 LORA_SERIAL = Profile(
     "lora-serial",
-    "tracker or iGate on USB or Bluetooth",
+    "tracker or iGate, USB or Bluetooth",
     "serial",
     115200,
     (),
@@ -259,7 +259,7 @@ LORA_CONSOLE = Profile(
 # not seen can put the lines on the air (Converse Mode).
 TNC_TEXT = Profile(
     "tnc-text",
-    "Yaesu FTM, TNC in monitor mode (RX only)",
+    "Yaesu FTM, receive only",
     "serial",
     9600,
     (),

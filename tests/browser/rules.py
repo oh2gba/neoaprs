@@ -41,9 +41,9 @@ CUT: dict[str, str] = {}
 # Selects that may be narrower than an entry they do not show: never narrower than the one they show.
 # Each is a known fault that waits for a decision.
 SELECTS: dict[str, str] = {
-    ".size-phone [id^=set-radio-][id$=-type]": "a radio's types: the longest names (Packet, Kenwood TH-D7 / TM-D700 / "
-    "TS-2000, TNC-2; LoRa, tracker or iGate on USB or Bluetooth in most languages) are longer than a phone's row in a "
-    "radio's box can show, with its label above it: their words wait for a decision",
+    ".size-phone [id^=set-radio-][id$=-type]": "a radio's types: even shortened, Packet, Kenwood TH-D7, TM-D700, TNC-2 "
+    "(271 px of words in 261 at 390 px) and in de, fi, fr, pt-BR and ja the LoRa tracker or iGate, USB or Bluetooth "
+    "are longer than a phone's row in a radio's box can show, with its label above it: their words wait for a decision",
 }
 
 # Controls the suite does not change, by their id.

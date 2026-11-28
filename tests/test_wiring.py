@@ -391,10 +391,7 @@ def test_a_tnc_driver_gives_its_line_the_settings_the_id_and_the_quiet_period_an
     assert driver.restart_key(third, config, RunOverrides()) == driver.restart_key(
         third, replace(config, mercury_keying="vox", station_comment="x"), RunOverrides()
     ), "nothing of another radio or of the station does"
-    assert (
-        driver.words(third, config, RunOverrides())
-        == "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2,/dev/ttyUSB0 at 1200 baud"
-    )
+    assert driver.words(third, config, RunOverrides()) == "Kenwood TH-D7, TM-D700, TNC-2,/dev/ttyUSB0 at 1200 baud"
     given = Tnc()
     assert TncDriver(fm, Claims(), line=given).line is given and given.radio_id == FM_ID, (
         "a line made elsewhere is the driver's"

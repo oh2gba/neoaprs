@@ -101,16 +101,16 @@ NAMES = {
         "sound card, 300",
         "KISS TNC",
         "Kenwood TM-D710 / TH-D72",
-        "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+        "Kenwood TH-D7, TM-D700, TNC-2",
         "Kantronics KPC-3+",
         "Direwolf",
-        "Yaesu FTM, TNC in monitor mode (RX only)",
+        "Yaesu FTM, receive only",
         "Dummy packet radio",
     ],
     "hf": ["sound card", "your own program", "Dummy Mercury radio"],
     "lora": [
         "tracker or iGate on Wi-Fi",
-        "tracker or iGate on USB or Bluetooth",
+        "tracker or iGate, USB or Bluetooth",
         "iGate on USB (RX only)",
         "Dummy LoRa radio",
     ],
@@ -143,16 +143,16 @@ def test_a_types_name_says_what_the_operator_has_in_hand_and_names_a_program_onl
     )
     assert (
         [t.key for t in TYPES if not t.can.transmit]
-        == [t.key for t in TYPES if t.name.endswith("(RX only)")]
+        == [t.key for t in TYPES if t.name.endswith(("(RX only)", ", receive only"))]
         == ["tnc-text", "lora-console"]
-    )
+    ), "a type that only receives says so at the end of its name (the Yaesu's short, for a phone's row)"
     assert [t.name.casefold() for t in TYPES if t.dummy] == [
         f"dummy {KIND_WORDS[t.kind]} radio".casefold() for t in TYPES if t.dummy
     ], "Dummy, the kind's word (radiospec.KIND_WORDS: the log's name of a radio with none), radio"
     assert KIND_WORDS == {"fm": "Packet", "hf": "Mercury", "lora": "LoRa"}, (
         "a kind is called by how its signal is made, never by a band: classic APRS is on HF too, and Mercury on 2 m"
     )
-    assert max(len(name) for name in names.values()) == 40 and len(set(names.values())) == len(names), (
+    assert max(len(name) for name in names.values()) == 34 and len(set(names.values())) == len(names), (
         "the list is as wide as its widest line"
     )
 

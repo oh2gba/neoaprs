@@ -38,13 +38,13 @@ const PACKET = [
   "Sound card, 300 (HF)",
   "KISS TNC",
   "Kenwood TM-D710 / TH-D72",
-  "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+  "Kenwood TH-D7, TM-D700, TNC-2",
   "Kantronics KPC-3+",
   "Direwolf",
-  "Yaesu FTM, TNC in monitor mode (RX only)",
+  "Yaesu FTM, receive only",
 ];
 const MERCURY = ["Sound card", "Your own program"];
-const LORA = ["Tracker or iGate on Wi-Fi", "Tracker or iGate on USB or Bluetooth", "iGate on USB (RX only)"];
+const LORA = ["Tracker or iGate on Wi-Fi", "Tracker or iGate, USB or Bluetooth", "iGate on USB (RX only)"];
 const WITHOUT = ["Dummy packet radio", "Dummy Mercury radio", "Dummy LoRa radio"];
 
 describe("Add radio's list", () => {

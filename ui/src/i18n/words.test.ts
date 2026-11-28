@@ -67,8 +67,20 @@ const BROUGHT = (id: string): boolean =>
 /** The texts of the two boxes of the Notifications group, in a browser and in the app's own window: the computer NeoAPRS runs on is a computer, never a server. */
 const ALERT_BOXES = (id: string): boolean =>
   id.startsWith("settings.alerts.") || id.startsWith("settings.browser.") || id === "settings.alert.tip1";
-/** The lines of the list of types that only receive. */
-const RECEIVE_ONLY_TYPES = ["radio.type.tnc_text", "radio.type.lora_console"];
+/** The lines of the list of types that only receive and say it as the RX only switch does. */
+const RECEIVE_ONLY_TYPES = ["radio.type.lora_console"];
+/** The Yaesu's line, short enough for a phone's row, ends with "receive only" in the language's own words. */
+const RECEIVE_ONLY_WORDS: Record<string, string> = {
+  en: ", receive only",
+  de: ", nur Empfang",
+  es: ", solo recepción",
+  fi: ", vain vastaanotto",
+  fr: ", réception seule",
+  it: ", solo ricezione",
+  ja: "、受信のみ",
+  nl: ", alleen ontvangst",
+  "pt-BR": ", só recepção",
+};
 /** The one type whose name says Direwolf: the operator's own, which he runs himself and NeoAPRS reaches over the network. The Sound card type, whose Dire Wolf NeoAPRS carries and starts, is named by what the operator
  * has in hand (John, 16 Nov 2026: "so people don't get confused whether to still install direwolf"). */
 const OWN_PROGRAM = "radio.type.kiss_tcp";
@@ -80,8 +92,8 @@ const OTHER_KIND_WORDS = ["radio.add.group.fm", "radio.add.group.lora", "radio.k
 const SOUND_CARD_TYPES = ["radio.type.direwolf", "radio.type.direwolf_300", "radio.type.mercury"];
 /** What no type's own name says: a band or a mode (Add radio's list says the band after it, from `radio.band`), nor how the program reaches it. */
 const BAND_OR_LINK = /(?<![\p{L}\p{N}])(HF|KW|VHF|UHF|SSB|TCP)(?![\p{L}\p{N}])/u;
-/** The longest a type's name is, in characters: the list of Add radio is as wide as its widest line, on a phone too (the longest English line is the Yaesu's, 40). */
-const WIDEST_TYPE = 43;
+/** The longest a type's name is, in characters: the list of Add radio is as wide as its widest line, on a phone too (the longest English line is the LoRa tracker's, 34; the Finnish one 42). */
+const WIDEST_TYPE = 42;
 
 /** The refusals and reasons that name a field or a switch of the page, and the labels they name. */
 const NAMED_LABELS: Record<string, string[]> = {
@@ -197,6 +209,7 @@ for (const locale of LOCALES) {
       expect(RECEIVE_ONLY_TYPES.filter((id) => !say(id).toLocaleLowerCase(locale.code).endsWith(`(${rx})`))).toEqual(
         [],
       );
+      expect(say("radio.type.tnc_text")).toBe(`Yaesu FTM${RECEIVE_ONLY_WORDS[locale.code] ?? "?"}`);
       const dummy = DUMMY[locale.code] ?? "";
       const edge = (id: string) =>
         say(id)

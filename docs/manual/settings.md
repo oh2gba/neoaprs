@@ -112,16 +112,16 @@ Two radios that both send, and are both Dummy radios or both real ones, can pass
 | `direwolf-300` | fm | sound card, 300 | `sound_card`, `keying`, `tx_gain_db`, `tx_card`, `rx_card`, `beacon`, `status`, `ask`, `local_info`, `path` |
 | `kiss` | fm | KISS TNC | `port`, `baud`, `on_hf`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `kenwood-d710` | fm | Kenwood TM-D710 / TH-D72 | `port`, `baud`, `on_hf`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
-| `kenwood-tnc2` | fm | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | `port`, `baud`, `on_hf`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
+| `kenwood-tnc2` | fm | Kenwood TH-D7, TM-D700, TNC-2 | `port`, `baud`, `on_hf`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `kantronics` | fm | Kantronics KPC-3+ | `port`, `baud`, `on_hf`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `kiss-tcp` | fm | Direwolf | `port`, `tcp_host`, `tcp_port`, `on_hf`, `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
-| `tnc-text` | fm | Yaesu FTM, TNC in monitor mode (RX only) | `port`, `baud` |
+| `tnc-text` | fm | Yaesu FTM, receive only | `port`, `baud` |
 | `dummy` | fm | Dummy packet radio | `beacon`, `status`, `ask`, `local_info`, `path`, `digipeat` |
 | `dummy-hf` | hf | Dummy Mercury radio | `beacon`, `status`, `ask`, `local_info` |
 | `mercury` | hf | sound card | `sound_card`, `keying`, `tx_gain_db`, `tx_card`, `rx_card`, `psk_report`, `psk_dial`, `beacon`, `status`, `ask`, `local_info` |
 | `mercury-own` | hf | your own program | `tcp_host`, `tcp_port`, `psk_report`, `psk_dial`, `beacon`, `status`, `ask`, `local_info` |
 | `lora-tcp` | lora | tracker or iGate on Wi-Fi | `tcp_host`, `tcp_port`, `beacon`, `status`, `ask`, `local_info`, `path` |
-| `lora-serial` | lora | tracker or iGate on USB or Bluetooth | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path` |
+| `lora-serial` | lora | tracker or iGate, USB or Bluetooth | `port`, `baud`, `beacon`, `status`, `ask`, `local_info`, `path` |
 | `lora-console` | lora | iGate on USB (RX only) | `port`, `baud` |
 | `dummy-lora` | lora | Dummy LoRa radio | `beacon`, `status`, `ask`, `local_info`, `path` |
 

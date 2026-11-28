@@ -669,10 +669,10 @@ describe("SettingsForm", () => {
         "Packet, sound card, 300",
         "Packet, KISS TNC",
         "Packet, Kenwood TM-D710 / TH-D72",
-        "Packet, Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+        "Packet, Kenwood TH-D7, TM-D700, TNC-2",
         "Packet, Kantronics KPC-3+",
         "Packet, Direwolf",
-        "Packet, Yaesu FTM, TNC in monitor mode (RX only)",
+        "Packet, Yaesu FTM, receive only",
         "Dummy packet radio",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");

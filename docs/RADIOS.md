@@ -6,16 +6,16 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 
 | Radio / TNC | Works? | Radio type | Connects by |
 |---|---|---|---|
-| Kenwood TH-D7 | yes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | PC cable PG-4W, serial 9600 |
+| Kenwood TH-D7 | yes | Kenwood TH-D7, TM-D700, TNC-2 | PC cable PG-4W, serial 9600 |
 | Kenwood TM-D700 | yes | same | PC port (DE-9), serial 9600 |
 | Kenwood TM-D710, TH-D72 | yes with notes | Kenwood TM-D710 / TH-D72 | COM socket (D710) or USB (D72), 9600 |
 | Kenwood TH-D74, TH-D75 | yes | KISS TNC | USB-C or Bluetooth (classic); KISS switched on at the radio. Bluetooth LE only through a B.B. Link adapter |
-| Kenwood TS-2000 | yes with notes (unverified) | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | COM port, shared with CAT |
+| Kenwood TS-2000 | yes with notes (unverified) | Kenwood TH-D7, TM-D700, TNC-2 | COM port, shared with CAT |
 | Kenwood TM-D750E | unknown | – | announced, nothing known |
 | Mobilinkd TNC3, TNC4 | yes | KISS TNC | USB, Bluetooth (classic) or Bluetooth LE (`ble://`, needs the extra `ble`; LE untested by us) |
 | NinoTNC | yes | KISS TNC | USB, 57600 |
 | TNC-X, TNC-Pi, other TNC already in KISS | yes | KISS TNC | serial or USB; TNC-Pi baud unverified (19200 reported) |
-| MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | RS-232; depends on the firmware |
+| MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7, TM-D700, TNC-2 | RS-232; depends on the firmware |
 | Kantronics KPC-3+ | yes | Kantronics KPC-3+ | RS-232 |
 | A sound-card interface on an FM radio: Digirig, SignaLink, AIOC, a radio's data port or USB audio, a USB sound dongle | yes | Sound card, 1200 (VHF/UHF) | NeoAPRS carries Direwolf and starts it itself: nothing to install (Windows, Linux; [Sound card](#sound-card)) |
 | A sound-card interface on an SSB radio, for classic APRS on HF (300 baud, usually 10.1476 MHz USB) | untested on the air | Sound card, 300 (HF) | the same Direwolf with its 300 baud modem, paced as a Mercury radio ([Sound card](#sound-card)) |
@@ -26,11 +26,11 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | A Mercury you run yourself (Rhizomatica's Mercury for Windows, a build of your own), which has the radio's sound card and keying | yes | Your own program, under Mercury (DATAC3) | NeoAPRS starts no Mercury and reaches yours at its address and KISS port (8100), its control port 200 above ([Mercury modem](#mercury-modem)) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
 | PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP; Bluetooth LE (`ble://`) is listed by the BLE KISS specification, untested |
-| LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU's T-Beam tracker, esp32_loraprs | untested on a board, tested against each firmware's bytes | Tracker or iGate on Wi-Fi, Tracker or iGate on USB or Bluetooth, or iGate on USB (RX only), under LoRa | a radio of its own kind, LoRa ([LoRa APRS boards](#lora-aprs-boards)) |
-| Yaesu FTM-100, FTM-400, FTM-500 | yes, receive only | Yaesu FTM, TNC in monitor mode (RX only) | the data cable that comes with the radio, 9600 ([RX only](#yaesu-ftm-tnc-in-monitor-mode-rx-only)); nothing is sent from the PC. To transmit, use a sound-card interface and the type Sound card, 1200 (VHF/UHF) |
-| Yaesu FTM-300 | untested | Yaesu FTM, TNC in monitor mode (RX only) | as the FTM-400 |
+| LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU's T-Beam tracker, esp32_loraprs | untested on a board, tested against each firmware's bytes | Tracker or iGate on Wi-Fi, Tracker or iGate, USB or Bluetooth, or iGate on USB (RX only), under LoRa | a radio of its own kind, LoRa ([LoRa APRS boards](#lora-aprs-boards)) |
+| Yaesu FTM-100, FTM-400, FTM-500 | yes, receive only | Yaesu FTM, receive only | the data cable that comes with the radio, 9600 ([receive only](#yaesu-ftm-receive-only)); nothing is sent from the PC. To transmit, use a sound-card interface and the type Sound card, 1200 (VHF/UHF) |
+| Yaesu FTM-300 | untested | Yaesu FTM, receive only | as the FTM-400 |
 | Yaesu FT1D, FT2D, FT3D, FT5D | no | – | their data port output is incomplete (ygate's tests). A sound-card interface and the type Sound card, 1200 (VHF/UHF) work as for any radio |
-| A TNC in its own monitor mode: TAPR TNC-2 and clones, Kantronics KPC-3, AEA PK-232 | yes, receive only | Yaesu FTM, TNC in monitor mode (RX only) | RS-232; the TNC keeps its own digipeater and mailbox ([RX only](#yaesu-ftm-tnc-in-monitor-mode-rx-only)) |
+| A TNC in its own monitor mode: TAPR TNC-2 and clones, Kantronics KPC-3, AEA PK-232 | yes, receive only | Yaesu FTM, receive only | RS-232; the TNC keeps its own digipeater and mailbox ([receive only](#yaesu-ftm-receive-only)) |
 | Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound-card interface and the type Sound card, 1200 (VHF/UHF) work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
 
@@ -41,7 +41,7 @@ NeoAPRS sends and receives over RF, and can show the stations of the internet ro
 ## Kenwood TH-D7 and TM-D700
 
 1. Connect the PC port to the computer: the PG-4W cable on the TH-D7, a serial cable on the TM-D700 (a USB-serial adapter does).
-2. Radio type: *Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2*. Port: your adapter. Speed: 9600.
+2. Radio type: *Kenwood TH-D7, TM-D700, TNC-2* (the TS-2000 too). Port: your adapter. Speed: 9600.
 3. Switch the radio on with the TNC in packet mode (the display shows PACKET). Nothing else: NeoAPRS sends `KISS ON` and `RESTART` itself, waits 3 s, and later checks that the radio is still there.
 
 - TM-D700: leave the COM speed at 9600 (menu 1-9-5). A Bluetooth module without handshake lines needs RTS and CTS joined. A serial module that is paired with the computer is a Bluetooth port like the others ("Bluetooth" below; the module's own speed is set on the module).
@@ -119,7 +119,7 @@ A LoRa APRS board is an ESP32 board with a LoRa chip (a LilyGO LoRa32 or T-Beam,
 | type | the board | what is set on the board |
 |---|---|---|
 | Tracker or iGate on Wi-Fi (`lora-tcp`, the default) | the CA2RXU LoRa APRS iGate on WiFi or Ethernet: its TNC server on port 8001 | *TNC*: *Enable TNC server*, *Protocol* KISS |
-| Tracker or iGate on USB or Bluetooth (`lora-serial`) | the CA2RXU Tracker's `_TNC` image over Bluetooth, the CA2RXU iGate's TNC on USB (`tnc.enableSerial`), DL9SAU's T-Beam tracker (KISS on USB and Bluetooth by default), esp32_loraprs | KISS; the port is the serial device, `bt://` or `ble://` |
+| Tracker or iGate, USB or Bluetooth (`lora-serial`) | the CA2RXU Tracker's `_TNC` image over Bluetooth, the CA2RXU iGate's TNC on USB (`tnc.enableSerial`), DL9SAU's T-Beam tracker (KISS on USB and Bluetooth by default), esp32_loraprs | KISS; the port is the serial device, `bt://` or `ble://` |
 | iGate on USB (RX only) (`lora-console`) | the CA2RXU iGate on USB with its TNC off, as it comes: it writes a line for each packet it hears, with its signal | nothing: this radio only receives, and nothing is ever written to it |
 
 **On the CA2RXU iGate** (its page, or `igate_conf.json`):
@@ -255,9 +255,9 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 - The radio status says what Mercury does and nothing of the plumbing: the mode, listening, transmitting, channel busy, tuning or keyed, the signal-to-noise ratio of the latest frame, and the last packet. When Mercury has stopped, or this installation carries none (a wheel install), the status says so; a keying port Mercury cannot open (`Cannot open COM10 (Windows error 5)`, then `Radio init failed`) is *Keying port in use by another program* (error 5) or *Keying port not found* (error 2): the run, which would otherwise hang, is ended and tried again every half minute while the radio is on, and a radio whose Mercury does not run sends nothing and is not shown connected; a sound card Mercury cannot open (it runs on deaf and mute, saying `[ERR] [audio-play] error in audio->open()`) ends it with the status "the sound card could not be opened: choose another one in the Sound card field", and it is tried again after a while; the log has Mercury's own lines and the ports it was started on. Mercury's configuration is written by NeoAPRS at every start into `mercury.ini` in the radio's folder of the data folder (`radios/<id>`, its number); the busy detector is switched on there.
 - Two Mercury instances on one computer over a loopback audio path carry NeoAPRS's packets between two daemons (`scripts/mercury-bench`, a developer's bench with no radio); that is how the program side was tried: a beacon crossed in 3.8 seconds, a message was acknowledged in about 10 seconds and the longest message too, a 140-byte frame given to Mercury came out as 123 bytes, and two frames keyed at the same moment were both lost. A simulated HF net (`scripts/mercury-sim`: five real Mercury instances and five daemons on one channel with noise, fading and collisions) carries every beacon to every station in 3.8 seconds, acks a message in about 10, loses both frames of two stations keyed at the same moment and carries the message between them afterwards, acks a message again when the first ack was lost and keeps it once, keeps a station whose Mercury died off the air until it is back (3 seconds after the program returns), goes on with a message after its daemon was restarted, decodes every frame down to 3 dB of signal-to-noise on a steady channel and four of five at 0 dB on a poor fading one, and gates to the APRS-IS through one of the stations; the same run passes against the installed .deb in a bare Debian 12 without a sound library. Where every number comes from and what was measured: [`docs/mercury.md`](mercury.md).
 
-## Yaesu FTM, TNC in monitor mode (RX only)
+## Yaesu FTM, receive only
 
-Plug in the radio's data cable or the TNC's serial cable, pick *Yaesu FTM, TNC in monitor mode (RX only)* and see what the radio hears on the map; with Send what I hear on, the station gates what it hears to APRS-IS. NeoAPRS reads the text the device prints of each packet it hears and writes nothing to it, not even a carriage return: the box has no Path, no Digipeater and no beacon tick, and while it is the only radio on, nothing is sent. The text of a TAPR TNC-2, a Kantronics, a PK-232 and a Yaesu FTM is read in every form they print (one line or two, a time stamp, `<UI>`, `cmd:`), and a TNC whose serial line is 7 bits with parity is recognised by itself.
+For a Yaesu FTM, or a TNC without KISS left in its own monitor mode. Plug in the radio's data cable or the TNC's serial cable, pick *Yaesu FTM, receive only* and see what the radio hears on the map; with Send what I hear on, the station gates what it hears to APRS-IS. NeoAPRS reads the text the device prints of each packet it hears and writes nothing to it, not even a carriage return: the box has no Path, no Digipeater and no beacon tick, and while it is the only radio on, nothing is sent. The text of a TAPR TNC-2, a Kantronics, a PK-232 and a Yaesu FTM is read in every form they print (one line or two, a time stamp, `<UI>`, `cmd:`), and a TNC whose serial line is 7 bits with parity is recognised by itself.
 
 What to set once, at the device (the TNC keeps it over a power cycle):
 
