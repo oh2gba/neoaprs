@@ -16,6 +16,7 @@ import pytest
 
 from neoaprs import VERSION
 from neoaprs.cli import dbcmd, doctor, hostcheck, servicecmd
+from neoaprs.config import Config
 from neoaprs.cli.daemonstate import describe, is_running, page_answers, page_url, tail
 from neoaprs.instancelock import InstanceLock
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
@@ -713,3 +714,16 @@ def test_a_radio_keyed_through_a_rig_program_says_whether_the_program_answers(
     code, out = run(data, capsys)
     assert code == 0 and f"warn  radio Mercury keyed through rigctld at 127.0.0.1:{port}: it does not answer" in out
     assert "fix: start rigctld (it is not started by NeoAPRS), or correct the address in the radio's Keying" in out
+
+
+def test_a_page_behind_a_reverse_proxy_that_was_refused_is_said_with_its_fix(tmp_path: Path) -> None:
+    """The daemon refuses a proxy on its computer while web/proxy is off and says so once in its log."""
+    (tmp_path / "neoaprs.log").write_text(
+        "2026-11-28 20:00:00  WARNING  neoaprs.web: a request came through a proxy on this computer (X-Forwarded-For) "
+        "and was refused: a page behind a reverse proxy needs neoaprs db set web/proxy true\n",
+        encoding="utf-8",
+    )
+    found = doctor.check_proxy(tmp_path, Config.from_data({}))
+    assert found is not None and found.status == "warn" and found.fix == "neoaprs db set web/proxy true"
+    assert doctor.check_proxy(tmp_path, Config.from_data({"web/proxy": "true"})) is None
+    assert doctor.check_proxy(tmp_path / "none", Config.from_data({})) is None

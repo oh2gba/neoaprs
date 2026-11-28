@@ -38,6 +38,7 @@ from neoaprs.serialprobe import PortInfo, available_ports, bluetooth_address, by
 from neoaprs.stopfile import migrating
 from neoaprs.store import DB_NAME, Store
 
+from .logfile import LOG_NAME
 from . import installkind, servicecmd
 from .daemonstate import describe
 from .hostcheck import brltty_installed, firefox_flatpak, modemmanager_installed, serial_group_check
@@ -410,6 +411,25 @@ def check_service(data: Path, kind: str | None = None) -> Finding:
     )
 
 
+PROXY_FIX = "neoaprs db set web/proxy true"
+# what the daemon logs once when it refuses a reverse proxy on its computer (web/access.py)
+PROXY_REFUSED = "a page behind a reverse proxy needs " + PROXY_FIX
+
+
+def check_proxy(data: Path, config: Config | None) -> Finding | None:
+    """Warn when the daemon refused a reverse proxy on this computer while web/proxy is off."""
+    if config is None or config.web_proxy:
+        return None
+    try:
+        with (data / LOG_NAME).open(encoding="utf-8", errors="replace") as log_file:
+            refused = any(PROXY_REFUSED in line for line in log_file)
+    except OSError:
+        return None
+    if not refused:
+        return None
+    return Finding("warn", "the page refused a reverse proxy on this computer: web/proxy is off", PROXY_FIX)
+
+
 def diagnose(data: Path) -> list[Finding]:
     database, config, unread, older = check_database(data)
     findings = [
@@ -424,6 +444,7 @@ def diagnose(data: Path) -> list[Finding]:
         *check_grabbers(),
         check_firefox_flatpak(),
         check_daemon(data),
+        check_proxy(data, config),
         check_map(data),
         check_service(data),
     ]
