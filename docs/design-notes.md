@@ -1494,6 +1494,39 @@ PLAYBACK_NAMES and of CAPTURE_NAMES that the card has is used; "Mic" is not a pl
 monitor on some chips. The percent is the raw value within the control's range, as `amixer` prints it. ALSA prints a line at every
 look at an unplugged card, so the library's error handler is replaced by one that discards the messages.
 
+## neoaprs/soundserver.py and neoaprs/soundwatch.py
+
+On Linux the Sound card list holds the sound server's sinks and sources beside the ALSA cards, from
+`pactl -f json list sinks|sources` (PipeWire's Pulse server or PulseAudio; two seconds at most). A
+monitor of a sink is left out (`monitor_source` set, or `device.class` monitor). A device a user made,
+such as a remap of a null sink, has no `alsa.card`: it has no levels and no USB tie, and it is held by
+its name, where one on a card holds that card's ALSA id, so that two radios never share a card.
+
+A setting names a device `pulse:DEVICE=<node name>`, the recording and the playing device joined by `|`
+as a Windows card's are. The modem is not given that name: the device is looked up before every start
+and opened by its index, `neoaprs_pa:<index>` (or `neoaprs_pw:` where only PipeWire's ALSA plug-in is
+installed, as on Fedora and openSUSE), names of `soundserver.conf`. Three measured reasons: a name the
+server does not know is no error, the stream goes to the default device, the loudspeakers; Direwolf
+opens only the first 29 characters of a device name (`audio_in_name[30]` in its audio.c), which cuts a
+node name; and Mercury asks for mmap access, which the plug-ins lack, so the names are a `plug` over
+them. While a modem runs its streams are found by its process id (`application.process.id`, or for
+PipeWire's plug-in, which sets none on the stream, its client's) and must sit on the named devices; a
+stream elsewhere or a device gone ends the run, the radio's sound card state.
+
+Such a run takes the system's libasound (`LD_LIBRARY_PATH`, searched before the program's RUNPATH) and
+`soundserver.conf` as `ALSA_CONFIG_PATH`, which takes in `/usr/share/alsa/alsa.conf` first. The shipped
+libasound (1.2.14) cannot load Fedora's plug-ins, which need ALSA_1.2.15, and `ALSA_PLUGIN_DIR` does not
+help with that; openSUSE's 1.2.16 reads no list of files in `ALSA_CONFIG_PATH`. The modems need only
+ALSA_0.9 symbols, so any system library will do. An ALSA card still runs on the shipped library.
+
+A reader of fewer channels than a source has gets them mixed, measured on a 4-channel source (front
+left and right, rear left and right): one channel gets the four at a quarter each, so a microphone on
+input 4 is in Direwolf's audio; two get the front ones with the rear ones at -3 dB. A source of 4, 5, 6
+or 8 channels at the positions the plug-ins use is therefore offered one channel at a time as well:
+`neoaprs_pa_ch<N>:<index>,<count>` reads all its channels, which the server leaves unmixed, and a
+`route` gives channel N alone. A Pro Audio source (`aux0`...) is read by order and loses all but the
+first two channels, so it is offered whole only. Nothing is made in the user's session for this.
+
 ## neoaprs/stopfile.py
 
 `neoaprs.stop`: the stop command writes it; the daemon polls once a second, deletes it and ends as on SIGTERM. Whoever can
