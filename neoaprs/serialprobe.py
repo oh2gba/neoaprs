@@ -6,15 +6,17 @@ once (Linux), and the ports Find my radio tries one after another (Linux, Window
 
 import asyncio
 import glob
+import importlib
 import logging
 import os
 import re
 import sys
 from collections.abc import Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
-from typing import TypedDict, Unpack
+from typing import Any, TypedDict, Unpack
 
 import serial.tools.list_ports  # type: ignore[import-untyped]
+from serial.tools.list_ports_common import numsplit  # type: ignore[import-untyped]
 
 from . import bthenum, nodevices
 from .coded import Reason
@@ -45,27 +47,75 @@ NOT_LISTED = "the serial ports and the paired Bluetooth devices are not listed o
 LISTENING: dict[str, SerialPort] = {}
 
 
+# Windows' map of serial ports: every port driver writes its name there, also a virtual port filed under
+# a device class other than "Ports" (com0com without its Ports class, hub4com, VSPE), which pyserial leaves out
+SERIALCOMM_KEY = r"HARDWARE\DEVICEMAP\SERIALCOMM"
+
+
+def _registry() -> Any:
+    return importlib.import_module("winreg")
+
+
+def serialcomm_names(registry: Any = None) -> list[str]:
+    """Return the port names in Windows' registry map, each once whatever its case; none if it cannot be read."""
+    try:
+        winreg = registry if registry is not None else _registry()
+        found: dict[str, str] = {}
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, SERIALCOMM_KEY) as key:
+            index = 0
+            while True:
+                try:
+                    _device, data, _kind = winreg.EnumValue(key, index)
+                except OSError:  # no more values
+                    break
+                index += 1
+                if isinstance(data, str) and (name := data.strip().rstrip("\0").strip()):
+                    found.setdefault(name.upper(), name)
+    except (ImportError, OSError) as e:
+        log.debug("the registry map of serial ports was not read: %s", e)
+        return []
+    return list(found.values())
+
+
 @dataclass(frozen=True)
 class PortInfo:
-    """A serial port the system lists: name, description and, for USB, vendor and product ids."""
+    """A serial port the system lists: name, description and, for USB, vendor and product ids.
+
+    `name_only`: a Windows port known only by its name in the registry map (often a virtual port another
+    program shares); it is offered, but never chosen, searched or tried by NeoAPRS itself.
+    """
 
     device: str
     description: str
     hwid: str
     vid: int | None
     pid: int | None
+    name_only: bool = False
+
+
+def name_only_port(name: str) -> PortInfo:
+    return PortInfo(name, "n/a", "n/a", None, None, name_only=True)
 
 
 def available_ports() -> list[PortInfo]:
-    """Return the ports the system lists (pyserial), in natural order; nothing is opened."""
+    """Return the ports the system lists (pyserial; on Windows also the registry map's), in natural order.
+
+    Nothing is opened.
+    """
     if nodevices.refused(NOT_LISTED, logging.INFO):
         return []
     try:
-        found = sorted(serial.tools.list_ports.comports())
+        found = [
+            PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid)
+            for p in serial.tools.list_ports.comports()
+        ]
     except OSError as e:
         log.info("listing the ports failed: %s", e)
-        return []
-    return [PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid) for p in found]
+        found = []
+    if _on_windows():
+        listed = {p.device.upper() for p in found}
+        found += [name_only_port(name) for name in serialcomm_names() if name.upper() not in listed]
+    return sorted(found, key=lambda p: numsplit(p.device))
 
 
 @dataclass(frozen=True)
@@ -254,7 +304,7 @@ def _usb_first(port: PortInfo) -> int:
 
 
 def system_ports() -> list[PortInfo]:
-    """Return the ports Find my radio tries, USB first, without development boards."""
+    """Return the ports Find my radio tries, USB first, without development boards or name-only ports."""
     if nodevices.refused(NOT_LISTED, logging.INFO):
         return []
     ports = offered_ports()
@@ -265,7 +315,11 @@ def system_ports() -> list[PortInfo]:
             for path in sorted(glob.glob(MAC_DEVICES))
             if path not in listed and not path.endswith(MAC_LEFT_OUT)
         ]
-    ports = [p for p in ports if not (p.vid is not None and p.pid is not None and board_kind(p.vid, p.pid))]
+    ports = [
+        p
+        for p in ports
+        if not p.name_only and not (p.vid is not None and p.pid is not None and board_kind(p.vid, p.pid))
+    ]
     return sorted(ports, key=_usb_first)
 
 

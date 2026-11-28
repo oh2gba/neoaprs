@@ -215,6 +215,7 @@ The Port choice offers *find automatically* on Linux (*not set* on Windows and m
   - *The device refused the connection*: its serial port is busy (a phone app has it) or it offers none on that channel; close the phone app.
   - *The port could not be opened*: anything else; the log has Windows' own words and number.
 - **A Bluetooth LE port** is not paired the way a classic device is: NeoAPRS looks for the device by its address when the port is opened and uses the KISS service it finds. A device that another program or a phone is connected to cannot be reached: LE allows one connection at a time.
+- **A virtual COM port on Windows** (com0com, hub4com, VSPE: a rig shared between programs) is listed by its name alone. NeoAPRS never picks one by itself, for keying or in Find my radio: it may be another program's; choose it and it is opened like any other port.
 - **A serial port** has a speed in baud, 8N1. Empty means the type's own, which is 9600 for every serial type. The NinoTNC needs 57600; the Mobilinkd and the TH-D74/D75 ignore it.
 - **The control lines** DTR and RTS are set low as soon as the port is open, because a sound-card interface keys the transmitter on RTS.
 

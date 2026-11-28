@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Prove on the clean Windows machine how NeoAPRS lists and opens virtual COM ports, with com0com.
+#
+#   scripts/check-windows-virtualports com0com-3.0.0.0-i386-and-x64-signed.zip
+#
+# The machine is put back to its snapshot `clean`, started, given this tree (scripts/check-windows --only sync),
+# and then: a value only in the registry map (scripts/virtualports-probe.py registry COM6, removed again); com0com
+# installed silently from the zip, whose SHA-256 must be the pinned one and whose installer's signature Windows must
+# call valid; a pair COM3-COM4 in the Ports class and a pair COM6-COM8 in com0com's own class; the probe of both
+# pairs. Then the machine is powered off and put back to `clean`, so nothing stays. Never a stage of scripts/check.
+# The zip comes from https://sourceforge.net/projects/com0com/files/com0com/3.0.0.0/ and is never fetched here.
+# Needs the machine's environment (work/vmtest/clean.env, or its runner's --hold) and VirtualBox.
+set -euo pipefail
+
+ZIP_SHA256=6e5d4359865277430d4ae88c73fb7e648a0ed8e81aea5002478179cfcb0bb0e1
+SETUP=Setup_com0com_v3.0.0.0_W7_x64_signed.exe
+SNAPSHOT=clean
+
+case "${1:-}" in -h | --help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+zip=${1:?usage: scripts/check-windows-virtualports COM0COM-ZIP}
+[ "$(sha256sum "$zip" | cut -d' ' -f1)" = "$ZIP_SHA256" ] || { echo "not the pinned com0com zip: $zip" >&2; exit 2; }
+: "${NEOAPRS_WINVM:?the machine is not set up here}"
+tree=$(cd "$(dirname "$0")/.." && pwd)
+user=${NEOAPRS_WINVM_USER:-John}
+
+on_vm() {
+    ssh -q -i "$NEOAPRS_WINVM_SSH_KEY" -p "$NEOAPRS_WINVM_SSH_PORT" -o UserKnownHostsFile="$NEOAPRS_WINVM_KNOWN_HOSTS" \
+        -o StrictHostKeyChecking=yes -o ConnectTimeout=8 -o BatchMode=yes "$user@127.0.0.1" \
+        "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $(printf '%s' "\$ProgressPreference='SilentlyContinue'; $1" | iconv -t UTF-16LE | base64 -w0)"
+}
+
+state() { VBoxManage showvminfo "$NEOAPRS_WINVM" --machinereadable | sed -n 's/^VMState="\(.*\)"$/\1/p'; }
+
+finish() {
+    VBoxManage controlvm "$NEOAPRS_WINVM" poweroff >/dev/null 2>&1 || true
+    for _ in $(seq 1 30); do [ "$(state)" = poweroff ] && break; sleep 1; done
+    VBoxManage snapshot "$NEOAPRS_WINVM" restore "$SNAPSHOT" >/dev/null && echo "the machine is back at $SNAPSHOT"
+}
+
+[ "$(state)" = poweroff ] || { echo "the machine is running: someone else uses it" >&2; exit 2; }
+VBoxManage snapshot "$NEOAPRS_WINVM" restore "$SNAPSHOT" >/dev/null
+VBoxManage startvm "$NEOAPRS_WINVM" --type headless >/dev/null
+trap finish EXIT
+for _ in $(seq 1 72); do on_vm 'echo up' 2>/dev/null | grep -q up && break; sleep 5; done
+"$tree/scripts/check-windows" --only sync
+
+run="C:\\Users\\$user\\neoaprs-check"
+find_tree="\$t = (Get-ChildItem '$run' -Directory -Filter 'RUN-*' | Sort-Object Name | Select-Object -Last 1).FullName + '\\neoaprs'; Set-Location \$t"
+probe() { on_vm "$find_tree; Remove-Item Env:NEOAPRS_NO_DEVICES -ErrorAction SilentlyContinue; & .\\.venv\\Scripts\\python.exe scripts\\virtualports-probe.py $*; exit \$LASTEXITCODE"; }
+
+failed=0
+echo "== a value only in the registry map"
+probe registry COM6 || failed=1
+
+echo "== com0com"
+scp -q -i "$NEOAPRS_WINVM_SSH_KEY" -P "$NEOAPRS_WINVM_SSH_PORT" -o UserKnownHostsFile="$NEOAPRS_WINVM_KNOWN_HOSTS" \
+    -o StrictHostKeyChecking=yes -o BatchMode=yes "$zip" "$user@127.0.0.1:C:/Users/$user/com0com.zip"
+on_vm "
+\$ErrorActionPreference = 'Stop'
+Expand-Archive -Force C:\\Users\\$user\\com0com.zip C:\\Users\\$user\\com0com-zip
+\$exe = 'C:\\Users\\$user\\com0com-zip\\$SETUP'
+\$sig = Get-AuthenticodeSignature \$exe
+'signature: ' + \$sig.Status + ' (' + \$sig.StatusMessage + ')'
+'signer: ' + \$sig.SignerCertificate.Subject + ', ' + \$sig.SignerCertificate.NotBefore.ToString('yyyy-MM-dd') + ' to ' + \$sig.SignerCertificate.NotAfter.ToString('yyyy-MM-dd')
+'timestamp: ' + \$sig.TimeStamperCertificate.Subject
+\$chain = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+\$null = \$chain.Build(\$sig.SignerCertificate)
+'root: ' + \$chain.ChainElements[\$chain.ChainElements.Count - 1].Certificate.Subject
+try { 'secure boot: ' + (Confirm-SecureBootUEFI) } catch { 'secure boot: not known (' + \$_.Exception.Message + ')' }
+if (\$sig.Status -ne 'Valid') { 'the installer is not validly signed: stopped'; exit 3 }
+function Trust(\$file) {
+    \$s = Get-AuthenticodeSignature \$file
+    'signature of ' + (Split-Path -Leaf \$file) + ': ' + \$s.Status + ', ' + \$s.SignerCertificate.Subject
+    if (\$s.Status -ne 'Valid') { 'not validly signed: stopped'; exit 3 }
+    \$store = New-Object System.Security.Cryptography.X509Certificates.X509Store('TrustedPublisher', 'LocalMachine')
+    \$store.Open('ReadWrite'); \$store.Add(\$s.SignerCertificate); \$store.Close()
+}
+function Within(\$exe, \$arguments) {
+    \$p = Start-Process \$exe -ArgumentList \$arguments -NoNewWindow -PassThru -RedirectStandardOutput C:\\com0com-out.txt
+    \$null = \$p.Handle
+    if (-not \$p.WaitForExit(180000)) { \$p.Kill(); Get-Content C:\\com0com-out.txt; 'no end after 3 minutes: stopped'; exit 4 }
+    Get-Content C:\\com0com-out.txt
+    (Split-Path -Leaf \$exe) + ' ' + (\$arguments -join ' ') + ': exit ' + \$p.ExitCode
+    \$script:p = \$p
+}
+Trust \$exe
+\$env:CNC_INSTALL_START_MENU_SHORTCUTS = 'NO'
+Within \$exe @('/S', '/D=C:\\com0com')
+Trust C:\\com0com\\com0com.cat
+Set-Location C:\\com0com
+Within .\\setupc.exe @('--silent', 'install', 'PortName=COM#', 'PortName=COM#')
+Within .\\setupc.exe @('--silent', 'change', 'CNCA0', 'RealPortName=COM3')
+Within .\\setupc.exe @('--silent', 'change', 'CNCB0', 'RealPortName=COM4')
+# the Ports class installer may still hold the COM database (ComDBOpen: access denied): try again
+foreach (\$try in 1..6) {
+    Within .\\setupc.exe @('--silent', 'install', 'PortName=COM6', 'PortName=COM8')
+    if (\$p.ExitCode -eq 0) { break }
+    Start-Sleep 10
+}
+Within .\\setupc.exe @('list')
+Get-PnpDevice -PresentOnly | Where-Object { \$_.HardwareID -match 'com0com' } | Format-Table -AutoSize Status, Class, FriendlyName, Problem | Out-String -Width 200
+" || failed=1
+probe pairs COM3 COM4 COM6 COM8 || failed=1
+exit $failed
