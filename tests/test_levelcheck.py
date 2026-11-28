@@ -242,6 +242,12 @@ def test_the_trees_pins_include_every_kind_and_one_uv() -> None:
     } <= names
     assert {("github", "gitleaks/gitleaks"), ("github", "google/osv-scanner")} <= names
     assert len([p for p in pins if p.name == "astral-sh/uv"]) == 1, "every place pins the same uv"
+    cpython = [p for p in pins if p.name == "astral-sh/python-build-standalone"]
+    assert len(cpython) == 1 and set(cpython[0].where) == {
+        "scripts/build-appimage",
+        "scripts/build-deb",
+        "scripts/build-macos-app",
+    }, "the AppImage, the packages and the macOS app have the same CPython"
 
 
 def test_the_allow_file_gives_each_entry_its_version_date_and_reason(tmp_path: Path) -> None:

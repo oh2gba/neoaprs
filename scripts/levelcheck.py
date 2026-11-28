@@ -43,12 +43,13 @@ GITHUB_PAGE = 30  # the recent releases asked for when ours is not the latest
 RELEASE_FILES = (
     "scripts/security-tools",
     "scripts/build-appimage",
+    "scripts/build-deb",
     "scripts/build-macos-app",
     "scripts/check-windows",
 )
 MODEM_FILES = {"Rhizomatica/mercury": "neoaprs/mercury.py", "wb2osz/direwolf": "neoaprs/direwolf.py"}
 UV_REPO = "astral-sh/uv"
-_RELEASE_URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/releases/download/([^/\"'\s]+)/")
+_RELEASE_URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/releases/download/([^/\"'\s]+)[/\"]")
 _EXACT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*==\s*([^;\s]+)")
 _STABLE = re.compile(r"^v?(\d+!)?\d+(\.\d+)*(\.post\d+)?$")
 _UV_PINS = (
