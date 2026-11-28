@@ -1678,7 +1678,7 @@ export const LIMITS = {
   chat: { textMax: 200 },
   skedPast: { keepDays: 30, maxTests: 20, maxRows: 100 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
-  scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },
+  scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 600 },
   radio: { nameMax: 8, frequenciesMax: 5, dialMinMhz: 0.1 },
   support: { emailMax: 254 },
   mercury: { version: "1.9.26", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"] },

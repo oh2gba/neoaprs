@@ -1581,6 +1581,8 @@ export interface RadioScopeCommand {
   radio: number;
   /** true starts the rows for this page, false stops them */
   on: boolean;
+  /** with `on`, the rows kept of the last this many seconds come first (at most the 600 kept); a page that asks again for more is sent all of them, for as many or fewer only what it lacks */
+  seconds?: number;
 }
 
 /** How `find_radio` goes, to the page that asked. */
