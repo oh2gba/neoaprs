@@ -46,7 +46,7 @@ def test_windows_runs_the_commands_and_the_suite_with_the_files_that_need_one_wo
     assert commands == [
         "env -u UV_FROZEN uv lock --check",
         "uv run ruff check .",
-        "uv run pytest -n auto --dist loadgroup",
+        'uv run pytest -n auto --dist loadgroup -m "not nightly"',
     ]
     assert "--dist loadgroup" in CHECK and "--dist worksteal" not in CHECK, (
         "the stage pytest groups them too: worksteal ignores the groups"

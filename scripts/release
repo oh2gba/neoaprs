@@ -608,12 +608,15 @@ class Release:
                 again = (
                     "it has been run again already"
                     if self.rerun or run.get("attempt", 1) > 1
-                    else f"for a flaky test or a runner that failed run `{COMMAND} {self.version} --rerun`"
+                    else f"for a runner that failed run `{COMMAND} {self.version} --rerun`; a flaky test is mended or quarantined and gets its row in docs/flakes.md"
                 )
                 raise Refusal(
                     f"the {workflow} run {run['databaseId']} failed ({run['url']}); {again}; a failure of the code needs a fix on master and the next version (a tag is never moved)"
                 )
-            say(f"  --rerun: running the failed jobs of run {run['databaseId']} again, once")
+            say(
+                f"  --rerun: running the failed jobs of run {run['databaseId']} again, once; the test that failed above "
+                "is a flake to write down in docs/flakes.md and mend, not one to forget"
+            )
             self.gh("run", "rerun", str(run["databaseId"]), "--failed")
             rerun_done = True
             self.pause()
@@ -889,7 +892,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("version", help="the new version, such as 0.9.2 (or 1.0.0-rc1)")
     parser.add_argument("--dry-run", action="store_true", help="print the steps and change nothing")
     parser.add_argument(
-        "--rerun", action="store_true", help="run the failed jobs of a failed CI or release run again, once"
+        "--rerun",
+        action="store_true",
+        help="run the failed jobs of a failed CI or release run again, once (a test that failed still gets its row in docs/flakes.md)",
     )
     parser.add_argument("--deploy", action="store_true", help="upload the version page at the end (server/deploy.sh)")
     parser.add_argument(

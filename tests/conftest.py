@@ -93,7 +93,11 @@ from tests.support.guards import (  # noqa: E402
 )
 from tests.support.ptyline import ptys  # noqa: E402, F401
 from tests.support.timelimit import a_test_has_a_time_limit  # noqa: E402, F401
-from tests.support import winloop  # noqa: E402
+from tests.support import timebudget, winloop  # noqa: E402
+
+# The time of every test, summed in the process that reports (the controller under pytest-xdist)
+_time = timebudget.Clock()
+_reports_here = True
 
 
 if sys.platform == "win32":
@@ -151,9 +155,26 @@ def reorder_files(items: "list[pytest.Item]", order: str) -> None:
 
 def pytest_collection_modifyitems(items: "list[pytest.Item]") -> None:
     markers.apply(items)
+    timebudget.check_reasons(items)
     guards.add_leak_guard(items)
     if os.environ.get("NEOAPRS_TEST_ORDER"):
         reorder_files(items, os.environ["NEOAPRS_TEST_ORDER"])
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    if _reports_here:
+        _time.add(report)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    if _reports_here and exitstatus == 0 and not timebudget.kept(_time):
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+def pytest_terminal_summary(terminalreporter: "pytest.TerminalReporter", config: pytest.Config) -> None:
+    if _reports_here:
+        seed = getattr(config.option, "randomly_seed", None) if config.pluginmanager.has_plugin("randomly") else None
+        timebudget.summary(_time, seed, terminalreporter)
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -161,6 +182,8 @@ def pytest_configure(config: pytest.Config) -> None:
 
     Without a writable temporary folder and with no TMPDIR, Python falls back to the current folder.
     """
+    global _reports_here
+    _reports_here = not hasattr(config, "workerinput")
     if config.option.basetemp is None:
         scratch = Path(tempfile.gettempdir()).resolve()
         if scratch == ROOT or ROOT in scratch.parents:

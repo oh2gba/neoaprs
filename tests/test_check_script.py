@@ -99,7 +99,7 @@ class Gate:
         for name, text in texts.items():
             (self.bin / name).write_text(text, encoding="utf-8")
             (self.bin / name).chmod(0o755)
-        return {"EVENTS": str(self.events_file)}
+        return {"EVENTS": str(self.events_file), "NEOAPRS_TEST_SEED": "7"}
 
     def environment(self, **env: str) -> dict[str, str]:
         """Writes the file of stand-ins and forgets the events of the run before; the environment to
@@ -693,6 +693,8 @@ echo "npx $*" >> "$EVENTS"
 NODE = "\nnode_ok() { return 0; }\n"
 MYPY, MYPY_WINDOWS = "python -m mypy", "python -m mypy --platform win32 --cache-dir .mypy_cache/win32"
 THE_REST = "--ignore=tests/test_architecture.py --ignore=tests/test_size_ratchet.py --ignore=tests/test_page_build.py"
+# (the order of the suite is the seed of the made-up programs, NEOAPRS_TEST_SEED)
+THE_REST += " -p randomly --randomly-seed=7 -m not nightly --durations=30"
 ARCHITECTURE = "python -m pytest -q -p no:cacheprovider tests/test_architecture.py tests/test_size_ratchet.py"
 SUITE = f"python -m pytest -q -n auto --dist loadgroup --maxprocesses=12 {THE_REST}"
 PAGE = "python -m pytest -q -p no:cacheprovider tests/test_page_build.py"
@@ -779,6 +781,24 @@ def test_the_command_line_of_a_stage_that_runs_alone(
         **env,
     )
     assert done.returncode == 0 and gate.calls() == calls, done.stdout + done.stderr
+
+
+def test_the_suite_runs_in_an_order_of_its_own_each_time_and_says_which_and_the_budget_is_not_cis(gate: Gate) -> None:
+    env = with_made_up_programs(gate, "pytest")
+    seeds = []
+    for _ in range(3):
+        done = gate.run("--stage", "pytest", **{**env, "NEOAPRS_TEST_SEED": ""})
+        [call] = gate.calls()
+        seed = call.split("--randomly-seed=")[1].split()[0]
+        assert f"pytest: random order, seed {seed} (NEOAPRS_TEST_SEED={seed} runs this order again)" in done.stderr
+        seeds.append(seed)
+    assert len(set(seeds)) > 1, "another order each run"
+    budget = 'echo "python budget=$NEOAPRS_TEST_BUDGET_SEC" >> "$EVENTS"\n'
+    gate.programs(python=FAKE_PYTHON + budget)
+    gate.run("--stage", "pytest", **env, NEOAPRS_TEST_BUDGET_SEC="300")
+    assert gate.calls()[-1] == "python budget=300"
+    gate.run("--stage", "pytest", **env, NEOAPRS_TEST_BUDGET_SEC="300", CI="true")
+    assert gate.calls()[-1] == "python budget=0", "the budget is this machine's: CI's runner is not held to it"
 
 
 @pytest.mark.parametrize("fails", [MYPY, MYPY_WINDOWS])

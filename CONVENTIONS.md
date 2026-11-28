@@ -203,6 +203,8 @@ Every `NEOAPRS_*` variable the code, the scripts, the units or the tests use is 
 | `NEOAPRS_BUILD_CACHE` | `scripts/build-appimage`, `scripts/build-macos-app`, `scripts/security-tools` (and through it `scripts/security-check`) | the folder the pinned build tools (CPython, appimagetool, the AppImage runtime) are kept in once downloaded, and in its folder `security-tools/` the programs of the security checks; else `~/.cache/neoaprs-build`. `tests/test_security_check.py` points it at a folder of stand-ins |
 | `NEOAPRS_GI_WORK` | `scripts/build-gi` | the work folder of the gi tarball's build (default `build/gi/work/`); `--docker` sets it to a folder inside the container, so that the checkout, mounted read-only there, is not written |
 | `NEOAPRS_TEST_LIMIT_SEC` | `tests/support/timelimit.py` | seconds one test may run before the run ends it with the test's name and the stack of every thread (600 when unset; `0` is no limit) |
+| `NEOAPRS_TEST_SEED` | `scripts/check` | the seed of the random order of the stage `pytest` (pytest-randomly); unset, a new one each run, printed |
+| `NEOAPRS_TEST_BUDGET_SEC` | `tests/support/timebudget.py` | seconds the tests of a run may take in sum, and the switch for the 5 s limit of a test without a slow or nightly marker; `scripts/check` sets it to the budget measured on the project's machine, `0` (and CI) none |
 | `NEOAPRS_TEST_ORDER` | `tests/conftest.py` | `reverse` or `shuffle[:SEED]` runs the test files in another order, to find a test that depends on an earlier one |
 
 ## Data

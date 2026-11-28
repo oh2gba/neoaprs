@@ -577,7 +577,9 @@ committed), `support/migrated.py` (a file as the migrations leave it), `support/
 ## Waiting
 
 A test waits for a condition with `until(...)` (`until_async(...)` for one that has to be awaited, `Env.until_usable()` for a Tnc that is connected and
-settled), never for a time: a fixed sleep is the flake of a busy machine. What stays a time is named: `idle_for(seconds)` (`support/env.py`) is the window in
+settled; `poll(...)` of `support/patience.py` outside an event loop), never for a time: a fixed sleep is the flake of a busy machine. The wait gives
+up after the suite's patience (`PATIENCE_SEC` of `support/patience.py`, 30 s), not sooner: it ends as soon as the thing happens, so the patience
+costs nothing on a run that passes. `support/logs.py`'s `warnings_in(caplog)` is the log's warnings without the database's note of a slow disk. What stays a time is named: `idle_for(seconds)` (`support/env.py`) is the window in
 which a timer has had its chance to do something that the test then asserts it did not do; a plain `asyncio.sleep` is left only in what imitates a thing that
 takes time (a talker, a slow open, a probe that is half way to its nudge), with a comment. `quick_start(...)` (`support/env.py`) starts an `Env` whose services
 tick every 20 ms and waits until the Tnc is usable. A file that a program of the test writes is read with `read_when` or `until_written` (`support/files.py`), which wait for the text the test asserts on and not for the file's name (Windows refuses a file that the writer still holds). A wait that depends on a program the test started (the made-up Mercury, a daemon) is `until_started` (`support/env.py`, `START_SEC`), and an upper bound on real time is left out or is orders of magnitude over what the code takes: a time that is the code's own is measured on `virtual_time`, below. A test that runs over `NEOAPRS_TEST_LIMIT_SEC` (600) ends its process with its name and the stacks (`support/timelimit.py`). The tests that start the daemon as a process wait `PATIENCE_SEC` for it (`test_main.py`) and print its log
@@ -597,4 +599,16 @@ Hypothesis is in the `dev` group. `HYPOTHESIS_PROFILE=ci` (the default) is deran
 ## Order
 
 `NEOAPRS_TEST_ORDER=reverse` or `shuffle:SEED` runs the test files in another order (the tests of a file stay in theirs): a test that only passes because of
-what an earlier file left behind fails in one of the two.
+what an earlier file left behind fails in one of the two. pytest-randomly (in the `dev` group) shuffles the files and the tests within each on every
+run where it is loaded: the gate's stage `pytest` asks for it with a seed it prints (`NEOAPRS_TEST_SEED`), and the end of every run says the seed.
+`-p no:randomly` runs the file order; a test that starts pytest in a child passes it, so that the child's own tests keep theirs.
+
+## Time
+
+The end of a run says how long its tests took in sum and lists every test over 2 s (`support/timebudget.py`, `SLOW_SEC`) that does not say why it is
+slow. A slow test says why with `@pytest.mark.slow("why it takes this long")`, or goes to the nightly set with `@pytest.mark.nightly("why")`, which
+the gate and CI leave out (`-m "not nightly"`) and `.github/workflows/nightly.yml` runs each night; a marker without a reason of a few words is refused
+at collection. With `NEOAPRS_TEST_BUDGET_SEC` (the gate sets it) the run fails when its tests took longer in sum, or when a test with neither marker
+took over 5 s. A flaky test is quarantined the same way, `@pytest.mark.nightly("quarantined DATE: why")`, and has its row in `docs/flakes.md`.
+`test_flake_rules.py` refuses the forms of a flaky test that can be read from the source: a fixed port, a sleep in a test's body, a thread asserted dead
+without a generous join, a wait for what is expected that gives up within seconds; an exception is an entry with its reason in the file.

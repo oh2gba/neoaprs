@@ -192,11 +192,21 @@ stage_architecture() { "$python" -m pytest -q -p no:cacheprovider "${ARCHITECTUR
 # The tests run side by side (pytest-xdist): as many workers as cores, at most
 # NEOAPRS_TEST_WORKERS_MAX (12: the Mercury test ports are laid out for twelve workers);
 # NEOAPRS_TEST_WORKERS=0 runs them in order.
+# They run in an order of their own each time (pytest-randomly), so that a test that needs another
+# before it is found; the seed is printed, and NEOAPRS_TEST_SEED runs that order again. The tests
+# marked nightly are left out, the 30 slowest are printed, and the run fails when its tests took over
+# NEOAPRS_TEST_BUDGET_SEC in sum (tests/support/timebudget.py): the budget is this machine's, so a
+# run on CI (CI set) is not held to it.
+PYTEST_BUDGET_SEC=0
 stage_pytest() {
     local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=("${ARCHITECTURE_TESTS[@]/#/--ignore=}" "${PAGE_TESTS[@]/#/--ignore=}")
-    if [ "$workers" = 0 ]; then "$python" -m pytest -q "${common[@]}"; return; fi
+    local seed="${NEOAPRS_TEST_SEED:-$(( RANDOM * 32768 + RANDOM ))}" budget="${NEOAPRS_TEST_BUDGET_SEC:-$PYTEST_BUDGET_SEC}"
+    if [ -n "${CI:-}" ]; then budget=0; fi
+    common+=(-p randomly --randomly-seed="$seed" -m "not nightly" --durations=30)
+    echo "pytest: random order, seed $seed (NEOAPRS_TEST_SEED=$seed runs this order again)"
+    if [ "$workers" = 0 ]; then NEOAPRS_TEST_BUDGET_SEC="$budget" "$python" -m pytest -q "${common[@]}"; return; fi
     if [ "$workers" = auto ]; then cap=(--maxprocesses="${NEOAPRS_TEST_WORKERS_MAX:-12}"); fi
-    "$python" -m pytest -q -n "$workers" --dist loadgroup ${cap[@]+"${cap[@]}"} "${common[@]}"
+    NEOAPRS_TEST_BUDGET_SEC="$budget" "$python" -m pytest -q -n "$workers" --dist loadgroup ${cap[@]+"${cap[@]}"} "${common[@]}"
 }
 
 # The UI stages and the stage page are skipped in a tree without ui/. node_modules is installed from

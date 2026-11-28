@@ -80,7 +80,7 @@ jobs:
         shell: bash
       - run: uv run ruff check .
         if: runner.os == 'Windows'
-      - run: uv run pytest -n auto --dist loadgroup
+      - run: uv run pytest -n auto --dist loadgroup -m "not nightly"
         if: runner.os == 'Windows'
 
   # The wheel as a user gets it: built, installed into a fresh environment, run against a fake TNC
