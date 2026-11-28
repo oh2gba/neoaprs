@@ -45,6 +45,7 @@ ICON = ROOT / "neoaprs" / "desktop" / "icon.png"
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 
+import demosatellites  # noqa: E402  (the made-up satellites of the satellites shot)
 import demoscene  # noqa: E402  (the scene needs the path above)
 import demotraffic  # noqa: E402  (the made-up aircraft and ships of the layers shot)
 import demoships  # noqa: E402  (its receiver's port)
@@ -406,6 +407,7 @@ async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) 
         neoaprs_db_set(data, key, value)
     if basemap is not None:
         put_map(basemap, data / "basemap.pmtiles")
+    demosatellites.put(data, datetime.now(UTC))
     played = await demoscene.history(data, radio)
     print(f"the day: {played} events, {len(radio.sent)} frames sent to the radio")
     letters = "abcdefghjkmnpqrstuvwxyz23456789"
@@ -1114,7 +1116,7 @@ async def shot_hf_tests(s: Shots, _: str) -> None:
 
 # 140 km across: the aircraft fly within 80 km of the station, the ships within 35 km of the sea.
 LAYERS_VIEW = (60.18, 24.82, 8.0)
-LAYERS_TICKED = {"layer.aircraft": "on", "layer.ships": "on"}
+LAYERS_TICKED = {"layer.aircraft": "on", "layer.ships": "on", "layer.satellites": "on"}
 LAYERS_SETTINGS = {
     "map/aircraft": "receiver",
     "map/aircraft_host": f"{demotraffic.HOST}:{demotraffic.PORT}",
@@ -1134,8 +1136,8 @@ async def counted(page: Any, layer: str) -> None:
 
 async def shot_layers(s: Shots, _: str) -> None:
     """The map with the Layers box open: Tracks and ALOHA circle ticked, Locator grid not, and
-    Aircraft and Ships ticked, each with its drawn count from the made-up receiver; aircraft
-    and hulls among the stations."""
+    Aircraft, Ships and Satellites ticked, the first two with their drawn count from the made-up
+    receiver; aircraft and hulls among the stations."""
     page = await s.page(DESKTOP, view=LAYERS_VIEW, panel=480, url=s.layers_url, stored=LAYERS_TICKED, wait_ms=3000)
     await page.locator(".layers-toggle").click()
     await page.locator(".layers-box").wait_for(state="visible", timeout=10000)
@@ -1143,6 +1145,52 @@ async def shot_layers(s: Shots, _: str) -> None:
     await counted(page, "ships")
     await settle(page, 2000)
     await s.save(page, "layers")
+
+
+ISS_ID = 25544
+SATELLITES_VIEW = (30.0, 10.0, 0.5)  # the whole world: the satellite is brought into the middle once found
+SATELLITES_ZOOM = 2.4
+# The map's instance, kept as the browser suite keeps it (tests/browser/page.js): the shot centres the satellite
+# and clicks where it is drawn.
+KEEP_MAP = """window.__neoMaps = [];
+Object.defineProperty(Object.prototype, '_controls', { configurable: true,
+  set(value) { Object.defineProperty(this, '_controls', { value, writable: true, configurable: true, enumerable: true });
+    if (typeof this.getCanvas === 'function') window.__neoMaps.push(this); } });"""
+# The ISS if it is drawn clear of the antimeridian and the poles (its footprint is then one circle), else another that is.
+SATELLITE_PICK = (
+    """() => { const m = window.__neoMaps[0];
+  const marks = m.queryRenderedFeatures({ layers: ['satellites'] }).filter(f => Math.abs(f.geometry.coordinates[0]) < 120 && Math.abs(f.geometry.coordinates[1]) < 55);
+  const f = marks.find(f => f.properties.id === %d) || marks[0];
+  return f ? { id: f.properties.id, at: f.geometry.coordinates } : null; }"""
+    % ISS_ID
+)
+SATELLITE_ON_SCREEN = """(id) => { const m = window.__neoMaps[0]; const c = m.getCanvas().getBoundingClientRect();
+  const f = m.queryRenderedFeatures({ layers: ['satellites'] }).find(f => f.properties.id === id);
+  if (!f) return null;
+  const p = m.project(f.geometry.coordinates);
+  return { x: p.x + c.x, y: p.y + c.y }; }"""
+
+
+async def shot_satellites(s: Shots, _: str) -> None:
+    """The map with a satellite clicked (the ISS where it can be): its card with the next pass and the frequencies, and
+    its footprint and track on the map, drawn from the made-up list (scripts/demosatellites.py)."""
+    page = await s.page(
+        DESKTOP,
+        view=SATELLITES_VIEW,
+        panel=480,
+        stored={"layer.satellites": "on"},
+        init=KEEP_MAP,
+        wait_ms=3000,
+    )
+    await page.wait_for_function(f"() => ({SATELLITE_PICK})() !== null", timeout=60000)
+    picked = await page.evaluate(f"() => ({SATELLITE_PICK})()")
+    await page.evaluate(f"at => window.__neoMaps[0].jumpTo({{ center: at, zoom: {SATELLITES_ZOOM} }})", picked["at"])
+    await page.wait_for_function(f"id => ({SATELLITE_ON_SCREEN})(id) !== null", arg=picked["id"], timeout=30000)
+    spot = await page.evaluate(f"id => ({SATELLITE_ON_SCREEN})(id)", picked["id"])
+    await page.mouse.click(spot["x"], spot["y"])
+    await page.locator(f".satcard[data-satellite='{picked['id']}']").wait_for(timeout=30000)
+    await settle(page, 2500)
+    await s.save(page, "satellites")
 
 
 async def shot_phone_map(s: Shots, _: str) -> None:
@@ -1336,6 +1384,7 @@ SHOTS: dict[str, Shot] = {
     "stations-hf": shot_stations_hf,
     "hf-tests": shot_hf_tests,
     "layers": shot_layers,
+    "satellites": shot_satellites,
 }
 DARK_TOO = (
     "map",
@@ -1374,6 +1423,7 @@ DARK_TOO = (
     "stations-hf",
     "hf-tests",
     "layers",
+    "satellites",
 )
 
 
