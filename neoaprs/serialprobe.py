@@ -15,8 +15,9 @@ from dataclasses import dataclass
 from typing import TypedDict, Unpack
 
 import serial.tools.list_ports  # type: ignore[import-untyped]
+from serial.tools.list_ports_common import numsplit  # type: ignore[import-untyped]
 
-from . import bthenum, nodevices
+from . import bthenum, nodevices, serialcomm
 from .coded import Reason
 from .btpaired import PairedDevice, paired_devices
 from .claims import PORT_KINDS, Claim
@@ -47,25 +48,43 @@ LISTENING: dict[str, SerialPort] = {}
 
 @dataclass(frozen=True)
 class PortInfo:
-    """A serial port the system lists: name, description and, for USB, vendor and product ids."""
+    """A serial port the system lists: name, description and, for USB, vendor and product ids.
+
+    `name_only`: a Windows port known only by its name in the registry map (often a virtual port another
+    program shares); it is offered, but never chosen, searched or tried by NeoAPRS itself.
+    """
 
     device: str
     description: str
     hwid: str
     vid: int | None
     pid: int | None
+    name_only: bool = False
+
+
+def name_only_port(name: str) -> PortInfo:
+    return PortInfo(name, "n/a", "n/a", None, None, name_only=True)
 
 
 def available_ports() -> list[PortInfo]:
-    """Return the ports the system lists (pyserial), in natural order; nothing is opened."""
+    """Return the ports the system lists (pyserial; on Windows also the registry map's), in natural order.
+
+    Nothing is opened.
+    """
     if nodevices.refused(NOT_LISTED, logging.INFO):
         return []
     try:
-        found = sorted(serial.tools.list_ports.comports())
+        found = [
+            PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid)
+            for p in serial.tools.list_ports.comports()
+        ]
     except OSError as e:
         log.info("listing the ports failed: %s", e)
-        return []
-    return [PortInfo(p.device, p.description or "", p.hwid or "", p.vid, p.pid) for p in found]
+        found = []
+    if _on_windows():
+        listed = {p.device.upper() for p in found}
+        found += [name_only_port(name) for name in serialcomm.names() if name.upper() not in listed]
+    return sorted(found, key=lambda p: numsplit(p.device))
 
 
 @dataclass(frozen=True)
@@ -254,7 +273,7 @@ def _usb_first(port: PortInfo) -> int:
 
 
 def system_ports() -> list[PortInfo]:
-    """Return the ports Find my radio tries, USB first, without development boards."""
+    """Return the ports Find my radio tries, USB first, without development boards or name-only ports."""
     if nodevices.refused(NOT_LISTED, logging.INFO):
         return []
     ports = offered_ports()
@@ -265,7 +284,11 @@ def system_ports() -> list[PortInfo]:
             for path in sorted(glob.glob(MAC_DEVICES))
             if path not in listed and not path.endswith(MAC_LEFT_OUT)
         ]
-    ports = [p for p in ports if not (p.vid is not None and p.pid is not None and board_kind(p.vid, p.pid))]
+    ports = [
+        p
+        for p in ports
+        if not p.name_only and not (p.vid is not None and p.pid is not None and board_kind(p.vid, p.pid))
+    ]
     return sorted(ports, key=_usb_first)
 
 

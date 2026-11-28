@@ -31,7 +31,17 @@ import pytest
 import pytest_asyncio
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from neoaprs import btpaired, bundled, direwolfprogram, mercuryhelper, nodevices, soundmixer, winbluetooth, winmixer
+from neoaprs import (
+    btpaired,
+    bundled,
+    direwolfprogram,
+    mercuryhelper,
+    nodevices,
+    serialcomm,
+    soundmixer,
+    winbluetooth,
+    winmixer,
+)
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.cli import supportgather
 from neoaprs.dbthread import DbThread
@@ -377,6 +387,10 @@ class BluetoothGuard:
 
 def no_bluetooth_library(name: str, calls: Any) -> Any:
     raise OSError(errno.ENOENT, f"a test does not load {name}")
+
+
+def no_registry() -> Any:
+    raise OSError(errno.ENOENT, "a test does not read the registry")
 
 
 class ProcessGuard:
@@ -1042,6 +1056,8 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         # The machine's USB devices are not read (slow, and not the test's): a test that needs some
         # gives its own list
         monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [])
+        # Nor Windows' registry map of serial ports: a test gives its own reader
+        monkeypatch.setattr(serialcomm, "_registry", no_registry)
         # No sound card's own levels are read or set (the machine's radios hang on its cards): as on
         # a system without ALSA; a test that needs a mixer gives its own
         monkeypatch.setattr(soundmixer, "load_alsa", lambda: None)
