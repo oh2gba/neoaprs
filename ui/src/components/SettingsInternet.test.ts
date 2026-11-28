@@ -40,14 +40,15 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
     expect(group()?.text()).not.toMatch(/passcode/i);
   });
 
-  it("has no status row and no empty room under the ticks while neither tick of APRS-IS is on; ticking one shows it", async () => {
+  it("keeps the status row's room while neither tick is on, so nothing below moves when one is ticked", async () => {
     const { wrapper, group } = make({}, { igate: igateState({ state: "off", enabled: false, gate: false }) });
     const row = () => group()?.find(".igatestatus");
-    expect(row()?.exists()).toBe(false);
-    expect(wrapper.find(".igatestatus").exists()).toBe(false);
+    expect(row()?.exists()).toBe(true);
+    expect(row()?.classes()).toContain("field-room");
+    expect(row()?.attributes("aria-hidden")).toBe("true");
+    expect(row()?.attributes("inert")).toBeDefined();
     await group()?.find<HTMLInputElement>("input[type=checkbox]").setValue(true);
     await wrapper.vm.$nextTick();
-    expect(row()?.exists()).toBe(true);
     expect(row()?.classes()).not.toContain("field-room");
     expect(row()?.attributes("aria-hidden")).toBeUndefined();
   });
@@ -115,7 +116,7 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
 
   it("shows only the ticks while both are off, and the status line the moment either is on", async () => {
     const { group, labels } = make({}, { igate: igateState({ state: "off", enabled: false, gate: false }) });
-    const shown = () => group()?.find(".igatestatus").exists() ?? false;
+    const shown = () => !group()?.find(".igatestatus").classes().includes("field-room");
     expect(labels()).toEqual(THREE);
     expect(shown()).toBe(false);
     for (const id of ["#set-igate-enabled", "#set-igate-gate"]) {

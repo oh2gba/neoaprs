@@ -65,7 +65,8 @@ fieldset.composebox > legend {
 }
 /* a row whose field or state is not there now keeps its room, so nothing moves when it comes (the AISStream key) */
 .field.field-room,
-.statusflat.field-room {
+.statusflat.field-room,
+.statusfold.field-room {
   visibility: hidden;
 }
 /* the room of the first sound field's Refresh and (i) beside the second, so the two selects line up */
