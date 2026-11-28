@@ -26,7 +26,7 @@ from neoaprs import (
 )
 from neoaprs.claims import Claim, Claims
 from neoaprs.coded import CodedError
-from neoaprs.direwolf import CONF_FILE, PID_FILE, adevice
+from neoaprs.direwolf import CONF_FILE, PID_FILE, PORT_TRIES, adevice
 from neoaprs.direwolfmodem import (
     KEYING_FAILED,
     NOT_INSTALLED,
@@ -40,6 +40,7 @@ from neoaprs.direwolfmodem import (
 from neoaprs.direwolftune import TRANSMITTING
 from neoaprs.mercury import Keying, SerialPort, SoundCard
 from neoaprs.mercuryclaims import radio_folder
+from neoaprs.mercuryhelper import next_modem_ports
 from neoaprs.mercurymodem import Mercury
 from neoaprs.radiotype import HF_ID
 from neoaprs.serialprobe import PortInfo, claim_value
@@ -280,12 +281,12 @@ async def test_a_sound_card_or_a_keying_device_that_cannot_be_opened_is_the_reas
 
 
 async def test_a_kiss_port_taken_by_another_program_gives_another_port_and_the_line_is_pointed_at_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
-    # (the first port is someone else's: one the system gave, so that it is surely free to take)
-    blocker = await asyncio.start_server(lambda r, w: None, "127.0.0.1", 0)
-    taken = blocker.sockets[0].getsockname()[1]
-    monkeypatch.setattr(direwolfmodem, "FIRST_PORT", taken)
+    # (the first port the modem would take is someone else's: the free one its own search finds in
+    # this test's block, taken now; never a port of the system's range, where Windows keeps many out)
+    taken = next_modem_ports(Claims(), 3, first=direwolfmodem.FIRST_PORT, tries=PORT_TRIES)
+    blocker = await asyncio.start_server(lambda r, w: None, "127.0.0.1", taken)
     m = modem(tmp_path, "--port-taken")
     moved: list[int] = []
     m.ports_changed.connect(lambda: moved.append(m.kiss_port))
