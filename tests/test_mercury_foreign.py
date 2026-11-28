@@ -23,10 +23,14 @@ from neoaprs.radiodriver import RunOverrides
 from neoaprs.radiospec import RadioSpec
 from neoaprs.tncprofile import MERCURY_OWN
 from tests.support.faketnc import UI
-from neoaprs.mercuryruns import PORTS_TAKEN
+from neoaprs.cli.supportsummary import _mercury
+from neoaprs.mercuryruns import PORTS_TAKEN, StartEnd
+from neoaprs.tnc import Tnc
+from neoaprs.web.supportstate import mercury_state
 from neoaprs.radiotype import HF_ID
 from neoaprs.source import Backoff, Source
 from tests.support import fakemercury
+from tests.support.clock import FixedClock
 from tests.support.env import Env, until_started
 from tests.support.fakemercury import Air, of_radio
 from tests.support.modemports import own_ports
@@ -69,6 +73,25 @@ def test_the_lines_of_a_keying_that_cannot_be_set_up_are_mercurys_own_and_say_wh
     assert keying_failure("[ERR] [engine] Radio init failed: the engine is exiting") == "keying"
     assert keying_failure("[ERR] [serial-ptt] GetCommState(COM3) failed (Windows error 5)") == ""
     assert keying_failure("mercury_engine: radio init failed") == "", "the unstamped line comes before the one read"
+
+
+async def test_the_counts_of_stalls_are_kept_across_starts_and_the_support_file_says_how_each_start_ended(
+    tmp_path: Path,
+) -> None:
+    """The station's summary said "Hears nothing: 0 times" after 22 stalls: each off and on made a new count."""
+    m = modem(tmp_path)
+    m.stall.stalls, m.stall.restarts = 22, 3
+    for _ in range(2):
+        await m.start(HF)
+        await until_started(lambda: m.state == "running")
+    await stopped(m)
+    assert (m.stall.stalls, m.stall.restarts) == (22, 3)
+    assert [start.words() for start in m.start_log] == ["running", "running"]
+    m.start_log.append(StartEnd(m.start_log[-1].at, ended="keying_in_use"))
+    rows = dict(_mercury(mercury_state(m, Tnc())))
+    assert rows["Hears nothing"].startswith("22 times") and rows["Restarted for it"].startswith("3 times")
+    said = [value for key, value in _mercury(mercury_state(m, Tnc())) if key == "Mercury started"]
+    assert len(said) == 3 and said[-1].endswith(": failed: keying_in_use")
 
 
 def test_the_lines_are_the_ones_the_pinned_mercury_writes() -> None:
@@ -235,8 +258,10 @@ async def test_another_mercury_on_the_ports_gets_not_one_byte_in_an_hour_of_beac
     async with Foreign() as other:
         monkeypatch.setattr(mercurymodem, "free_ports", lambda first=0, tries=50: (other.port, other.port + 200))
         monkeypatch.setattr(mercurymodem, "next_modem_ports", lambda claims, holder, first=0, **_: first)
+        clock = FixedClock()
         e = Env(
             tmp_path,
+            clock=clock,
             settings={"hf/enabled": "true", "mercury/keying": "rts:COM10", "mercury/sound_card": "plughw:1,0"},
         )
         e.mercury._finder = lambda: fakemercury.program(keying_fails="COM10 (Windows error 5)")
@@ -247,7 +272,7 @@ async def test_another_mercury_on_the_ports_gets_not_one_byte_in_an_hour_of_beac
         try:
             await until_started(lambda: e.mercury.starts >= 2 and e.mercury.reason in ("keying_in_use", "ports_taken"))
             for _ in range(HOUR_OF_BEACONS):
-                e.now.advance(60.0)
+                clock.advance(60.0)
                 assert not e.beacon_2.send_now("interval")
             assert e.beacon_2.problem
             await e.ctl.messaging.send("OH2XYZ", "over HF while the modem cannot key")
