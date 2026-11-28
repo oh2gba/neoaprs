@@ -58,6 +58,7 @@ DSOUND_PATCH = ROOT / "packaging" / "mercury" / "dsound.patch"
 FLUSH_PATCH = ROOT / "packaging" / "mercury" / "flush.patch"
 FFCPU_PATCH = ROOT / "packaging" / "mercury" / "ffcpu.patch"
 SIGBREAK_PATCH = ROOT / "packaging" / "mercury" / "sigbreak.patch"
+INITFAIL_PATCH = ROOT / "packaging" / "mercury" / "initfail.patch"
 # --previous builds the Mercury pinned before (scripts/build-mercury --previous --install): the
 # real-modem job's stations on the old version. A patch that no longer applies to the old source
 # keeps its old form under packaging/mercury/previous/.
@@ -74,6 +75,9 @@ LOG_FILE, LOG_FLUSH = "common/hermes_log.c", "fflush(stderr);"
 FFCPU_FILE, FFCPU_NAME = "audioio/audioio.c", "int _ffcpu_features;"
 # The handler the sigbreak patch gives Ctrl-Break on Windows, the one NeoAPRS asks the program to end by.
 SIGBREAK_FILE, SIGBREAK_HANDLER = "main.c", "signal(SIGBREAK, handle_termination_signal);"
+# The stop the initfail patch sets when the keying cannot be set up, so that the program ends.
+INITFAIL_FILE = "common/mercury_engine.c"
+INITFAIL_STOP = 'HLOGE("engine", "Radio init failed: the engine is exiting");\n        mercury_stop = true;'
 # The two TCP listeners the loopback patch changes; no INADDR_ANY may remain.
 LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"
 # The third bind: the UI interface, which the loopback patch also confines to 127.0.0.1.
@@ -190,6 +194,7 @@ def apply_patches(tree: Path, windows: bool = False) -> None:
     apply_patch(tree, FLUSH_PATCH)
     apply_patch(tree, FFCPU_PATCH)
     apply_patch(tree, SIGBREAK_PATCH)
+    apply_patch(tree, INITFAIL_PATCH)
     if 'LoadLibraryW(L"dsound.dll")' not in (tree / DSOUND_FILE).read_text(encoding="utf-8") or "-ldsound" in (
         tree / "Makefile"
     ).read_text(encoding="utf-8"):
@@ -204,6 +209,8 @@ def apply_patches(tree: Path, windows: bool = False) -> None:
         raise BuildError(f"{FFCPU_FILE} has no {FFCPU_NAME} after {FFCPU_PATCH.name}")
     if SIGBREAK_HANDLER not in (tree / SIGBREAK_FILE).read_text(encoding="utf-8"):
         raise BuildError(f"{SIGBREAK_FILE} has no {SIGBREAK_HANDLER} after {SIGBREAK_PATCH.name}")
+    if INITFAIL_STOP not in (tree / INITFAIL_FILE).read_text(encoding="utf-8"):
+        raise BuildError(f"{INITFAIL_FILE} does not stop the engine on a failed radio init after {INITFAIL_PATCH.name}")
     listeners = (tree / LISTENERS_FILE).read_text(encoding="utf-8")
     if "INADDR_ANY" in listeners or listeners.count("htonl(INADDR_LOOPBACK)") != 2:
         raise BuildError(f"{LISTENERS_FILE} still binds a listener on every interface after {LOOPBACK_PATCH.name}")
@@ -348,6 +355,7 @@ def source_offer(flags: str, notes: str, last: str) -> str:
         f"Changes to the source: {LOG_FILE} flushes stderr after each log line, so that the lines reach the program that reads them as they are written, also on Windows, whose C runtime buffers a pipe (packaging/mercury/flush.patch of NeoAPRS).\n"
         f"Changes to the source: {FFCPU_FILE} defines `_ffcpu_features`, a name the audio code's library declares and leaves to the program, so that the program links with a compiler whose default machine has SSE4.2 (packaging/mercury/ffcpu.patch of NeoAPRS).\n"
         f"Changes to the source: on Windows {SIGBREAK_FILE} gives Ctrl-Break the handler of Ctrl-C, so that the program asked to end by Ctrl-Break ends its frame and unkeys the radio first (packaging/mercury/sigbreak.patch of NeoAPRS).\n"
+        f"Changes to the source: {INITFAIL_FILE} stops the engine when its keying cannot be set up, so that the program ends with exit code 1 instead of waiting for ever on its audio threads (packaging/mercury/initfail.patch of NeoAPRS).\n"
         f"{last}"
         f"Date: {datetime.date.today().isoformat()}\n"
     )
