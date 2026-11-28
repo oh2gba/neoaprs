@@ -8,7 +8,7 @@ from dataclasses import replace
 
 from neoaprs.configtypes import boolean, int_in, optional_int, text_of
 from neoaprs.configvalues import dial_or_empty, mercury_keying
-from neoaprs.mercury import BROADCAST_PORT
+from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET
 from neoaprs.mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from neoaprs.radiotype import Can, Field, RadioType
 from neoaprs.radiotypes.common import HF_ALLOWED, HF_LIMITS, fields_of
@@ -35,7 +35,9 @@ PSK_REPORT = Field("psk_report", "bool", boolean, "false", text="radio.field.psk
 # the dial the radio is tuned to, as the sked board writes it; empty: nothing is reported
 PSK_DIAL = Field("psk_dial", "text", dial_or_empty, "", text="radio.field.psk_dial")
 # the KISS port of the operator's own Mercury; its control port is 200 above (mercury.CONTROL_OFFSET)
-OWN_PORT = replace(TCP_PORT, default=str(BROADCAST_PORT))
+# the control port is 200 above the KISS port, and both must be ports
+OWN_PORT_RANGE = (1, 65535 - CONTROL_OFFSET)
+OWN_PORT = replace(TCP_PORT, parse=int_in(*OWN_PORT_RANGE), default=str(BROADCAST_PORT), range=OWN_PORT_RANGE)
 
 TYPES: tuple[RadioType, ...] = (
     RadioType(

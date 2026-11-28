@@ -46,7 +46,8 @@ from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
 from tests.support import fakemercury
-from tests.support.env import until_started
+from tests.support.env import until, until_started
+from neoaprs.radiotypes import type_of
 from tests.support.fakemercury import Air, of_radio
 from tests.support.modemports import own_ports
 from tests.test_tnc import Rigs, stops_rigs, ui_frame
@@ -496,6 +497,32 @@ async def test_a_control_port_another_program_holds_is_open_only_once_mercury_wr
         await line.stop()
         server.close()
         await server.wait_closed()
+
+
+async def test_a_control_port_beyond_the_last_port_is_a_failed_connect_tried_again_and_never_the_lines_end() -> None:
+    asked = [0]
+
+    def refuses() -> bool:
+        asked[0] += 1
+        return False
+
+    line = ControlLine(
+        "127.0.0.1", 65400 + CONTROL_OFFSET, lambda e: None, lambda up, why: None, Backoff([0.01]), refuses
+    )
+    line.start()
+    try:
+        await until(lambda: asked[0] >= 3)
+        assert not line.connected
+    finally:
+        await line.stop()
+
+
+def test_your_own_programs_mercury_takes_only_a_kiss_port_whose_control_port_fits() -> None:
+    port = type_of("mercury-own").field("tcp_port")
+    assert port is not None and port.range == (1, 65535 - CONTROL_OFFSET)
+    assert port.parse(str(65535 - CONTROL_OFFSET)) == 65535 - CONTROL_OFFSET
+    with pytest.raises(ValueError):
+        port.parse("65400")
 
 
 async def test_a_mercury_that_ends_before_it_writes_a_line_is_not_said_to_be_held_by_another_program(

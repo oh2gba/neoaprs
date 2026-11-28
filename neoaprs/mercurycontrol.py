@@ -69,7 +69,7 @@ class ControlLine:
             try:
                 nodevices.check_host(self.host, "the control port of a Mercury")
                 reader, writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), CONNECT_SEC)
-            except (OSError, TimeoutError) as e:
+            except (OSError, TimeoutError, OverflowError, ValueError) as e:  # (a port beyond 65535 overflows)
                 await asyncio.sleep(self.backoff.next_delay_sec())
                 log.debug("mercury control port %d: %s", self.port, os_error_text(e))
                 continue
