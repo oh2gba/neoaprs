@@ -303,7 +303,7 @@ def test_the_linux_packages_carry_direwolf_without_its_utilities_and_a_build_mus
         "lib/libasound.so.2 lib/libudev.so.1 share/alsa/alsa.conf data/tocalls.yaml data/symbols-new.txt LICENSE SOURCE.txt"
         in text
     )
-    mercury = tmp_path / "mercury-1.9.25-linux-x86_64.tar.gz"
+    mercury = tmp_path / "mercury-1.9.26-linux-x86_64.tar.gz"
     mercury.write_bytes(b"")
 
     def run(*args: str) -> subprocess.CompletedProcess[str]:

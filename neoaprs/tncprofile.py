@@ -146,7 +146,7 @@ MERCURY = Profile(
     None,
     False,
     False,
-    "Mercury 1.9.25 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.",
+    "Mercury 1.9.26 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.",
     readings=("snr",),
 )
 

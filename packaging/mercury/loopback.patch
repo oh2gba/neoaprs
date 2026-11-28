@@ -12,7 +12,7 @@ that moves these lines fails the build loudly, which is right.
 
 --- a/data_interfaces/tcp_interfaces.c
 +++ b/data_interfaces/tcp_interfaces.c
-@@ -370,7 +370,7 @@
+@@ -392,7 +392,7 @@
  
      memset(&local_addr, 0, sizeof(local_addr));
      local_addr.sin_family = AF_INET;
@@ -21,7 +21,7 @@ that moves these lines fails the build loudly, which is right.
      local_addr.sin_port = htons(port);
  
      if (bind(fd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
-@@ -2359,7 +2359,7 @@
+@@ -2662,7 +2662,7 @@
  
      memset(&local_addr, 0, sizeof(local_addr));
      local_addr.sin_family = AF_INET;

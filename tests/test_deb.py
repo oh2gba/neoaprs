@@ -173,7 +173,7 @@ def test_a_build_without_mercury_must_say_so_and_the_tarball_must_be_of_the_arch
     assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, (
         "a release can never silently lack Mercury"
     )
-    x86, arm = tmp_path / "mercury-1.9.25-linux-x86_64.tar.gz", tmp_path / "mercury-1.9.25-linux-aarch64.tar.gz"
+    x86, arm = tmp_path / "mercury-1.9.26-linux-x86_64.tar.gz", tmp_path / "mercury-1.9.26-linux-aarch64.tar.gz"
     x86.write_bytes(b"")
     arm.write_bytes(b"")
     for arch, wrong in (("amd64", arm), ("arm64", x86)):

@@ -166,11 +166,11 @@ def test_a_build_without_mercury_must_say_so(tmp_path: Path) -> None:
     assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, (
         "a release can never silently lack Mercury"
     )
-    tarball = tmp_path / "mercury-1.9.25-linux-x86_64.tar.gz"
+    tarball = tmp_path / "mercury-1.9.26-linux-x86_64.tar.gz"
     tarball.write_bytes(b"")
     both = build("--mercury", str(tarball), "--no-mercury")
     assert both.returncode == 2 and "exclude each other" in both.stderr
-    wrong = tmp_path / "mercury-1.9.25-linux-aarch64.tar.gz"
+    wrong = tmp_path / "mercury-1.9.26-linux-aarch64.tar.gz"
     wrong.write_bytes(b"")
     arm = build("--mercury", str(wrong))
     assert arm.returncode == 2 and "x86_64" in arm.stderr, "the program is for the machine the AppImage is for"
@@ -195,7 +195,7 @@ def test_the_trial_of_the_web_window_needs_the_gi_tarball_and_only_it(tmp_path: 
     refused = build("--no-mercury", "--window", "web", "--out", str(tmp_path / "out"))
     assert refused.returncode == 2 and "--window web needs --gi TARBALL" in refused.stderr
     assert "--gi is for --window web" in build("--no-mercury", "--gi", str(gi)).stderr
-    other = tmp_path / "mercury-1.9.25-linux-x86_64.tar.gz"
+    other = tmp_path / "mercury-1.9.26-linux-x86_64.tar.gz"
     other.write_bytes(b"")
     assert "is not the gi tarball" in build("--no-mercury", "--window", "web", "--gi", str(other)).stderr
     assert build("--no-mercury", "--window", "gtk").returncode == 2
