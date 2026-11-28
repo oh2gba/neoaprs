@@ -1,0 +1,453 @@
+#!/usr/bin/env python3
+"""Make the sound clips and waterfall pictures of site/signals.html from the pinned modems.
+
+  scripts/site-sounds            builds Mercury and Direwolf from the pinned sources in a container,
+                                 records one frame of each kind and writes site/signals/
+  scripts/site-sounds --keep     the same, and keeps the container's work folder work/sounds/
+
+The modems run only in the container: no device, no sound card, no network (`--network none`). Each
+clip is the modem's own output, decoded back before it is written: Mercury by a second Mercury,
+Packet by Direwolf's atest. Needs docker; the image is built once from the Ubuntu of
+scripts/check-in-container (the packages need the network then). The source archives come from
+~/.cache/neoaprs-build, where scripts/build-mercury and scripts/build-direwolf keep them."""
+
+import argparse
+import asyncio
+import hashlib
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import time
+import wave
+from array import array
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "site" / "signals"
+WORK = ROOT / "work" / "sounds"
+CACHE = Path.home() / ".cache" / "neoaprs-build"
+
+DOCKERFILE = """\
+FROM ubuntu:26.04@sha256:065aa8626841f16057b78b027b464cd59c4fac36c204c72dcbf48d66f5fa8a96
+RUN apt-get update \\
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \\
+      build-essential cmake pkg-config patch libasound2-dev libasound2-data libudev-dev \\
+      python3 python3-numpy sox webp \\
+ && rm -rf /var/lib/apt/lists/*
+"""
+IMAGE = "neoaprs-sounds:" + hashlib.sha256(DOCKERFILE.encode()).hexdigest()[:12]
+
+# The packet of all three clips: a status from a call that is nobody's.
+SOURCE_CALL, STATUS = "N0CALL", b">NeoAPRS"
+PEAK = 10 ** (-3 / 20)  # -3 dBFS
+SILENCE_SEC = 0.25
+# The waterfall: 0 to 3 kHz, the same scale for every clip
+PICTURE_RATE = 6000
+PIXELS_PER_SEC = 160
+PICTURE_HEIGHT = 257
+DYNAMIC_RANGE_DB = 90
+MERCURY_RATE = 8000
+
+
+def say(text: str) -> None:
+    print(f"site-sounds: {text}", flush=True)
+
+
+# ---- on the host
+
+
+def docker(*args: str, check: bool = True, **kwargs: object) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["docker", *args], check=check, text=True, **kwargs)  # type: ignore[call-overload]
+
+
+def archive(name: str, module: Path) -> Path:
+    """The cached source archive of a pinned modem, by the commit in its module."""
+    text = module.read_text(encoding="utf-8")
+    version = text.split('VERSION = "', 1)[1].split('"', 1)[0]
+    commit = text.split('SOURCE_COMMIT = "', 1)[1].split('"', 1)[0]
+    path = CACHE / f"{name}-{version}-{commit[:8]}.tar.gz"
+    if not path.is_file():
+        raise SystemExit(f"site-sounds: no {path}: run scripts/build-{name} once to fetch it")
+    return path
+
+
+def host(keep: bool) -> int:
+    if shutil.which("docker") is None:
+        say("docker is not installed")
+        return 2
+    sources = [
+        archive("mercury", ROOT / "neoaprs" / "mercury.py"),
+        archive("direwolf", ROOT / "neoaprs" / "direwolf.py"),
+    ]
+    if docker("image", "inspect", IMAGE, check=False, capture_output=True).returncode:
+        say(f"building the image {IMAGE}")
+        docker("build", "-t", IMAGE, "-", input=DOCKERFILE)
+    WORK.mkdir(parents=True, exist_ok=True)
+    run = [
+        "run", "--rm", "--network", "none", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+        "--user", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/work", "-e", "PYTHONDONTWRITEBYTECODE=1",
+        "-v", f"{ROOT}:/src:ro", "-v", f"{WORK}:/work",
+        *[a for s in sources for a in ("-v", f"{s}:/cache/{s.name}:ro")],
+    ]  # fmt: skip
+    probe = docker(*run, "--name", f"neoaprs-sounds-probe-{os.getpid()}", IMAGE, "ls", "/dev/snd", check=False)
+    say(f"docker {' '.join(run)} {IMAGE} ls /dev/snd: exit {probe.returncode}")
+    if probe.returncode == 0:
+        say("the container can see a sound device: stopped")
+        return 1
+    argv = [*run, "--name", f"neoaprs-sounds-{os.getpid()}", IMAGE, "python3", "/src/scripts/site-sounds", "--inside"]
+    say("docker " + " ".join(argv))
+    if docker(*argv, check=False).returncode:
+        say("the run in the container failed; its folder is work/sounds/")
+        return 1
+    OUT.mkdir(parents=True, exist_ok=True)
+    for path in sorted((WORK / "out").iterdir()):
+        if path.suffix in (".wav", ".png", ".webp"):
+            shutil.copyfile(path, OUT / path.name)
+            say(f"{OUT.relative_to(ROOT) / path.name}: {path.stat().st_size} bytes")
+    print((WORK / "out" / "report.json").read_text(encoding="utf-8"))
+    if not keep:
+        for name in ("build", "run", "tree"):
+            shutil.rmtree(WORK / name, ignore_errors=True)
+    return 0
+
+
+# ---- in the container
+
+
+def frame_bytes() -> bytes:
+    from neoaprs import TOCALL, ax25
+
+    return ax25.encode(ax25.Frame(ax25.Address(TOCALL), ax25.Address(SOURCE_CALL), info=STATUS))
+
+
+def build(work: Path) -> tuple[Path, Path]:
+    """Build both modems with the project's own scripts, on a writable copy of what they read."""
+    tree = work / "tree"
+    shutil.rmtree(tree, ignore_errors=True)
+    for name in ("scripts", "neoaprs", "packaging"):
+        shutil.copytree(Path("/src") / name, tree / name)
+    out = work / "build"
+    shutil.rmtree(out, ignore_errors=True)
+    for name in ("mercury", "direwolf"):
+        source = next(Path("/cache").glob(f"{name}-*.tar.gz"))
+        subprocess.run(
+            [sys.executable, str(tree / "scripts" / f"build-{name}"), "--source", str(source), "--out", str(out)],
+            check=True,
+        )
+    return out / "mercury" / "mercury", out / "direwolf"
+
+
+def trimmed(samples: array[int], rate: int) -> tuple[array[int], int]:
+    """The samples from the first to the last that is not zero, scaled to the peak and with silence
+    around them; and how many there were before the silence."""
+    first = next(i for i, s in enumerate(samples) if s)
+    last = len(samples) - next(i for i, s in enumerate(reversed(samples)) if s)
+    body = samples[first:last]
+    factor = PEAK * 32767 / max(abs(s) for s in body)
+    pad = array("h", bytes(2 * round(SILENCE_SEC * rate)))
+    return pad + array("h", [round(s * factor) for s in body]) + pad, len(body)
+
+
+def write_wav(path: Path, samples: array[int], rate: int) -> None:
+    with wave.open(str(path), "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(samples.tobytes())
+
+
+def read_wav(path: Path) -> tuple[array[int], int]:
+    with wave.open(str(path), "rb") as read:
+        samples = array("h")
+        samples.frombytes(read.readframes(read.getnframes()))
+        return samples, read.getframerate()
+
+
+async def kiss_frames(port: int, frames: list[bytes], stop: asyncio.Event) -> None:
+    from neoaprs import kiss
+
+    while True:
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            break
+        except OSError:
+            await asyncio.sleep(0.2)
+    decoder = kiss.KissDecoder()
+    while not stop.is_set():
+        try:
+            data = await asyncio.wait_for(reader.read(4096), 0.2)
+        except TimeoutError:
+            continue
+        if not data:
+            break
+        frames.extend(f.payload for f in decoder.feed(data))
+    writer.close()
+
+
+async def kiss_send(port: int, payload: bytes, timeout: float = 30.0) -> None:
+    from neoaprs import kiss
+
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            _, writer = await asyncio.open_connection("127.0.0.1", port)
+            break
+        except OSError:
+            if time.monotonic() > deadline:
+                raise
+            await asyncio.sleep(0.2)
+    writer.write(kiss.encode(payload))
+    await writer.drain()
+    await asyncio.sleep(1.0)
+    writer.close()
+
+
+def tnc2(payloads: list[bytes]) -> list[str]:
+    from neoaprs import ax25
+
+    return [ax25.decode(p).tnc2() for p in payloads]
+
+
+async def record_mercury(binary: Path, folder: Path) -> tuple[array[int], list[str]]:
+    """One broadcast frame from Mercury A, as it plays it into its fifo, and what Mercury B heard
+    of it on the channel."""
+    from tests.support.hfchannel import Channel
+    from tests.support.realmercury import fifo, start_mercury, stop
+
+    blocks: list[array[int]] = []
+    channel = Channel(snr_db=30.0)
+
+    def on_block(_number: int, _keyed: frozenset[str]) -> None:
+        block = channel.stations["A"]._block
+        blocks.append(block if block is not None else array("h", bytes(2 * channel.block_samples)))
+
+    channel.on_block = on_block
+    processes = []
+    for name, port in (("A", 8100), ("B", 8110)):
+        rx, tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
+        channel.add(name, rx, tx)
+        processes.append(start_mercury(str(binary), folder, name.lower(), rx, tx, (port, port + 200)))
+    heard: list[bytes] = []
+    stopping = asyncio.Event()
+    channel.start()
+    try:
+        listener = asyncio.ensure_future(kiss_frames(8110, heard, stopping))
+        await asyncio.sleep(4.0)
+        await kiss_send(8100, frame_bytes())
+        deadline = time.monotonic() + 20
+        while not heard and time.monotonic() < deadline:
+            await asyncio.sleep(0.2)
+        await asyncio.sleep(1.0)
+        stopping.set()
+        await listener
+    finally:
+        channel.stop()
+        for process in processes:
+            stop(process, 5.0)
+    samples = array("h")
+    for block in blocks:
+        samples.extend(block)
+    return samples, tnc2(heard)
+
+
+async def decode_mercury(binary: Path, folder: Path, clip: Path) -> list[str]:
+    """Play the finished clip into a fresh Mercury at its pace, between silences, and return what
+    it decoded."""
+    from tests.support.hfchannel import pcm_to_s32le
+    from tests.support.realmercury import fifo, start_mercury, stop
+
+    samples, rate = read_wav(clip)
+    assert rate == MERCURY_RATE
+    rx, tx = fifo(folder, "C-rx"), fifo(folder, "C-tx")
+    process = start_mercury(str(binary), folder, "c", rx, tx, (8120, 8320))
+    drain = os.open(tx, os.O_RDONLY | os.O_NONBLOCK)
+    heard: list[bytes] = []
+    stopping = asyncio.Event()
+    listener = asyncio.ensure_future(kiss_frames(8120, heard, stopping))
+    try:
+        while True:
+            try:
+                feed = os.open(rx, os.O_WRONLY | os.O_NONBLOCK)
+                break
+            except OSError:
+                await asyncio.sleep(0.1)
+        block = rate // 50
+        silence = array("h", bytes(2 * 3 * rate))
+        stream = silence + samples + silence
+        origin = time.monotonic()
+        for k, start in enumerate(range(0, len(stream), block)):
+            await asyncio.sleep(max(0.0, origin + k * 0.02 - time.monotonic()))
+            try:
+                os.write(feed, pcm_to_s32le(stream[start : start + block]))
+            except BlockingIOError:
+                pass
+            try:
+                while os.read(drain, 1 << 16):
+                    pass
+            except BlockingIOError:
+                pass
+        await asyncio.sleep(1.0)
+        stopping.set()
+        await listener
+        os.close(feed)
+    finally:
+        os.close(drain)
+        stop(process, 5.0)
+    return tnc2(heard)
+
+
+def record_direwolf(dw: Path, folder: Path, baud: int) -> array[int]:
+    """One frame from Direwolf as NeoAPRS starts it, its sound card ALSA's file plugin over null."""
+    from neoaprs import direwolf
+    from neoaprs.mercury import Keying
+
+    folder.mkdir(parents=True, exist_ok=True)
+    raw = folder / "out.raw"
+    (folder / ".asoundrc").write_text(
+        f'pcm.neo {{ type asym playback.pcm {{ type file slave.pcm "null" file "{raw}" format "raw" }} '
+        'capture.pcm "null" }\n',
+        encoding="utf-8",
+    )
+    conf = folder / direwolf.CONF_FILE
+    conf.write_text(direwolf.conf_text("neo", Keying("vox"), 8001, baud), encoding="utf-8")
+    env = dict(os.environ, HOME=str(folder))
+    if (dw / "share" / "alsa" / "alsa.conf").is_file():
+        env["ALSA_CONFIG_PATH"] = str(dw / "share" / "alsa" / "alsa.conf")
+    argv = direwolf.command([str(dw / "direwolf")], str(conf))
+    say(" ".join(argv))
+    process = subprocess.Popen(
+        argv, cwd=dw, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    lines: list[str] = []
+    ready, unkeyed = threading.Event(), threading.Event()
+
+    def read() -> None:
+        assert process.stdout is not None
+        for line in process.stdout:
+            lines.append(line.rstrip())
+            if line.startswith("Ready to accept KISS TCP"):
+                ready.set()
+            if line.strip() == "PTT 0 = 0":
+                unkeyed.set()
+
+    threading.Thread(target=read, daemon=True).start()
+    try:
+        if not ready.wait(20):
+            raise SystemExit("site-sounds: Direwolf did not open its KISS port:\n" + "\n".join(lines))
+        with socket.create_connection(("127.0.0.1", 8001)) as kiss_socket:
+            from neoaprs import kiss
+
+            kiss_socket.sendall(kiss.encode(frame_bytes()))
+            if not unkeyed.wait(20):
+                raise SystemExit("site-sounds: Direwolf did not unkey:\n" + "\n".join(lines))
+    finally:
+        assert process.stdin is not None
+        process.stdin.close()
+        process.wait(10)
+    (folder / "direwolf.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    samples = array("h")
+    samples.frombytes(raw.read_bytes())
+    return samples
+
+
+def atest(dw: Path, clip: Path, baud: int) -> list[str]:
+    done = subprocess.run(
+        [str(dw / "dev" / "atest"), "-B", str(baud), str(clip)], check=True, capture_output=True, text=True
+    )
+    text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", done.stdout)
+    return [line[4:].strip() for line in text.splitlines() if line.startswith("[0] ")]
+
+
+def measure(clip: Path, body: int, rate: int) -> dict[str, object]:
+    """The length of the transmission, the band within 10 dB of its strongest part (what a waterfall
+    shows of it) and its two strongest peaks at least 150 Hz apart, on the spectrum smoothed over
+    20 Hz."""
+    import numpy as np
+
+    samples, _ = read_wav(clip)
+    x = np.asarray(samples, dtype=float)
+    x = x[np.flatnonzero(x)[0] : np.flatnonzero(x)[-1] + 1]
+    spectrum = np.abs(np.fft.rfft(x * np.hanning(len(x)))) ** 2
+    freqs = np.fft.rfftfreq(len(x), 1 / rate)
+    width = max(1, int(20 * len(x) / rate))
+    smooth = np.convolve(spectrum, np.ones(width) / width, mode="same")
+    band = np.flatnonzero(smooth > smooth.max() / 10)
+    peaks: list[int] = []
+    for i in np.argsort(smooth)[::-1]:
+        if all(abs(freqs[i] - freqs[j]) > 150 for j in peaks):
+            peaks.append(int(i))
+        if len(peaks) == 2:
+            break
+    return {
+        "seconds": round(body / rate, 3),
+        "band_10db_hz": [round(float(freqs[band[0]])), round(float(freqs[band[-1]]))],
+        "strongest_hz": sorted(round(float(freqs[i])) for i in peaks),
+    }
+
+
+def picture(clip: Path, out: Path) -> None:
+    png = out.with_suffix(".png")
+    subprocess.run(
+        [
+            "sox", str(clip), "-n", "rate", str(PICTURE_RATE), "spectrogram",
+            "-X", str(PIXELS_PER_SEC), "-y", str(PICTURE_HEIGHT), "-z", str(DYNAMIC_RANGE_DB),
+            "-t", "", "-c", "", "-o", str(png),
+        ],
+        check=True,
+    )  # fmt: skip
+    subprocess.run(["cwebp", "-quiet", "-lossless", str(png), "-o", str(out.with_suffix(".webp"))], check=True)
+
+
+def inside() -> int:
+    sys.path.insert(0, "/src")
+    work = Path("/work")
+    mercury, dw = build(work)
+    out, runs = work / "out", work / "run"
+    for folder in (out, runs):
+        shutil.rmtree(folder, ignore_errors=True)
+        folder.mkdir(parents=True)
+    report: dict[str, dict[str, object]] = {}
+
+    (runs / "mercury").mkdir()
+    recorded, heard = asyncio.run(record_mercury(mercury, runs / "mercury"))
+    samples, body = trimmed(recorded, MERCURY_RATE)
+    clip = out / "mercury.wav"
+    write_wav(clip, samples, MERCURY_RATE)
+    (runs / "mercury-c").mkdir()
+    decoded = asyncio.run(decode_mercury(mercury, runs / "mercury-c", clip))
+    report["mercury"] = {"heard_on_channel": heard, "decoded_from_clip": decoded, **measure(clip, body, MERCURY_RATE)}
+
+    for baud in (1200, 300):
+        raw = record_direwolf(dw, runs / f"direwolf-{baud}", baud)
+        rate = 44100
+        samples, body = trimmed(raw, rate)
+        clip = out / f"packet-{baud}.wav"
+        write_wav(clip, samples, rate)
+        report[f"packet-{baud}"] = {"decoded_from_clip": atest(dw, clip, baud), **measure(clip, body, rate)}
+
+    expected = f"{SOURCE_CALL}>APZNEO:{STATUS.decode()}"
+    for name, facts in report.items():
+        picture(out / f"{name}.wav", out / name)
+        facts["bytes"] = (out / f"{name}.wav").stat().st_size
+        if expected not in facts["decoded_from_clip"]:  # type: ignore[operator]
+            say(f"{name}: the clip does not decode to {expected}: {facts}")
+            return 1
+    (out / "report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="site-sounds", description=__doc__.split("\n\n")[0])
+    parser.add_argument("--keep", action="store_true", help="keep the container's work folder work/sounds/")
+    parser.add_argument("--inside", action="store_true", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    return inside() if args.inside else host(args.keep)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

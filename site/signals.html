@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What NeoAPRS sounds like on the air: Mercury and Packet · NeoAPRS</title>
+<meta name="description" content="Hear and recognise the three signals NeoAPRS sends: Mercury on HF, Packet at 1200 baud on VHF and Packet at 300 baud on HF. A sound clip and a waterfall of each, made with the modems NeoAPRS carries.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1f2c" media="(prefers-color-scheme: dark)">
+<meta name="author" content="OH2GBA">
+<link rel="canonical" href="https://neo.oh2gba.eu/signals.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="NeoAPRS">
+<meta property="og:title" content="What NeoAPRS sounds like on the air">
+<meta property="og:description" content="Mercury, Packet at 1200 baud and Packet at 300 baud: hear each one and see it on a waterfall.">
+<meta property="og:url" content="https://neo.oh2gba.eu/signals.html">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
+<link rel="stylesheet" href="style.css?v=37">
+<script src="site.js?v=13" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="mast">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
+    <nav aria-label="Page">
+      <a href="./#download">Download</a>
+      <a href="./#features">Features</a>
+      <a href="./#radios">Radios</a>
+      <a href="./#skeds">HF tests</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<article class="sec article tech signals">
+  <div class="wrap">
+    <p class="flag">On the air</p>
+    <h1 class="article-title">What NeoAPRS sounds like on the air</h1>
+    <p class="lead-sm">You tune across 20 m and hear a short, even hiss that starts and stops sharply. Is that NeoAPRS? Here are the three signals it sends, each as its modem makes it, so you can tell them apart by ear and on a waterfall.</p>
+    <p>Each clip is one packet, <code>N0CALL&gt;APZNEO:&gt;NeoAPRS</code>, from the Mercury and Direwolf that NeoAPRS carries, with the settings NeoAPRS gives them, and nothing added. The pictures are made from the clips, all on the same scale: time to the right, 0 to 3 kHz of audio upwards.</p>
+
+    <h2 id="mercury">Mercury</h2>
+    <audio controls preload="none" src="signals/mercury.wav"><a href="signals/mercury.wav">Mercury, one frame (WAV)</a></audio>
+    <figure class="wf mercury"><picture><source type="image/webp" srcset="signals/mercury.webp"><img src="signals/mercury.png" width="770" height="355" loading="lazy" decoding="async" alt="Waterfall of one Mercury frame: a solid block from about 1.2 to 1.8 kHz, the same brightness from start to end, lasting 3.4 seconds"></picture></figure>
+    <ul class="article-list">
+      <li><b>How long:</b> 3.8 seconds from key to unkey, of which 3.4 seconds are sound. Every frame is this long, whatever it carries.</li>
+      <li><b>By ear:</b> an even hiss with a faint buzz in it, starting and stopping at once.</li>
+      <li><b>On the waterfall:</b> a flat block about 560 Hz wide, from 1219 to 1781 Hz above the dial, with straight edges: nine carriers side by side.</li>
+      <li><b>Where:</b> on HF, on the <a href="./#frequencies">suggested dials</a>, such as 14.1070 MHz USB on 20 m and 7.0541 MHz USB on 40 m.</li>
+    </ul>
+
+    <h2 id="packet-1200">Packet at 1200 baud</h2>
+    <audio controls preload="none" src="signals/packet-1200.wav"><a href="signals/packet-1200.wav">Packet at 1200 baud, one packet (WAV)</a></audio>
+    <figure class="wf p1200"><picture><source type="image/webp" srcset="signals/packet-1200.webp"><img src="signals/packet-1200.png" width="334" height="355" loading="lazy" decoding="async" alt="Waterfall of one 1200 baud packet: two bright tones at 1.2 and 2.2 kHz with a comb of thin lines between them, lasting 0.7 seconds"></picture></figure>
+    <ul class="article-list">
+      <li><b>How long:</b> 0.7 seconds for this short packet; a beacon with a position and a comment takes about a second.</li>
+      <li><b>By ear:</b> a short, harsh burst, two tones switching too fast to hear apart.</li>
+      <li><b>On the waterfall:</b> two tones, 1200 and 2200 Hz, about 1.2 kHz from edge to edge; the flags at the start and the end draw a comb of thin lines.</li>
+      <li><b>Where:</b> on VHF FM, such as 144.800 MHz.</li>
+    </ul>
+
+    <h2 id="packet-300">Packet at 300 baud</h2>
+    <audio controls preload="none" src="signals/packet-300.wav"><a href="signals/packet-300.wav">Packet at 300 baud, one packet (WAV)</a></audio>
+    <figure class="wf p300"><picture><source type="image/webp" srcset="signals/packet-300.webp"><img src="signals/packet-300.png" width="421" height="355" loading="lazy" decoding="async" alt="Waterfall of one 300 baud packet: a narrow stripe between 1.6 and 1.8 kHz, two thin lines at the start and the end, lasting 1.2 seconds"></picture></figure>
+    <ul class="article-list">
+      <li><b>How long:</b> 1.2 seconds for this short packet; a packet of 80 bytes takes over two seconds.</li>
+      <li><b>By ear:</b> a slower warble of two notes close together.</li>
+      <li><b>On the waterfall:</b> a narrow stripe about 340 Hz wide around its two tones, 1600 and 1800 Hz; the flags at the start and the end show as two thin lines.</li>
+      <li><b>Where:</b> on HF, usually 10.1476 MHz USB.</li>
+    </ul>
+
+    <h2 id="which-radio">Which radio hears which</h2>
+    <table class="facts">
+      <tbody>
+        <tr><th scope="row">Mercury</th><td>A radio of the type <i>Sound card</i> under Mercury (DATAC3). Only Mercury hears Mercury.</td></tr>
+        <tr><th scope="row">Packet at 1200 baud</th><td><i>Sound card, 1200 (VHF/UHF)</i>, or any KISS TNC on VHF</td></tr>
+        <tr><th scope="row">Packet at 300 baud</th><td><i>Sound card, 300 (HF)</i>, or a KISS TNC with <b>On HF</b> ticked</td></tr>
+      </tbody>
+    </table>
+    <p class="cta"><a class="btn" href="./#download">Download NeoAPRS</a><a class="btn ghost" href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">The radio guide</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="links">
+      <a href="https://github.com/oh2gba/neoaprs">Source</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="faq.html">Questions and answers</a>
+      <a href="mailto:neo@oh2gba.eu">neo@oh2gba.eu</a>
+    </p>
+    <p>GNU GPL v3 or later. By <a href="https://oh2gba.eu">OH2GBA</a>. HF modem: <a href="https://github.com/Rhizomatica/mercury">Mercury</a> by Rhizomatica.</p>
+  </div>
+</footer>
+</body>
+</html>

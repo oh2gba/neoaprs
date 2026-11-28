@@ -413,3 +413,10 @@ blockquote.cite { margin: 18px 0; }
 .newsbar-text { font-weight: 500; }
 .newsbar-go { margin-left: auto; font-weight: 600; white-space: nowrap; color: var(--blue); }
 .newsbar:hover .newsbar-go, .newsbar:focus-visible .newsbar-go { text-decoration: underline; }
+/* signals.html: the player, and each waterfall at one scale (the widths are the pictures' own, Mercury's the widest) */
+.signals audio { display: block; width: 100%; max-width: 480px; margin: 8px 0 12px; }
+.wf { margin: 0 0 14px; }
+.wf img { display: block; width: 100%; height: auto; border-radius: var(--radius-box); }
+.wf.mercury { width: min(770px, 100%); }
+.wf.p1200 { width: min(334px, 43.38%); }
+.wf.p300 { width: min(421px, 54.68%); }
