@@ -173,7 +173,9 @@ async def test_a_message_on_its_way_over_the_internet_says_so_to_the_page_and_na
     assert (row["state"], row["radio_now"], row["internet_now"]) == ("sending", None, True)
     await page.send({"cmd": "set_config", "values": {"igate/gate": "false"}})
     await page.until(
-        lambda: page.topics["messages"][str(record.id)]["internet_now"] is False
-        or page.topics["messages"][str(record.id)]["state"] != "sending"
+        lambda: (
+            page.topics["messages"][str(record.id)]["internet_now"] is False
+            or page.topics["messages"][str(record.id)]["state"] != "sending"
+        )
     )
     await e.stop()

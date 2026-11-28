@@ -264,7 +264,9 @@ async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -
     )
 
 
-async def test_an_rf_only_answer_on_a_radio_that_carries_no_path_goes_back_by_the_gateway_the_asker_came_through() -> None:
+async def test_an_rf_only_answer_on_a_radio_that_carries_no_path_goes_back_by_the_gateway_the_asker_came_through() -> (
+    None
+):
     """On Mercury an answer goes with no path; one that is RF only goes back through the pair of radios
     the asker came by, with RFONLY after its call, never in its place."""
     rig = Rig()

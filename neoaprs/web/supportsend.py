@@ -33,6 +33,8 @@ def support_note(text: str) -> str:
     # A lone surrogate from JSON cannot be encoded; it becomes "?".
     text = text.encode("utf-8", "replace").decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
     return _NOT_KEPT.sub("", text)[:MAX_NOTE].strip(" \t\n\r\0\x0b")
+
+
 MAX_SEND_BYTES = 10 * 1024 * 1024  # what the server takes in one request
 MAX_EMAIL = 254  # characters, the longest address RFC 5321 lets through
 # blanks and controls, Unicode white space and lone surrogates; send.php and the page refuse the same
