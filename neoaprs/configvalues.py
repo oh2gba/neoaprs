@@ -124,9 +124,16 @@ def map_source(text: str) -> str:
         raise CodedError(
             f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text
         )
-    if "://" in value and (urlsplit(value).scheme not in ("http", "https") or " " in value):
+    if "://" in value and (_scheme(value) not in ("http", "https") or " " in value):
         raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
     return value
+
+
+def _scheme(address: str) -> str:
+    try:
+        return urlsplit(address).scheme
+    except ValueError:  # an IPv6 address without its closing ]
+        return ""
 
 
 def tnc_profile(text: str) -> str:
