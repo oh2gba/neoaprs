@@ -79,6 +79,17 @@ def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> b
     return pace.too_soon(radio.id)
 
 
+def came_no_gate(packet: Packet | None) -> bool:
+    """Whether a message came on the air as itself with RFONLY or NOGATE in its path: its ack goes so too.
+
+    The outer path of a third-party packet is the iGate's frame, not the sender's."""
+    return (
+        packet is not None
+        and packet.third_party is None
+        and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path)
+    )
+
+
 class Messaging:
     def __init__(
         self,
@@ -553,8 +564,5 @@ class Messaging:
             msg_id,
             reply_ack,
             None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to),
-            # the outer path of a third-party packet is the iGate's frame, not the sender's
-            rf_only=packet is not None
-            and packet.third_party is None
-            and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
+            rf_only=came_no_gate(packet),
         )
