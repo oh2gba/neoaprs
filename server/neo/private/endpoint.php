@@ -20,8 +20,21 @@ function neo_answer(int $status, array $body, array $headers = []): never
 {
     http_response_code($status);
     foreach ($headers as $line) header($line);
-    echo json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE), "\n";
+    echo neo_json($body), "\n";
     exit;
+}
+
+/**
+ * The JSON of an answer. A station's text in it stays text: every string is quoted with its quotes
+ * escaped, < > & are written as \u escapes, and the answer is application/json with nosniff, so no
+ * browser reads it as markup. Psalm is told so here, since it cannot follow the encoding.
+ *
+ * @psalm-taint-escape html
+ * @psalm-taint-escape has_quotes
+ */
+function neo_json(array $body): string
+{
+    return (string) json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE);
 }
 
 function neo_refuse(int $status, string $reason, array $headers = []): never
