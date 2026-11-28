@@ -40,6 +40,7 @@ class ScopeFeed:
         self._sent: dict[Connection, int] = {}  # page -> newest row number it was sent and still holds
         self._stale: set[Connection] = set()
         self._reach: dict[Connection, float] = {}  # page -> the seconds of its last history
+        self._owed: dict[Connection, float] = {}  # page -> the seconds of a history it was too far behind for
 
     @property
     def pages(self) -> int:
@@ -58,6 +59,7 @@ class ScopeFeed:
         self._sent.pop(conn, None)
         self._stale.discard(conn)
         self._reach.pop(conn, None)
+        self._owed.pop(conn, None)
 
     def _hand_over(self, conn: Connection, seconds: float) -> None:
         history, now = self._modem.scope_history, scope_clock()
@@ -70,7 +72,10 @@ class ScopeFeed:
                 # Resend from the row before `held` so the page can find where they join.
                 kept = kept[held - 1 - kept[0].seq :]
             self._reach[conn] = seconds
+            self._owed.pop(conn, None)
             self._send_history(conn, kept, now)
+        else:
+            self._owed[conn] = seconds
         self._catch_up(conn)
 
     def row(self, kept: KeptRow) -> None:
@@ -78,7 +83,11 @@ class ScopeFeed:
             self._catch_up(conn)
 
     def _catch_up(self, conn: Connection) -> None:
-        """Send the page the kept rows newer than it holds; a stale page first gets an empty history."""
+        """Send the page the kept rows newer than it holds; a stale page first gets an empty history, and
+        one that was too far behind for the history it asked for gets it now."""
+        if conn in self._owed and conn in self._pages and conn.buffered() <= BEHIND:
+            self._hand_over(conn, self._owed.pop(conn))
+            return
         while conn in self._pages and (newer := self._modem.scope_history.after(self._pages[conn], scope_clock())):
             self._pages[conn] = newer[0].seq
             if conn.buffered() <= BEHIND:

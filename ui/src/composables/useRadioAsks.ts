@@ -27,6 +27,9 @@ interface Pane {
   seconds?: () => number | undefined;
 }
 
+/** A pane that changes the seconds it wants (a card dragged taller) asks again at most this often. */
+const ASK_EVERY_MS = 300;
+
 export function useRadioAsks(
   cmd: "radio_scope" | "radio_level",
   send: (command: Command) => boolean,
@@ -53,7 +56,23 @@ export function useRadioAsks(
     }
     return most;
   });
+  /** When each radio was last asked, and an ask held back meanwhile (each ask of more seconds resends them all). */
+  const askedAt = new Map<RadioId, number>();
+  const held = new Map<RadioId, ReturnType<typeof setTimeout>>();
+  function askSoon(radio: RadioId): void {
+    if (held.has(radio)) return;
+    const wait = (askedAt.get(radio) ?? -Infinity) + ASK_EVERY_MS - Date.now();
+    if (wait <= 0) return ask(radio, seconds.value.get(radio));
+    held.set(
+      radio,
+      setTimeout(() => {
+        held.delete(radio);
+        if (asked.value.includes(radio)) ask(radio, seconds.value.get(radio));
+      }, wait),
+    );
+  }
   function ask(radio: RadioId, wants: number | undefined): void {
+    askedAt.set(radio, Date.now());
     if (wants !== undefined) wanting?.(radio, wants);
     send(
       cmd === "radio_scope" && wants !== undefined
@@ -69,7 +88,8 @@ export function useRadioAsks(
       if (connection.value === "open")
         for (const radio of was.filter((id) => !now.includes(id))) send({ cmd, radio, on: false });
       for (const radio of now)
-        if (!was.includes(radio) || wants.get(radio) !== wanted?.get(radio)) ask(radio, wants.get(radio));
+        if (!was.includes(radio)) ask(radio, wants.get(radio));
+        else if (wants.get(radio) !== wanted?.get(radio)) askSoon(radio);
     },
     { flush: "sync" },
   );

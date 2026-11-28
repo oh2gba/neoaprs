@@ -166,9 +166,10 @@ def test_a_page_that_is_behind_is_sent_no_history_and_is_passed_over_and_a_page_
     assert client.frames == [] and feed.pages == 1, "behind: nothing, but it looks"
     client.held = 0
     make(modem, feed, 3)
-    assert [parse_row(f).bins[0] for f in client.frames if parse_row(f) is not None] == [3], (
-        "once it has read, the rows that come, not the ones it was passed over for"
-    )
+    assert seen(client) == [1, 2, 3], "once it has read, the history it asked for, then the rows that come"
+    assert parse_history(client.frames[0]) is not None and len(client.frames) == 1
+    make(modem, feed, 4)
+    assert seen(client) == [1, 2, 3, 4]
     gone, closed = page()
     closed.closed = True
     feed.ask(closed, True)

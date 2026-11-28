@@ -138,8 +138,9 @@ async def test_the_rows_of_the_waterfall_are_binary_frames_to_the_pages_that_ask
     assert len(watching.binary) == 2, "nor the rows kept"
     del link.client.buffered
     made(e, ScopeRow(bytes(ROW_BINS), -80, True))
-    assert row_of((await watching.frames(3))[2]) == ScopeRow(bytes(ROW_BINS), -80, True), (
-        "once it has read, the rows that come, and not those it was not sent"
+    kept = history_of((await watching.frames(3))[2])
+    assert kept is not None and kept[-1][0] == ScopeRow(bytes(ROW_BINS), -80, True) and len(kept) == 3, (
+        "once it has read, the history it asked for while it was behind, to the newest row"
     )
     await e.stop()
     await air.aclose()

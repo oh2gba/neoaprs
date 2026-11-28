@@ -157,6 +157,7 @@ describe("the card that has no room for its picture", () => {
 
 describe("the card's history as long as the card is tall", () => {
   it("asks for the minutes of rows its picture shows, more as soon as it is made taller or slower, and draws what is kept to its new bottom", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     const width = stubWidth(540);
     let high = 380;
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(() => high);
@@ -172,12 +173,14 @@ describe("the card's history as long as the card is tall", () => {
       high = 1200;
       width.set(540);
       await flushPromises();
+      vi.advanceTimersByTime(300); // (a change of seconds is asked at most every 300 ms)
       expect(layout(540, 1200).rows * 200).toBeGreaterThan(180_000);
       expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 240 });
       expect(shows.mock.calls.length).toBe(before + 1); // the rows kept drawn again for the taller picture
       high = 1000;
       width.set(540);
       await flushPromises();
+      vi.advanceTimersByTime(300);
       expect(shows.mock.calls.length).toBe(before + 1); // smaller: what it holds is enough
       expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 180 });
       localStorage.setItem("NeoAPRS.monitorspeed", "slow");
@@ -187,6 +190,7 @@ describe("the card's history as long as the card is tall", () => {
       expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 360 });
     } finally {
       width.restore();
+      vi.useRealTimers();
     }
   });
 });

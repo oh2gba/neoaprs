@@ -57,6 +57,24 @@ describe("who looks at the scope", () => {
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
   });
 
+  it("asks again at most every few hundred milliseconds while a card is dragged taller, at last for what it shows", async () => {
+    vi.useFakeTimers();
+    try {
+      const { pane, asked } = setup();
+      const reach = shallowRef(60_000);
+      pane(shallowRef(true), reach);
+      for (const minutes of [2, 3, 4, 5, 6]) {
+        reach.value = minutes * 60_000;
+        await nextTick();
+      }
+      expect(asked().map((c) => (c as { seconds?: number }).seconds)).toEqual([60]);
+      vi.advanceTimersByTime(300);
+      expect(asked().map((c) => (c as { seconds?: number }).seconds)).toEqual([60, 360]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("asks for a minute while a pane looks whose reach is not known yet, never for the whole history", () => {
     const { pane, asked } = setup();
     pane(shallowRef(true), shallowRef(0));
@@ -64,6 +82,7 @@ describe("who looks at the scope", () => {
   });
 
   it("asks for the seconds the panes show, the longest in whole minutes, again when that changes, and keeps as much of the radio's rows", async () => {
+    vi.useFakeTimers();
     const { pane, asked, kept, keptWhenSent } = setup();
     const [small, tall] = [shallowRef(50_000), shallowRef(250_000)];
     const [one, two] = [shallowRef(true), shallowRef(false)];
@@ -73,24 +92,30 @@ describe("who looks at the scope", () => {
     expect(kept).toEqual([[2, 60_000]]);
     two.value = true;
     await nextTick();
+    vi.advanceTimersByTime(300); // (a change of seconds is asked at most every 300 ms)
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 300 });
     expect(kept.at(-1)).toEqual([2, 300_000]);
     expect(keptWhenSent.at(-1)).toEqual([2, 300_000]); // kept longer before the rows are asked for
     small.value = 55_000;
     tall.value = 260_000;
     await nextTick();
+    vi.advanceTimersByTime(300); // (a change of seconds is asked at most every 300 ms)
     expect(asked()).toHaveLength(2); // the same minutes: not asked again
     tall.value = 400_000;
     await nextTick();
+    vi.advanceTimersByTime(300); // (a change of seconds is asked at most every 300 ms)
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 420 });
     two.value = false;
     await nextTick();
+    vi.advanceTimersByTime(300); // (a change of seconds is asked at most every 300 ms)
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 60 });
     expect(kept.at(-1)).toEqual([2, 60_000]);
     one.value = false;
     await nextTick();
+    vi.advanceTimersByTime(300); // (a change of seconds is asked at most every 300 ms)
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
     expect(kept.at(-1)).toEqual([2, 60_000]); // what is kept stays for a picture opened again
+    vi.useRealTimers();
   });
 
   it("takes a pane that goes away out of the count, and asks no more when it was the last", () => {
