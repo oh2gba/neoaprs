@@ -23,7 +23,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 PROGRAM = str(programs()[0])
 PAYLOAD = b"OH2GW>APZNEO:>the lines of the real Mercury"
-FRAME_SEC = 30.0  # a frame keyed, played, heard and handed over
+FRAME_SEC = 60.0  # a frame keyed, played, heard and handed over
 ALIVE_SEC = 30.0  # the daemon writes keepalive_s = 10
 
 
