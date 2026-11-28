@@ -124,6 +124,15 @@ button,
   padding-right: 10px;
   padding-left: 10px;
 }
+/* while no call is set its button takes the room of the marks: they get a row of their own under
+   it, as wide as the header, so that none is shortened */
+.size-phone .appheader:has(> .nocall) {
+  flex-wrap: wrap;
+}
+.size-phone .appheader:has(> .nocall) > .headpills {
+  order: 1;
+  flex-basis: 100%;
+}
 .size-phone .main {
   flex-direction: column;
 }

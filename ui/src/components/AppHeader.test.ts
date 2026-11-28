@@ -12,6 +12,13 @@ const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) =
   mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
 
 describe("AppHeader", () => {
+  it("gives the marks a row of their own on a phone while no call is set, as wide as the header, so that none is shortened", () => {
+    expect(cssRule(".size-phone .appheader:has(> .nocall)")).toMatch(/flex-wrap:\s*wrap/);
+    const row = cssRule(".size-phone .appheader:has(> .nocall) > .headpills");
+    expect(row).toMatch(/order:\s*1/);
+    expect(row).toMatch(/flex-basis:\s*100%/);
+  });
+
   it("has the title as a link to the project page that opens in a new tab and cannot reach back to the page", () => {
     const link = header().find("h1 a");
     expect(link.text()).toBe("NeoAPRS");
