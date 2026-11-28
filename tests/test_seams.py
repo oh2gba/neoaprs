@@ -147,6 +147,8 @@ def test_the_radios_of_the_settings_are_todays_fm_and_hf_radio_made_of_the_flat_
         "rx_card",
         "psk_report",
         "psk_dial",
+        "tcp_host",
+        "tcp_port",
         "beacon",
         "status",
         "ask",

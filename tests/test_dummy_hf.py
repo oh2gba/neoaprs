@@ -32,7 +32,7 @@ from neoaprs.radiotypes import type_of
 from neoaprs.source import Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncmode import read_frame
-from neoaprs.tncprofile import DUMMY_HF, HF_PROFILES, MERCURY, hf_profile_of
+from neoaprs.tncprofile import DUMMY_HF, HF_PROFILES, MERCURY, MERCURY_OWN, hf_profile_of
 from tests.support import fakemercury
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until_started
@@ -55,7 +55,7 @@ def play(scene: HfScene, seconds: int, step: int = 5) -> list[tuple[int, ax25.Fr
 
 def test_the_profile_is_the_hf_radios_second_type_with_the_rules_of_hf_and_no_line() -> None:
     assert (
-        HF_PROFILES == (MERCURY, DUMMY_HF)
+        HF_PROFILES == (MERCURY, MERCURY_OWN, DUMMY_HF)
         and hf_profile_of("dummy-hf") is DUMMY_HF
         and hf_profile_of(" mercury ") is MERCURY
     )
