@@ -26,7 +26,7 @@ CHANNEL = ",CHANNEL="
 LIST_TIMEOUT_SEC = 2.0
 CONF = Path(__file__).with_name("soundserver.conf")
 # What an ALSA argument and a line of Direwolf's configuration carry without quotes.
-_NAME = re.compile(r"^[A-Za-z0-9_.:@+-]+$")
+_NAME = re.compile(r"[A-Za-z0-9_.:@+-]+")
 # The order of the channels the ALSA plug-ins of both servers give a reader of 4, 5, 6 or 8 channels.
 ALSA_ORDER = ("front-left", "front-right", "rear-left", "rear-right", "front-center", "lfe", "side-left", "side-right")
 _PICKABLE = (4, 5, 6, 8)
@@ -71,7 +71,7 @@ def parse_id(ident: str) -> tuple[str, str] | None:
     if not is_server(ident):
         return None
     name, _, channel = ident[len(SERVER) :].partition(CHANNEL)
-    return (name, channel) if _NAME.match(name) and (not channel or channel in ALSA_ORDER) else None
+    return (name, channel) if _NAME.fullmatch(name) and (not channel or channel in ALSA_ORDER) else None
 
 
 def uses_server(setting: str) -> bool:
@@ -96,7 +96,7 @@ def _props(entry: Mapping[str, Any]) -> Mapping[str, Any]:
 def _node(kind: Kind, entry: Mapping[str, Any]) -> Node | None:
     props = _props(entry)
     name, index = entry.get("name"), entry.get("index")
-    if not isinstance(name, str) or not _NAME.match(name) or not isinstance(index, int):
+    if not isinstance(name, str) or not _NAME.fullmatch(name) or not isinstance(index, int):
         return None
     if kind == "source" and (entry.get("monitor_source") or props.get("device.class") == "monitor"):
         return None
@@ -262,12 +262,15 @@ def plugin(folder: Path | None) -> str:
 
 
 def alsa_name(half: str, kind: Kind, nodes: Sequence[Node], via: str) -> str:
-    """Return the ALSA name a modem opens for one half of the setting; an ALSA card's id stays as it is.
+    """Return the ALSA name a modem opens for one half of the setting; an ALSA card's id stays as it is,
+    and a server device this listing lacks is "" (by its name the server would play on the default device).
 
     The device goes by its index of this listing: Direwolf opens only the first 29 characters of a name."""
-    node = find(nodes, kind, half) if is_server(half) else None
-    if node is None:
+    if not is_server(half):
         return half
+    node = find(nodes, kind, half)
+    if node is None:
+        return ""
     parsed = parse_id(half)
     channel, prefix = parsed[1] if parsed else "", PLUGINS[via].prefix
     if channel:
@@ -344,20 +347,25 @@ def stream_targets(text: str | None, pid: int, field: Kind, clients: Collection[
     ]
 
 
-def misplaced(setting: str, pid: int, run: Run | None = None) -> str:
-    """Return how the process's streams stray from the setting's devices (another device, one gone), "" if not."""
+def misplaced(setting: str, pid: int, run: Run | None = None) -> str | None:
+    """Return how the process's streams stray from the setting's devices (another device, one gone), "" if
+    they sit on them, None when it cannot be told (no answer, no stream of the process seen)."""
     run = run or pactl
     nodes = list_nodes(run)
     if nodes is None:
-        return ""
+        return None
     if why := missing(setting, nodes):
         return why
     clients = clients_of(run(["list", "clients"]), pid)
+    seen = False
     for kind, half in halves(setting):
         node = find(nodes, kind, half) if is_server(half) else None
         if node is None:
             continue
         on = stream_targets(run(["list", _STREAMS[kind]]), pid, kind, clients)
-        if on and any(i != node.index for i in on):
+        if on is None:
+            return None
+        if any(i != node.index for i in on):
             return f"the {kind} stream of process {pid} is not on {node.name} but on {sorted(set(on) - {node.index})}"
-    return ""
+        seen = seen or bool(on)
+    return "" if seen else None

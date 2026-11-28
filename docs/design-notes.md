@@ -1514,7 +1514,12 @@ opens only the first 29 characters of a device name (`audio_in_name[30]` in its 
 node name; and Mercury asks for mmap access, which the plug-ins lack, so the names are a `plug` over
 them. While a modem runs its streams are found by its process id (`application.process.id`, or for
 PipeWire's plug-in, which sets none on the stream, its client's) and must sit on the named devices; a
-stream elsewhere or a device gone ends the run, the radio's sound card state.
+stream elsewhere or a device gone ends the run, the radio's sound card state. The watch looks every
+0.5 s for the first 10 s of a run, when a device gone between the look-up and the open would play on
+the default one, then every 2 s. A round in which the server does not answer or no stream of the
+program is seen proves nothing; ten such rounds in a row (5 s at the start, 20 s later) end the run in
+the same state, since a modem opens its streams within a second and one slow answer of the server
+passes. A device the listing of the start lacks is never handed to the modem by its name.
 
 Such a run takes the system's libasound (`LD_LIBRARY_PATH`, searched before the program's RUNPATH) and
 `soundserver.conf` as `ALSA_CONFIG_PATH`, which takes in `/usr/share/alsa/alsa.conf` first. The shipped

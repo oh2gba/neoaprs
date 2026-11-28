@@ -231,8 +231,20 @@ def test_a_stream_of_pipewires_own_alsa_plugin_is_found_by_its_client() -> None:
     assert "not on Radio_null" in soundserver.misplaced("plughw:CARD=X,DEV=0|pulse:DEVICE=Radio_null", play, run)
 
 
-def test_no_stream_yet_is_no_fault() -> None:
-    assert soundserver.misplaced("pulse:DEVICE=quad_in|pulse:DEVICE=Radio_remap", 999999, pactl_of("virtual")) == ""
+def test_no_stream_of_the_process_seen_or_no_answer_cannot_be_told_and_is_no_fault_yet() -> None:
+    setting = "pulse:DEVICE=quad_in|pulse:DEVICE=Radio_remap"
+    assert soundserver.misplaced(setting, 999999, pactl_of("virtual")) is None
+    assert soundserver.misplaced(setting, 999999, lambda args: None) is None, "no server answers"
+    play, _ = _pids()
+    run = pactl_of("virtual")
+    assert soundserver.misplaced(setting, play, lambda a: None if a[1] == "sink-inputs" else run(a)) is None
+
+
+def test_a_server_device_the_listing_lacks_is_never_handed_to_a_modem_by_its_name() -> None:
+    nodes = nodes_of("virtual")
+    assert soundserver.alsa_name("pulse:DEVICE=Radio_gone", "sink", nodes, "pulse") == ""
+    assert soundserver.alsa_setting("pulse:DEVICE=quad_in|pulse:DEVICE=Radio_gone", nodes, "pulse") == "neoaprs_pa:82|"
+    assert soundserver.parse_id("pulse:DEVICE=quad_in\n") is None, "a stored name with a line end is no name"
 
 
 # ---- the plug-ins

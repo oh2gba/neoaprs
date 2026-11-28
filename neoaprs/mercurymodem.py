@@ -49,7 +49,7 @@ from .radiotype import HF_ID, RadioId
 from .serialprobe import claim_value, holder_words
 from .modemstate import ModemLife
 from .signal import Signal
-from .soundwatch import SoundServing
+from .soundwatch import DEVICE_GONE, DeviceGone, SoundServing
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
 from .versions import Frequency
@@ -284,7 +284,12 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs, SoundServing):
             return self._failed(
                 f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started"
             )
-        argv = command(program, str(ini), self._alsa(), keying, self.broadcast_port, self.control_port, audio)
+        try:
+            devices = self._alsa()
+        except DeviceGone:
+            log.warning("Mercury is not started: %s (%s)", DEVICE_GONE, self.sound_card)
+            return self._failed(DEVICE_GONE, "sound_card")
+        argv = command(program, str(ini), devices, keying, self.broadcast_port, self.control_port, audio)
         if sys.platform == "win32":
             # without -L it logs into the install folder, which an install for all users cannot write
             argv += ["-L", str(self.home / ENGINE_LOG)]

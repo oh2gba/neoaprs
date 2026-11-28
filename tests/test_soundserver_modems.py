@@ -5,9 +5,10 @@ stand-in that answers with pactl's own JSON (tests/fixtures/pactl), the modems t
 import copy
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,7 @@ from tests.test_mercury_modem import HF, modem as mercury_modem
 
 SOURCE, SINK = "pulse:DEVICE=quad_in", "pulse:DEVICE=Radio_remap"
 SETTING = f"{SOURCE}|{SINK}"
-RADIO_NULL, QUAD_IN = 52, 82
+RADIO_NULL, RADIO_REMAP, QUAD_IN = 52, 60, 82
 # a sound server is looked up on Linux only
 pytestmark = pytest.mark.skipif(
     not sys.platform.startswith("linux"), reason="Linux only"
@@ -39,6 +40,11 @@ class Server:
         self.streams: dict[int, tuple[int, int]] = {}
         self.gone: set[str] = set()
         self.asked = 0
+        self.down = False
+        self.placed: list[Callable[[], int | None]] = []  # modems whose streams sit on SETTING's devices
+
+    def place(self, modem: Any) -> None:
+        self.placed.append(lambda: modem.pid)
 
     def _entries(self, part: str) -> list[dict[str, object]]:
         return list(json.loads(fixture_text(f"pactl/virtual-{part}.json")))
@@ -52,12 +58,16 @@ class Server:
     def __call__(self, args: Sequence[str]) -> str | None:
         self.asked += 1
         part = args[1]
+        if self.down:
+            return None
         if part == "clients":
             return "[]"  # (the streams of the fixture carry their process's id themselves)
         if part in ("sinks", "sources"):
             return json.dumps([e for e in self._entries(part) if e["name"] not in self.gone])
         field, at = ("sink", 0) if part == "sink-inputs" else ("source", 1)
-        return json.dumps([self._stream(part, field, pid, on[at]) for pid, on in self.streams.items()])
+        streams = {pid: (RADIO_REMAP, QUAD_IN) for pid in (p() for p in self.placed) if pid is not None}
+        streams.update(self.streams)
+        return json.dumps([self._stream(part, field, pid, on[at]) for pid, on in streams.items()])
 
 
 @pytest.fixture(autouse=True)
@@ -72,6 +82,7 @@ def server(monkeypatch: pytest.MonkeyPatch) -> Server:
     fake = Server()
     monkeypatch.setattr(soundserver, "pactl", fake)
     monkeypatch.setattr(soundwatch, "WATCH_SEC", 0.05)
+    monkeypatch.setattr(soundwatch, "FIRST_WATCH_SEC", 0.05)
     return fake
 
 
@@ -88,6 +99,7 @@ async def test_direwolf_on_a_device_the_server_does_not_list_is_not_started_and_
 
 async def test_direwolf_opens_the_named_devices_by_our_alsa_names(tmp_path: Path, server: Server) -> None:
     m = direwolf_modem(tmp_path)
+    server.place(m)
     await m.start(f"{SOURCE},CHANNEL=rear-right|{SINK}", "vox", 0)
     await until_started(lambda: m.state == "running")
     conf = (m.home / CONF_FILE).read_text(encoding="utf-8")
@@ -98,6 +110,7 @@ async def test_direwolf_opens_the_named_devices_by_our_alsa_names(tmp_path: Path
 
 async def test_direwolf_whose_stream_plays_on_another_device_is_ended(tmp_path: Path, server: Server) -> None:
     m = direwolf_modem(tmp_path)
+    server.place(m)
     await m.start(SETTING, "vox", 0)
     await until_started(lambda: m.state == "running")
     pid = m.pid
@@ -119,6 +132,7 @@ async def test_mercury_on_a_device_the_server_does_not_list_is_not_started(tmp_p
 
 async def test_mercury_is_given_our_alsa_names_and_ended_when_its_device_goes(tmp_path: Path, server: Server) -> None:
     m = mercury_modem(tmp_path)
+    server.place(m)
     started: list[list[str]] = []
     start = m._program.start
     m._program.start = lambda argv, cwd, pid_file=None: (started.append(argv), start(argv, cwd, pid_file))[1]  # type: ignore[method-assign]
@@ -132,6 +146,47 @@ async def test_mercury_is_given_our_alsa_names_and_ended_when_its_device_goes(tm
     await until(lambda: m.reason == "sound_card")
     assert m.pid != pid
     await m.stop()
+
+
+@pytest.mark.parametrize("fault", ["no stream", "no answer"])
+async def test_a_run_whose_streams_are_not_seen_for_ten_rounds_is_the_radios_sound_card_problem(
+    tmp_path: Path, server: Server, fault: str
+) -> None:
+    m = direwolf_modem(tmp_path)
+    server.place(m)
+    await m.start(SETTING, "vox", 0)
+    await until_started(lambda: m.state == "running")
+    pid, asked = m.pid, server.asked
+    await until(lambda: server.asked >= asked + 3 * 5)
+    assert m.pid == pid and m.state == "running", "in place, the run goes on"
+    if fault == "no stream":
+        server.placed.clear()
+    else:
+        server.down = True
+    await until(lambda: m.reason == "sound_card")
+    assert m.pid != pid
+    await m.stop()
+
+
+def test_the_watch_looks_often_in_the_first_ten_seconds_of_a_run_and_then_every_two() -> None:
+    assert [soundwatch.watch_pause(t) for t in (0.0, 9.9, 10.0, 600.0)] == [0.5, 0.5, 2.0, 2.0]
+    assert soundwatch.UNSEEN_ROUNDS == 10
+
+
+async def test_a_device_gone_after_the_look_up_is_the_sound_card_problem_and_no_start(
+    tmp_path: Path, server: Server, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The look-up passed (the setting read then named a device that was there) and the listing the
+    start uses lacks the device: never its raw name to the modem, which would play on the default."""
+    monkeypatch.setattr(soundwatch, "missing", lambda setting, nodes: "")
+    server.gone.add("Radio_remap")
+    dw, hf = direwolf_modem(tmp_path / "dw"), mercury_modem(tmp_path / "hf")
+    await dw.start(SETTING, "vox", 0)
+    await hf.start(replace(HF, mercury_sound_card=SETTING))
+    await until(lambda: dw.reason == "sound_card" and hf.reason == "sound_card")
+    assert dw.starts == hf.starts == 0 and dw.pid is None and hf.pid is None
+    await dw.stop()
+    await hf.stop()
 
 
 async def test_an_alsa_card_starts_as_before_and_asks_the_server_nothing(tmp_path: Path, server: Server) -> None:

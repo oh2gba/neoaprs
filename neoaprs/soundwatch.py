@@ -6,17 +6,32 @@ must sit on them: a name the server does not know plays on the default device, t
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
 from .mercuryhelper import alsa_card_names
-from .mercurycards import SoundCard
+from .mercurycards import SoundCard, endpoints
 from .soundserver import Node, alsa_setting, behind, list_nodes, misplaced, missing, plugin, plugin_dir
 from .soundserver import server_cards, uses_server
 from .tasks import TaskSet
 
-WATCH_SEC = 2.0
+# Often in the first seconds of a run, when a device gone in between would play on the default one.
+FIRST_WATCH_SEC, FIRST_SEC, WATCH_SEC = 0.5, 10.0, 2.0
+# Rounds in a row in which the server did not answer or no stream of the program was seen: 5 s at the
+# start, 20 s later. A modem opens its streams within a second, and one slow answer of the server
+# passes; a run whose streams cannot be found for so long cannot be shown to stay off the loudspeakers.
+UNSEEN_ROUNDS = 10
+UNSEEN = "its streams are not found on the sound server"
 DEVICE_GONE = "the sound device is not among those the sound server lists: choose another one in the Sound card field"
+
+
+class DeviceGone(Exception):
+    """A device of the setting is not in the listing of the last look-up."""
+
+
+def watch_pause(elapsed_sec: float) -> float:
+    return FIRST_WATCH_SEC if elapsed_sec < FIRST_SEC else WATCH_SEC
 
 
 class SoundServing:
@@ -55,7 +70,10 @@ class SoundServing:
         """Return the sound card setting as the ALSA names the program opens, and have the run take
         the system's ALSA library where they are a sound server's (childprogram.environment)."""
         self._program.system_sound = uses_server(self.sound_card)
-        return alsa_setting(self.sound_card, self.nodes, self._via)
+        names = alsa_setting(self.sound_card, self.nodes, self._via)
+        if self._program.system_sound and not all(endpoints(names)):
+            raise DeviceGone(self.sound_card)
+        return names
 
     def _behind(self) -> str:
         """Return the ALSA card the program's sound is on (its levels, its USB tie); "" for a device a user made."""
@@ -67,8 +85,11 @@ class SoundServing:
             self._tasks.spawn(self._watching(pid, self.sound_card, on_fault), f"{self.PROGRAM.lower()}-sound-server")
 
     async def _watching(self, pid: int, setting: str, on_fault: Callable[[str], None]) -> None:
+        started, unseen = time.monotonic(), 0
         while self.pid == pid:
-            if why := await asyncio.to_thread(misplaced, setting, pid):
-                on_fault(f"[sound server] {why}")
+            why = await asyncio.to_thread(misplaced, setting, pid)
+            unseen = unseen + 1 if why is None else 0
+            if why or unseen >= UNSEEN_ROUNDS:
+                on_fault(f"[sound server] {why or UNSEEN}")
                 return
-            await asyncio.sleep(WATCH_SEC)
+            await asyncio.sleep(watch_pause(time.monotonic() - started))

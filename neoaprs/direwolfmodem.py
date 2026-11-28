@@ -51,7 +51,7 @@ from .serialprobe import PortInfo, claim_value, holder_words
 from .modemstate import ModemLife
 from .signal import Signal
 from .soundserver import Node
-from .soundwatch import SoundServing
+from .soundwatch import DEVICE_GONE, DeviceGone, SoundServing
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
 
@@ -258,8 +258,13 @@ class DirewolfModem(Tuning, ModemLife, SoundServing):
             return self._failed("no free port for Direwolf; the log says which were tried", "no_port")
         conf = self.home / CONF_FILE
         try:
+            devices = self._alsa()
+        except DeviceGone:
+            log.warning("Direwolf is not started: %s (%s)", DEVICE_GONE, self.sound_card)
+            return self._failed(DEVICE_GONE, "sound_card")
+        try:
             conf.write_text(
-                conf_text(adevice(self._alsa(), self._numbers), self.keying, self.kiss_port, self.baud),
+                conf_text(adevice(devices, self._numbers), self.keying, self.kiss_port, self.baud),
                 encoding="utf-8",
             )
         except OSError as e:
