@@ -1,5 +1,5 @@
 // The page's service worker (registered by lib/worker.ts, built into neoaprs/page/sw.js by
-// vite.config.ts, which sets `f815f8d6a9` to a hash of the files). It lets a browser install
+// vite.config.ts, which sets `c7c083dd1f` to a hash of the files). It lets a browser install
 // the page as an app and open its shell while the daemon is away; it never stands between the page
 // and the daemon:
 //  - assets/ (hash-named files): cache first, kept on first use; the ones the shell names are
@@ -10,7 +10,7 @@
 //  - everything else is left to the browser: access routes, base map tiles and byte ranges, any
 //    request that is not a GET or has a query, other hosts, sw.js itself. (The socket is not a
 //    fetch.)
-const BUILD = "f815f8d6a9";
+const BUILD = "c7c083dd1f";
 const PAGE = `neoaprs-${BUILD}-page`;
 const ASSETS = `neoaprs-${BUILD}-assets`;
 const SHELL = /^(?:|index\.html|manifest\.webmanifest|(?:icons|symbols|fonts)\/.+)$/;

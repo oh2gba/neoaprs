@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-65 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+66 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -777,9 +777,18 @@ With `on` false, or when the page closes, no more. While a page looks, the daemo
 | `on` | boolean |  |  |
 | `cards` | integer[] |  | (max 64 items) |
 
+### `igate_look`
+
+With `on`, this page shows the lines that Send what I hear has put on APRS-IS (the Internet box of the settings is open, `igate/gate` is on and the page is in front): it is sent `igate_sent` with the kept lines at once and then each line as it is
+sent. With `on` false, or when the page closes, no more. Never refused.
+
+| field | type | | description |
+|---|---|---|---|
+| `on` | boolean |  |  |
+
 ## Server to client
 
-25 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+26 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -1085,6 +1094,15 @@ The satellites layer of now, to each page that looks: every satellite shown (ele
 | `elements_at` | time \| null |  | when the project's server took the orbital elements; null before a file |
 | `satellites` | SatelliteMark[] |  |  |
 | `cards` | SatelliteCard[] |  |  |
+
+### `igate_sent`
+
+The lines put on APRS-IS, to a page that looks (`igate_look`): `whole` true replaces the page's list with `lines` (the newest 200 since the daemon started, oldest first, as the page opened the box), false adds `lines` (one line as it is sent) to its end.
+
+| field | type | | description |
+|---|---|---|---|
+| `whole` | boolean |  |  |
+| `lines` | IgateSentLine[] |  | (max 200 items) |
 
 ## Topics
 
@@ -1686,6 +1704,16 @@ The secure connection (`web/https`) as the daemon has it.
 | `port` | integer |  | the https port; 0 while it is not served |
 | `fingerprint` | string |  | SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served |
 | `reason` | "" \| "no_library" \| "clock" \| "certificates" \| "no_port" |  | why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): `no_library` this installation cannot make it; `clock` the clock of this computer is not set; `certificates` the certificates could not be made, read or loaded; `no_port` no port after the page's own was free for it; empty otherwise |
+
+### IgateSentLine
+
+A line that was put on APRS-IS.
+
+| field | type | | description |
+|---|---|---|---|
+| `at` | time |  | when it was sent |
+| `radio` | integer \| null |  | the radio that heard the packet; null for our own position (>= 1) |
+| `line` | string |  | the line as it went to the server, after the gating rules (the TNC2 text): other stations' data, shown as text only |
 
 ### IgateState
 

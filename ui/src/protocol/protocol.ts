@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand | SatelliteLookCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand | SatelliteLookCommand | IgateLookCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | SavedMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage | SatellitesMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | SavedMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage | SatellitesMessage | IgateSentMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -569,6 +569,29 @@ export interface HttpsState {
   fingerprint: string;
   /** why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): `no_library` this installation cannot make it; `clock` the clock of this computer is not set; `certificates` the certificates could not be made, read or loaded; `no_port` no port after the page's own was free for it; empty otherwise */
   reason: "" | "no_library" | "clock" | "certificates" | "no_port";
+}
+
+/** With `on`, this page shows the lines that Send what I hear has put on APRS-IS (the Internet box of the settings is open, `igate/gate` is on and the page is in front): it is sent `igate_sent` with the kept lines at once and then each line as it is sent. With `on` false, or when the page closes, no more. Never refused. */
+export interface IgateLookCommand {
+  cmd: "igate_look";
+  on: boolean;
+}
+
+/** A line that was put on APRS-IS. */
+export interface IgateSentLine {
+  /** when it was sent */
+  at: string;
+  /** the radio that heard the packet; null for our own position */
+  radio: number | null;
+  /** the line as it went to the server, after the gating rules (the TNC2 text): other stations' data, shown as text only */
+  line: string;
+}
+
+/** The lines put on APRS-IS, to a page that looks (`igate_look`): `whole` true replaces the page's list with `lines` (the newest 200 since the daemon started, oldest first, as the page opened the box), false adds `lines` (one line as it is sent) to its end. */
+export interface IgateSentMessage {
+  type: "igate_sent";
+  whole: boolean;
+  lines: IgateSentLine[];
 }
 
 /** The login to APRS-IS (neoaprs/services/igate.py): it shows the internet's stations (`igate/enabled`), puts what the radios hear on APRS-IS (`igate/gate`, the iGate), or both, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
