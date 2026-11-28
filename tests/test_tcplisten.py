@@ -7,6 +7,7 @@ import os
 import socket
 import struct
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -120,6 +121,11 @@ def listening() -> Any:
         yield sock.getsockname()[1]
 
 
+def _alive(pid: int) -> bool:
+    """Whether a process of this id lives (Linux: /proc has it)."""
+    return Path(f"/proc/{pid}").exists()
+
+
 @pytest.mark.skipif(sys.platform == "darwin", reason="macOS has no table of listeners to read")
 def test_a_listener_of_this_process_is_found_as_its_own_and_as_another_programs_for_any_other(
     listening: int,
@@ -127,7 +133,9 @@ def test_a_listener_of_this_process_is_found_as_its_own_and_as_another_programs_
     found = tcplisten.listeners([listening], os.getpid())
     assert found == [Listener(listening, "127.0.0.1", os.getpid())]
     assert tcplisten.not_ours([listening], os.getpid()) == []
-    stranger = next(pid for pid in range(os.getpid() + 1, os.getpid() + 1000) if pid not in (os.getppid(),))
+    # no live process: one that lives may be a child forked from this one in that moment (by another
+    # thread), which holds the listening socket until its exec closes it, and so is its owner
+    stranger = next(pid for pid in range(os.getpid() + 1, os.getpid() + 100_000) if not _alive(pid))
     assert [f.port for f in tcplisten.not_ours([listening], stranger)] == [listening]
 
 
