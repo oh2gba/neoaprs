@@ -55,9 +55,9 @@ $lib = getenv('STATUS_LIB') ?: (getenv('HOME') ?: '/usr/home/ohjgba') . '/public
 if ($id !== '0' && is_readable("$lib/starts.php")) {
     try {
         require_once "$lib/starts.php";
-        // the installation's random number is the per-installation key on the
-        // status side; the caller's address is not used at all
-        app_start_record(status_db(), 'neoaprs', $version, $os, $id);
+        // the installation's random number tells the copies apart; the address is
+        // handed over for the country alone and kept nowhere
+        app_start_record(status_db(), 'neoaprs', $version, $os, (string) ($_SERVER['REMOTE_ADDR'] ?? ''), $id);
     } catch (Throwable $e) {
         // nothing: the file log above already has the line
     }

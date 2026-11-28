@@ -25,7 +25,7 @@ pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 PHP = shutil.which("php")
-LIBRARY = "<?php function status_db() { return 'db'; }\nfunction app_start_record($db, $app, $v, $os, $key) { file_put_contents(__DIR__ . '/calls.txt', \"$app|$v|$os|$key\\n\", FILE_APPEND); return false; }\n"
+LIBRARY = "<?php function status_db() { return 'db'; }\nfunction app_start_record($db, $app, $v, $os, $ip, $key) { file_put_contents(__DIR__ . '/calls.txt', \"$app|$v|$os|$key\\n\", FILE_APPEND); file_put_contents(__DIR__ . '/addresses.txt', \"$ip\\n\", FILE_APPEND); return false; }\n"
 
 
 ID = "0123456789abcdef0123456789abcdef"
@@ -231,13 +231,17 @@ async def test_a_note_in_message_txt_is_the_message_its_first_line_cut_to_200_ch
     assert (await page.ask())["message"] == "x" * 200
 
 
-async def test_the_status_application_is_never_handed_the_address(page: Page) -> None:
-    """The count's per-installation key is the installation's random number; the caller's address
-    goes nowhere."""
+async def test_the_status_application_tells_copies_by_the_number_and_gets_the_address_for_the_country(
+    page: Page,
+) -> None:
     await page.ask(f"v=0.9.2&os=windows&id={ID}")
     await page.ask("v=0.9.2&os=windows")
     calls = (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8")
     assert calls.splitlines() == [f"neoaprs|0.9.2|windows|{ID}", "neoaprs|0.9.2|windows|"] and "127.0.0.1" not in calls
+    assert (page.folder / "lib" / "addresses.txt").read_text(encoding="utf-8").splitlines() == ["127.0.0.1"] * 2
+    assert "127.0.0.1" not in "".join(
+        p.read_text(encoding="utf-8") for p in (page.folder / "site" / "log").glob("starts-*.log")
+    )
 
 
 async def test_a_redirect_of_github_is_followed(tmp_path: Path) -> None:
