@@ -294,6 +294,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.alert.tip1": "Con Notificarme activado, el comando se ejecuta cuando llega un mensaje.",
   "settings.alert_command.name": "Comando de alerta",
   "settings.alert_command.label": "Comando",
+  "settings.chat_alert.name": "Chat de pruebas HF",
+  "settings.chat_alert.tip1":
+    "Una línea nueva de otra estación en el chat de pruebas HF avisa como un mensaje, una vez para las líneas que llegan juntas.",
   "settings.alert_command.tip1":
     "Se ejecuta con cada mensaje nuevo y aviso de estación; NEOAPRS_TITLE y NEOAPRS_TEXT contienen el título y el texto.",
   "settings.alert_test": "Probar",

@@ -96,7 +96,7 @@ async def test_the_refusals_come_with_codes_and_without_a_call_nothing_is_said(t
         error = await page.expect("error")
         assert (error["cmd"], error["code"]) == ("chat_say", code), reason
     await page.until(lambda: page.topics["chat"] == {"state": "closed"})
-    await page.send({"cmd": "chat_say", "text": "​"})
+    await page.send({"cmd": "chat_say", "text": "\u200b"})
     assert (await page.expect("error"))["cmd"] == "chat_say"
     await e.stop()
     e = await started(tmp_path / "nocall", server, **{"station/call": ""})

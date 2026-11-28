@@ -316,6 +316,12 @@ const SPECS: Record<string, FieldSpec> = {
     tipLabel: "settings.igate.gate_tip_label",
     tip: ["settings.igate.gate_tip1", "settings.igate.gate_tip2"],
   },
+  "messages/chat_alert": {
+    name: "settings.chat_alert.name",
+    label: "settings.chat_alert.name",
+    kind: "bool",
+    tip: ["settings.chat_alert.tip1"],
+  },
   "messages/alert": {
     name: "settings.browser.mode",
     label: "settings.browser.mode",
@@ -407,9 +413,10 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(
 );
 
 /**
- * The daemon's own alert settings, which the Notifications group shows beside the browser's alert.
+ * The daemon's own alert settings, which the Notifications group shows beside the browser's alert: the
+ * chat's tickbox first, for both, then the box of the alert command.
  */
-const ALERT = ["messages/alert", "messages/alert_command"];
+const ALERT = ["messages/chat_alert", "messages/alert", "messages/alert_command"];
 /**
  * Whether either tick of the Internet (APRS-IS) group, Show Internet stations or Send what I hear,
  * is on in these values, so that APRS-IS is logged in to; off unless they say so.

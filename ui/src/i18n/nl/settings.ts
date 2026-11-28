@@ -299,6 +299,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Is Meld mij aangevinkt, dan wordt de Opdracht uitgevoerd als er een bericht binnenkomt.",
   "settings.alert_command.name": "Meldingsopdracht",
   "settings.alert_command.label": "Opdracht",
+  "settings.chat_alert.name": "Chat van de HF-tests",
+  "settings.chat_alert.tip1":
+    "Een nieuwe regel van een ander station in de chat van de HF-tests meldt zich zoals een bericht, één keer voor regels die samen komen.",
   "settings.alert_command.tip1":
     "Wordt uitgevoerd bij elk nieuw bericht en elke stationsmelding; NEOAPRS_TITLE en NEOAPRS_TEXT bevatten de titel en de tekst.",
   "settings.alert_test": "Testen",

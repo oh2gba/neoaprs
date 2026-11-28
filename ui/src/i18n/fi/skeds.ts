@@ -31,4 +31,14 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.dial": "Viritystaajuus",
   "skeds.note": "Huomautus",
   "skeds.post": "Julkaise osoitteessa neo.oh2gba.eu",
+  "skeds.chat_title": "Chat",
+  "skeds.chat_label": "Rivi chattiin",
+  "skeds.chat_send": "Lähetä",
+  "skeds.chat_empty": "Mitään ei ole vielä sanottu.",
+  "skeds.chat_closed": "Chat on suljettu.",
+  "skeds.chat_popup": "HF-testien chat: {call}",
+  "skeds.chat_popup_more": {
+    one: "HF-testien chat: {n} uusi rivi, lähettäjä {call}",
+    other: "HF-testien chat: {n} uutta riviä, viimeisin: {call}",
+  },
 } as const;

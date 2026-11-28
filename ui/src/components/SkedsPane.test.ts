@@ -246,17 +246,17 @@ describe("SkedsPane", () => {
 
     it("shows the board without the form for a closed board, and with the form otherwise", () => {
       const closed = pane([sked("a")], { state: "closed" });
-      expect(closed.find("form").exists()).toBe(false);
+      expect(closed.find("form.sked-compose").exists()).toBe(false);
       expect(closed.findAll(".sked")).toHaveLength(1);
       for (const state of ["ok", "offline", "off"] as const)
-        expect(pane([], { state }).find("form").exists()).toBe(true);
+        expect(pane([], { state }).find("form.sked-compose").exists()).toBe(true);
     });
 
     it("shows the form again when the board opens", async () => {
       const wrapper = pane([], { state: "closed" });
-      expect(wrapper.find("form").exists()).toBe(false);
+      expect(wrapper.find("form.sked-compose").exists()).toBe(false);
       await tell(daemon, { skeds: skedsState([]) });
-      expect(wrapper.find("form").exists()).toBe(true);
+      expect(wrapper.find("form.sked-compose").exists()).toBe(true);
     });
   });
 });

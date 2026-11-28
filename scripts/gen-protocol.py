@@ -481,6 +481,7 @@ def limits() -> dict[str, Any]:
         },
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "pass": {"slowMax": SLOW_PASS_MAX, "slowWindowMin": round(SLOW_PASS_WINDOW_SEC / 60)},
+        "chat": {"textMax": CHAT_MAX_TEXT},
         "skedPast": {
             "keepDays": KEEP_PAST.days,
             "maxTests": MAX_PAST_TESTS,

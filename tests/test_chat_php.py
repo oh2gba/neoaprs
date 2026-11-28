@@ -138,7 +138,7 @@ def test_what_is_no_line_is_refused_with_the_boards_codes_and_nothing_is_written
     for over in ({"token": "A" * 32}, {"token": "a" * 31}, {"call": "N0CALL"}, {"call": "OH2GBA/P"}, {"call": 7}):
         body = {"action": "say", "token": token(), "call": "OH2GBA", "text": "hi", **over}
         assert endpoint.post(body) == (400, {"ok": False, "reason": "bad_request"}), over
-    for text in ("", "   ", "​⁠", None, 5, ["hi"]):
+    for text in ("", "   ", "\u200b\u2060", None, 5, ["hi"]):
         assert endpoint.say(text) == (400, {"ok": False, "reason": "bad_request"}), text
     assert not endpoint.chat.exists(), "nothing is written for a refusal"
 

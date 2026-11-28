@@ -3,6 +3,9 @@
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
   BulletinRow,
+  ChatFreshMessage,
+  ChatLineRow,
+  ChatState,
   ConfigValues,
   ErrorMessage,
   GeneralState,
@@ -70,6 +73,7 @@ function useWholeTopics() {
     qru: shallowRef<QruState | null>(null),
     general: shallowRef<GeneralState | null>(null),
     skeds: shallowRef<SkedsState | null>(null),
+    chatState: shallowRef<ChatState | null>(null),
   };
   const handlers: Pick<
     Store,
@@ -81,6 +85,7 @@ function useWholeTopics() {
     | "replaceQru"
     | "replaceGeneral"
     | "replaceSkeds"
+    | "replaceChat"
     | "replaceRadios"
     | "setRadio"
     | "delRadio"
@@ -100,6 +105,7 @@ function useWholeTopics() {
     replaceQru: (value) => (refs.qru.value = value),
     replaceGeneral: (value) => (refs.general.value = value),
     replaceSkeds: (value) => (refs.skeds.value = value),
+    replaceChat: (value) => (refs.chatState.value = value),
     ...radios.handlers,
     ...layers.handlers,
     ...satellites.handlers,
@@ -151,6 +157,22 @@ function useHello() {
   return { hello, refs: { version, install, local } };
 }
 
+/**
+ * The topic `chat_lines` by id as text, null until the daemon has sent it; a change makes a new map,
+ * and the message `chat_fresh`.
+ */
+function useChatTopic() {
+  const chatLines = shallowRef<ReadonlyMap<string, ChatLineRow> | null>(null);
+  const chatFresh = shallowRef<ChatFreshMessage | null>(null);
+  const handlers: Pick<Store, "replaceChatLines" | "setChatLine" | "delChatLine" | "chatFresh"> = {
+    replaceChatLines: (rows) => (chatLines.value = new Map(Object.entries(rows))),
+    setChatLine: (key, row) => (chatLines.value = new Map(chatLines.value ?? []).set(key, row)),
+    delChatLine: (key) => (chatLines.value = new Map([...(chatLines.value ?? [])].filter(([id]) => id !== key))),
+    chatFresh: (message) => (chatFresh.value = message),
+  };
+  return { refs: { chatLines, chatFresh }, handlers };
+}
+
 function useBulletinTable() {
   return { bulletins: shallowReactive(new Map<string, BulletinRow>()), bulletinsLoaded: ref(false) };
 }
@@ -166,6 +188,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const station = useStationTables();
   const answers = useAnswers();
   const whole = useWholeTopics();
+  const chat = useChatTopic();
   const scope = useScopeRows(packets);
   const status = shallowRef<StatusMessage | null>(null);
   const connection = ref<Connection>("connecting");
@@ -192,6 +215,7 @@ export function useDaemon(url: () => string = socketUrl) {
     ...station.handlers,
     ...answers.handlers,
     ...whole.handlers,
+    ...chat.handlers,
     hfScopeRow: scope.hfScopeRow,
     hfScopeHistory: scope.hfScopeHistory,
     setStation: (key, row) => void stations.set(key, row),
@@ -239,6 +263,7 @@ export function useDaemon(url: () => string = socketUrl) {
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
     ...whole.refs,
+    ...chat.refs,
     scopeOf: scope.of,
     status,
     connection,

@@ -242,3 +242,36 @@
 .sked-actions .btn {
   white-space: nowrap;
 }
+/* the chat of the HF tests tab (ChatBox): a list of its own height, so that a line that comes
+   moves nothing outside it; long words wrap */
+.boardwrap > fieldset.chat {
+  min-width: 0;
+  margin: 4px 10px 8px;
+  padding: 4px 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-box);
+}
+.chat-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 9rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.chat-at {
+  margin-right: 6px;
+  color: var(--muted);
+}
+.chat-call {
+  margin-right: 6px;
+  font-weight: 600;
+}
+.chat-state {
+  min-height: 1.4em;
+  margin: 2px 0;
+  font-size: 12px;
+}

@@ -9,6 +9,8 @@ In the desktop app's own window it is one computer and one person, so the group 
 
 Both alert for the same messages: a message to you, the first copy only. Not a bulletin or a group message, an ack, a reject, a query that NeoAPRS answers, a message you only overheard, or one of your own. A repeat of a retry or another digipeater's copy does not alert again.
 
+Both also alert for new lines of the chat of the HF tests tab ([hf-tests.md](hf-tests.md#chat)), once for the lines of others that came together, while **HF tests chat** at the top of the group is ticked (it is by default). The title is "NeoAPRS chat: OH2XYZ" in the command and "HF tests chat: OH2XYZ" in the browser, or the number of lines when several came; a click on the browser's notification opens the tab.
+
 Both also alert for an alert you set on a station (**Alert me when…** in the Stations table, [page.md](page.md#alerts-on-a-station)): it comes on the air, comes near, or is heard direct. It has a title of its own, "APRS alert: OH2XYZ", and is not counted as a message.
 
 ## On the NeoAPRS computer
@@ -23,7 +25,7 @@ The command gets these in its environment:
 
 | variable | what it holds |
 |---|---|
-| `NEOAPRS_KIND` | `message` for a message to you, `station` for an alert set on a station |
+| `NEOAPRS_KIND` | `message` for a message to you, `station` for an alert set on a station, `chat` for lines of the HF tests chat |
 | `NEOAPRS_TITLE` | the title of a notification: "APRS message from OH2XYZ", or "APRS alert: OH2XYZ" |
 | `NEOAPRS_FROM` | the sender's call, or the station's |
 | `NEOAPRS_TEXT` | the text, or what happened: "OH2XYZ is on the air", "OH2XYZ is 8.2 km from you", "OH2XYZ is heard direct" |

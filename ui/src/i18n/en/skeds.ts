@@ -28,4 +28,14 @@ export const skeds = {
   "skeds.dial": "Dial",
   "skeds.note": "Note",
   "skeds.post": "Post on neo.oh2gba.eu",
+  "skeds.chat_title": "Chat",
+  "skeds.chat_label": "A line for the chat",
+  "skeds.chat_send": "Send",
+  "skeds.chat_empty": "Nothing said yet.",
+  "skeds.chat_closed": "The chat is closed.",
+  "skeds.chat_popup": "HF tests chat: {call}",
+  "skeds.chat_popup_more": {
+    one: "HF tests chat: {n} new line, from {call}",
+    other: "HF tests chat: {n} new lines, the last from {call}",
+  },
 } as const;

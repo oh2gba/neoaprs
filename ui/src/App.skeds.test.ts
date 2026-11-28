@@ -57,7 +57,7 @@ describe("App: the Skeds tab", () => {
     const { wrapper, socket } = await open();
     await sayBoard(socket);
     expect(badge(wrapper)?.text()).toBe("2");
-    expect(badge(wrapper)?.attributes("title")).toBe("2 new HF tests");
+    expect(badge(wrapper)?.attributes("title")).toBe("2 new tests or chat lines");
     expect(cmds(socket, "skeds_wanted")).toEqual([]);
     await tabButton(wrapper, "HF tests")?.trigger("click");
     expect(badge(wrapper)?.exists()).toBeFalsy();
@@ -73,7 +73,7 @@ describe("App: the Skeds tab", () => {
     await tabButton(wrapper, "Stations")?.trigger("click");
     await sayBoard(socket, [...board, sked("c", { call: "OH2NEW", from: at(50), to: at(51) })]);
     expect(badge(wrapper)?.text()).toBe("1");
-    expect(badge(wrapper)?.attributes("title")).toBe("1 new HF test");
+    expect(badge(wrapper)?.attributes("title")).toBe("1 new test or chat line");
   });
 
   it("posts from the form with one command, and shows ours on the board, with Delete, when the daemon says so", async () => {
@@ -126,11 +126,11 @@ describe("App: the Skeds tab", () => {
     await tabButton(wrapper, "HF tests")?.trigger("click");
     socket.say({ type: "state", topic: "skeds", rev: 0, value: skedsState(board, { state: "closed" }) });
     await flushPromises();
-    expect(wrapper.find("#pane-skeds form").exists()).toBe(false);
+    expect(wrapper.find("#pane-skeds form.sked-compose").exists()).toBe(false);
     expect(wrapper.findAll("#pane-skeds .sked")).toHaveLength(2);
     socket.say({ type: "state", topic: "skeds", rev: 1, value: skedsState(board, { state: "offline" }) });
     await flushPromises();
-    expect(wrapper.find("#pane-skeds form").exists()).toBe(true);
+    expect(wrapper.find("#pane-skeds form.sked-compose").exists()).toBe(true);
     expect(wrapper.find("#pane-skeds button[type='submit']").attributes("disabled")).toBeDefined();
     expect(wrapper.find("#pane-skeds").text()).not.toMatch(/offline|reach|unavailable/i);
   });

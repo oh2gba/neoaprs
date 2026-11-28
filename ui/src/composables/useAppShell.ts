@@ -10,6 +10,7 @@ import { computed, ref, watch, type Ref, type WritableComputedRef } from "vue";
 import { provideDaemon } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useBulletins } from "@/composables/useBulletins";
+import { useChat } from "@/composables/useChat";
 import { useDaemon } from "@/composables/useDaemon";
 import { useDark } from "@/composables/useDark";
 import { useElementWidth } from "@/composables/useElementWidth";
@@ -150,8 +151,9 @@ function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof 
     send,
     computed(() => daemon.connection.value === "open"),
   );
-  const alerts = useBrowserAlerts(talk.writeTo);
+  const alerts = useBrowserAlerts(talk.writeTo, () => panel.show("skeds"));
   usePageAlerts(messages, daemon.messagesLoaded, alerts.announce);
+  const chat = useChat(daemon, panel, alerts.announceChat);
   const unread = computed(() => talk.unread.value + mail.unread.value);
   useTitle(unread, alerts.tabTitle);
   /**
@@ -162,7 +164,7 @@ function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof 
     if (talk.unread.value > 0 || mail.unread.value === 0) talk.openMessages();
     else panel.show("email");
   }
-  return { talk, mail, board, sked, alerts, unread, openUnread };
+  return { talk, mail, board, sked, chat, alerts, unread, openUnread };
 }
 
 /**
@@ -369,6 +371,7 @@ export function useAppShell() {
     panel,
     findRadio,
     alerts: tabs.alerts,
+    chat: tabs.chat,
     say,
   });
 

@@ -52,8 +52,10 @@ function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): R
 }
 
 const box = (ids: string[], fields = ids.length, legends: string[] = []): Box => ({ legends, ids, fields });
+// the tick of the HF tests chat came first in the group, before the two boxes
 const NOTIFICATIONS = box(
   [
+    "set-messages-chat_alert",
     "set-messages-alert",
     "set-messages-alert_command",
     "alert-mode",
@@ -63,7 +65,7 @@ const NOTIFICATIONS = box(
     "alert-test-popup",
     "alert-enable-popups",
   ],
-  5,
+  6,
   ["Notifications", "On the NeoAPRS computer i", "In this browser"],
 );
 const only = (title: string, ids: string[]): Box => box(ids, ids.length, [title]);

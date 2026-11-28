@@ -6,9 +6,11 @@
 // the same times and dial. That column keeps its width and Join is off, not gone, while a post is not
 // possible; a past test has neither. The past tests are the last thing of the scrolling pane, so
 // nothing moves when they come or change. An unreachable board shows the skeds and past tests last
-// read; a closed board shows them without the form. The form is fixed at the bottom (SkedCompose).
+// read; a closed board shows them without the form. The form is fixed at the bottom (SkedCompose),
+// and under it the chat (ChatBox).
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
+import ChatBox from "@/components/ChatBox.vue";
 import SkedCompose from "@/components/SkedCompose.vue";
 import SkedItem from "@/components/SkedItem.vue";
 import TabHelp from "@/components/TabHelp.vue";
@@ -77,5 +79,6 @@ const join = (g: SkedGroup): boolean =>
       </fieldset>
     </div>
     <SkedCompose v-if="state !== 'closed'" />
+    <ChatBox />
   </div>
 </template>

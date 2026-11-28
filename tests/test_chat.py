@@ -65,7 +65,7 @@ def test_the_text_of_a_line_is_cleaned_as_the_vectors_say_and_the_server_holds()
     cases = vectors["chat_texts"]
     assert cases and all(clean_text(c["input"]) == c["text"] for c in cases)
     texts = {c["input"]: c["text"] for c in cases}
-    assert texts["a​b⁠c﻿d"] == "abcd" and texts["‮evil‬"] == "evil", "invisible ones go"
+    assert texts["a\u200bb\u2060c\ufeffd"] == "abcd" and texts["\u202eevil\u202c"] == "evil", "invisible ones go"
     assert texts["5° up € \U0001f642 \U0001f4fb x"] == "5° up € \U0001f642 \U0001f4fb x", "symbols stay"
     assert texts["<b>&amp;</b> <script>alert(1)</script>"] == "<b>&amp;</b> <script>alert(1)</script>", "markup is text"
     assert {len(c["text"]) for c in cases} >= {0, MAX_TEXT} and max(len(c["text"]) for c in cases) == MAX_TEXT
@@ -348,7 +348,7 @@ async def test_a_server_that_cannot_be_reached_keeps_nothing_and_says_so() -> No
         await room.service.say("hi")
     assert e.value.code == "chat.unreachable" and room.service.state == "offline"
     with pytest.raises(ValueError):
-        await room.service.say("​ ")
+        await room.service.say("\u200b ")
 
 
 # ---- the alert ----------------------------------------------------------------------------------

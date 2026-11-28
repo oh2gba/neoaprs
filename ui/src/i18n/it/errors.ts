@@ -41,6 +41,9 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.sked.past": "quel test è già terminato",
   "error.sked.far": "quel test inizia tra più di 30 giorni",
   "error.sked.unreachable": "la bacheca dei test HF non è raggiungibile in questo momento; riprova più tardi",
+  "error.chat.rate": "da qui sono state inviate troppe righe proprio ora; riprova tra un minuto",
+  "error.chat.closed": "la chat non accetta righe in questo momento",
+  "error.chat.unreachable": "la chat non è raggiungibile in questo momento; riprova più tardi",
   "error.radio.busy": "una ricerca della radio è già in corso",
   "error.radio.last_enabled": "almeno una radio resta attiva: attiva prima un’altra radio",
   "error.radio.name_form":

@@ -2,6 +2,7 @@
 // needed: the daemon's state and `send`, the clock, settings, the first-run guide, the panel, the
 // operator's choices per station, what the page knows of the heard stations, and this browser's
 // alert. A pane takes page-wide state from here and its own rows as props.
+import type { ChatModel } from "@/composables/useChat";
 import { inject, provide, type InjectionKey, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
@@ -39,6 +40,9 @@ import type {
   RadioRow,
   ReleaseNotesMessage,
   SkedsState,
+  ChatFreshMessage,
+  ChatLineRow,
+  ChatState,
   SignalSeriesMessage,
   SpeedSeriesMessage,
   StationTrafficMessage,
@@ -68,6 +72,11 @@ export interface DaemonContext {
   qru: Read<QruState | null>;
   general: Read<GeneralState | null>;
   skeds: Read<SkedsState | null>;
+  chatState: Read<ChatState | null>;
+  chatLines: Read<ReadonlyMap<string, ChatLineRow> | null>;
+  chatFresh: Read<ChatFreshMessage | null>;
+  /** The chat of the HF tests tab, held by the shell so that a line being written survives a change of tab. */
+  chat: ChatModel;
   map: Read<MapState | null>;
   selfUpdate: Read<UpdateState | null>;
   ports: Read<PortsMessage | null>;

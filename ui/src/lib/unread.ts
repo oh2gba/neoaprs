@@ -30,11 +30,11 @@ export function unreadText(unread: number): string {
   return t("unread.not_seen", { n: unread });
 }
 
-/** A tab's badge text: unseen messages, new bulletins since last shown, or unseen skeds. */
+/** A tab's badge text: unseen messages, new bulletins since last shown, or unseen skeds and chat lines. */
 export function badgeText(tab: TabId, count: number): string {
   return tab === "bulletins"
     ? t("unread.new_bulletins", { n: count })
     : tab === "skeds"
-      ? t("unread.new_skeds", { n: count })
+      ? t("unread.new_hf", { n: count })
       : unreadText(count);
 }

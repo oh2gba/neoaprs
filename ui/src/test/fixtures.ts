@@ -550,6 +550,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "web/port": "7303",
     "web/allowed_hosts": "",
     "beacon/interval_min": "30",
+    "messages/chat_alert": "true",
     "messages/alert": "true",
     "messages/alert_command":
       '(notify-send -- "APRS message from $NEOAPRS_FROM" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "APRS message from $NEOAPRS_FROM" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga',
