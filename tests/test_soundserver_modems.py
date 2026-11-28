@@ -209,6 +209,26 @@ def test_a_device_on_a_card_is_claimed_as_the_card_and_one_a_user_made_by_its_na
     assert [c.value for c in card_claims(SETTING, 3, virtual, {})] == [SOURCE, SINK]
 
 
+def test_two_radios_on_two_channels_of_one_source_do_not_refuse_each_other_but_the_whole_device_twice_does() -> None:
+    station = soundserver.list_nodes(lambda args: fixture_text(f"pactl/station-{args[1]}.json")) or []
+    virtual = soundserver.list_nodes(lambda args: fixture_text(f"pactl/virtual-{args[1]}.json")) or []
+    nodes = [
+        *station,
+        *(replace(n, card=0) for n in virtual if n.name == "quad_in"),
+        *(n for n in virtual if n.kind == "sink"),
+    ]
+    claims = Claims()
+    for holder, channel, sink in ((1, "front-left", "Radio_remap"), (3, "rear-right", "Radio_null")):
+        for claim in card_claims(f"{SOURCE},CHANNEL={channel}|pulse:DEVICE={sink}", holder, nodes, {0: "Rubix"}):
+            assert claims.hold(claim) is None, f"radio {holder}: {claim}"
+    whole = Claims()
+    for claim in card_claims(f"{SOURCE}|pulse:DEVICE=Radio_remap", 1, nodes, {0: "Rubix"}):
+        assert whole.hold(claim) is None
+    assert any(
+        whole.hold(c) is not None for c in card_claims(f"{SOURCE}|pulse:DEVICE=Radio_null", 3, nodes, {0: "Rubix"})
+    ), "the whole device twice"
+
+
 def test_the_levels_and_the_usb_tie_of_a_device_on_a_card_are_that_cards_and_a_made_ones_none(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

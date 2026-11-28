@@ -302,13 +302,18 @@ def behind(setting: str, nodes: Sequence[Node], card_names: Mapping[int, str]) -
 
 
 def claims(setting: str, nodes: Sequence[Node], card_names: Mapping[int, str]) -> list[str]:
-    """Return what a setting holds: each half's ALSA card where it has one, else the device by name."""
+    """Return what a setting holds: each half's ALSA card where it has one, else the device by name; one
+    channel of a source holds that channel, so two radios can read two channels of one card."""
     if not uses_server(setting):
         return [setting]
     held: list[str] = []
     for kind, half in halves(setting):
         node = find(nodes, kind, half) if is_server(half) else None
-        value = (alsa_id(node, card_names) or server_id(node.name)) if node is not None else half
+        parsed = parse_id(half)
+        if node is not None and parsed is not None and parsed[1]:
+            value = server_id(node.name, parsed[1])
+        else:
+            value = (alsa_id(node, card_names) or server_id(node.name)) if node is not None else half
         if value and value not in held:
             held.append(value)
     return held

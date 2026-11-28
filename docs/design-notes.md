@@ -1503,7 +1503,8 @@ On Linux the Sound card list holds the sound server's sinks and sources beside t
 `pactl -f json list sinks|sources` (PipeWire's Pulse server or PulseAudio; two seconds at most). A
 monitor of a sink is left out (`monitor_source` set, or `device.class` monitor). A device a user made,
 such as a remap of a null sink, has no `alsa.card`: it has no levels and no USB tie, and it is held by
-its name, where one on a card holds that card's ALSA id, so that two radios never share a card.
+its name, where one on a card holds that card's ALSA id, so that two radios never share a card. One
+channel of a source holds that channel by name, so two radios may read two channels of one card.
 
 A setting names a device `pulse:DEVICE=<node name>`, the recording and the playing device joined by `|`
 as a Windows card's are. The modem is not given that name: the device is looked up before every start

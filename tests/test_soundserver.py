@@ -191,7 +191,7 @@ def test_the_card_behind_gives_the_levels_and_the_claims() -> None:
     virtual = nodes_of("virtual")
     assert soundserver.behind("pulse:DEVICE=quad_in|pulse:DEVICE=Radio_remap", virtual, {}) == ""
     assert soundserver.claims("pulse:DEVICE=quad_in,CHANNEL=front-left|pulse:DEVICE=Radio_remap", virtual, {}) == [
-        "pulse:DEVICE=quad_in",
+        "pulse:DEVICE=quad_in,CHANNEL=front-left",
         "pulse:DEVICE=Radio_remap",
     ]
     assert soundserver.claims("plughw:CARD=CODEC,DEV=0", [], {}) == ["plughw:CARD=CODEC,DEV=0"]
