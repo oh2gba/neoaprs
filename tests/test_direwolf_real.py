@@ -218,6 +218,8 @@ async def test_the_daemons_line_to_it_is_opened_once_though_it_says_ready_again_
     from tests.support.modemports import base_of_this_test
 
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
+    # the switch would keep the modem from starting Direwolf; its card is ALSA's null, its keying VOX
+    monkeypatch.delenv("NEOAPRS_NO_DEVICES", raising=False)
     radio = RadioSpec(
         3,
         "fm",

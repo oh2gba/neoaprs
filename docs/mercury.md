@@ -243,7 +243,8 @@ backends and their log lines (`audioio/`) and the log's format (`common/hermes_l
 control port: its commands are now read as whole words (`TUNE OFF junk` is refused), which `TUNE <level>` and `TUNE OFF` as the daemon writes them pass, and a
 new `DRIVELEVEL` attenuates the transmit gain, 0 dB unless a host sends it, which the daemon never does. The ini keys the daemon writes are read as before, and
 the lines it reads (`PTT ON`, `BUSY ON`, `SN`, `IAMALIVE`, the sound card's lines) are written by the same code. Every patch applies; the loopback and lead-in
-patches only moved by some lines. The proofs on GitHub's runners are in [modem-updates.md](modem-updates.md).
+patches only moved by some lines. `scripts/mercury-sim` on 1.9.26 (the CI's job `sim`) held every expectation and heard the same
+17 of 24 beacons on the poor channel as on 1.9.24 and 1.9.25. The other proofs on GitHub's runners are in [modem-updates.md](modem-updates.md).
 
 ## How to make the numbers again
 
