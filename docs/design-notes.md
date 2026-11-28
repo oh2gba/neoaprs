@@ -42,6 +42,29 @@ Channel 1 is the usual RFCOMM serial channel and some Kenwood radios use 2, so c
 tried after the ones the device lists. A device that is off or out of range fails only after the
 link's page timeout, so the connect timeout is long.
 
+On Windows the same socket works (CPython has AF_BLUETOOTH there since 3.9) and the channels come
+from Winsock's lookup of the device's service directory (winbluetooth.py). Measured on Windows 11:
+connect 0.2 s; 10060 after about 5 s for a device that does not answer, 10051 for one that is not
+paired, 10064 at once for a channel that is busy or not offered, which is a refusal like Linux's
+ECONNREFUSED and moves on to the next channel. Windows lists paired devices by name without asking
+them (BluetoothFindFirstDevice); one is offered when it has a COM port of its own, the sign that it
+has a serial port service, and then its COM ports are not offered beside it.
+
+## neoaprs/openfailure.py
+
+What a failed open is called is what Windows' number proves, measured on Bluetooth COM ports: 5 at
+once for a port that another open has (portgate.py makes sure that is never one of ours), 121 after
+about 5 s for a device that does not answer. 121 on a USB port proves nothing and keeps the system's
+words. The number stays in the English text, which the log and the support file keep.
+
+## neoaprs/portgate.py
+
+A COM port is exclusive per open handle, not per process: a second CreateFile of ours gets error 5
+too. Three paths of ours did it: resolving the port's name to list it, a search or Find my radio
+beside the radio's own retry, and an open given up on (a stop, a restart) that still runs in
+CreateFile. Every open of a device holds the port's gate for its whole open, so the next waits for
+it; on Windows a port this process holds is refused with our own words before Windows is asked.
+
 ## neoaprs/cardlevels.py
 
 The card's levels are put on the card at every start of the radio's modem because the desktop's
@@ -846,7 +869,16 @@ A TCP line quiet for a minute is probed every 15 s, four times, so a board that 
 gone in two minutes. pyserial opens a file for a `spy://` address, so the settings' scheme check is
 repeated before it is handed over.
 
+A Windows Bluetooth COM port is open while no device is connected to it (the incoming port always
+is); measured, the device's port has DSR and CD on while the device is there and the incoming one has
+CTS, DSR and CD off. So such a port with all three off is not connected: once after the open, and
+every LINES_EVERY_SEC by the reader thread, which loses the line with `radio.no_answer`. USB serial
+ports are never judged by their lines, which mean other things there.
+
 ## neoaprs/serialprobe.py
+
+Listing the ports never resolves a COM port's name: `realpath` of `\\.\COM7` opens the device on
+Windows, which took the port from a radio and failed the listing with WinError 31.
 
 Windows makes two COM ports for a paired Bluetooth device: the device's own, whose BTHENUM hwid
 ends in the device's address, and the computer's incoming one, whose address is twelve zeros. The
@@ -1490,6 +1522,12 @@ A usable TNC line is reported as `connected` even before its first KISS frame, s
 Kantronics TNC is silent in KISS mode until it hears a packet. A connected line whose Mercury runs
 and hears nothing (its stall watch) has the problem `modem.receive_deaf` until the warning stops or
 the modem is restarted.
+
+`TextWatch` (tncmode.py) covers a KISS device set to send something else: monitor text, GPS
+sentences or KISS written as hex (the Venus trackers' UI, GPWPL, GPS and KISS Asc outputs). A line of
+16 or more text characters counts; the problem is said once such lines have come for 10 s with no
+valid KISS frame between, so a start-up banner followed by KISS, or noise before the first frame,
+says nothing. The first valid frame clears it.
 
 ## neoaprs/tncsearch.py
 

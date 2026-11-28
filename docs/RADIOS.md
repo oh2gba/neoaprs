@@ -268,7 +268,7 @@ KISS exit is `C0 FF C0`, or a hard reset.
 
 ## Bluetooth
 
-NeoAPRS uses two kinds of Bluetooth. **Classic Bluetooth serial** (the Serial Port Profile, SPP/RFCOMM, `bt://`, Linux) is for the Kenwood TH-D74/D75, the Mobilinkd TNC3, a TM-D700 with a Bluetooth serial module. **Bluetooth LE** (`ble://`, "Bluetooth LE" at the end of this section) is for the devices that carry KISS over it: the Mobilinkd TNC3/TNC4, the LoRa APRS Tracker and the others the specification lists.
+NeoAPRS uses two kinds of Bluetooth. **Classic Bluetooth serial** (the Serial Port Profile, SPP/RFCOMM, `bt://`, Linux and Windows) is for the Kenwood TH-D74/D75, the Mobilinkd TNC3, a TM-D700 with a Bluetooth serial module. **Bluetooth LE** (`ble://`, "Bluetooth LE" at the end of this section) is for the devices that carry KISS over it: the Mobilinkd TNC3/TNC4, the LoRa APRS Tracker and the others the specification lists.
 
 **Linux**
 
@@ -292,11 +292,13 @@ The older way still works as a fallback, when a program of the system has to sha
 
 **Windows**
 
-1. Settings, Bluetooth & devices, add the radio or TNC and pair it.
-2. More Bluetooth settings, *COM Ports* tab: Windows lists two ports; use the **Outgoing** one. Choose it as the **Port** in NeoAPRS.
-3. An older PC may ask for the PIN `0000`.
+1. Settings, Bluetooth & devices, add the radio or TNC and pair it. An older PC may ask for the PIN `0000` (some trackers use `1234`).
+2. In NeoAPRS, **Port**: choose the device by its name, *Bluetooth: NAME* (Refresh if it is new). NeoAPRS connects to it directly, as on Linux: the serial channel is asked of the device, a refused channel is followed by the next one, and the two COM ports Windows made for it are not offered beside it. A device without a COM port of its own has no serial port and is not listed.
+3. A radio already set to the device's *Outgoing* COM port keeps working. The port is called connected only while Windows says the device is there on it (its DSR and CD lines); the *Incoming* port reaches no device and is not offered.
 
-`bt://` ports are for Linux. **macOS:** pair the radio in System Settings, Bluetooth; the serial port is the `/dev/cu.*` one named after it.
+The status line says *Another program has the port* (close it), *The device does not answer* (switched off, asleep or out of range), *The device is not paired with this computer* or *The device refused the connection* (a phone app or another program has its serial port); the log keeps Windows' own error number. A KISS device that sends text instead (a tracker set to monitor text, GPS sentences or KISS written as hex) is connected and says *The device sends text, not KISS: set it to KISS*: set its Bluetooth output to KISS (on the Venus X1C5 trackers: *KISS Hex*).
+
+**macOS:** pair the radio in System Settings, Bluetooth; the serial port is the `/dev/cu.*` one named after it.
 
 ### Bluetooth LE
 
