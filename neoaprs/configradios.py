@@ -164,7 +164,7 @@ def radio_state_key(radio: RadioId, name: str) -> str:
     return f"radio/{radio}/{name}"
 
 
-_RADIO_KEY = re.compile(r"radio/([1-9][0-9]*)/([^/]+)")
+_RADIO_KEY = re.compile(r"radio/([1-9][0-9]{0,8})/([^/]+)")
 
 
 def radio_key_of(text: str) -> tuple[RadioId, str] | None:
