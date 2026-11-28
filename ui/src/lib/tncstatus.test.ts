@@ -42,8 +42,21 @@ describe("the line of a radio's row", () => {
       "COM8 is the computer's incoming Bluetooth port: choose the device's other port",
     );
     expect(down("radio.write_timeout", { seconds: "2" })).toBe("The port takes no data: nothing went through in 2 s");
+    expect(down("radio.port_in_use")).toBe("Another program has the port: close it");
+    expect(down("radio.no_answer")).toBe("The device does not answer: switched off, asleep or out of range");
+    expect(down("radio.not_paired")).toBe("The device is not paired with this computer");
+    expect(down("radio.refused")).toBe("The device refused the connection");
+    expect(down("radio.open_failed")).toBe("The port could not be opened");
     expect(rowStatus(row("kiss", { state: "waiting", problem: null }), NOW)).toBe("Not connected");
     expect(rowStatus(fmRow({ state: "stopped", problem: null }), NOW)).toBe("Not connected");
+  });
+
+  it("says, while connected, that a KISS device sends text instead of the last packet", () => {
+    const problem = { code: "radio.sends_text" as const, params: {} };
+    expect(rowStatus(row("kiss", { state: "connected", problem }), NOW)).toBe(
+      "The device sends text, not KISS: set it to KISS",
+    );
+    expect(rowParts(row("kiss", { state: "connected", problem }), NOW)).toBeNull();
   });
 
   it("has the row's counts as its hover title", () => {

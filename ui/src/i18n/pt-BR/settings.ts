@@ -485,6 +485,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "Não conectado",
   "settings.tnc.not_connected_why": "Não conectado: {why}",
   "settings.tnc.text_lines": "A placa envia linhas de texto: configure-a para KISS",
+  "settings.tnc.port_in_use": "Outro programa está usando a porta: feche-o",
+  "settings.tnc.no_answer": "O dispositivo não responde: desligado, em espera ou fora de alcance",
+  "settings.tnc.not_paired": "O dispositivo não está pareado com este computador",
+  "settings.tnc.refused": "O dispositivo recusou a conexão",
+  "settings.tnc.open_failed": "Não foi possível abrir a porta",
+  "settings.tnc.sends_text": "O dispositivo envia texto, não KISS: configure-o para KISS",
   "settings.tnc.incoming_port":
     "{port} é a porta Bluetooth de entrada do computador: escolha a outra porta do dispositivo",
   "settings.tnc.write_timeout": "A porta não aceita dados: nada passou em {seconds} s",

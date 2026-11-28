@@ -175,6 +175,12 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.station.email_rf_only": "{call} não pode ser só RF: o gateway de e-mail está na internet",
   "error.radio.transmitting": "o rádio está transmitindo",
   "error.radio.text_lines": "a placa envia linhas de texto: configure-a para KISS",
+  "error.radio.port_in_use": "outro programa está usando a porta: feche-o",
+  "error.radio.no_answer": "o dispositivo não responde: desligado, em espera ou fora de alcance",
+  "error.radio.not_paired": "o dispositivo não está pareado com este computador",
+  "error.radio.refused": "o dispositivo recusou a conexão",
+  "error.radio.open_failed": "não foi possível abrir a porta",
+  "error.radio.sends_text": "o dispositivo envia texto, não KISS: configure-o para KISS",
   "error.radio.silent": "o rádio está em silêncio",
   "error.radio.incoming_port":
     "{port} é a porta Bluetooth de entrada do computador: escolha a outra porta do dispositivo",

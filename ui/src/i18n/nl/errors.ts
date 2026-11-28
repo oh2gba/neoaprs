@@ -178,6 +178,12 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.station.email_rf_only": "{call} kan niet alleen RF zijn: de e-mailgateway zit op internet",
   "error.radio.transmitting": "de radio zendt",
   "error.radio.text_lines": "het board stuurt tekstregels: zet het op KISS",
+  "error.radio.port_in_use": "een ander programma heeft de poort: sluit het",
+  "error.radio.no_answer": "het apparaat antwoordt niet: uitgeschakeld, in slaap of buiten bereik",
+  "error.radio.not_paired": "het apparaat is niet gekoppeld met deze computer",
+  "error.radio.refused": "het apparaat weigerde de verbinding",
+  "error.radio.open_failed": "de poort kon niet worden geopend",
+  "error.radio.sends_text": "het apparaat stuurt tekst, geen KISS: zet het op KISS",
   "error.radio.silent": "de radio is stil",
   "error.radio.incoming_port":
     "{port} is de inkomende Bluetooth-poort van de computer: kies de andere poort van het apparaat",

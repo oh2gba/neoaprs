@@ -179,6 +179,12 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.station.email_rf_only": "{call} no puede ser solo RF: la pasarela de correo está en internet",
   "error.radio.transmitting": "la radio está transmitiendo",
   "error.radio.text_lines": "la placa envía líneas de texto: ponla en KISS",
+  "error.radio.port_in_use": "otro programa tiene el puerto: ciérralo",
+  "error.radio.no_answer": "el dispositivo no responde: apagado, en reposo o fuera de alcance",
+  "error.radio.not_paired": "el dispositivo no está emparejado con este ordenador",
+  "error.radio.refused": "el dispositivo rechazó la conexión",
+  "error.radio.open_failed": "no se pudo abrir el puerto",
+  "error.radio.sends_text": "el dispositivo envía texto, no KISS: ponlo en KISS",
   "error.radio.silent": "la radio está en silencio",
   "error.radio.incoming_port":
     "{port} es el puerto Bluetooth entrante del ordenador: elige el otro puerto del dispositivo",

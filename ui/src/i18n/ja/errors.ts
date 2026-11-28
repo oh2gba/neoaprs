@@ -178,6 +178,12 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.station.email_rf_only": "{call}は「RFのみ」にできません: メールゲートウェイはインターネット上にあります",
   "error.radio.transmitting": "無線機が送信中です",
   "error.radio.text_lines": "ボードがテキスト行を送っています: KISSに設定してください",
+  "error.radio.port_in_use": "別のプログラムがポートを使用しています: そのプログラムを閉じてください",
+  "error.radio.no_answer": "デバイスが応答しません: 電源オフ、スリープ中、または圏外です",
+  "error.radio.not_paired": "デバイスはこのコンピューターとペアリングされていません",
+  "error.radio.refused": "デバイスが接続を拒否しました",
+  "error.radio.open_failed": "ポートを開けませんでした",
+  "error.radio.sends_text": "デバイスはKISSではなくテキストを送っています: KISSに設定してください",
   "error.radio.silent": "無線機から受信がありません",
   "error.radio.incoming_port":
     "{port} はコンピューターの受信用Bluetoothポートです: 機器のもう一方のポートを選んでください",

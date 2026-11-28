@@ -492,6 +492,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "Niet verbonden",
   "settings.tnc.not_connected_why": "Niet verbonden: {why}",
   "settings.tnc.text_lines": "Het board stuurt tekstregels: zet het op KISS",
+  "settings.tnc.port_in_use": "Een ander programma heeft de poort: sluit het",
+  "settings.tnc.no_answer": "Het apparaat antwoordt niet: uitgeschakeld, in slaap of buiten bereik",
+  "settings.tnc.not_paired": "Het apparaat is niet gekoppeld met deze computer",
+  "settings.tnc.refused": "Het apparaat weigerde de verbinding",
+  "settings.tnc.open_failed": "De poort kon niet worden geopend",
+  "settings.tnc.sends_text": "Het apparaat stuurt tekst, geen KISS: zet het op KISS",
   "settings.tnc.incoming_port":
     "{port} is de inkomende Bluetooth-poort van de computer: kies de andere poort van het apparaat",
   "settings.tnc.write_timeout": "De poort neemt geen data aan: in {seconds} s ging er niets door",

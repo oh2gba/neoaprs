@@ -489,6 +489,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.not_connected": "Sin conexión",
   "settings.tnc.not_connected_why": "Sin conexión: {why}",
   "settings.tnc.text_lines": "La placa envía líneas de texto: ponla en KISS",
+  "settings.tnc.port_in_use": "Otro programa tiene el puerto: ciérralo",
+  "settings.tnc.no_answer": "El dispositivo no responde: apagado, en reposo o fuera de alcance",
+  "settings.tnc.not_paired": "El dispositivo no está emparejado con este ordenador",
+  "settings.tnc.refused": "El dispositivo rechazó la conexión",
+  "settings.tnc.open_failed": "No se pudo abrir el puerto",
+  "settings.tnc.sends_text": "El dispositivo envía texto, no KISS: ponlo en KISS",
   "settings.tnc.incoming_port":
     "{port} es el puerto Bluetooth entrante del ordenador: elige el otro puerto del dispositivo",
   "settings.tnc.write_timeout": "El puerto no acepta datos: nada pasó en {seconds} s",

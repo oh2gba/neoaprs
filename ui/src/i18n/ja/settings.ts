@@ -455,6 +455,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "未接続",
   "settings.tnc.not_connected_why": "未接続: {why}",
   "settings.tnc.text_lines": "ボードがテキスト行を送っています: KISSに設定してください",
+  "settings.tnc.port_in_use": "別のプログラムがポートを使用しています: そのプログラムを閉じてください",
+  "settings.tnc.no_answer": "デバイスが応答しません: 電源オフ、スリープ中、または圏外です",
+  "settings.tnc.not_paired": "デバイスはこのコンピューターとペアリングされていません",
+  "settings.tnc.refused": "デバイスが接続を拒否しました",
+  "settings.tnc.open_failed": "ポートを開けませんでした",
+  "settings.tnc.sends_text": "デバイスはKISSではなくテキストを送っています: KISSに設定してください",
   "settings.tnc.incoming_port":
     "{port} はコンピューターの受信用Bluetoothポートです: 機器のもう一方のポートを選んでください",
   "settings.tnc.write_timeout": "ポートがデータを受け付けません: {seconds} 秒で何も送れませんでした",
