@@ -16,7 +16,7 @@ from .aprsstorm import Storm
 from .aprsweather import Weather
 from .geo import distance_km
 from .hourcount import HourCount
-from .packet import IS, Via
+from .packet import IS, RF_GATED, Via
 from .radiospec import NOT_HEARD, RadioHeard, RadioId
 from .reach import Reach, RouteMark
 from .route import Deliveries, Route
@@ -115,6 +115,7 @@ class Station:
     device: str = ""
     hour: HourCount = field(default_factory=HourCount, repr=False, compare=False)
     hour_is: HourCount = field(default_factory=HourCount, repr=False, compare=False)
+    hour_gated: HourCount = field(default_factory=HourCount, repr=False, compare=False)
     # where the packets not from the internet put it, once heard from the internet too
     radio: RadioPlace | None = field(default=None, repr=False, compare=False)
     sent_message: bool = False
@@ -270,21 +271,47 @@ class Station:
                 sign=place.sign,
             )
         if self.position_via == IS or self.position_via is None:
-            return replace(
-                view,
-                lat=None,
-                lon=None,
-                last_position_at=None,
-                position_via=None,
-                altitude_m=None,
-                course_deg=None,
-                speed_kmh=None,
-                track=[],
-                symbol_table="",
-                symbol_code="",
-                last_comment="",
-                extensions=None,
-                storm=None,
-                sign=None,
-            )
+            return _placeless(view)
         return view
+
+    def without_gated(self) -> "Station | None":
+        """Return the station without the packets an iGate put on the air from the internet; None if only those.
+
+        A position that came so is left out with its track and symbol until another one comes.
+        """
+        if self.heard_rf_gated == 0:
+            return self
+        if self.heard_rf == self.heard_is == self.heard_dummy == 0:
+            return None
+        heard = [at for at in (self.last_rf_at, self.last_is_at, self.last_dummy_at) if at is not None]
+        view = replace(
+            self,
+            packets=self.packets - self.heard_rf_gated,
+            heard_rf_gated=0,
+            last_rf_gated_at=None,
+            last_heard=max(heard) if heard else self.last_heard,
+            hour=self.hour.without(self.hour_gated),
+            hour_gated=HourCount(),
+        )
+        return _placeless(view) if self.position_via == RF_GATED else view
+
+
+def _placeless(station: Station) -> Station:
+    """Return the station with no position and nothing that came with one."""
+    return replace(
+        station,
+        lat=None,
+        lon=None,
+        last_position_at=None,
+        position_via=None,
+        altitude_m=None,
+        course_deg=None,
+        speed_kmh=None,
+        track=[],
+        symbol_table="",
+        symbol_code="",
+        last_comment="",
+        extensions=None,
+        storm=None,
+        sign=None,
+    )

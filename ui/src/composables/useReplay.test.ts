@@ -129,6 +129,17 @@ describe("the replay's clock", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
+  it("asks again when Show Internet packets heard by radio is switched while it is open", async () => {
+    const { replay, send, positionHistory, igate } = setUp();
+    replay.ask(6);
+    positionHistory.value = answer(6);
+    await nextTick();
+    igate.value = igateState({ show_gated: false });
+    await nextTick();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith({ cmd: "position_history", hours: 6 });
+  });
+
   it("asks nothing when Internet stations is switched while it is closed, or before the iGate's state has come", async () => {
     const { replay, send, igate } = setUp();
     igate.value = igateState({ enabled: false });

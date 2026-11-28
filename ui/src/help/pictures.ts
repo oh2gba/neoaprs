@@ -28,6 +28,7 @@ import EncryptPicture from "@/help/EncryptPicture.vue";
 import MercuryPicture from "@/help/MercuryPicture.vue";
 import TwoRadiosPicture from "@/help/TwoRadiosPicture.vue";
 import ScopePicture from "@/help/ScopePicture.vue";
+import GatedPicture from "@/help/GatedPicture.vue";
 import type { PictureName } from "@/help/names";
 
 export const PICTURES: Record<PictureName, Component> = {
@@ -58,4 +59,5 @@ export const PICTURES: Record<PictureName, Component> = {
   mercury: MercuryPicture,
   scope: ScopePicture,
   tworadios: TwoRadiosPicture,
+  gated: GatedPicture,
 };

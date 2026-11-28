@@ -50,6 +50,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Una stazione lontana trasmette; la cascata mostra il suo frame come un blocco nella banda segnata, il più recente in alto, e la barra del livello di ricezione sta nell’intervallo giusto.",
   "help.picture.tworadios":
     "La tua stazione con due radio: la radio packet raggiunge l’auto e il digipeater vicini lungo il terreno, la radio Mercury raggiunge una stazione lontana con il segnale che sale e ridiscende.",
+  "help.picture.gated":
+    "Tre vie per cui un pacchetto arriva alla tua radio: direttamente da una stazione, tramite un digipeater, e da Internet tramite un iGate, quella che questa spunta tralascia.",
   "help.picture.dummy":
     "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
   "help.picture.notifications":

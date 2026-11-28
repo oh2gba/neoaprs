@@ -50,26 +50,31 @@ def hour_text(top: datetime) -> str:
     return stamp(top)[:13]
 
 
-def _counts(conn: Connection, *, start: str, end: str | None, own: str, internet: bool) -> Hours:
-    return heard_hours(conn, start, end, internet), sent_hours(conn, start, end, own), copy_hours(conn, start, end)
+def _counts(conn: Connection, *, start: str, end: str | None, own: str, internet: bool, gated: bool) -> Hours:
+    return (
+        heard_hours(conn, start, end, internet, gated),
+        sent_hours(conn, start, end, own),
+        copy_hours(conn, start, end),
+    )
 
 
 class PacketCounts(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the packet statistics could not be read")
-        self._key: tuple[str, bool] | None = None  # (our call, internet counted) of the kept hours
+        self._key: tuple[str, bool, bool] | None = None  # (our call, internet, gated counted) of the kept hours
         self._over: dict[str, Hours] = {}  # finished hours by hour_text, each counted once
         self._until: datetime | None = None  # hours before this are in `_over` if they had packets
-        self._answer: tuple[datetime, tuple[str, bool], Counted] | None = None
+        self._answer: tuple[datetime, tuple[str, bool, bool], Counted] | None = None
 
     def clear(self) -> None:
         """Drop the kept counts so the next ask counts anew."""
         self._over, self._until, self._answer = {}, None, None
 
-    async def counted(self, own: str, internet: bool) -> Counted:
-        """Return the current counts for call `own`; APRS-IS packets only if `internet` is true."""
+    async def counted(self, own: str, internet: bool, gated: bool = True) -> Counted:
+        """Return the current counts for call `own`; APRS-IS packets only if `internet` is true,
+        those an iGate put on the air only if `gated` is."""
         now = self.clock()
-        key = (own, internet)
+        key = (own, internet, gated)
         if (
             self._answer is not None
             and self._answer[1] == key
@@ -85,7 +90,7 @@ class PacketCounts(DbLog):
         while since < top:
             end = min(top, since + SLICE_HOURS * HOUR)
             done = await self._read(
-                partial(_counts, start=stamp(since), end=stamp(end), own=own, internet=internet), None
+                partial(_counts, start=stamp(since), end=stamp(end), own=own, internet=internet, gated=gated), None
             )
             if done is None:
                 return Counted(top, 1)
@@ -96,7 +101,7 @@ class PacketCounts(DbLog):
         def read(conn: Connection) -> tuple[str | None, Hours, int]:
             return (
                 oldest_packet(conn),
-                _counts(conn, start=stamp(top), end=None, own=own, internet=internet),
+                _counts(conn, start=stamp(top), end=None, own=own, internet=internet, gated=gated),
                 repeated_since(conn, hour_ago, own),
             )
 

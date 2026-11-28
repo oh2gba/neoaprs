@@ -43,6 +43,8 @@ export const help: Record<keyof typeof source, Message> = {
     "遠くの局が送信し、ウォーターフォールにはそのフレームが印の付いた帯域のブロックとして新しいものが上に現れ、下の受信レベルのバーは適正範囲にあります。",
   "help.picture.tworadios":
     "2台の無線機を持つ自局：Packet無線機は近くの車とデジピーターに地表沿いに届き、Mercury無線機は上がって下りてくる信号で遠くの局に届きます。",
+  "help.picture.gated":
+    "パケットが無線機に届く三つの道：局から直接、デジピーター経由、そしてiGate経由のインターネットから。このチェックを外すと最後の道を表示しません。",
   "help.picture.dummy":
     "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
   "help.picture.notifications":

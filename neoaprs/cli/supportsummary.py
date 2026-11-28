@@ -302,11 +302,12 @@ def _gps(f: Facts, c: Config) -> list[tuple[str, str]]:
 
 
 def _internet(f: Facts, c: Config) -> list[tuple[str, str]]:
-    """Return the two ticks of APRS-IS, the server and the login's state while either is on."""
+    """Return the three ticks of Internet (APRS-IS), the server and the login's state while it is in use."""
     passcode = "the passcode set by hand" if c.igate_password else "the passcode of the call"
     rows = [
         ("Show Internet stations", "on" if c.igate_enabled else "off"),
         ("Send what I hear", f"on, {passcode}" if c.igate_gate else "off"),
+        ("Show Internet packets heard by radio", "on" if c.igate_show_gated else "off"),
     ]
     if not c.internet_on:
         return rows

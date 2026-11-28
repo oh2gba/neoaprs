@@ -171,12 +171,13 @@ def test_the_summary_says_on_which_radios_each_thing_goes_one_line_each_objects_
 @pytest.mark.parametrize(
     ("rows", "said"),
     [
-        ({}, ["Show Internet stations: off", "Send what I hear: off"]),
+        ({}, ["Show Internet stations: off", "Send what I hear: off", "Show Internet packets heard by radio: on"]),
         (
             {"igate/enabled": "true"},
             [
                 "Show Internet stations: on",
                 "Send what I hear: off",
+                "Show Internet packets heard by radio: on",
                 "Server: rotate.aprs2.net:14580",
                 "State: listening",
             ],
@@ -186,22 +187,24 @@ def test_the_summary_says_on_which_radios_each_thing_goes_one_line_each_objects_
             [
                 "Show Internet stations: off",
                 "Send what I hear: on, the passcode of the call",
+                "Show Internet packets heard by radio: on",
                 "Server: rotate.aprs2.net:14580",
                 "State: connected, 12 packets gated since the start",
             ],
         ),
         (
-            {"igate/enabled": "true", "igate/gate": "true", "igate/password": "31415"},
+            {"igate/enabled": "true", "igate/gate": "true", "igate/password": "31415", "igate/show_gated": "false"},
             [
                 "Show Internet stations: on",
                 "Send what I hear: on, the passcode set by hand",
+                "Show Internet packets heard by radio: off",
                 "Server: rotate.aprs2.net:14580",
                 "State: connected, 12 packets gated since the start",
             ],
         ),
     ],
 )
-def test_the_summary_says_which_of_the_two_internet_ticks_is_on_and_the_state_of_the_login(
+def test_the_summary_says_which_of_the_three_internet_ticks_is_on_and_the_state_of_the_login(
     tmp_path: Path, rows: dict[str, str], said: list[str]
 ) -> None:
     data = fake_folder(tmp_path, settings={"station/call": "OH2GBA", **rows})

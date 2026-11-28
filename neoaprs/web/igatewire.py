@@ -12,6 +12,9 @@ class IgateState(_Model):
     ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second."""
 
     enabled: bool = Field(description="`igate/enabled` (Show Internet stations) as in force")
+    show_gated: bool = Field(
+        description="`igate/show_gated` (Show Internet packets heard by radio) as in force: while false, what an iGate put on the air from the internet is left out of every topic and answer but a message or ack to our call"
+    )
     gate: bool = Field(
         description="`igate/gate` (Send what I hear) as in force: what the radios hear is put on APRS-IS while `state` is `connected`"
     )

@@ -91,6 +91,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "digi/enabled": "false",
         "igate/enabled": "false",
         "igate/gate": "false",
+        "igate/show_gated": "true",
         "igate/server": "rotate.aprs2.net:14580",
         "igate/password": "",
         "gps/source": "off",

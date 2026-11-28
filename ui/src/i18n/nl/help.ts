@@ -51,6 +51,8 @@ export const help: Record<keyof typeof source, Message> = {
     "Een station ver weg zendt; de waterval toont zijn frame als een blok in de gemarkeerde band, het nieuwste bovenaan, en de balk van het ontvangstniveau eronder staat in het goede gebied.",
   "help.picture.tworadios":
     "Je station met twee radio's: de packetradio bereikt de auto en de digipeater in de buurt langs de grond, die met Mercury bereikt een station ver weg via het signaal dat opstijgt en weer neerkomt.",
+  "help.picture.gated":
+    "Drie wegen waarlangs een pakket je radio bereikt: rechtstreeks van een station, via een digipeater, en van internet via een iGate, de weg die dit vinkje weglaat.",
   "help.picture.dummy":
     "Verzonnen stations in een onderbroken kader geven je station antwoord, en wat je station verzendt, gaat de lucht niet in: de golven zijn doorgestreept.",
   "help.picture.notifications":

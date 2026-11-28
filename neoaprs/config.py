@@ -212,6 +212,8 @@ SETTINGS: tuple[Setting, ...] = (
     # Show the stations of APRS-IS; gate what the radios hear to it. Nothing from the internet goes on the air.
     Setting("igate_enabled", "igate/enabled", boolean),
     Setting("igate_gate", "igate/gate", boolean),
+    # Show the packets an iGate put on the air from the internet (rf-gated).
+    Setting("igate_show_gated", "igate/show_gated", boolean),
     Setting("igate_server", "igate/server", aprsis_server),
     # Empty: the passcode of station/call. -1 (read-only login) is refused.
     Setting("igate_password", "igate/password", passcode),
@@ -282,6 +284,7 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     update_url: str = UPDATE_URL
     igate_enabled: bool = False
     igate_gate: bool = False
+    igate_show_gated: bool = True
     igate_server: str = "rotate.aprs2.net:14580"
     igate_password: str = ""
     units_non_metric: bool = False

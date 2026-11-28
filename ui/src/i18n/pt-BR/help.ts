@@ -49,6 +49,8 @@ export const help: Record<keyof typeof source, Message> = {
     "Uma estação distante transmite; a cascata mostra seu quadro como um bloco na banda marcada, o mais recente no alto, e a barra do nível de recepção fica na faixa boa.",
   "help.picture.tworadios":
     "Sua estação com dois rádios: o rádio packet alcança o carro e o digipeater próximos rente ao chão, o rádio Mercury alcança uma estação distante pelo sinal que sobe e volta a descer.",
+  "help.picture.gated":
+    "Três caminhos pelos quais um pacote chega ao seu rádio: direto de uma estação, por um digipeater, e da Internet por um iGate, o que esta caixa deixa de fora.",
   "help.picture.dummy":
     "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
   "help.picture.notifications":
