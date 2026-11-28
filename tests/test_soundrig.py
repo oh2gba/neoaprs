@@ -69,6 +69,13 @@ def until_streams(pid: int, count: int) -> list[list[int]]:
     return found
 
 
+def until_misplaced(setting: str, pid: int) -> None:
+    deadline = time.monotonic() + START_SEC
+    while not soundserver.misplaced(setting, pid):
+        assert time.monotonic() < deadline, "the device that went is not found gone"
+        time.sleep(0.05)
+
+
 def test_the_list_holds_the_devices_a_user_made_by_their_descriptions_and_no_monitor(sound_rig: Rig) -> None:
     devices(sound_rig)
     rows = soundserver.server_cards({})
@@ -94,10 +101,7 @@ def test_a_player_on_our_alsa_name_plays_on_the_named_sink_and_the_check_says_so
         assert until_streams(play.pid, 1)[0] == [sound_rig.index("sinks", "Radio_remap")]
         assert soundserver.misplaced(setting, play.pid) == ""
         sound_rig.pactl("unload-module", "module-remap-sink")
-        deadline = time.monotonic() + START_SEC
-        while not soundserver.misplaced(setting, play.pid):
-            assert time.monotonic() < deadline, "the device that went is not found gone"
-            time.sleep(0.05)
+        until_misplaced(setting, play.pid)
     finally:
         play.terminate()
         play.wait()
