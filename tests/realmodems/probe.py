@@ -17,6 +17,8 @@ from neoaprs.mercury import ControlEvent, parse_control_line, split_control_line
 
 HOST = "127.0.0.1"
 OPEN_SEC = 60.0  # the program up and its two ports open
+# CreateNamedPipe: written by this end alone, a stream of bytes, blocking (winbase.h)
+PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE_WAIT = 0x2, 0x0
 
 
 class Modem:
@@ -128,7 +130,7 @@ class PacedFeed:
 
             self.path = rf"\\.\pipe\neoaprs-realmodems-{os.getpid()}-{id(self)}"
             self._pipe = _winapi.CreateNamedPipe(
-                self.path, 0x2, _winapi.PIPE_TYPE_BYTE | _winapi.PIPE_WAIT, 1, 1 << 16, 1 << 16, 0, _winapi.NULL
+                self.path, PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE_WAIT, 1, 1 << 16, 1 << 16, 0, _winapi.NULL
             )
         else:
             self.path = str(folder / "capture")
