@@ -362,12 +362,25 @@ if (!function_exists('support_send_mail')) {
      * The one plain mail to the project, as the status application sends its alerts. Headers and
      * subject are ours; what a person wrote is in the body only.
      */
-    function support_send_mail(string $subject, string $body): bool
+    function support_send_mail(string $subject, string $body, string $replyTo = ''): bool
     {
         if (preg_match('/[\r\n]/', $subject)) return false;
-        $headers = 'From: ' . SUPPORT_FROM . "\r\nContent-Type: text/plain; charset=utf-8\r\nX-Mailer: neoaprs-support\r\n";
-        return @mail(SUPPORT_TO, $subject, $body, $headers);
+        return @mail(SUPPORT_TO, $subject, $body, support_mail_headers($replyTo));
     }
+}
+
+/** The mail's headers; a reply goes to the person's address when it is a plain one, else to nobody's. */
+function support_mail_headers(string $replyTo): string
+{
+    $reply = support_reply_to($replyTo);
+    return 'From: ' . SUPPORT_FROM . "\r\n" . ($reply !== '' ? "Reply-To: $reply\r\n" : '')
+         . "Content-Type: text/plain; charset=utf-8\r\nX-Mailer: neoaprs-support\r\n";
+}
+
+/** The address as a header may carry it: plain ASCII, a name, "@" and a dotted host; anything else is ''. */
+function support_reply_to(string $email): string
+{
+    return preg_match('/^[A-Za-z0-9.!#$%&\'*+\/=?^_`{|}~-]{1,64}@[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63})+$/D', $email) === 1 ? $email : '';
 }
 
 function support_receive(): never
@@ -445,7 +458,7 @@ function support_receive(): never
           . "Note:\n" . ($note !== '' ? $note : '(none)') . "\n"
           . ($alone ? '' : "\nThe file is on the server; server/support-fetch.sh brings it.\n");
     try {
-        $mailed = support_send_mail($subject, $body);
+        $mailed = support_send_mail($subject, $body, $email);
     } catch (Throwable $e) {
         $mailed = false;
     }
