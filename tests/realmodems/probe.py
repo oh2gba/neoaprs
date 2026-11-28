@@ -4,7 +4,10 @@ control port, read with the daemon's parser, the frames it hands over on its bro
 output."""
 
 import asyncio
+import os
 import subprocess
+import sys
+import threading
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -110,26 +113,93 @@ class Modem:
                 await asyncio.to_thread(self.process.wait)
 
 
+class PacedFeed:
+    """A recording played into Mercury's capture pipe at the sound card's pace (8000 samples a second
+    of s32le, in blocks of 20 ms), then silence until it is stopped: a POSIX named pipe, or on Windows a
+    named pipe of the system. Mercury's decoders take audio only as fast as a sound card gives it."""
+
+    BLOCK = 160 * 4
+
+    def __init__(self, folder: Path, audio: bytes) -> None:
+        self.audio = audio
+        self._stop = threading.Event()
+        if sys.platform == "win32":
+            import _winapi
+
+            self.path = rf"\\.\pipe\neoaprs-realmodems-{os.getpid()}-{id(self)}"
+            self._pipe = _winapi.CreateNamedPipe(
+                self.path, 0x2, _winapi.PIPE_TYPE_BYTE | _winapi.PIPE_WAIT, 1, 1 << 16, 1 << 16, 0, _winapi.NULL
+            )
+        else:
+            self.path = str(folder / "capture")
+            os.mkfifo(self.path)
+            # both ends held here: Mercury's reads never see an end of file, and this open never waits
+            self._fd = os.open(self.path, os.O_RDWR)
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _write(self, data: bytes) -> None:
+        if sys.platform == "win32":
+            import _winapi
+
+            _winapi.WriteFile(self._pipe, data)
+        else:
+            os.write(self._fd, data)
+
+    def _run(self) -> None:
+        if sys.platform == "win32":
+            import _winapi
+
+            try:
+                _winapi.ConnectNamedPipe(self._pipe, False)
+            except OSError:  # (connected already)
+                pass
+        began, sent = time.monotonic(), 0
+        try:
+            while not self._stop.is_set():
+                block = self.audio[sent : sent + self.BLOCK] or bytes(self.BLOCK)
+                wait = began + sent / (8000 * 4) - time.monotonic()
+                if wait > 0:
+                    self._stop.wait(wait)
+                self._write(block.ljust(self.BLOCK, b"\0"))
+                sent += self.BLOCK
+        except OSError:
+            pass
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join(10)
+        if sys.platform == "win32":
+            import _winapi
+
+            _winapi.CloseHandle(self._pipe)
+        else:
+            os.close(self._fd)
+
+
 async def decode_file(
     program: str, recording: Path, folder: Path, env: dict[str, str], ports: tuple[int, int], expected: set[bytes]
 ) -> Modem:
-    """A Mercury whose sound card is the recording (its fifo backend on a plain file, which it reads
-    again from the start at its end), until it has handed over every frame of `expected` or a
-    minute has passed; the modem, closed."""
+    """A Mercury whose sound card is the recording, played at a sound card's pace (PacedFeed), until it
+    has handed over every frame of `expected` or the recording and a minute have passed; the modem,
+    closed."""
     folder.mkdir(parents=True, exist_ok=True)
     playback = folder / "playback.s32le"
     playback.write_bytes(b"")
     ini = folder / "decode.ini"
     ini.write_text("[store]\nenabled = false\n", encoding="utf-8")
-    argv = [program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", str(recording), "-o", str(playback)]
+    audio = recording.read_bytes()
+    feed = PacedFeed(folder, audio)
+    argv = [program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", feed.path, "-o", str(playback)]
     argv += ["-b", str(ports[0]), "-p", str(ports[1]), "-P", "none"]
     modem = Modem("decode", argv, folder, env)
     try:
         await modem.open(*ports)
         try:
-            await modem.until("every recorded frame", lambda: expected <= set(modem.frames), 60.0)
+            await modem.until("every recorded frame", lambda: expected <= set(modem.frames), len(audio) / 32000 + 60.0)
         except AssertionError:
             pass
     finally:
         await modem.close()
+        feed.stop()
     return modem
