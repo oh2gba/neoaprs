@@ -464,7 +464,6 @@ export const fr: Catalogue = {
   "route.auto_via": "Automatique : via {heard}, puis {path}",
   "route.own": "Votre chemin : {path}",
   "route.rf_only": "Radio seulement",
-  "route.rf_only_title": "Les iGates ne mettent pas ces messages sur internet",
   "route.request_path_tip":
     "Indicatifs ou alias séparés par des virgules (OH2RDK-7,OH2RCH-2 ou WIDE1-1,WIDE2-1), DIRECT pour aucun. Vide : le chemin habituel.",
   "pathbuilder.open": "Composer le chemin",
@@ -627,6 +626,7 @@ export const fr: Catalogue = {
   "skeds.past_delete_label": "Supprimer l'essai passé, {when}",
 
   "skeds.post_label": "Prévoir un essai",
+  "skeds.cancel": "Annuler",
   "skeds.day": "Jour",
   "skeds.time": "Heure (UTC)",
   "skeds.from": "De",
@@ -1398,17 +1398,17 @@ export const fr: Catalogue = {
   "radio.type.direwolf_300": "carte son, 300",
   "radio.type.kiss": "KISS TNC",
   "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
-  "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+  "radio.type.kenwood_tnc2": "Kenwood TH-D7, TM-D700, TNC-2",
   "radio.type.kantronics": "Kantronics KPC-3+",
   "radio.type.kiss_tcp": "Direwolf",
   "radio.type.mercury": "carte son",
   "radio.type.mercury_own": "votre propre programme",
   "radio.type.dummy": "Radio packet factice",
   "radio.type.dummy_hf": "Radio Mercury factice",
-  "radio.type.tnc_text": "Yaesu FTM, TNC en moniteur (RX seul)",
+  "radio.type.tnc_text": "Yaesu FTM, réception seule",
   "radio.type.dummy_lora": "Radio LoRa factice",
   "radio.type.lora_tcp": "tracker ou iGate en Wi-Fi",
-  "radio.type.lora_serial": "tracker ou iGate en USB ou Bluetooth",
+  "radio.type.lora_serial": "tracker ou iGate, USB ou Bluetooth",
   "radio.type.lora_console": "iGate en USB (RX seul)",
 
   // settings
@@ -1568,6 +1568,7 @@ export const fr: Catalogue = {
   "settings.sound_card.playback": "Son vers la radio",
   "settings.sound_card.channel": "{name}, canal {channel}",
   "settings.sound_card.repeated": "{name} ({count})",
+  "settings.sound_card.gone": "Introuvable",
   "settings.sound_card.tip1":
     "La carte son par laquelle passe l'audio de la radio : un codec USB, un Digirig ou l'audio USB de la radio elle-même.",
   "settings.sound_card.tip2":

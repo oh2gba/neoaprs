@@ -156,6 +156,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.sound_card.playback": "Audio verso la radio",
   "settings.sound_card.channel": "{name}, canale {channel}",
   "settings.sound_card.repeated": "{name} ({count})",
+  "settings.sound_card.gone": "Non trovato",
   "settings.sound_card.tip1":
     "La scheda audio da cui passa l’audio della radio: un codec USB, un Digirig o l’audio USB della radio stessa.",
   "settings.sound_card.tip2":

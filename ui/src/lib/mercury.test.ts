@@ -6,6 +6,7 @@ import {
   rigDefault,
   rigKind,
   soundCardChoices,
+  soundCardHalfChoices,
   soundCardPick,
   soundCardWith,
   withAddress,
@@ -132,12 +133,36 @@ describe("the keying choices of a radio whose sound card sits on one USB hub wit
   });
 });
 
+describe("a sound server's devices with long descriptions", () => {
+  it("are shortened in the middle, so the device's name at the start and the way at the end stay in a phone's field", () => {
+    const long: PortsMessage = {
+      ...ports,
+      sound_cards: [
+        soundCard("pulse:DEVICE=ftdx_in", "FTDX101 USB Audio CODEC Analog Stereo Input", { playback: false }),
+        soundCard("pulse:DEVICE=ftdx_out", "FTDX101 USB Audio CODEC Analog Stereo Output", { capture: false }),
+        soundCard(
+          "pulse:DEVICE=scarlett_in",
+          "Scarlett 2i2 4th Gen USB Audio Analog Stereo Input (Focusrite Digital Audio Interface)",
+          { playback: false },
+        ),
+        soundCard("pulse:DEVICE=quad_in", "Rubix44 Pro (4 channels, USB Audio Class 2)", { playback: false }),
+        soundCard("pulse:DEVICE=radio", "Radio", { capture: false }),
+      ],
+    };
+    const capture = soundCardHalfChoices(long, "capture").map((c) => c.label);
+    const playback = soundCardHalfChoices(long, "playback").map((c) => c.label);
+    expect(capture).toEqual(["FTDX101 USB…Stereo Input", "Scarlett 2i2…Stereo Input", "Rubix44 Pro"]);
+    expect(playback).toEqual(["FTDX101 USB…Stereo Output", "Radio"]);
+    for (const label of [...capture, ...playback]) expect(label.length, label).toBeLessThanOrEqual(26);
+  });
+});
+
 describe("the sound cards as a plain choice", () => {
-  it("are the cards the daemon listed, the system's name as the label and the id as the hover title, and no choice of leaving it to the daemon", () => {
+  it("are the cards the daemon listed, the system's name as the label and no hover title, and no choice of leaving it to the daemon", () => {
     const choices = soundCardChoices(ports);
     expect(choices.map((c) => [c.value, c.label, c.title])).toEqual([
-      ["plughw:1,0", "USB Audio CODEC", "plughw:1,0"],
-      ["plughw:0,0", "HDA Intel PCH", "plughw:0,0"],
+      ["plughw:1,0", "USB Audio CODEC", undefined],
+      ["plughw:0,0", "HDA Intel PCH", undefined],
     ]);
     expect(choices.map((c) => c.value)).not.toContain("");
     expect(soundCardChoices(null)).toEqual([]);

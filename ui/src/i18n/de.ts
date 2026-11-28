@@ -462,7 +462,6 @@ export const de: Catalogue = {
   "route.auto_via": "Automatisch: über {heard}, dann {path}",
   "route.own": "Dein Pfad: {path}",
   "route.rf_only": "Nur Funk",
-  "route.rf_only_title": "iGates setzen diese Nachrichten nicht ins Internet",
   "route.request_path_tip":
     "Rufzeichen oder Aliase, durch Kommas getrennt (OH2RDK-7,OH2RCH-2 oder WIDE1-1,WIDE2-1), DIRECT für keine. Leer ist der übliche Pfad.",
   "pathbuilder.open": "Pfad zusammenstellen",
@@ -627,6 +626,7 @@ export const de: Catalogue = {
   "skeds.past_delete_label": "Vergangenen Test löschen, {when}",
 
   "skeds.post_label": "Test planen",
+  "skeds.cancel": "Abbrechen",
   "skeds.day": "Tag",
   "skeds.time": "Zeit (UTC)",
   "skeds.from": "Von",
@@ -1462,14 +1462,14 @@ export const de: Catalogue = {
   "radio.type.direwolf_300": "Soundkarte, 300",
   "radio.type.kiss": "KISS TNC",
   "radio.type.kenwood_d710": "Kenwood TM-D710 / TH-D72",
-  "radio.type.kenwood_tnc2": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
+  "radio.type.kenwood_tnc2": "Kenwood TH-D7, TM-D700, TNC-2",
   "radio.type.kantronics": "Kantronics KPC-3+",
   "radio.type.kiss_tcp": "Direwolf",
-  "radio.type.tnc_text": "Yaesu FTM, TNC im Monitor-Modus (nur RX)",
+  "radio.type.tnc_text": "Yaesu FTM, nur Empfang",
   "radio.type.mercury": "Soundkarte",
   "radio.type.mercury_own": "eigenes Programm",
   "radio.type.lora_tcp": "Tracker oder iGate im WLAN",
-  "radio.type.lora_serial": "Tracker oder iGate an USB oder Bluetooth",
+  "radio.type.lora_serial": "Tracker oder iGate, USB oder Bluetooth",
   "radio.type.lora_console": "iGate an USB (nur RX)",
   "radio.type.dummy": "Dummy-Packet-Funkgerät",
   "radio.type.dummy_hf": "Dummy-Mercury-Funkgerät",
@@ -1633,6 +1633,7 @@ export const de: Catalogue = {
   "settings.sound_card.playback": "Ton zum Funkgerät",
   "settings.sound_card.channel": "{name}, Kanal {channel}",
   "settings.sound_card.repeated": "{name} ({count})",
+  "settings.sound_card.gone": "Nicht gefunden",
   "settings.sound_card.tip1":
     "Die Soundkarte, über die der Ton des Funkgeräts läuft: ein USB-Codec, ein Digirig oder der USB-Ton des Funkgeräts selbst.",
   "settings.sound_card.tip2":
@@ -1656,7 +1657,7 @@ export const de: Catalogue = {
   "settings.hf_frequencies.what":
     "Frequenzen, die das Projekt für APRS über Mercury vorschlägt. Stell das Funkgerät auf eine davon ein, oberes Seitenband (USB).",
   "settings.psk_report.box": "PSK Reporter",
-  "settings.psk_report.tip_label": "Zu PSK Reporter",
+  "settings.psk_report.tip_label": "Über PSK Reporter",
   "settings.psk_report.tip1":
     "Was dieses Funkgerät hört, geht an pskreporter.info und steht dort auf der Karte unter NEOAPRS, gehört von deiner Station.",
   "settings.scope.title": "Spektrum",
@@ -1743,7 +1744,7 @@ export const de: Catalogue = {
 
   "settings.igate.name": "Internet-Stationen",
   "settings.enable.label": "Aktivieren",
-  "settings.igate.tip_label": "Zu Internet-Stationen",
+  "settings.igate.tip_label": "Über Internet-Stationen",
   "settings.igate.tip1": "Zeigt APRS-IS-Stationen im Radius deiner Karte.",
   "settings.igate.show_label": "Internet-Stationen zeigen",
   "settings.igate.gate_label": "Gehörtes weiterleiten",
@@ -1751,8 +1752,8 @@ export const de: Catalogue = {
   "settings.igate.gate_tip1":
     "Stellt ins APRS-IS, was deine Funkgeräte hören: deine Station ist dann ein iGate für ihre Funkgeräte.",
   "settings.igate.gate_tip2": "So erreicht eine im Funk gehörte Nachricht an einen Dienst wie EMAIL-2 diesen Dienst.",
-  "settings.igate.show_gated_label": "Internetpakete aus dem Funk zeigen",
-  "settings.igate.show_gated_tip_label": "Zu Internetpaketen aus dem Funk",
+  "settings.igate.show_gated_label": "Internetpakete im Funk zeigen",
+  "settings.igate.show_gated_tip_label": "Über Internetpakete im Funk",
   "settings.igate.show_gated_tip1":
     "Manche iGates senden Pakete aus dem Internet in den Funk. Ohne Haken werden sie weggelassen, außer einer Nachricht an dich.",
   "settings.igate.line.off": "Aus",
@@ -2087,7 +2088,7 @@ export const de: Catalogue = {
   "settings.map.download": "Karte herunterladen",
   "settings.map.cancel": "Abbrechen",
   "settings.map.detail_label": "Detailkarte",
-  "settings.map.tip_label": "Zum Herunterladen der Karte",
+  "settings.map.tip_label": "Über das Herunterladen der Karte",
   "settings.map.tip1":
     "Lädt Straßen und Namen für den Radius oben herunter, einmalig. Die Karte bleibt auf diesem Computer.",
 
@@ -2137,7 +2138,7 @@ export const de: Catalogue = {
   "settings.help.collecting": "Sammle…",
   "settings.help.send": "Feedback / Protokolle senden",
   "settings.help.sending": "Sende…",
-  "settings.help.tip_label": "Zu den Protokollen",
+  "settings.help.tip_label": "Über die Protokolle",
   "settings.help.tip":
     "Das Protokoll, die Einstellungen, die empfangenen und gesendeten Pakete. Als Datei speichern oder ans Projekt senden.",
   "settings.help.saved": "Gespeichert: {file}.",
@@ -2201,9 +2202,9 @@ export const de: Catalogue = {
   "beacon.status.fold.untimed": "zuletzt gesendet {ago} · kein zeitgesteuerter Status",
   "beacon.beacon_now": "Bake jetzt",
   "beacon.now_label": "Jetzt senden",
-  "beacon.now_tip_label": "Zu Bake jetzt",
+  "beacon.now_tip_label": "Über „Bake jetzt“",
   "beacon.now_tip": "Sendet die Bake sofort, wie es der Timer täte. Zur Bestätigung zweimal drücken.",
-  "beacon.status_now_tip_label": "Zu Status jetzt senden",
+  "beacon.status_now_tip_label": "Über „Status jetzt senden“",
   "beacon.status_now_tip": "Sendet den Statusbericht sofort. Zur Bestätigung zweimal drücken.",
   "beacon.send_status_now": "Status jetzt senden",
   "beacon.really_send": "Wirklich senden?",

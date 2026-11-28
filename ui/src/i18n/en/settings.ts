@@ -153,6 +153,7 @@ export const settings = {
   "settings.sound_card.playback": "Sound to the radio",
   "settings.sound_card.channel": "{name}, channel {channel}",
   "settings.sound_card.repeated": "{name} ({count})",
+  "settings.sound_card.gone": "Not found",
   "settings.sound_card.tip1":
     "The sound card the radio's audio goes through: a USB codec, a Digirig, or the radio's own USB audio.",
   "settings.sound_card.tip2":

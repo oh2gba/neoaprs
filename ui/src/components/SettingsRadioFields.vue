@@ -83,7 +83,15 @@ const cardInfo = computed<FieldInfo>(() => ({
   ...fieldFor(cardKey.value ?? ""),
   kind: "choice",
   choices: soundCardChoices(own.value, holder.value, props.settings.expected(cardKey.value ?? "")),
+  other: gone.value,
 }));
+/** The words of a stored device the list lacks: none until the list has come, then "not found". */
+const gone = computed(() => (own.value === null ? () => "" : soundCardGone));
+/**
+ * Until the list has come, the room of a second sound field is kept hidden, so that nothing moves
+ * when a sound server's devices make the sound two fields.
+ */
+const roomForHalf = computed(() => own.value === null);
 /** Whether the sound is chosen as two devices (a sound server's are listed). */
 const split = computed(() => soundCardSplit(own.value));
 const HALVES: readonly SoundHalf[] = ["capture", "playback"];
@@ -99,7 +107,7 @@ function halfInfo(half: SoundHalf): FieldInfo {
     label: t(`settings.sound_card.${half}`),
     kind: "choice",
     choices: soundCardHalfChoices(own.value, half, holder.value, current),
-    other: soundCardGone,
+    other: gone.value,
   };
 }
 function chooseHalf(key: string, half: SoundHalf, value: string): void {
@@ -225,6 +233,11 @@ function refresh(key: string): void {
         <template v-if="half === 'capture'" #after>
           <button class="btn" type="button" @click="refresh(key)">{{ t("settings.port.refresh") }}</button>
         </template>
+        <template v-else #after>
+          <span class="soundroom-after" aria-hidden="true" inert>
+            <span class="btn">{{ t("settings.port.refresh") }}</span><span class="info-toggle"></span>
+          </span>
+        </template>
       </SettingsField>
     </template>
     <SettingsField
@@ -257,6 +270,10 @@ function refresh(key: string): void {
         </button>
       </template>
     </SettingsField>
+    <div v-if="isCard(key) && !split && roomForHalf" class="field field-room soundroom" aria-hidden="true" inert>
+      <label>{{ t("settings.sound_card.playback") }}</label>
+      <div class="field-control"><select class="input"></select></div>
+    </div>
     <SettingsField
       v-if="isKeying(key) && rig(key) !== ''"
       :id="ids(`${inputId(key)}-address`)"

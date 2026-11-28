@@ -148,6 +148,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.sound_card.playback": "無線機への音声",
   "settings.sound_card.channel": "{name}、チャンネル{channel}",
   "settings.sound_card.repeated": "{name} ({count})",
+  "settings.sound_card.gone": "見つかりません",
   "settings.sound_card.tip1":
     "無線機の音声が通るサウンドカード：USBコーデック、Digirig、または無線機自身のUSBオーディオ。",
   "settings.sound_card.tip2":

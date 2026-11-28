@@ -4,7 +4,8 @@
 // (`radio_level`); otherwise, and until the first answer, the bar shows the radio row's `rx_level`.
 // The row is always present so that nothing moves when the level arrives. The bar is dimmed while
 // the radio transmits. Where the card has its own capture level (`card.rx`), a CardSlider stands
-// before the bar; its room is reserved whether or not the card has one.
+// before the bar; its room is reserved until the card is read, and goes where the card has no
+// level of its own at all (no mixer, such as a device the user made).
 import { computed, ref, useId } from "vue";
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -36,6 +37,11 @@ const level = computed(
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));
 const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value)));
 const card = computed(() => (props.radio.row.card.read ? props.radio.row.card.rx : null));
+/** Whether the card is read and has no level of its own at all (no mixer): no slider, nor its room. */
+const none = computed(() => {
+  const { read, tx, rx } = props.radio.row.card;
+  return read && tx === null && rx === null;
+});
 const held = computed(() => modem.value !== null && (modem.value.keyed || modem.value.test !== ""));
 </script>
 
@@ -49,7 +55,7 @@ const held = computed(() => modem.value !== null && (modem.value.keyed || modem.
     :good="GOOD_PERCENT"
     :held="held"
     :value="levelText(level)"
-    ><template #control
+    ><template v-if="!none" #control
       ><CardSlider
         :label="t('settings.cardlevel.rx_label')"
         :setting-key="`radio/${radio.id}/rx_card`"

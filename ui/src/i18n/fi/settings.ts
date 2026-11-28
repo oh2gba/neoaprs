@@ -154,6 +154,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.sound_card.playback": "Ääni radioon",
   "settings.sound_card.channel": "{name}, kanava {channel}",
   "settings.sound_card.repeated": "{name} ({count})",
+  "settings.sound_card.gone": "Ei löydy",
   "settings.sound_card.tip1":
     "Äänikortti, jonka kautta radion ääni kulkee: USB-koodekki, Digirig tai radion oma USB-ääni.",
   "settings.sound_card.tip2":
@@ -267,8 +268,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.gate_tip_label": "Tietoa: Lähetä kuulemani",
   "settings.igate.gate_tip1": "Vie sen, mitä radiosi kuulevat, APRS-IS:ään: asemasi on silloin radioidesi iGate.",
   "settings.igate.gate_tip2": "Näin radiossa kuultu viesti esimerkiksi EMAIL-2-palvelulle päätyy perille.",
-  "settings.igate.show_gated_label": "Näytä radiossa kuullut Internet-paketit",
-  "settings.igate.show_gated_tip_label": "Tietoa: radiossa kuullut Internet-paketit",
+  "settings.igate.show_gated_label": "Näytä radiosta Internet-paketit",
+  "settings.igate.show_gated_tip_label": "Tietoa: Internet-paketit radiosta",
   "settings.igate.show_gated_tip1":
     "Jotkin iGatet lähettävät Internetin paketteja radioon. Ilman rastia ne jätetään pois, paitsi sinulle tullut viesti.",
   "settings.igate.line.off": "Pois",

@@ -351,11 +351,11 @@ describe("the Mercury radio's box in the Radio group", () => {
     expect(keying.element.value).toBe("vox");
   });
 
-  it("offers the sound cards by the system's name with the id as the hover title, and no find automatically and no Other", () => {
+  it("offers the sound cards by the system's name with no hover title, and no find automatically and no Other", () => {
     const { group } = make({ ports: cards() }, BOTH, on);
     const card = group.find<HTMLSelectElement>("#set-radio-2-sound_card");
     expect([...card.element.options].map((o) => o.text)).toEqual(["USB AUDIO  CODEC USB Audio", "HDA Intel PCH"]);
-    expect([...card.element.options].map((o) => o.title)).toEqual(["plughw:1,0", "plughw:0,0"]);
+    expect([...card.element.options].map((o) => o.title)).toEqual(["", ""]);
     expect([...card.element.options].map((o) => o.value)).not.toContain("");
     expect(card.element.value).toBe("plughw:1,0");
     const keying = group.find<HTMLSelectElement>("#set-radio-2-keying");

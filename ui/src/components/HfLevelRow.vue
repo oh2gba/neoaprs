@@ -6,7 +6,7 @@
 // (CardSlider.vue, `tx_card`) replaces the buttons; a non-zero gain keeps the buttons and the
 // daemon leaves the card's level alone. A gain that was non-zero keeps the buttons until the row
 // is seen again (useWhenShown.ts `useInView`), so the row does not change shape under the
-// pointer. Until the card's levels are known (`card.read`) the row shows neither.
+// pointer. Until the card's levels are known (`card.read`) the row keeps its room hidden.
 import CardSlider from "@/components/CardSlider.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { computed, ref, watch } from "vue";
@@ -61,7 +61,13 @@ function move(by: number): void {
 </script>
 
 <template>
-  <div ref="row" class="field txlevel">
+  <div
+    ref="row"
+    class="field txlevel"
+    :class="{ 'field-room': !known }"
+    :aria-hidden="known ? undefined : 'true'"
+    :inert="!known || undefined"
+  >
     <label :for="`${id}-up`">{{ t("settings.txlevel.label") }}</label>
     <div class="field-control txlevel-control">
       <template v-if="known">

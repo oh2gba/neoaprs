@@ -12,8 +12,8 @@ import type { PortsMessage } from "@/protocol/protocol";
 const LINES = ["rts", "dtr"] as const;
 
 /**
- * The sound cards as the choice of the Sound card field: the system's name for each, with the
- * id as the hover title; a name two cards share gets its id after it; a card another radio
+ * The sound cards as the choice of the Sound card field: the system's name for each; a name two
+ * cards share gets its id after it; a card another radio
  * holds is greyed with its name (lib/portchoice.ts), unless it is the one in force, `current`.
  * There is no choice of leaving it to the daemon: the daemon's proposal (`soundCardPick`) is
  * preselected and stored.
@@ -25,7 +25,6 @@ export function soundCardChoices(ports: PortsMessage | null, holder: HolderOf = 
       {
         value: c.id,
         label: cards.filter((o) => o.name === c.name).length > 1 ? `${c.name} (${c.id})` : c.name,
-        title: c.id,
       },
       c.held_by,
       holder,
@@ -44,7 +43,6 @@ export const soundCardPick = (ports: PortsMessage | null): string => ports?.soun
 const PAIR = "|";
 /** How the id of a sound server's sink or source begins (neoaprs/soundserver.py). */
 const SERVER = "pulse:DEVICE=";
-const CHANNEL = ",CHANNEL=";
 
 /** The two halves of the sound: the device recorded from, the one played to. */
 export type SoundHalf = "capture" | "playback";
@@ -66,9 +64,30 @@ export function soundCardHalves(value: string): [string, string] {
 export const soundCardJoin = (capture: string, playback: string): string =>
   capture === playback && !capture.startsWith(SERVER) ? capture : `${capture}${PAIR}${playback}`;
 
-/** The words of a device the list no longer has: a sound server's by the name it had there. */
-export const soundCardGone = (id: string): string =>
-  id.startsWith(SERVER) ? (id.slice(SERVER.length).split(CHANNEL)[0] ?? id) : id;
+/** The words of a stored device the list no longer has; never its id. */
+export const soundCardGone = (): string => t("settings.sound_card.gone");
+
+/** The most of a device's description a field on a phone shows whole, and its two ends when longer. */
+const SHORT = 26;
+const HEAD = 12;
+const TAIL = 13;
+
+/**
+ * A long description shortened in the middle at whole words: the device's name first and the way
+ * last (Input, Output) are what tell the devices apart; a closing "(...)" goes first.
+ */
+function shortDevice(name: string): string {
+  const plain = name.length > SHORT ? name.replace(/\s*\([^()]*\)$/, "") || name : name;
+  if (plain.length <= SHORT) return plain;
+  const words = plain.split(" ");
+  let first = 1;
+  while (first < words.length && words.slice(0, first + 1).join(" ").length <= HEAD) first++;
+  let last = words.length - 1;
+  while (last > first && words.slice(last - 1).join(" ").length <= TAIL) last--;
+  const head = words.slice(0, first).join(" ").slice(0, HEAD);
+  const tail = words.slice(Math.max(last, first)).join(" ").slice(-TAIL);
+  return `${head}…${tail}`;
+}
 
 /**
  * The devices of one half as the choice of its field: what the operator named each, a source's
@@ -83,7 +102,9 @@ export function soundCardHalfChoices(
 ): Choice[] {
   const cards = (ports?.sound_cards ?? []).filter((c) => c[half]);
   const names = cards.map((c) =>
-    c.channel ? t("settings.sound_card.channel", { name: c.name, channel: c.channel }) : c.name,
+    c.channel
+      ? t("settings.sound_card.channel", { name: shortDevice(c.name), channel: c.channel })
+      : shortDevice(c.name),
   );
   return cards.map((c, i) => {
     const name = names[i] ?? c.name;

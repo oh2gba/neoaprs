@@ -44,24 +44,27 @@ const OWN = {
   "radio/3/digipeat": "false",
 };
 
-function radios(modem: Partial<RadioRow["modem"]> = {}): Map<string, RadioRow> {
+function radios(
+  modem: Partial<RadioRow["modem"]> = {},
+  card: RadioRow["card"] = { tx: null, rx: null, read: true },
+): Map<string, RadioRow> {
   return radiosTopic(
     radioRow(1, "kenwood-tnc2"),
     radioRow(2, "mercury", { enabled: false }),
-    radioRow(3, "direwolf", { name: "Attic", number: 2, modem: soundCardModem(modem ?? {}) }),
+    radioRow(3, "direwolf", { name: "Attic", number: 2, modem: soundCardModem(modem ?? {}), card }),
   );
 }
 
-function make(unavailable: string[] = []) {
+function make(unavailable: string[] = [], values: Record<string, string> = {}, listed: PortsMessage | null = ports) {
   const config = configValues({});
   const daemon = fakeDaemon({
     config: {
       ...config,
-      radio_values: { ...config.radio_values, ...OWN },
+      radio_values: { ...config.radio_values, ...OWN, ...values },
       radio_defaults: { ...config.radio_defaults, ...OWN },
     },
     radios: radios(),
-    ports,
+    ports: listed,
     status: status({ unheard_radio: 1, unavailable_types: unavailable }),
   });
   const wrapper = mount(SettingsForm, {
@@ -100,6 +103,58 @@ describe("a Sound card radio's box", () => {
     expect(fields).not.toContain("Peak"); // (Direwolf says no peak of what it sends: no reading that never comes)
     // the receive level has its (i), as the HF box's has
     expect(box().find(".scope-level .infotip").exists()).toBe(true);
+  });
+
+  it("shows a stored card that is no longer listed as not found, and no device id as a hover title", async () => {
+    const { wrapper, box } = make([], { "radio/3/sound_card": "plughw:CARD=Gone,DEV=0" });
+    mounted = wrapper;
+    await flushPromises();
+    const card = box().find<HTMLSelectElement>("#set-radio-3-sound_card").element;
+    expect(card.value).toBe("plughw:CARD=Gone,DEV=0");
+    expect(card.options[card.selectedIndex]?.text).toBe(t("settings.sound_card.gone"));
+    expect([...card.options].map((o) => o.title)).toEqual(["", ""]);
+  });
+
+  it("before its list of sound devices has come, shows the stored card neither as not found nor by its id, and keeps the room of a second sound field hidden", async () => {
+    const { daemon, wrapper, box } = make([], {}, null);
+    mounted = wrapper;
+    await flushPromises();
+    const card = box().find<HTMLSelectElement>("#set-radio-3-sound_card").element;
+    expect(card.value).toBe("plughw:CARD=AIOC,DEV=0");
+    expect(card.options[card.selectedIndex]?.text).toBe("");
+    const room = box().find(".field.soundroom");
+    expect(room.classes()).toContain("field-room");
+    expect(room.attributes("aria-hidden")).toBe("true");
+    expect(room.find("select").exists()).toBe(true);
+    await tell(daemon, { ports });
+    await flushPromises();
+    expect(box().find(".field.soundroom").exists()).toBe(false); // (no sound server: one field, the room gone)
+  });
+
+  it("for a card without levels of its own (a device the user made) has no empty slider room in the Receive level, and keeps the modem's own steps of the Transmit level", async () => {
+    const { wrapper, box } = make();
+    mounted = wrapper;
+    await flushPromises();
+    const receive = box().find(".scope-level");
+    expect(receive.find(".cardslider").exists()).toBe(false);
+    expect(receive.find(".levelbar").exists()).toBe(true);
+    expect(box().find(".txlevel").classes()).not.toContain("field-room");
+    expect(box().findAll(".txlevel .stepbtn")).toHaveLength(2);
+  });
+
+  it("keeps the room of both level rows hidden while the card is not read yet: no label stands alone, and nothing moves when it is read", async () => {
+    const { daemon, wrapper, box } = make();
+    mounted = wrapper;
+    await tell(daemon, { radios: radios({}, { tx: null, rx: null, read: false }) });
+    await flushPromises();
+    const tx = box().find(".txlevel");
+    expect(tx.classes()).toContain("field-room");
+    expect(tx.attributes("aria-hidden")).toBe("true");
+    expect(box().find(".scope-level .cardslider").exists()).toBe(true); // (the slider's room, until the card is read)
+    await tell(daemon, { radios: radios({}, { tx: 40, rx: 60, read: true }) });
+    await flushPromises();
+    expect(box().find(".txlevel").classes()).not.toContain("field-room");
+    expect(box().find(".scope-level .cardslider-input").exists()).toBe(true);
   });
 
   it("keeps the room of the receive level, so nothing moves when the first packet comes, and dims it while the radio is keyed", async () => {
@@ -489,6 +544,21 @@ describe("a Sound card radio's sound on a computer with a sound server", () => {
     ).toBe(false);
   });
 
+  it("lines the two fields up: the second keeps the room of the first's Refresh and (i), hidden, and no room of a second field is left over", async () => {
+    const { wrapper } = mounted3({});
+    mounted = wrapper;
+    await flushPromises();
+    const row = (half: string) =>
+      wrapper.findAll(".field").find((f) => f.find(`#set-radio-3-sound_card-${half}`).exists());
+    const room = row("playback")?.find(".soundroom-after");
+    expect(room?.attributes("aria-hidden")).toBe("true");
+    expect(room?.attributes("inert")).toBeDefined();
+    expect(room?.find(".btn").text()).toBe(row("capture")?.find("button.btn").text());
+    expect(room?.find(".info-toggle").exists()).toBe(true);
+    expect(room?.find("button").exists()).toBe(false);
+    expect(wrapper.find(".field.soundroom").exists()).toBe(false);
+  });
+
   it("stores the two as one setting, the device recorded from first", async () => {
     const { wrapper, sets } = mounted3({});
     mounted = wrapper;
@@ -498,7 +568,7 @@ describe("a Sound card radio's sound on a computer with a sound server", () => {
     expect(sets()).toContainEqual({ "radio/3/sound_card": `${AIOC}|pulse:DEVICE=Radio_remap` });
   });
 
-  it("shows a stored pair in its two fields and a device that is gone by the name the server knew", async () => {
+  it("shows a stored pair in its two fields and a device that is gone as not found, never by its technical name", async () => {
     const { wrapper } = mounted3({
       "radio/3/sound_card": "pulse:DEVICE=quad_in,CHANNEL=front-left|pulse:DEVICE=Radio_gone",
     });
@@ -509,6 +579,7 @@ describe("a Sound card radio's sound on a computer with a sound server", () => {
     );
     const playback = wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card-playback").element;
     expect(playback.value).toBe("pulse:DEVICE=Radio_gone");
-    expect(playback.options[playback.selectedIndex]?.text).toBe("Radio_gone");
+    expect(playback.options[playback.selectedIndex]?.text).toBe(t("settings.sound_card.gone"));
+    expect(t("settings.sound_card.gone")).toBe("Not found");
   });
 });
