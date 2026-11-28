@@ -270,3 +270,13 @@ def test_a_device_of_the_server_is_never_proposed_nor_chosen() -> None:
     assert mercury.propose_sound_card(rows) == ""
     assert mercury.propose_sound_card([*rows, codec]) == codec.id
     assert direwolf.own_card(rows) == "" and mercury.choose_sound_card(rows) == ""
+
+
+def test_a_stream_not_yet_on_any_device_is_no_fault() -> None:
+    # PipeWire 1.6 lists a stream as on sink 4294967295 (PA_INVALID_INDEX) until it is linked (openSUSE, measured)
+    play, _ = _pids()
+    entries = json.loads(fixture_text("pactl/virtual-sink-inputs.json"))
+    for e in entries:
+        e["sink"] = 4294967295
+    text = json.dumps(entries)
+    assert soundserver.stream_targets(text, play, "sink") == []

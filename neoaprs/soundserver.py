@@ -306,6 +306,7 @@ def claims(setting: str, nodes: Sequence[Node], card_names: Mapping[int, str]) -
 # ---- where a modem's streams sit
 
 
+NO_INDEX = 0xFFFFFFFF  # PA_INVALID_INDEX: a stream not linked to a device yet
 _STREAMS: dict[Kind, str] = {"sink": "sink-inputs", "source": "source-outputs"}
 
 
@@ -337,6 +338,7 @@ def stream_targets(text: str | None, pid: int, field: Kind, clients: Collection[
         e[field]
         for e in entries
         if isinstance(e.get(field), int)
+        and e[field] != NO_INDEX
         and ((e.get("properties") or {}).get("application.process.id") == str(pid) or str(e.get("client")) in clients)
     ]
 
