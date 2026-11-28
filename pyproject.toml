@@ -75,12 +75,18 @@ dev = [
     "hypothesis==6.170.22",
     "coverage==7.17.5",
     "pytest-xdist==3.8.0",
+    "pytest-randomly==5.1.0",
 ]
 # The Windows app is frozen with PyInstaller, built from its source (the bootloader compiled on the
 # runner); the lock holds the hash of the source and of every package it needs.
 pyinstaller = [
     "pyinstaller==6.22.3",
     "pyinstaller-hooks-contrib==2026.10",
+]
+# Planted faults for the critical modules (scripts/mutants, the nightly workflow mutants.yml); not
+# installed by default: `uv sync --frozen --group mutants`.
+mutants = [
+    "mutmut==3.8.1",
 ]
 
 # The wheel is the package neoaprs/ with everything in it that is not Python: the built page
@@ -116,6 +122,8 @@ markers = [
     "safety: guards the data: storage, migrations, the database actor and everything under tests/safety (run alone with -m safety)",
     "expects_errors: the test makes the code log an ERROR on purpose (any other test that does fails, see tests/support/guards.py)",
     "real_direwolf: the test runs the Direwolf of this installation, on ALSA's null card (any other test that starts a shipped modem program fails, see tests/support/guards.py)",
+    "slow(reason): the test takes over 2 s and says why (tests/support/timebudget.py)",
+    "nightly(reason): left out of the gate and CI, run each night by .github/workflows/nightly.yml (tests/support/timebudget.py)",
 ]
 filterwarnings = ["error::DeprecationWarning:neoaprs.*"]
 # A test that is still running after two minutes has the stack of every thread written to stderr
