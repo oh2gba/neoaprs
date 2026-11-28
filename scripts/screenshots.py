@@ -53,7 +53,7 @@ from neoaprs.controller import Controller  # noqa: E402
 from neoaprs.mercury import SUGGESTED  # noqa: E402
 from neoaprs.mercuryscope import (  # noqa: E402
     HISTORY_HEADER,
-    HISTORY_SEC,
+    HISTORY_ROW,
     MODEM_BINS,
     MODEM_RATE,
     ROW_BINS,
@@ -940,6 +940,7 @@ async def shot_stations_hf(s: Shots, _: str) -> None:
 
 SCOPE_ROW_SEC = 0.1  # ten rows a second, as the modem part makes them
 SCOPE_LIVE_SEC = 30.0
+SCOPE_KEPT_SEC = 120.0  # the rows kept of the shot: two minutes, the frames in them
 FRAME_SEC = 3.8  # how long a frame is on the air
 SCOPE_FRAMES = (
     (6.0, -19.0),
@@ -995,12 +996,12 @@ def made_up_rows(seconds: float, seed: int = 40) -> list[ScopeRow]:
     return rows
 
 
-def scope_frames(radio: int) -> tuple[bytes, list[bytes]]:
+def scope_frames(radio: int, kept_sec: float = SCOPE_KEPT_SEC) -> tuple[bytes, list[bytes]]:
     """Return the frames of the made-up waterfall: the rows kept (a frame of the last
-    HISTORY_SEC, daemon clock 0) and the rows after them, each named by the radio
+    `kept_sec`, daemon clock 0) and the rows after them, each named by the radio
     (radio_header) as the daemon sends them."""
-    rows = made_up_rows(HISTORY_SEC + SCOPE_LIVE_SEC)
-    kept = round(HISTORY_SEC / SCOPE_ROW_SEC)
+    rows = made_up_rows(kept_sec + SCOPE_LIVE_SEC)
+    kept = round(kept_sec / SCOPE_ROW_SEC)
     end = kept * SCOPE_ROW_SEC
     history = radio_header(radio) + history_frame(
         [KeptRow(i + 1, (i + 1) * SCOPE_ROW_SEC, row) for i, row in enumerate(rows[:kept])], end, 0.0
@@ -1041,14 +1042,21 @@ SCOPE_PAGE = """(() => {
       if (typeof data === "string" && data.includes("radio_scope")) {
         let command = null;
         try { command = JSON.parse(data); } catch { command = null; }
-        if (command && command.cmd === "radio_scope" && command.radio === P.radio) return this.shotScope(command.on === true);
+        if (command && command.cmd === "radio_scope" && command.radio === P.radio) return this.shotScope(command.on === true, command.seconds);
       }
       return super.send(data);
     }
-    shotScope(on) {
+    shotScope(on, seconds) {
       clearInterval(this.shotTimer);
       if (!on) return;
-      const history = kept.slice();
+      // As the daemon does: only the rows of the seconds asked for, oldest first.
+      const first = P.clockAt + 8;
+      let from = first;
+      const ages = new DataView(kept.buffer);
+      while (seconds !== undefined && from < kept.length && ages.getUint32(from + 2, true) > seconds * 1000) from += P.rowBytes;
+      const history = new Uint8Array(kept.length - (from - first));
+      history.set(kept.subarray(0, first));
+      history.set(kept.subarray(from), first);
       new DataView(history.buffer).setFloat64(P.clockAt, Date.now(), true);
       this.shotGive(history.buffer);
       let next = 0;
@@ -1066,10 +1074,10 @@ SCOPE_PAGE = """(() => {
 })();"""
 
 
-def scope_page(radio: int) -> str:
+def scope_page(radio: int, kept_sec: float = SCOPE_KEPT_SEC) -> str:
     """Return the script the hf-tests shot's browser runs before the page's own (SCOPE_PAGE),
-    with `radio`'s rows."""
-    history, live = scope_frames(radio)
+    with `radio`'s rows; the browser suite's monitor card is given more."""
+    history, live = scope_frames(radio, kept_sec)
     clock_at = len(radio_header(radio)) + struct.calcsize(HISTORY_HEADER.format[:2])
     given = {
         "radio": radio,
@@ -1077,6 +1085,7 @@ def scope_page(radio: int) -> str:
         "history": base64.b64encode(history).decode(),
         "live": [base64.b64encode(frame).decode() for frame in live],
         "clockAt": clock_at,
+        "rowBytes": HISTORY_ROW.size + ROW_BINS,
         "everyMs": round(SCOPE_ROW_SEC * 1000),
     }
     return SCOPE_PAGE % json.dumps(given)

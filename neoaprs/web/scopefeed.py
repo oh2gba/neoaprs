@@ -1,7 +1,7 @@
 """Send a radio's waterfall rows to the pages that have its scope open, as binary frames.
 
-A page gets the kept rows first, then every newer row; a page more than `BEHIND` bytes behind is
-skipped. Frames name the radio: `RADIO_KIND`, the radio id, then the mercuryscope.py frame.
+A page gets the kept rows of the seconds it asks for first, then every newer row; a page more than
+`BEHIND` bytes behind is skipped. Frames name the radio: `RADIO_KIND`, the radio id, then the mercuryscope.py frame.
 """
 
 import struct
@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Mapping
 
 from neoaprs.mercurymodem import Mercury
-from neoaprs.mercuryscope import KeptRow, history_frame, row_frame, scope_clock
+from neoaprs.mercuryscope import HISTORY_SEC, KeptRow, history_frame, row_frame, scope_clock
 from neoaprs.radiospec import RadioId
 
 from .hub import BEHIND
@@ -39,33 +39,37 @@ class ScopeFeed:
         self._pages: dict[Connection, int] = {}  # page -> newest row number sent or passed over
         self._sent: dict[Connection, int] = {}  # page -> newest row number it was sent and still holds
         self._stale: set[Connection] = set()
+        self._reach: dict[Connection, float] = {}  # page -> the seconds of its last history
 
     @property
     def pages(self) -> int:
         return len(self._pages)
 
-    def ask(self, conn: Connection, on: bool) -> None:
-        """Start or stop sending rows to the page; a page that already closed is ignored."""
+    def ask(self, conn: Connection, on: bool, seconds: float = HISTORY_SEC) -> None:
+        """Start or stop sending rows to the page, the first of the last `seconds`; a page that already closed is
+        ignored."""
         if not on:
             self._pages.pop(conn, None)
         elif not conn.closed:
-            self._hand_over(conn)
+            self._hand_over(conn, seconds)
 
     def forget(self, conn: Connection) -> None:
         self._pages.pop(conn, None)
         self._sent.pop(conn, None)
         self._stale.discard(conn)
+        self._reach.pop(conn, None)
 
-    def _hand_over(self, conn: Connection) -> None:
+    def _hand_over(self, conn: Connection, seconds: float) -> None:
         history, now = self._modem.scope_history, scope_clock()
-        kept = history.after(0, now)
+        kept = history.after(0, now, seconds)
         self._pages[conn] = kept[-1].seq if kept else history.last
         if conn.buffered() <= BEHIND:
             self._stale.discard(conn)
             held = self._sent.get(conn)
-            if held is not None and kept and kept[0].seq < held <= kept[-1].seq:
+            if held is not None and seconds <= self._reach.get(conn, 0) and kept and kept[0].seq < held <= kept[-1].seq:
                 # Resend from the row before `held` so the page can find where they join.
                 kept = kept[held - 1 - kept[0].seq :]
+            self._reach[conn] = seconds
             self._send_history(conn, kept, now)
         self._catch_up(conn)
 

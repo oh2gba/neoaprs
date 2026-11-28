@@ -527,8 +527,11 @@ seventeen on reception). A row byte b is ROW_OFFSET_DB + b * 0.5 dB, from -110 t
 channel noise reads -58 to -31 dB, a frame -15 dB at its strongest, our own signal +8 dB. The floor
 under the rows is the page's business (`lib/waterfallfloor.ts`).
 
-History is kept for two minutes: the monitor card's 400 lines are 80 s, and two minutes keep a larger
-box whole. The bands of `bands_db` are cut as `channel_busy_update` cuts them (bins from 300 Hz up in
+History is kept for ten minutes (6,000 rows, 1.9 MB as a frame): the monitor card can be made as tall
+as the screen, and at Slow a line is 0.4 s, so 1,500 lines of picture are ten minutes. In memory a full
+history takes 3.1 MB a radio (a row is its 307 bytes, its two small objects, its time and number), and
+`HISTORY_BYTES` (3.5 MB) is the bound a test holds it to; the deque's length bounds it whatever the clock
+does. A page is sent only the seconds it asks for, so the Settings box costs what it shows. The bands of `bands_db` are cut as `channel_busy_update` cuts them (bins from 300 Hz up in
 bands of 19, the last one short) so that the daemon's detector sees what Mercury's sees.
 `scope_clock` uses the boot clock on Linux so that a row from before a suspend is correctly old after
 it; Windows' monotonic clock already counts sleep.
@@ -1692,12 +1695,13 @@ deflate state of a few hundred kilobytes per direction per socket, so connection
 
 ## neoaprs/web/scopefeed.py
 
-A page that starts looking first gets the rows the modem keeps (the last two minutes), then every row
-newer than the newest it was sent or passed over, so no row repeats or is lost while the history is
-written. A page that is behind when it asks gets no history. When the modem forgets its rows, looking
-pages get an empty history. A page that looks again on the same socket gets only the rows from the two
-it already holds, when the modem still has them. Every history carries the daemon's clock so the page
-can place times.
+A page that starts looking first gets the rows the modem keeps of the seconds it asks for (what its
+tallest picture shows, at most ten minutes), then every row newer than the newest it was sent or passed
+over, so no row repeats or is lost while the history is written. A page that is behind when it asks gets
+no history. When the modem forgets its rows, looking pages get an empty history. A page that looks again
+on the same socket for as many seconds or fewer gets only the rows from the two it already holds, when
+the modem still has them; one that asks for more (its picture grew) gets all of them, since it holds
+only the fewer. Every history carries the daemon's clock so the page can place times.
 
 ## neoaprs/web/secureside.py
 

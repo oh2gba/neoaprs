@@ -269,3 +269,44 @@ def test_a_row_of_before_the_machine_slept_is_as_old_as_the_sleep(monkeypatch: p
     assert parse_history(client.frames[0]) == [], (
         "older than the time kept: none of them is sent as of the last minutes"
     )
+
+
+def aged(modem: Modem, n: int, age: float) -> None:
+    """Row `n` kept as made `age` seconds ago."""
+    modem.scope_history.add(row(n), scope_clock() - age)
+
+
+def test_a_page_is_sent_only_the_rows_of_the_seconds_it_asks_for() -> None:
+    modem, feed = setup()
+    for n in range(1, 101):
+        aged(modem, n, 100 - n + 0.5)
+    client, conn = page()
+    feed.ask(conn, True, 30)
+    history = parse_history(client.frames[0])
+    assert history is not None and [r.bins[0] for r, _ in history] == list(range(71, 101)), "the last half minute"
+    assert all(age <= 30_000 for _, age in history)
+    make(modem, feed, 101)
+    assert seen(client) == list(range(71, 102)), "and every row after them"
+
+
+def test_a_page_that_asks_again_for_more_seconds_is_sent_all_of_them_and_for_as_many_or_fewer_only_what_it_lacks() -> (
+    None
+):
+    modem, feed = setup()
+    for n in range(1, 101):
+        aged(modem, n, 100 - n + 0.5)
+    client, conn = page()
+    feed.ask(conn, True, 30)
+    feed.ask(conn, True, 60)
+    assert [r.bins[0] for r, _ in parse_history(client.frames[-1]) or []] == list(range(41, 101)), (
+        "a taller picture: the rows of the whole minute, though it holds the newest"
+    )
+    make(modem, feed, 101)
+    feed.ask(conn, True, 60)
+    assert [r.bins[0] for r, _ in parse_history(client.frames[-1]) or []] == [100, 101], "as many: from its newest"
+    feed.ask(conn, True, 30)
+    assert [r.bins[0] for r, _ in parse_history(client.frames[-1]) or []] == [100, 101], "fewer: the same"
+    feed.ask(conn, True, 60)
+    assert [r.bins[0] for r, _ in parse_history(client.frames[-1]) or []] == list(range(41, 102)), (
+        "after fewer, more again: it holds only the fewer"
+    )

@@ -260,7 +260,7 @@ async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
             "radio.no_scope",
             params={"name": radio.name, "radio": radio.id},
         )
-    ctx.scopes.feed(radio.id, modem).ask(ctx.conn, True)
+    ctx.scopes.feed(radio.id, modem).ask(ctx.conn, True, cmd.seconds)
 
 
 @command(RadioLevel)

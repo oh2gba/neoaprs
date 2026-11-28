@@ -8,6 +8,7 @@ import math
 import random
 import struct
 import time
+import tracemalloc
 
 import pytest
 
@@ -259,21 +260,48 @@ def numbered(n: int) -> ScopeRow:
 
 def test_the_rows_kept_are_in_order_and_bounded_by_the_time_and_by_their_number() -> None:
     kept = ScopeHistory()
-    made = [kept.add(numbered(n), n * 0.1) for n in range(1, 1501)]
-    assert [k.seq for k in made] == list(range(1, 1501)) and kept.last == 1500
-    rows = kept.after(0, 150.0)
-    assert len(rows) == len(kept) == ms.HISTORY_ROWS == 1200, "ten rows a second for two minutes, and no more"
-    assert [k.seq for k in rows] == list(range(301, 1501)) and [k.row for k in rows] == [
-        numbered(n) for n in range(301, 1501)
+    made = [kept.add(numbered(n), n * 0.1) for n in range(1, 6501)]
+    assert [k.seq for k in made] == list(range(1, 6501)) and kept.last == 6500
+    rows = kept.after(0, 650.0)
+    assert len(rows) == len(kept) == ms.HISTORY_ROWS == 6000, "ten rows a second for ten minutes, and no more"
+    assert [k.seq for k in rows] == list(range(501, 6501)) and [k.row for k in rows] == [
+        numbered(n) for n in range(501, 6501)
     ], "the newest, oldest first"
-    assert [k.seq for k in kept.after(1497, 150.0)] == [1498, 1499, 1500], "and those newer than a row of them"
+    assert [k.seq for k in kept.after(6497, 650.0)] == [6498, 6499, 6500], "and those newer than a row of them"
     slow = ScopeHistory()
-    for n in range(1, 301):
+    for n in range(1, 1001):
         slow.add(numbered(n), n * 1.0)
-    assert [k.seq for k in slow.after(0, 300.0)] == list(range(180, 301)), (
-        "a row older than two minutes is gone though there is room"
+    assert [k.seq for k in slow.after(0, 1000.0)] == list(range(400, 1001)), (
+        "a row older than ten minutes is gone though there is room"
     )
-    assert slow.after(0, 1000.0) == [], "and none is given that has grown older since"
+    assert slow.after(0, 2000.0) == [], "and none is given that has grown older since"
+
+
+def test_the_rows_of_the_last_seconds_asked_for_are_the_newest_of_those_kept() -> None:
+    kept = ScopeHistory()
+    for n in range(1, 6001):
+        kept.add(numbered(n), n * 0.1)
+    assert [k.seq for k in kept.after(0, 600.0, within=60)] == list(range(5400, 6001)), "the last minute"
+    assert [k.seq for k in kept.after(5990, 600.0, within=60)] == list(range(5991, 6001)), (
+        "and of them those newer than a row"
+    )
+    assert len(kept.after(0, 600.0, within=3600)) == 6000, "never more than is kept"
+
+
+def test_a_full_history_of_a_radio_takes_a_bounded_few_megabytes() -> None:
+    tracemalloc.start()
+    try:
+        kept = ScopeHistory()
+        before = tracemalloc.get_traced_memory()[0]
+        for n in range(ms.HISTORY_ROWS + 500):
+            kept.add(ScopeRow(random.randbytes(ms.ROW_BINS), -40, False), n * 0.1)
+        taken = tracemalloc.get_traced_memory()[0] - before
+    finally:
+        tracemalloc.stop()
+    print(f"\nthe rows of ten minutes take {taken / 1e6:.2f} MB")
+    assert len(kept) == ms.HISTORY_ROWS and taken < ms.HISTORY_BYTES == 3_500_000, (
+        "the bound the design note states (docs/design-notes.md, neoaprs/mercuryscope.py)"
+    )
 
 
 def test_time_without_rows_is_kept_as_a_gap_and_the_rows_are_forgotten_with_their_numbers_going_on() -> None:
@@ -321,8 +349,8 @@ def test_the_frame_of_the_rows_kept_is_the_kind_the_daemons_clock_and_each_row_w
     full = ScopeHistory()
     for n in range(ms.HISTORY_ROWS):
         full.add(numbered(n), n * 0.1)
-    assert len(history_frame(full.after(0, 120.0), 120.0, wall)) == 9 + 1200 * 313 == 375_609, (
-        "a full one is about 376 KB, under the socket's limits"
+    assert len(history_frame(full.after(0, 600.0), 600.0, wall)) == 9 + 6000 * 313 == 1_878_009, (
+        "a full one is about 1.9 MB, under the socket's limits"
     )
 
 
