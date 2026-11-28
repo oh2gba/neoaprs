@@ -5,7 +5,7 @@ Mercury reports PTT, BUSY and SNR there; only `TUNE` is written. The line reconn
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from . import nodevices
 from .mercury import ControlEvent, parse_control_line, split_control_lines
@@ -29,7 +29,7 @@ class ControlLine:
         on_event: Callable[[ControlEvent], None],
         on_state: Callable[[bool, str], None],
         backoff: Backoff | None = None,
-        refuses: Callable[[], bool] = lambda: False,
+        refuses: Callable[[], bool | Awaitable[bool]] = lambda: False,
     ) -> None:
         self.host, self.port = host, port
         self._on_event, self._on_state = on_event, on_state
@@ -63,7 +63,8 @@ class ControlLine:
     async def _run(self) -> None:
         empty = 0
         while True:
-            if self._refuses():
+            refused = self._refuses()
+            if refused if isinstance(refused, bool) else await refused:
                 await asyncio.sleep(self.backoff.next_delay_sec())
                 continue
             try:

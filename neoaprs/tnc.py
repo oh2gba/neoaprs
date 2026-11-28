@@ -236,7 +236,7 @@ class Tnc(TimedSource):
         )
         if generation != self._generation:
             return None
-        if named and (modem := self._modem()) is not None and (why := modem.refuses_line()):
+        if named and (modem := self._modem()) is not None and (why := await asyncio.to_thread(modem.refuses_line)):
             raise SerialError(why)
         if named and not self.is_dummy and await asyncio.to_thread(serialprobe.incoming_bluetooth, path):
             raise NotChosenError(serialprobe.incoming_port_reason(path))

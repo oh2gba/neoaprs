@@ -152,9 +152,9 @@ class Runs:
         self._stop_run_later("mercury-keying-stop")
         self._gone(problem, reason)
 
-    def _control_refused(self) -> bool:
+    async def _control_refused(self) -> bool:
         """Asked before each connect of the control line: another program on the ports is not talked to."""
-        if not (others := self.others_on_ports()):
+        if not (others := await asyncio.to_thread(self.others_on_ports)):
             return False
         if self._control is not None:
             log.warning("Mercury's control line is not connected: %s; %s", PORTS_TAKEN, owners_words(others))

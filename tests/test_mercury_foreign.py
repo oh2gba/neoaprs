@@ -178,6 +178,25 @@ async def test_a_run_that_cannot_key_and_then_ends_by_itself_keeps_its_reason_an
         await stopped(m)
 
 
+async def test_the_look_at_the_listeners_before_each_connect_is_made_off_the_loop(tmp_path: Path) -> None:
+    """On Windows it reads two tables and a snapshot of every process: never on the daemon's loop."""
+    m = modem(tmp_path)
+    on_loop: list[bool] = []
+    look = m.others_on_ports
+
+    def watched() -> list[object]:
+        on_loop.append(threading.current_thread() is threading.main_thread())
+        return look()  # type: ignore[return-value]
+
+    m.others_on_ports = watched  # type: ignore[method-assign]
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        assert on_loop[0] is False, "the look before the control line's connect"
+    finally:
+        await stopped(m)
+
+
 # ---- another program on the modem's ports
 
 
