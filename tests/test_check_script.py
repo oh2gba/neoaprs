@@ -409,6 +409,15 @@ def test_a_stage_without_a_stand_in_fails_and_the_real_one_does_not_run(gate: Ga
 # ---- an interrupted run ----
 
 
+def as_a_shell_starts_it() -> None:
+    """The gate of a test starts with INT, TERM and HUP at their defaults and none blocked, as a shell
+    at a terminal starts it. A parent that ignores one hands that on (nohup ignores HUP, a script's
+    background job INT), and the gate then rightly goes on through it."""
+    for number in (signal.SIGINT, signal.SIGTERM, SIGHUP):
+        signal.signal(number, signal.SIG_DFL)
+    getattr(signal, "pthread_sigmask")(getattr(signal, "SIG_UNBLOCK"), [signal.SIGINT, signal.SIGTERM, SIGHUP])  # noqa: B009 (POSIX only, as this whole file: by name, for the type check of Windows)
+
+
 @pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
 def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(
     gate: Gate, sent: signal.Signals, code: int
@@ -427,6 +436,7 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        preexec_fn=as_a_shell_starts_it,
     )
     started: list[int] = []
     try:
@@ -485,6 +495,7 @@ def test_a_signal_that_comes_while_the_stages_are_being_started_ends_every_one_o
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        preexec_fn=as_a_shell_starts_it,
     )
     started: list[int] = []
     try:
@@ -530,6 +541,7 @@ def test_a_second_signal_while_the_run_finishes_changes_nothing(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        preexec_fn=as_a_shell_starts_it,
     )
     started: list[int] = []
     try:
@@ -568,6 +580,7 @@ def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> N
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        preexec_fn=as_a_shell_starts_it,
     )
     started: list[int] = []
     try:
@@ -614,6 +627,7 @@ def test_a_signal_the_parent_ignores_or_blocks_leaves_the_run_going_and_the_othe
     gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
 
     def as_the_parent_has_it() -> None:
+        as_a_shell_starts_it()
         if how == "ignored":
             signal.signal(SIGHUP, signal.SIG_IGN)
             signal.signal(signal.SIGTERM, signal.SIG_IGN)
