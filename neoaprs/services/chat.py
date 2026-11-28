@@ -171,6 +171,10 @@ class ChatRoom:
         if answer.status == 304:
             self._reached_again()
             return
+        if answer.status == 200 and _cut(answer.body):
+            # a web server may cut a file replaced at the instant it sends it: asked again at the pace
+            log.debug("the chat at %s came cut short; it is read again at the next turn", self.url)
+            return
         chat = EMPTY if answer.status == 404 else self._parsed(answer.body)
         if chat is None:
             self._unreached(answer.status)
@@ -316,3 +320,12 @@ def _json(body: bytes) -> dict[str, Any]:
     except (ValueError, RecursionError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _cut(body: bytes) -> bool:
+    """Return whether the body is no whole JSON text (a file sent cut short)."""
+    try:
+        json.loads(body)
+    except (ValueError, RecursionError):
+        return True
+    return False

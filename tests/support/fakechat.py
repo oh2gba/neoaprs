@@ -22,6 +22,8 @@ class FakeChat(LoopbackServer):
         self.version = 0  # grows with each change, for the fingerprints
         self.refuse: tuple[str, int] | None = None
         self.down = False
+        # bytes cut off the end of the file as PHP's web server sends one replaced while it was sent
+        self.cut = 0
         self.posts: list[dict[str, Any]] = []
         self.gets: list[dict[str, str]] = []
 
@@ -65,7 +67,8 @@ class FakeChat(LoopbackServer):
             not self.etag and self.modified and headers.get("if-modified-since") == said["Last-Modified"]
         ):
             return 304, b"", said
-        return 200, json.dumps(self.chat()).encode(), said
+        whole = json.dumps(self.chat()).encode()
+        return 200, whole[: len(whole) - self.cut], said
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:

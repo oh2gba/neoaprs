@@ -267,6 +267,24 @@ async def test_a_chat_file_cut_short_on_its_way_is_dropped_and_the_lines_are_kep
     assert [x.text for x in room.service.lines()] == ["kept"]
 
 
+async def test_a_chat_file_cut_on_its_way_is_asked_again_at_the_pace_and_the_chat_is_not_unreachable() -> None:
+    """A web server can cut a file replaced at the instant it sends it: that is no failure of the server."""
+    server = await chat_server()
+    server.add("OH2XYZ", "kept")
+    room = Room(server)
+    await room.service.poll()
+    pace, state = room.service.wait_sec(), room.service.state
+    server.add("OH2ABC", "new")
+    server.cut = 20
+    for _ in range(3):
+        await room.service.poll()
+    assert room.service.failures == 0 and room.service.state == state and room.service.wait_sec() <= pace * 1.5
+    assert [x.text for x in room.service.lines()] == ["kept"]
+    server.cut = 0
+    await room.service.poll()
+    assert [x.text for x in room.service.lines()] == ["kept", "new"]
+
+
 async def test_a_server_that_does_not_answer_is_said_once_in_the_log_and_asked_less_often(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
