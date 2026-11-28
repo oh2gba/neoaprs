@@ -40,6 +40,7 @@ async def test_the_ring_holds_each_line_as_the_server_got_it_with_its_time_and_t
     assert list(w.igate.sent) == [], "empty at the start"
     start = w.clock()
     heard_on(w, 3, "OH2AAA-1", b"!6010.00N/02456.00E>one")
+    await until(lambda: len(w.igate.sent) == 1)  # (kept when written)
     w.clock.advance(5)
     heard_on(w, 4, "OH2BBB-2", b"!6011.00N/02457.00E>two")
     await w.until_sent(2)
@@ -54,6 +55,8 @@ async def test_the_ring_keeps_the_newest_ones_and_no_more_than_its_bound() -> No
     w = await quiet(server)
     for n in range(SENT_KEPT + 7):
         heard_on(w, 1, "OH2AAA-1", f"!6010.00N/02456.00E>n{n}".encode())
+    await w.until_sent(SENT_KEPT + 7)
+    await until(lambda: w.igate.sent[-1].line.endswith(f">n{SENT_KEPT + 6}"))
     assert len(w.igate.sent) == SENT_KEPT
     assert w.igate.sent[0].line.endswith(">n7") and w.igate.sent[-1].line.endswith(f">n{SENT_KEPT + 6}")
 
@@ -79,6 +82,20 @@ async def test_nothing_of_the_login_or_the_server_or_a_packet_not_gated_is_ever_
     assert sum(s.radio == 2 for s in w.igate.sent) == 1
 
 
+async def test_a_line_queued_but_never_written_to_the_server_is_not_in_the_ring() -> None:
+    server = await fake_aprsis()
+    w = await quiet(server)
+    heard_on(w, 1, "OH2AAA-1", b"!6010.00N/02456.00E>lost")
+    w.igate._link._drop_session()  # the connection went before the line was written
+    heard_on(w, 1, "OH2BBB-2", b"!6011.00N/02457.00E>after")
+    await until(lambda: w.igate.state == "connected" and w.igate._link.verified)
+    heard_on(w, 1, "OH2CCC-3", b"!6012.00N/02458.00E>written")
+    await until(lambda: any(line.endswith(">written") for line in server.packets))
+    await until(lambda: len(w.igate.sent) >= 1 and w.igate.sent[-1].line.endswith(">written"))
+    assert [s.line.rsplit(">", 1)[1] for s in w.igate.sent] == ["written"]
+    assert [s.line for s in w.igate.sent] == [line for line in server.packets if not line.startswith("#")][-1:]
+
+
 async def test_a_login_the_server_refused_puts_nothing_in_the_ring() -> None:
     server = await fake_aprsis(verified=False)
     w = await quiet(server)
@@ -95,6 +112,7 @@ async def test_a_page_that_looks_is_sent_the_ring_at_once_and_each_line_after_an
     looks = IgateLooks(w.igate)
     w.igate.line_sent.connect(looks.told)
     heard_on(w, 1, "OH2AAA-1", b"!6010.00N/02456.00E>one")
+    await until(lambda: len(w.igate.sent) == 1)
     (a, ca), (_, cb), (late, cl) = page(), page(), page(held=10**9)
     looks.look(a, True)
     looks.look(late, True)
@@ -102,16 +120,19 @@ async def test_a_page_that_looks_is_sent_the_ring_at_once_and_each_line_after_an
     assert [(m["whole"], [r["line"] for r in m["lines"]]) for m in ca.sent] == [(True, [w.igate.sent[0].line])]
     assert ca.sent[0]["type"] == "igate_sent" and ca.sent[0]["lines"][0]["radio"] == 1
     heard_on(w, 2, "OH2BBB-2", b"!6011.00N/02457.00E>two")
+    await until(lambda: len(w.igate.sent) == 2)
     assert [(m["whole"], [r["line"] for r in m["lines"]]) for m in ca.sent[1:]] == [(False, [w.igate.sent[1].line])]
     assert cb.sent == [], "a page that did not ask is sent nothing"
     assert len(cl.sent) == 1, "a page that is behind is skipped"
     cl.held = 0
     heard_on(w, 2, "OH2CCC-3", b"!6012.00N/02458.00E>three")
+    await until(lambda: len(w.igate.sent) == 3)
     assert [(m["whole"], len(m["lines"])) for m in cl.sent[1:]] == [(True, 3)], "and brought up to date whole"
     assert [r["line"] for r in cl.sent[-1]["lines"]] == [s.line for s in w.igate.sent]
     looks.look(a, False)
     before = len(ca.sent)
     heard_on(w, 2, "OH2DDD-4", b"!6013.00N/02459.00E>four")
+    await until(lambda: len(w.igate.sent) == 4)
     assert len(ca.sent) == before and looks.pages() == 1, "the look ended: nothing more"
     looks.forget(late)
     assert looks.pages() == 0

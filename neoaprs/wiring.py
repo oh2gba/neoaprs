@@ -74,6 +74,7 @@ def wire(parts: Services) -> None:
     parts.digipeater.counted.connect(parts.radio_changed.emit)
     parts.aprsis.heard.connect(parts.hear_internet)
     parts.aprsis.changed.connect(parts.igate.link_changed)
+    parts.aprsis.written.connect(parts.igate.written)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)

@@ -194,7 +194,9 @@ async def test_a_host_without_an_etag_is_asked_by_last_modified_and_one_without_
     assert room.moved == [[1], [2]] and room.fresh == [["OH3ABC: new"]]
 
 
-async def test_after_a_restart_only_lines_newer_than_the_newest_seen_and_after_the_first_read_notify(tmp_path: Path) -> None:
+async def test_after_a_restart_only_lines_newer_than_the_newest_seen_and_after_the_first_read_notify(
+    tmp_path: Path,
+) -> None:
     server = await chat_server()
     server.add("OH2XYZ", "seen")
     store = await store_at(tmp_path / "neoaprs.sqlite")
@@ -202,7 +204,9 @@ async def test_after_a_restart_only_lines_newer_than_the_newest_seen_and_after_t
     server.add("OH3ABC", "while we were off")
     again = Room(server, store)
     await again.service.poll()
-    assert again.fresh == [] and len(again.service.lines()) == 2, "what the first read after a start brings is shown only"
+    assert again.fresh == [] and len(again.service.lines()) == 2, (
+        "what the first read after a start brings is shown only"
+    )
     server.add("OH3ABC", "after the start")
     await again.service.poll()
     assert again.fresh == [["OH3ABC: after the start"]]

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Literal, NamedTuple
 
 from neoaprs import TOCALL, ax25
-from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, passcode_of, range_filter
+from neoaprs.aprsis import FILTER_MOVE_KM, QUEUE_MAX, UNVERIFIED, AprsIs, passcode_of, range_filter
 from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import Config
 from neoaprs.geo import distance_km
@@ -101,6 +101,8 @@ class Igate:
         self.changed: Signal[[]] = Signal("igate.changed")
         self.line_sent: Signal[[SentLine]] = Signal("igate.line_sent")
         self.sent: deque[SentLine] = deque(maxlen=SENT_KEPT)
+        # the lines queued for the server and the radio that heard each, until the link has written them
+        self._queued: deque[tuple[RadioId | None, bytes]] = deque(maxlen=QUEUE_MAX)
         self.gated = 0
         self.dropped: Counter[str] = Counter()
         self.last_gated_at: datetime | None = None
@@ -307,10 +309,18 @@ class Igate:
         self.changed.emit()
 
     def _record(self, now: datetime, radio: RadioId | None, line: bytes) -> None:
-        """Keep the line as it went to the server and tell the pages that look."""
-        sent = SentLine(now, radio, line.decode("latin-1"))
-        self.sent.append(sent)
-        self.line_sent.emit(sent)
+        """Hold the line until the link has written it (`written`); one the link dropped is never kept."""
+        self._queued.append((radio, line))
+
+    def written(self, line: bytes) -> None:
+        """Keep a line as it went to the server and tell the pages that look."""
+        while self._queued:
+            radio, queued = self._queued.popleft()
+            if queued == line:
+                sent = SentLine(self.clock(), radio, line.decode("latin-1"))
+                self.sent.append(sent)
+                self.line_sent.emit(sent)
+                return
 
     def _wanted_to_gate(self) -> bool:
         """Whether it gates at all: Send what I hear on, with a passcode the server has not refused."""

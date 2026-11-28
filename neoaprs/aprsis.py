@@ -114,6 +114,7 @@ class AprsIs(Source):
         self.slow_dropped = 0  # queue overflows
         self.filter = ""  # empty sends nothing
         self.heard: Signal[[Packet]] = Signal("aprsis.heard")
+        self.written: Signal[[bytes]] = Signal("aprsis.written")  # a line the server was given, after the write
         self.read = 0
         self.unreadable = 0
         self._queue: deque[bytes] = deque(maxlen=queue_max)
@@ -367,3 +368,4 @@ class AprsIs(Source):
             if not line.startswith(b"#"):
                 self.stats.packets += 1
                 self.stats.last_packet = self.now()
+                self.written.emit(line)

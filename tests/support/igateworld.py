@@ -57,6 +57,7 @@ class IWorld:
         self.place = place
         self.igate = Igate(self.link, self._settings, self._position, lambda: self.place, self.clock, tick_sec=3600.0)
         self.link.changed.connect(self.igate.link_changed)
+        self.link.written.connect(self.igate.written)  # (wiring.py ties them)
         remember_stop(self.igate.stop)
 
     def _settings(self) -> Config:
