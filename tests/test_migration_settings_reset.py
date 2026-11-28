@@ -74,6 +74,7 @@ KEPT = {
     "web/port": "7777",
     "web/allowed_hosts": "radio.lan,shack",
     "messages/alert": "false",
+    "messages/chat_alert": "false",
     "messages/alert_command": "echo hi",
     "status/source": "rig",
     "status/rigctld": "127.0.0.1:4532",
