@@ -20,6 +20,7 @@ import sys
 import tomllib
 import urllib.error
 import urllib.request
+import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -250,7 +251,7 @@ class Registries:
             return latest
         try:
             return _github_releases(self._get(f"{self.github}/repos/{repo}/releases?per_page={GITHUB_PAGE}", headers))
-        except (OSError, ValueError, http.client.HTTPException):
+        except (OSError, ValueError, EOFError, zlib.error, http.client.HTTPException):
             if latest:
                 return latest
             raise
@@ -324,7 +325,7 @@ def ask(pin: Pin, registries: Registries, allow: dict[tuple[str, str], Allowance
         releases = registries.releases(pin)
     except urllib.error.HTTPError as e:
         return Verdict(pin, "not asked", False, note=f"the registry answered {e.code}")
-    except (OSError, ValueError, http.client.HTTPException) as e:
+    except (OSError, ValueError, EOFError, zlib.error, http.client.HTTPException) as e:
         return Verdict(pin, "not asked", False, note=f"the registry did not answer ({e})")
     except (AttributeError, KeyError, TypeError) as e:
         return Verdict(pin, "not asked", False, note=f"the registry's answer is not one this reads ({e!r})")

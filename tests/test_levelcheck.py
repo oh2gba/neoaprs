@@ -46,6 +46,13 @@ class Registry(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if isinstance(body, bytes):  # cut short or damaged, said to be gzip
+            self.send_response(200)
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         data = json.dumps(body).encode()
         self.send_response(200)
         if "gzip" in self.headers.get("Accept-Encoding", ""):
@@ -204,6 +211,16 @@ def test_only_being_behind_fails_never_an_answer_it_cannot_read_or_a_release_wit
     rows = {next(word for word in line.split() if ":" in word): line for line in said[1:-1]}
     assert "not one this reads" in rows["pypi:odd"] and "answered 429" in rows["pypi:limited"]
     assert "answered 403" in rows["github:a/b"] and rows["npm:undated"].endswith("the registry gave no date")
+
+
+def test_an_answer_that_is_cut_short_or_damaged_is_reported_and_passes(registries: Any) -> None:
+    packed = gzip.compress(json.dumps({"releases": {"1.1": []}}).encode())
+    Registry.routes["/pypi/cut/json"] = packed[:-8]
+    Registry.routes["/pypi/damaged/json"] = b"\x1f\x8b\x08\x00" + b"not a gzip stream at all"
+    for name in ("cut", "damaged"):
+        found = verdict(registries, pin("pypi", name, "1.0"))
+        assert (found.word, found.fails) == ("not asked", False), name
+        assert found.note.startswith("the registry did not answer"), found.note
 
 
 def test_with_no_network_it_says_so_and_passes() -> None:
