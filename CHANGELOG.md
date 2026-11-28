@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Changed:** Mercury 1.9.26, Rhizomatica's newest, is the HF modem NeoAPRS carries.
+- **Changed:** Updated the libraries and the bundled Python.
+
 ## 0.26.0
 
 - **New:** a Satellites layer on the map: the ISS and the APRS satellites, with the next pass and the Doppler.
