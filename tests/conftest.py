@@ -38,6 +38,14 @@ os.environ["NEOAPRS_ALSA_ROOT"] = "/nonexistent/neoaprs-test-asound"
 os.environ["NEOAPRS_SYS_ROOT"] = "/nonexistent/neoaprs-test-sys"
 
 
+# No test may reach this computer's sound server (neoaprs/soundserver.py runs pactl, and a modem on a
+# server device opens it): its clients are pointed at a socket that is not there. The sound rig gives
+# its own (tests/support/soundrig.py); the real modems' run (tests/realmodems) needs the runner's.
+if os.environ.get("NEOAPRS_REAL_MODEMS") != "1":
+    os.environ["PULSE_SERVER"] = "unix:/nonexistent/neoaprs-test-pulse/native"
+    os.environ["PIPEWIRE_RUNTIME_DIR"] = "/nonexistent/neoaprs-test-pipewire"
+
+
 # No test may play sound on the developer's speakers: a daemon on the Dummy HF radio plays what it
 # sends through the system's player (neoaprs/mercuryspeaker.py). The players are looked for in a
 # folder that is not there; a test of the speaker gives its own player.

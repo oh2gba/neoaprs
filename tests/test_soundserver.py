@@ -2,6 +2,9 @@
 modem's streams sit. The inputs are pactl's own JSON (tests/fixtures/pactl)."""
 
 import json
+import os
+import shutil
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -302,3 +305,12 @@ def test_a_stream_not_yet_on_any_device_is_no_fault() -> None:
         e["sink"] = 4294967295
     text = json.dumps(entries)
     assert soundserver.stream_targets(text, play, "sink") == []
+
+
+def test_no_test_reaches_this_computers_sound_server() -> None:
+    """The suite points the clients of the sound server at a socket that is not there (tests/conftest.py):
+    pactl answers nothing, in this process and in every process a test starts."""
+    assert os.environ["PULSE_SERVER"].startswith("unix:/nonexistent/")
+    assert soundserver.child_environment()["PULSE_SERVER"] == os.environ["PULSE_SERVER"]
+    if shutil.which("pactl") is not None and sys.platform.startswith("linux"):
+        assert soundserver.pactl(["list", "sinks"]) is None
