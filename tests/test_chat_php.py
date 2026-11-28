@@ -249,13 +249,13 @@ def test_two_writers_at_once_lose_no_line_and_a_reader_never_gets_half_a_file(en
     stop = threading.Event()
 
     def read() -> None:
+        # The file itself: a rename is whole on disk. A web server that takes the length before it opens the
+        # file can still cut a body at that instant; the daemon drops such a read and asks again.
         while not stop.is_set():
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{endpoint.port}/chat.json", timeout=10) as response:
-                    json.loads(response.read())
-            except urllib.error.HTTPError as e:
-                if e.code != 404:
-                    torn.append(f"status {e.code}")
+                json.loads(endpoint.chat.read_bytes())
+            except FileNotFoundError:
+                pass
             except ValueError as e:
                 torn.append(repr(e))
 

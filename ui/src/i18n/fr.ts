@@ -57,8 +57,8 @@ export const fr: Catalogue = {
   "unread.not_seen": { one: "{n} message non lu", other: "{n} messages non lus" },
   "unread.new_bulletins": { one: "{n} nouveau bulletin", other: "{n} nouveaux bulletins" },
   "unread.new_hf": {
-    one: "{n} nouvel essai ou message de la discussion",
-    other: "{n} nouveaux essais ou messages de la discussion",
+    one: "{n} nouvel essai ou ligne de discussion",
+    other: "{n} nouveaux essais ou lignes de discussion",
   },
 
   "tab.messages": "Messages",

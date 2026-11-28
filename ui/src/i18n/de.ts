@@ -57,7 +57,7 @@ export const de: Catalogue = {
 
   "unread.not_seen": { one: "{n} ungelesene Nachricht", other: "{n} ungelesene Nachrichten" },
   "unread.new_bulletins": { one: "{n} neues Bulletin", other: "{n} neue Bulletins" },
-  "unread.new_hf": { one: "{n} neuer Test oder Chat-Beitrag", other: "{n} neue Tests oder Chat-Beiträge" },
+  "unread.new_hf": { one: "{n} neuer Test oder neue Chat-Zeile", other: "{n} neue Tests oder Chat-Zeilen" },
 
   "tab.messages": "Nachrichten",
   "tab.stations": "Stationen",
