@@ -11,6 +11,7 @@ from typing import Any
 
 from neoaprs import pairsetting
 from neoaprs.bulletin import BulletinRecord
+from neoaprs.chat import Line
 from neoaprs.config import Config
 from neoaprs.callsign import normal_name
 from neoaprs.controller import Controller
@@ -27,6 +28,7 @@ from neoaprs.signal import Signal
 from neoaprs.station import Station
 from neoaprs.stationbook import carries_path
 
+from .chatwire import ChatFreshMsg, ChatLineRow
 from .hub import StateHub, Topic
 from .layerfeed import LayerLooks
 from .satellitefeed import SatelliteLooks
@@ -155,8 +157,21 @@ class Topics:
         hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
         hub.add(Topic("qru", lambda: qru_state(ctl.qruask)))
         hub.add(Topic("skeds", lambda: skeds_state(ctl.skeds)))
+        hub.add(Topic("chat", lambda: {"state": ctl.chat.state}))
+        hub.add(
+            Topic(
+                "chat_lines", lambda: {str(line.id): self._chat_row(line) for line in ctl.chat.lines()}, self._chat_line
+            )
+        )
         hub.add(Topic("general", lambda: general_state(ctl.generalask.asked(), ctl.generalask.sent_on())))
         self.connected = False
+
+    def _chat_row(self, line: Line) -> dict[str, Any]:
+        return ChatLineRow.of(line, self.ctl.chat.ours(line))
+
+    def _chat_line(self, key: str) -> dict[str, Any] | None:
+        line = self.ctl.chat.line(int(key)) if key.isdigit() else None
+        return None if line is None else self._chat_row(line)
 
     def _gps(self) -> dict[str, Any]:
         beacon = self.ctl.moving_beacon()
@@ -317,6 +332,9 @@ class Topics:
             (ctl.qruask.changed, self._qru_changed),
             (ctl.generalask.changed, self._general_changed),
             (ctl.skeds.changed, self._skeds_changed),
+            (ctl.chat.changed, self._chat_changed),
+            (ctl.chat.lines_changed, self._chat_lines_changed),
+            (ctl.chat.fresh, self._chat_fresh),
             (ctl.mapfetch.changed, self._map_changed),
             (ctl.aloha.changed, self._map_changed),
             (ctl.layers.changed, self._map_changed),
@@ -425,6 +443,18 @@ class Topics:
     def _skeds_changed(self) -> None:
         self.hub.changed("skeds")
 
+    def _chat_changed(self) -> None:
+        self.hub.changed("chat")
+
+    def _chat_lines_changed(self, ids: list[int]) -> None:
+        for ident in ids:
+            self.hub.changed("chat_lines", str(ident))
+
+    def _chat_fresh(self, lines: list[Line]) -> None:
+        """Tell every open page once, while the chat's notification is on; a page opened later is not told."""
+        if self._tell is not None and self.ctl.config.messages_chat_alert:
+            self._tell(ChatFreshMsg.of(lines))
+
     def _gps_moved(self) -> None:
         """Our row follows the GPS at once.
 
@@ -482,6 +512,8 @@ class Topics:
         self.hub.changed("igate")
         # a call the server blocked is a closed board for that call only
         self.hub.changed("skeds")
+        self.hub.changed("chat")
+        self.hub.changed("chat_lines")  # our call decides which lines are ours
         self.hub.changed("map")  # area, zoom and whether there is a position
         if moved:
             self.hub.changed("stations")  # every row has a new distance and bearing

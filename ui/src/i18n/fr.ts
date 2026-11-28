@@ -56,7 +56,10 @@ export const fr: Catalogue = {
 
   "unread.not_seen": { one: "{n} message non lu", other: "{n} messages non lus" },
   "unread.new_bulletins": { one: "{n} nouveau bulletin", other: "{n} nouveaux bulletins" },
-  "unread.new_skeds": { one: "{n} nouvel essai HF", other: "{n} nouveaux essais HF" },
+  "unread.new_hf": {
+    one: "{n} nouvel essai ou message de la discussion",
+    other: "{n} nouveaux essais ou messages de la discussion",
+  },
 
   "tab.messages": "Messages",
   "tab.stations": "Stations",
@@ -149,6 +152,9 @@ export const fr: Catalogue = {
   "error.sked.past": "cet essai est déjà terminé",
   "error.sked.far": "cet essai commence dans plus de 30 jours",
   "error.sked.unreachable": "le tableau des essais HF n'a pas pu être joint à l'instant ; réessayez plus tard",
+  "error.chat.rate": "trop de lignes ont été envoyées d'ici à l'instant ; réessayez dans une minute",
+  "error.chat.closed": "la discussion n'accepte aucune ligne en ce moment",
+  "error.chat.unreachable": "la discussion n'a pas pu être jointe à l'instant ; réessayez plus tard",
   "error.radio.busy": "une recherche de la radio est déjà en cours",
   "error.radio.last_enabled": "au moins une radio reste activée : activez d'abord une autre radio",
   "error.radio.name_form":
@@ -625,6 +631,16 @@ export const fr: Catalogue = {
   "skeds.dial": "Fréquence affichée",
   "skeds.note": "Note",
   "skeds.post": "Publier sur neo.oh2gba.eu",
+  "skeds.chat_title": "Discussion",
+  "skeds.chat_label": "Une ligne pour la discussion",
+  "skeds.chat_send": "Envoyer",
+  "skeds.chat_empty": "Rien n'a encore été dit.",
+  "skeds.chat_closed": "La discussion est fermée.",
+  "skeds.chat_popup": "Discussion des essais HF : {call}",
+  "skeds.chat_popup_more": {
+    one: "Discussion des essais HF : {n} nouvelle ligne, de {call}",
+    other: "Discussion des essais HF : {n} nouvelles lignes, la dernière de {call}",
+  },
 
   // objects
   "schedule.sent": { "=0": "pas encore envoyé", "=1": "envoyé une fois", other: "envoyé {n} fois" },
@@ -1685,6 +1701,9 @@ export const fr: Catalogue = {
   "settings.alert.tip1": "Avec « Me prévenir » activé, la commande est lancée quand un message arrive.",
   "settings.alert_command.name": "Commande d'alerte",
   "settings.alert_command.label": "Commande",
+  "settings.chat_alert.name": "Discussion des essais HF",
+  "settings.chat_alert.tip1":
+    "Une nouvelle ligne d'une autre station dans la discussion des essais HF prévient comme un message, une fois pour des lignes arrivées ensemble.",
   "settings.alert_command.tip1":
     "Lancé pour chaque nouveau message et alerte de station ; NEOAPRS_TITLE et NEOAPRS_TEXT contiennent le titre et le texte.",
   "settings.alert_test": "Test",

@@ -7,14 +7,16 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 # The page-view endpoint, at the path the page's script posts to. The file behind it, version.php,
 # support/send.php (Send logs of the program: the support file, stored in private/) and
 # api/v1/skeds.php (the sked board: each sked stored in private/, the board written to skeds.json and
-# its past tests to skeds-past.json in this folder, which Apache serves as it serves frequencies.json)
-# and api/v1/satellites.php (the map's satellites: its list and the elements it downloads in
+# its past tests to skeds-past.json in this folder, which Apache serves as it serves frequencies.json),
+# api/v1/chat.php (the chat of the HF tests tab: its lines in private/, the chat written to chat.json
+# in this folder, served the same way with its ETag) and api/v1/satellites.php (the map's satellites: its list and the elements it downloads in
 # private/) are the only PHP on this site.
 RewriteRule ^api/v1/view$ /api/v1/view.php [L]
 
 # The stored support files and skeds are in private/ (and refused there by its own .htaccess too),
 # and PHP's settings for the support endpoint in .user.ini; neither is ever served. Nor is a board
-# half written (skeds.json.part, renamed over skeds.json once it is whole; skeds-past.json.part too).
+# half written (skeds.json.part, renamed over skeds.json once it is whole; skeds-past.json.part and
+# chat.json.part too). What the endpoints share, private/endpoint.php, is required by them, never served.
 RewriteRule ^private(/|$) - [F,L]
 <FilesMatch "^\.user\.ini$">
   Require all denied

@@ -279,6 +279,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "「通知」をオンにすると、メッセージが届いたときにコマンドを実行します。",
   "settings.alert_command.name": "アラートのコマンド",
   "settings.alert_command.label": "コマンド",
+  "settings.chat_alert.name": "HFテストのチャット",
+  "settings.chat_alert.tip1":
+    "HFテストのチャットに他局の新しい行が来ると、メッセージと同じように知らせます。一緒に来た行は一度だけです。",
   "settings.alert_command.tip1":
     "新着メッセージと局の通知ごとに実行されます。NEOAPRS_TITLE と NEOAPRS_TEXT にタイトルと本文が入ります。",
   "settings.alert_test": "テスト",

@@ -51,7 +51,7 @@ export const shell = {
 
   "unread.not_seen": { one: "{n} message not seen yet", other: "{n} messages not seen yet" },
   "unread.new_bulletins": { one: "{n} new bulletin", other: "{n} new bulletins" },
-  "unread.new_skeds": { one: "{n} new HF test", other: "{n} new HF tests" },
+  "unread.new_hf": { one: "{n} new test or chat line", other: "{n} new tests or chat lines" },
 
   "tab.messages": "Messages",
   "tab.stations": "Stations",

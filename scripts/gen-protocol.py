@@ -122,6 +122,7 @@ from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
 from neoaprs.crossrule import slow_channel  # noqa: E402
 from neoaprs.pairsetting import PairSpec, _fill as fill_pairs  # noqa: E402
 from neoaprs.services.passlimits import SLOW_PASS_MAX, SLOW_PASS_WINDOW_SEC  # noqa: E402
+from neoaprs.chat import MAX_TEXT as CHAT_MAX_TEXT, clean_text  # noqa: E402
 from neoaprs.skeds import (  # noqa: E402
     KEEP_PAST,
     MAX_PAST_ROWS,
@@ -480,6 +481,7 @@ def limits() -> dict[str, Any]:
         },
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "pass": {"slowMax": SLOW_PASS_MAX, "slowWindowMin": round(SLOW_PASS_WINDOW_SEC / 60)},
+        "chat": {"textMax": CHAT_MAX_TEXT},
         "skedPast": {
             "keepDays": KEEP_PAST.days,
             "maxTests": MAX_PAST_TESTS,
@@ -1247,6 +1249,33 @@ SKED_NOTES = [
     "\u20ac",
     "\U0001f4fb",
 ]
+# A line of the chat keeps symbols (the note does not) and loses the control, format, private and
+# unassigned characters; an empty one is refused.
+CHAT_TEXTS = [
+    "QRV on 7.0541 USB",
+    "  lead and trail  ",
+    "a\tb\n c\r\nd",
+    "a  b   c",
+    "5\u00b0 up \u20ac \U0001f642 \U0001f4fb x",
+    "caf\u00e9 \u3042\u3044 \u2460 \u2713",
+    "a\u200bb\u2060c\ufeffd",
+    "\u202eevil\u202c",
+    "a\u00a0b\u2028c\u3000d\x85e",
+    "a\x00b\x07c\x1bd\x7fe",
+    "a\ue000b",
+    "<b>&amp;</b> <script>alert(1)</script>",
+    "\"quoted\" and \\back\\slash",
+    "",
+    "   ",
+    "\u200b\u2060",
+    "\x00\x01",
+    "x" * CHAT_MAX_TEXT,
+    "x" * (CHAT_MAX_TEXT + 1),
+    "x" * (CHAT_MAX_TEXT - 1) + " y",
+    "\u00e9" * (CHAT_MAX_TEXT + 20),
+    "\U0001f642" * (CHAT_MAX_TEXT + 1),
+    "e\u0301\u0301\u0301",
+]
 STATUS_TEMPLATES = [
     "QRV {freq} {mode}",
     "",
@@ -1626,6 +1655,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "sked_times": [{"input": t, "ok": when(t) is not None} for t in SKED_TIMES],
         "sked_notes": [{"input": t, "note": clean_note(t), "plain": plain_note(t)} for t in SKED_NOTES],
         "sked_past": [_sked_past_vector(rows) for rows in SKED_PAST],
+        "chat_texts": [{"input": t, "text": clean_text(t)} for t in CHAT_TEXTS],
         "pair_calls": [_pair_call_vector(*case) for case in PAIR_CALLS],
     }
 

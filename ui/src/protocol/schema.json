@@ -560,6 +560,126 @@
       "title": "ChannelHours",
       "type": "object"
     },
+    "ChatFreshMsg": {
+      "additionalProperties": false,
+      "description": "Lines of others came into the chat that were not seen before (newer than the newest this installation had seen, a restart too): told to every page that is open, once for the lines of one reading, and only while `messages/chat_alert` is on. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says).",
+      "properties": {
+        "type": {
+          "const": "chat_fresh",
+          "type": "string"
+        },
+        "count": {
+          "description": "how many lines came",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "id": {
+          "description": "the newest of them",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "call": {
+          "description": "who said the newest",
+          "type": "string"
+        },
+        "text": {
+          "description": "what the newest says",
+          "maxLength": 200,
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "count",
+        "id",
+        "call",
+        "text"
+      ],
+      "title": "ChatFreshMessage",
+      "type": "object"
+    },
+    "ChatLineRow": {
+      "additionalProperties": false,
+      "description": "A line of the chat, checked again by the daemon: one line of text of at most 200 characters, without control or invisible characters, never empty. The page shows it as text, never as markup.",
+      "properties": {
+        "id": {
+          "description": "the server's id of the line, which grows by one with each line said",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "at": {
+          "description": "when the server took it, by the server's clock",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "call": {
+          "description": "the call that said it, upper case without an SSID of 0 (`OH2GBA`, `OH2GBA-7`)",
+          "type": "string"
+        },
+        "text": {
+          "description": "what was said",
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "ours": {
+          "description": "this installation said it, or it is under our call: it never notifies",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "at",
+        "call",
+        "text",
+        "ours"
+      ],
+      "title": "ChatLineRow",
+      "type": "object"
+    },
+    "ChatSay": {
+      "additionalProperties": false,
+      "description": "Says a line in the chat of the HF tests tab: the daemon posts it to the project's server with our call (the setting `station/call`, as the board has it) and this installation's token, over the Internet and never by radio. Cleaned as the server cleans it (white space\nbecomes single spaces, control and invisible characters go, at most 200 characters). Answered by the topic `chat_lines`, which then has it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter), too many lines were said from here\nin the last minute (`chat.rate`), the chat takes no lines now (`chat.closed`; the topic `chat` then says `closed`), or the project's server could not be reached or would not take it (`chat.unreachable`).",
+      "properties": {
+        "cmd": {
+          "const": "chat_say",
+          "type": "string"
+        },
+        "text": {
+          "description": "the line; not empty once cleaned",
+          "maxLength": 800,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "text"
+      ],
+      "title": "ChatSayCommand",
+      "type": "object"
+    },
+    "ChatState": {
+      "additionalProperties": false,
+      "description": "Where the chat stands. The value of the topic `chat`, told whole as it changes.",
+      "properties": {
+        "state": {
+          "description": "`ok`: the chat was read (or has not been tried yet), and a line may be said. `offline`: the project's server could not be read; `chat_lines` are the last ones known. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or said, `chat_lines` is empty. `closed`: the chat takes no lines now (closed by the project, or for this call); the lines are still shown",
+          "enum": [
+            "ok",
+            "offline",
+            "off",
+            "closed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "ChatState",
+      "type": "object"
+    },
     "CheckUpdate": {
       "additionalProperties": false,
       "description": "Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked.",
@@ -9220,6 +9340,17 @@
           "$ref": "#/$defs/SkedsState",
           "description": "the sked board (the page calls it HF tests): when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes"
         },
+        "chat": {
+          "$ref": "#/$defs/ChatState",
+          "description": "the chat of the HF tests tab, as the project's server keeps it: whether it can be read and takes lines; told whole as it changes"
+        },
+        "chat_lines": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ChatLineRow"
+          },
+          "description": "the lines of the chat by id (as text), the newest 100 the server keeps, all of them sent with the first `state`: a line read or said is a `set` of its row, one the server no longer has a `del`. Read every 15 seconds while the daemon runs",
+          "type": "object"
+        },
         "general": {
           "$ref": "#/$defs/GeneralState",
           "description": "asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes"
@@ -9242,6 +9373,8 @@
         "igate",
         "qru",
         "skeds",
+        "chat",
+        "chat_lines",
         "general"
       ],
       "title": "TopicValues",
@@ -9738,6 +9871,7 @@
           "bulletin_delete": "#/$defs/BulletinDelete",
           "bulletin_post": "#/$defs/BulletinPost",
           "bulletin_unpost": "#/$defs/BulletinUnpost",
+          "chat_say": "#/$defs/ChatSay",
           "clear_station_path": "#/$defs/ClearStationPath",
           "conversation_delete": "#/$defs/ConversationDelete",
           "find_radio": "#/$defs/FindRadio",
@@ -9959,6 +10093,9 @@
           "$ref": "#/$defs/SkedDelete"
         },
         {
+          "$ref": "#/$defs/ChatSay"
+        },
+        {
           "$ref": "#/$defs/PageError"
         },
         {
@@ -10004,6 +10141,7 @@
       "discriminator": {
         "mapping": {
           "alert_result": "#/$defs/AlertResultMsg",
+          "chat_fresh": "#/$defs/ChatFreshMsg",
           "error": "#/$defs/Error",
           "hello": "#/$defs/Hello",
           "layer_things": "#/$defs/LayerThingsMsg",
@@ -10091,6 +10229,9 @@
         },
         {
           "$ref": "#/$defs/StationAlertMsg"
+        },
+        {
+          "$ref": "#/$defs/ChatFreshMsg"
         },
         {
           "$ref": "#/$defs/RadioAddedMsg"

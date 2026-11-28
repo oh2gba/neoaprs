@@ -47,6 +47,7 @@ const {
   mail,
   board,
   sked,
+  chat,
   objects,
   picks,
   layout,
@@ -151,7 +152,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           messages: talk.unread.value,
           email: mail.unread.value,
           bulletins: board.fresh.value,
-          skeds: sked.fresh.value,
+          skeds: sked.fresh.value + chat.unread.value,
         }"
         @update:view="layout.view.value = $event"
       >

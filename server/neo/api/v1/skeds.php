@@ -51,16 +51,14 @@
  *
  * Moderation (server/skeds.sh, over SFTP): a file `closed` in the folder makes every add answer `closed`
  * and the board say "closed": true; `blocked.txt` holds a call per line whose adds answer `closed` and
- * whose skeds, past ones too, are removed. Removing a file there and posting a refresh makes the board
- * again. */
+ * whose skeds, past ones too, are removed (the chat, api/v1/chat.php, reads the same list). Removing a
+ * file there and posting a refresh makes the board again. What the endpoints share is in
+ * private/endpoint.php. */
 declare(strict_types=1);
 
-ini_set('display_errors', '0');
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
-header('X-Content-Type-Options: nosniff');
+require __DIR__ . '/../../private/endpoint.php';
+neo_headers();
 
-const SITE_ROOT        = __DIR__ . '/../..';  // neo/ on the host: this file is neo/api/v1/skeds.php
 const BOARD            = SITE_ROOT . '/skeds.json';
 const PAST             = SITE_ROOT . '/skeds-past.json';
 const STORE            = SITE_ROOT . '/private/skeds';
@@ -80,106 +78,18 @@ const RATE_IN_ALL      = 60;
 const RATE_WINDOW_SEC  = 3600;
 const RATE_REFRESH     = 60;      // refreshes an hour from one address, counted apart from the adds and never in all
 const CLEAN_EVERY_SEC  = 600;     // the removal of old, surplus and blocked files, at most this often
-const LOG_MAX_BYTES    = 256 * 1024;  // log cap: each application logs under its own private/logs/, each file at most 256 KB
 const TIME_FORM        = '/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/';
 const DIAL_FORM        = '/\A\d{1,2}\.\d{3,4} MHz (USB|LSB)\z/';  // as neoaprs/versions.py reads a dial and the HF box shows it
-const CALL_FORM        = '/\A(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?\z/';  // as neoaprs/callsign.py checks our own call: an amateur call with its SSID
-const PLACEHOLDERS     = ['N0CALL', 'NOCALL', 'MYCALL'];
 const ID_FORM          = '/\A[0-9a-f]{12}\z/';
-const TOKEN_FORM       = '/\A[0-9a-f]{32}\z/';
-
-/** Answers the JSON and ends. */
-function skeds_answer(int $status, array $body, array $headers = []): never
-{
-    http_response_code($status);
-    foreach ($headers as $line) header($line);
-    echo json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE), "\n";
-    exit;
-}
-
-function skeds_refuse(int $status, string $reason, array $headers = []): never
-{
-    skeds_answer($status, ['ok' => false, 'reason' => $reason], $headers);
-}
-
-/**
- * The folder of the stored skeds, with its own .htaccess (private/ is refused by its own and the
- * site's rule already).
- */
-function skeds_store(): string
-{
-    $dir = STORE;
-    if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) skeds_refuse(500, 'storage');
-    if (!is_file("$dir/.htaccess")) @file_put_contents("$dir/.htaccess", "Require all denied\n");
-    return $dir;
-}
-
-/**
- * A line in private/logs/skeds.log; the older half goes past 256 KB. No address, token or note is
- * written.
- */
-function skeds_log(string $line): void
-{
-    $folder = SITE_ROOT . '/private/logs';
-    if (!is_dir($folder) && !@mkdir($folder, 0700, true) && !is_dir($folder)) return;
-    $path = "$folder/skeds.log";
-    if (is_file($path) && filesize($path) > LOG_MAX_BYTES) @file_put_contents($path, substr((string) file_get_contents($path), (int) (LOG_MAX_BYTES / 2)), LOCK_EX);
-    @file_put_contents($path, gmdate('Y-m-d\TH:i:s\Z') . "  $line\n", FILE_APPEND | LOCK_EX);
-}
-
-/**
- * The address as it is hashed: an IPv6 address by its first 64 bits (the rest is the household's to
- * choose).
- */
-function skeds_address(): string
-{
-    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-    $raw = @inet_pton($ip);
-    if ($raw === false) return $ip;
-    return strlen($raw) === 16 ? substr($raw, 0, 8) : $raw;
-}
+const NOTE_KEPT        = '\x{0020}-\x{007E}\p{L}\p{M}\p{N}\p{P}';  // what a note keeps: printable ASCII, letters, marks, digits, punctuation
 
 /**
  * Count this request against the address and the whole in `file`; false when either has used its
- * hour's share. Only hashes are kept.
+ * hour's share.
  */
 function skeds_allowed(string $dir, string $address, int $now, string $file = 'rate.json', int $per = RATE_PER_ADDRESS, int $inAll = RATE_IN_ALL): bool
 {
-    $saltFile = "$dir/salt";
-    if (!is_file($saltFile)) @file_put_contents($saltFile, bin2hex(random_bytes(16)), LOCK_EX);
-    $key = substr(hash('sha256', trim((string) @file_get_contents($saltFile)) . '|' . $address), 0, 16);
-    $h = @fopen("$dir/$file", 'c+');
-    if ($h === false) skeds_refuse(500, 'storage');
-    flock($h, LOCK_EX);
-    $seen = json_decode((string) stream_get_contents($h), true);
-    $seen = is_array($seen) ? $seen : [];
-    $kept = [];
-    $all = 0;
-    foreach ($seen as $k => $times) {
-        if (!is_array($times)) continue;
-        $times = array_values(array_filter($times, fn($t) => is_int($t) && $t > $now - RATE_WINDOW_SEC));
-        if ($times) { $kept[$k] = $times; $all += count($times); }
-    }
-    $mine = count($kept[$key] ?? []);
-    $ok = $mine < $per && $all < $inAll;
-    if ($ok) $kept[$key][] = $now;
-    ftruncate($h, 0);
-    rewind($h);
-    fwrite($h, json_encode($kept));
-    flock($h, LOCK_UN);
-    fclose($h);
-    return $ok;
-}
-
-/**
- * The one lock every change of the folder and the board is made under; released when the request
- * ends.
- */
-function skeds_lock(string $dir): mixed
-{
-    $h = @fopen("$dir/lock", 'c');
-    if ($h === false || !flock($h, LOCK_EX)) skeds_refuse(500, 'storage');
-    return $h;
+    return neo_allowed($dir, $address, $now, $file, $per, $inAll, RATE_WINDOW_SEC);
 }
 
 /**
@@ -193,12 +103,6 @@ function skeds_id(mixed $value): ?string
     return is_string($value) && preg_match(ID_FORM, $value) ? $value : null;
 }
 
-/** The hash of a token (32 lowercase hex digits) as it is kept with a sked, else null. */
-function skeds_token_hash(mixed $value): ?string
-{
-    return is_string($value) && preg_match(TOKEN_FORM, $value) ? hash('sha256', $value) : null;
-}
-
 /**
  * The instant of a time of the form 2026-11-14T18:00:00Z, else null (a day or hour that does not
  * exist is no time).
@@ -210,59 +114,16 @@ function skeds_time(mixed $value): ?int
     return $at !== false && $at->format('Y-m-d\TH:i:s\Z') === $value ? $at->getTimestamp() : null;
 }
 
-function skeds_iso(int $at): string
-{
-    return gmdate('Y-m-d\TH:i:s\Z', $at);
-}
-
-/** The call in its normal form (upper case, no SSID of 0) when it is an amateur call, else null. */
-function skeds_call(mixed $value): ?string
-{
-    if (!is_string($value)) return null;
-    $call = strtoupper(trim($value));
-    if (!preg_match(CALL_FORM, $call)) return null;
-    if (str_ends_with($call, '-0')) $call = substr($call, 0, -2);
-    return in_array(skeds_base($call), PLACEHOLDERS, true) ? null : $call;
-}
-
 function skeds_dial(mixed $value): ?string
 {
     return is_string($value) && preg_match(DIAL_FORM, $value) ? $value : null;
 }
 
-/** The note: one line of letters, marks, digits, punctuation, printable ASCII and plain spaces;
- * every other character is removed, runs of spaces and line breaks become one space, cut to 80
- * characters. Null when not UTF-8 text. */
+/** The note: one line of letters, marks, digits, punctuation, printable ASCII and plain spaces (`neo_line`), at
+ * most 80 characters; none is empty. Null when not UTF-8 text. */
 function skeds_note(mixed $value): ?string
 {
-    if ($value === null) return '';
-    if (!is_string($value) || !preg_match('//u', $value)) return null;
-    $spaced = (string) preg_replace('/[\x{0009}-\x{000D}\x{0020}\x{0085}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}]+/u', ' ', $value);
-    $kept = (string) preg_replace('/[^\x{0020}-\x{007E}\p{L}\p{M}\p{N}\p{P}]/u', '', $spaced);
-    $kept = trim((string) preg_replace('/ {2,}/', ' ', $kept));
-    $chars = preg_split('//u', $kept, MAX_NOTE + 1, PREG_SPLIT_NO_EMPTY);
-    return trim(implode('', array_slice($chars === false ? [] : $chars, 0, MAX_NOTE)));
-}
-
-/** The calls whose adds are refused (blocked.txt of the folder, one on each line). */
-function skeds_blocked(string $dir): array
-{
-    $lines = @file("$dir/blocked.txt", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    return $lines === false ? [] : array_values(array_filter(array_map(fn($l) => strtoupper(trim((string) $l)), $lines), fn($l) => $l !== '' && $l[0] !== '#'));
-}
-
-/**
- * The call without its SSID: the limit of skeds under one call and a blocked call hold for every
- * SSID.
- */
-function skeds_base(string $call): string
-{
-    return explode('-', $call)[0];
-}
-
-function skeds_is_blocked(string $call, array $blocked): bool
-{
-    return in_array($call, $blocked, true) || in_array(skeds_base($call), $blocked, true);
+    return $value === null ? '' : neo_line($value, MAX_NOTE, NOTE_KEPT);
 }
 
 /**
@@ -285,7 +146,7 @@ function skeds_clean_due(string $dir, int $now): bool
 function skeds_stored(string $dir, int $now): array
 {
     $clean = skeds_clean_due($dir, $now);
-    $blocked = skeds_blocked($dir);
+    $blocked = neo_blocked();
     $found = [];
     foreach ((array) @scandir($dir) as $name) {
         if (!is_string($name) || !preg_match('/^([0-9a-f]{12})\.json$/', $name, $m)) continue;
@@ -293,9 +154,9 @@ function skeds_stored(string $dir, int $now): array
         $row = json_decode((string) @file_get_contents("$dir/$name"), true);
         $from = is_array($row) ? skeds_time($row['from'] ?? null) : null;
         $to = is_array($row) ? skeds_time($row['to'] ?? null) : null;
-        $call = is_array($row) ? skeds_call($row['call'] ?? null) : null;
+        $call = is_array($row) ? neo_call($row['call'] ?? null) : null;
         $good = $from !== null && $to !== null && $from < $to && $call !== null && ($row['id'] ?? null) === $id && skeds_dial($row['dial'] ?? null) !== null && is_string($row['note'] ?? '');
-        if (!$good || $to <= $now - KEEP_PAST_SEC || skeds_is_blocked($call, $blocked)) {
+        if (!$good || $to <= $now - KEEP_PAST_SEC || neo_is_blocked($call, $blocked)) {
             if ($clean) @unlink("$dir/$name");
             continue;
         }
@@ -356,28 +217,17 @@ function skeds_lists(string $dir, int $now): array
 {
     $stored = skeds_stored($dir, $now);
     return [
-        ['v' => 1, 'written' => skeds_iso($now), 'closed' => is_file("$dir/closed"), 'skeds' => skeds_rows($stored, $now)],
-        ['v' => 1, 'written' => skeds_iso($now), 'past' => skeds_past_rows($stored, $now)],
+        ['v' => 1, 'written' => neo_iso($now), 'closed' => is_file("$dir/closed"), 'skeds' => skeds_rows($stored, $now)],
+        ['v' => 1, 'written' => neo_iso($now), 'past' => skeds_past_rows($stored, $now)],
     ];
-}
-
-/** Writes one of the served files (a .part, then renamed). */
-function skeds_publish(string $path, array $value): void
-{
-    $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
-    $part = $path . '.part';
-    if ($json === false || @file_put_contents($part, $json . "\n") === false || !@rename($part, $path)) {
-        @unlink($part);
-        skeds_refuse(500, 'storage');
-    }
 }
 
 /** Writes the board and the past tests from the stored skeds; returns both. Under the lock only. */
 function skeds_write_board(string $dir, int $now): array
 {
     [$board, $past] = skeds_lists($dir, $now);
-    skeds_publish(BOARD, $board);
-    skeds_publish(PAST, $past);
+    neo_publish(BOARD, $board);
+    neo_publish(PAST, $past);
     return [$board, $past];
 }
 
@@ -388,7 +238,7 @@ function skeds_write_board(string $dir, int $now): array
 function skeds_done(array $in, array $head, array $board, array $past, mixed $lock): never
 {
     flock($lock, LOCK_UN);
-    skeds_answer(200, $head + ['board' => $board] + (($in['past'] ?? null) === true ? ['past' => $past] : []));
+    neo_answer(200, $head + ['board' => $board] + (($in['past'] ?? null) === true ? ['past' => $past] : []));
 }
 
 /** Writes one sked's file (a .part, then renamed). */
@@ -398,7 +248,7 @@ function skeds_keep(string $dir, string $id, array $row): void
     $part = "$dir/$id.json.part";
     if ($json === false || @file_put_contents($part, $json . "\n") === false || !@rename($part, "$dir/$id.json")) {
         @unlink($part);
-        skeds_refuse(500, 'storage');
+        neo_refuse(500, 'storage');
     }
     @chmod("$dir/$id.json", 0600);
 }
@@ -413,25 +263,25 @@ function skeds_new_id(array $stored): string
 
 function skeds_add(string $dir, array $in, int $now): never
 {
-    if (is_file("$dir/closed")) skeds_refuse(403, 'closed');
-    $hash = skeds_token_hash($in['token'] ?? null);
-    $call = skeds_call($in['call'] ?? null);
+    if (is_file("$dir/closed")) neo_refuse(403, 'closed');
+    $hash = neo_token_hash($in['token'] ?? null);
+    $call = neo_call($in['call'] ?? null);
     $from = skeds_time($in['from'] ?? null);
     $to = skeds_time($in['to'] ?? null);
     $dial = skeds_dial($in['dial'] ?? null);
     $note = skeds_note($in['note'] ?? null);
-    if ($hash === null || $call === null || $from === null || $to === null || $dial === null || $note === null || $to <= $from) skeds_refuse(400, 'bad_request');
-    if (skeds_is_blocked($call, skeds_blocked($dir))) skeds_refuse(403, 'closed');
-    if ($to <= $now) skeds_refuse(422, 'past');
-    if ($to - $from > MAX_LENGTH_SEC) skeds_refuse(422, 'too_long');
-    if ($from > $now + MAX_AHEAD_SEC) skeds_refuse(422, 'too_far');
-    if (!skeds_allowed($dir, skeds_address(), $now)) skeds_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
+    if ($hash === null || $call === null || $from === null || $to === null || $dial === null || $note === null || $to <= $from) neo_refuse(400, 'bad_request');
+    if (neo_is_blocked($call, neo_blocked())) neo_refuse(403, 'closed');
+    if ($to <= $now) neo_refuse(422, 'past');
+    if ($to - $from > MAX_LENGTH_SEC) neo_refuse(422, 'too_long');
+    if ($from > $now + MAX_AHEAD_SEC) neo_refuse(422, 'too_far');
+    if (!skeds_allowed($dir, neo_address(), $now)) neo_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
 
-    $lock = skeds_lock($dir);
+    $lock = neo_lock($dir);
     $stored = skeds_stored($dir, $now);
     $coming = skeds_coming($stored, $now);
-    $fromIso = skeds_iso($from);
-    $toIso = skeds_iso($to);
+    $fromIso = neo_iso($from);
+    $toIso = neo_iso($to);
     $mine = 0;
     $ofCall = 0;
     foreach ($coming as $id => $row) {
@@ -442,11 +292,11 @@ function skeds_add(string $dir, array $in, int $now): never
             }
             $mine++;
         }
-        if (skeds_base($row['call']) === skeds_base($call)) $ofCall++;
+        if (neo_base($row['call']) === neo_base($call)) $ofCall++;
     }
-    if ($mine >= MAX_PER_TOKEN || $ofCall >= MAX_PER_CALL || count($coming) >= MAX_IN_ALL) skeds_refuse(409, 'full');
+    if ($mine >= MAX_PER_TOKEN || $ofCall >= MAX_PER_CALL || count($coming) >= MAX_IN_ALL) neo_refuse(409, 'full');
     $id = skeds_new_id($stored);
-    skeds_keep($dir, $id, ['id' => $id, 'call' => $call, 'from' => $fromIso, 'to' => $toIso, 'dial' => $dial, 'note' => $note, 'token' => $hash, 'posted' => skeds_iso($now)]);
+    skeds_keep($dir, $id, ['id' => $id, 'call' => $call, 'from' => $fromIso, 'to' => $toIso, 'dial' => $dial, 'note' => $note, 'token' => $hash, 'posted' => neo_iso($now)]);
     [$board, $past] = skeds_write_board($dir, $now);
     skeds_done($in, ['ok' => true, 'id' => $id], $board, $past, $lock);
 }
@@ -454,23 +304,23 @@ function skeds_add(string $dir, array $in, int $now): never
 /** A sked of the token's: gone when it has not begun, else ended now and kept as a past test. */
 function skeds_remove(string $dir, array $in, int $now): never
 {
-    $hash = skeds_token_hash($in['token'] ?? null);
+    $hash = neo_token_hash($in['token'] ?? null);
     $id = skeds_id($in['id'] ?? null);
-    if ($hash === null || $id === null) skeds_refuse(400, 'bad_request');
-    $lock = skeds_lock($dir);
+    if ($hash === null || $id === null) neo_refuse(400, 'bad_request');
+    $lock = neo_lock($dir);
     $coming = skeds_coming(skeds_stored($dir, $now), $now);
     $mine = isset($coming[$id]) && hash_equals((string) ($coming[$id]['token'] ?? ''), $hash);
     if (!$mine) {
         flock($lock, LOCK_UN);  // a wrong token or an id that is no longer on the board is counted; the right token is not
-        if (!skeds_allowed($dir, skeds_address(), $now)) skeds_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
-        if (isset($coming[$id])) skeds_refuse(403, 'not_yours');
-        $lock = skeds_lock($dir);
+        if (!skeds_allowed($dir, neo_address(), $now)) neo_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
+        if (isset($coming[$id])) neo_refuse(403, 'not_yours');
+        $lock = neo_lock($dir);
     } elseif ($coming[$id]['at'] < $now) {
         $row = $coming[$id];
         unset($row['at'], $row['end']);
-        skeds_keep($dir, $id, ['to' => skeds_iso($now)] + $row);
+        skeds_keep($dir, $id, ['to' => neo_iso($now)] + $row);
     } elseif (!@unlink("$dir/$id.json")) {
-        skeds_refuse(500, 'storage');
+        neo_refuse(500, 'storage');
     }
     [$board, $past] = skeds_write_board($dir, $now);
     skeds_done($in, ['ok' => true], $board, $past, $lock);
@@ -491,41 +341,33 @@ function skeds_serves(string $path, array $value): bool
  */
 function skeds_refresh(string $dir, array $in, int $now): never
 {
-    if (!skeds_allowed($dir, skeds_address(), $now, 'refresh.json', RATE_REFRESH, PHP_INT_MAX)) {
-        skeds_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
+    if (!skeds_allowed($dir, neo_address(), $now, 'refresh.json', RATE_REFRESH, PHP_INT_MAX)) {
+        neo_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
     }
-    $lock = skeds_lock($dir);
+    $lock = neo_lock($dir);
     [$board, $past] = skeds_lists($dir, $now);
     if (skeds_serves(BOARD, $board)) $board = json_decode((string) file_get_contents(BOARD), true);
-    else skeds_publish(BOARD, $board);
+    else neo_publish(BOARD, $board);
     if (skeds_serves(PAST, $past)) $past = json_decode((string) file_get_contents(PAST), true);
-    else skeds_publish(PAST, $past);
+    else neo_publish(PAST, $past);
     skeds_done($in, ['ok' => true], $board, $past, $lock);
 }
 
 function skeds_receive(): never
 {
-    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') skeds_refuse(405, 'method', ['Allow: POST']);
-    if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > MAX_BODY) skeds_refuse(413, 'too_large');
-    $type = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? ''))[0]));
-    if ($type !== 'application/json') skeds_refuse(415, 'bad_request');
-    $raw = (string) @file_get_contents('php://input', false, null, 0, MAX_BODY + 1);
-    if (strlen($raw) > MAX_BODY) skeds_refuse(413, 'too_large');
-    $in = json_decode($raw, true, 4);
-    if (!is_array($in) || array_is_list($in)) skeds_refuse(400, 'bad_request');
-
+    $in = neo_request(MAX_BODY);
     $now = time();
-    $dir = skeds_store();
+    $dir = neo_folder(STORE);
     $action = $in['action'] ?? null;
     if ($action === 'remove') skeds_remove($dir, $in, $now);
     if ($action === 'refresh') skeds_refresh($dir, $in, $now);
-    if ($action !== 'add') skeds_refuse(400, 'bad_request');
+    if ($action !== 'add') neo_refuse(400, 'bad_request');
     skeds_add($dir, $in, $now);
 }
 
 try {
     skeds_receive();
 } catch (Throwable $e) {
-    skeds_log('error: ' . get_class($e) . ': ' . str_replace(["\r", "\n"], ' ', $e->getMessage()));
-    skeds_refuse(500, 'storage');
+    neo_log('skeds', 'error: ' . get_class($e) . ': ' . str_replace(["\r", "\n"], ' ', $e->getMessage()));
+    neo_refuse(500, 'storage');
 }

@@ -63,6 +63,8 @@ class Endpoint:
     def start(self, workers: int = 1) -> None:
         (self.site / "api" / "v1").mkdir(parents=True)
         shutil.copy(ROOT / "server" / "neo" / "api" / "v1" / "skeds.php", self.site / "api" / "v1" / "skeds.php")
+        (self.site / "private").mkdir()
+        shutil.copy(ROOT / "server" / "neo" / "private" / "endpoint.php", self.site / "private" / "endpoint.php")
         environment = {"PATH": os.environ["PATH"], **({"PHP_CLI_SERVER_WORKERS": str(workers)} if workers > 1 else {})}
         assert PHP is not None
         for _ in range(3):
@@ -789,7 +791,7 @@ def test_the_board_and_the_stored_skeds_are_where_the_site_wants_them() -> None:
         assert not (ROOT / "site" / name).exists(), "a board in site/ would be uploaded over the live one"
         assert f"Disallow: /{name}" in (ROOT / "site" / "robots.txt").read_text(encoding="utf-8").splitlines()
     deploy = (ROOT / "server" / "deploy.sh").read_text(encoding="utf-8")
-    assert "for board in skeds.json skeds-past.json; do" in deploy
+    assert "for board in skeds.json skeds-past.json chat.json; do" in deploy
     site = (ROOT / "server" / "neo" / ".htaccess").read_text(encoding="utf-8")
     assert (
         r"RewriteRule ^private(/|$) - [F,L]" in site

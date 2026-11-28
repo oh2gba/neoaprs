@@ -54,7 +54,7 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "unread.not_seen": { other: "未読メッセージ{n}件" },
   "unread.new_bulletins": { other: "新しい掲示{n}件" },
-  "unread.new_skeds": { other: "新しいHFテスト{n}件" },
+  "unread.new_hf": { other: "新しいテストまたはチャット{n}件" },
 
   "tab.messages": "メッセージ",
   "tab.stations": "局",

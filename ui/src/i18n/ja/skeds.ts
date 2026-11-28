@@ -31,4 +31,11 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.dial": "ダイヤル",
   "skeds.note": "備考",
   "skeds.post": "neo.oh2gba.eu に投稿",
+  "skeds.chat_title": "チャット",
+  "skeds.chat_label": "チャットに書く一行",
+  "skeds.chat_send": "送信",
+  "skeds.chat_empty": "まだ書き込みはありません。",
+  "skeds.chat_closed": "チャットは閉じられています。",
+  "skeds.chat_popup": "HFテストのチャット: {call}",
+  "skeds.chat_popup_more": { other: "HFテストのチャット: 新しい行{n}件、最後は{call}" },
 } as const;

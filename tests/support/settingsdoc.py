@@ -181,6 +181,10 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "Settings tab, Notifications, On the NeoAPRS computer (Command)",
         "the shell line that is run (at most {alert_command} characters; empty runs nothing). The default shows a notification and plays a sound, in a form that suits the system",
     ),
+    "messages/chat_alert": (
+        "Settings tab, Notifications (HF tests chat)",
+        "whether a new line of someone else in the chat of the HF tests tab tells you, as a message does: the alert command on the NeoAPRS computer and the page's own alert, once for the lines that came together ([notifications.md](notifications.md))",
+    ),
     "map/radius_km": (
         "Settings tab, Map (Radius)",
         "the detailed base map covers a square this far from your position in every direction ({map_radius_km} km). Read when the map is made ([page.md](page.md#the-base-map))",

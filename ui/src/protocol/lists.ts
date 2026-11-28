@@ -21,12 +21,15 @@ export const TOPIC_NAMES = [
   "igate",
   "qru",
   "skeds",
+  "chat",
+  "chat_lines",
   "general",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */
 export const MESSAGE_TYPES = [
   "alert_result",
+  "chat_fresh",
   "error",
   "hello",
   "layer_things",
@@ -76,6 +79,7 @@ export const CONFIG_KEYS = [
   "web/port",
   "web/allowed_hosts",
   "beacon/interval_min",
+  "messages/chat_alert",
   "messages/alert",
   "messages/alert_command",
   "status/source",
@@ -1670,6 +1674,7 @@ export const LIMITS = {
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
   pass: { slowMax: 4, slowWindowMin: 5 },
+  chat: { textMax: 200 },
   skedPast: { keepDays: 30, maxTests: 20, maxRows: 100 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
   scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },

@@ -365,6 +365,10 @@ class Skeds:
             log.warning("the HF test board refused the %s (status %s, reason %r)", action, status, reason)
             raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
 
+    async def token(self) -> str:
+        """The installation's token, which the chat sends too."""
+        return await self._secret()
+
     async def _secret(self) -> str:
         """Return the sked token (32 hex characters), made on first use and kept in the database."""
         if self._token is None:

@@ -55,3 +55,7 @@ regexes = ['''^65427a5b7261c7e535bf7f2fefe46b3088b8110dc11435a397bb5db9bac7619b$
 [[allowlists]]
 description = "the SHA-256 of the text of the frozen migration step 37 (igate/password's row) in tests/test_migrations.py, which holds the step unchanged: a digest of code, not a passcode"
 regexes = ['''^a5616e5c99582b60bd9e6205d12482e33229dc6e850e65390ba334b28cfb4cf7$''']
+
+[[allowlists]]
+description = "the made-up installation token of the tests of the chat (tests/test_chat.py): the hexadecimal digits twice in their order, which no installation draws"
+regexes = ['''^0123456789abcdef0123456789abcdef$''']

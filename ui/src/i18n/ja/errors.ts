@@ -41,6 +41,9 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.past": "そのテストはすでに終了しています",
   "error.sked.far": "そのテストの開始は30日より先です",
   "error.sked.unreachable": "HFテスト掲示板にいま接続できません。しばらくしてからもう一度お試しください",
+  "error.chat.rate": "いまここから送られた行が多すぎます。1分後にもう一度お試しください",
+  "error.chat.closed": "チャットはいま書き込みを受け付けていません",
+  "error.chat.unreachable": "チャットにいま接続できません。しばらくしてからもう一度お試しください",
   "error.radio.busy": "無線機の検索はすでに実行中です",
   "error.radio.last_enabled": "少なくとも1台の無線機をオンにしておく必要があります: 先に別の無線機をオンにしてください",
   "error.radio.name_form":

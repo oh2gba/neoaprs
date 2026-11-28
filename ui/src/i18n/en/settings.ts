@@ -288,6 +288,9 @@ export const settings = {
   "settings.alert.tip1": "With Notify me on, the Command is run when a message arrives.",
   "settings.alert_command.name": "Alert command",
   "settings.alert_command.label": "Command",
+  "settings.chat_alert.name": "HF tests chat",
+  "settings.chat_alert.tip1":
+    "A new line of another station in the HF tests chat tells you as a message does. Lines that come together tell once.",
   "settings.alert_command.tip1":
     "Run for each new message and station alert; NEOAPRS_TITLE and NEOAPRS_TEXT hold the title and the text.",
   "settings.alert_test": "Test",

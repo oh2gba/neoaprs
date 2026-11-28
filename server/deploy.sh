@@ -8,15 +8,17 @@
 #   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as
 #                             it is: the .htaccess, the page-view endpoint, the Send logs endpoint
 #                             support/send.php with its .user.ini, the sked board's endpoint
-#                             api/v1/skeds.php, the satellites' endpoint api/v1/satellites.php
-#                             with its list private/satellites-list.json, and private/.htaccess)
+#                             api/v1/skeds.php, the chat's endpoint api/v1/chat.php, what both
+#                             share (private/endpoint.php), the satellites' endpoint
+#                             api/v1/satellites.php with its list private/satellites-list.json, and
+#                             private/.htaccess)
 #                             to neo.oh2gba.eu
 #   server/deploy.sh --list   # show what would be uploaded, don't touch the network
 #
 # Only these files, and of the folders only what git tracks (`git ls-files`): an untracked or
 # ignored file is never uploaded, and the skipped ones are named. message.txt, the logs, the stored
-# support files and skeds, the satellites' elements (private/satellites/), and the sked board skeds.json with its past tests skeds-past.json live on
-# the server only and are never uploaded or removed (either in site/ would overwrite the live one, so
+# support files and skeds, the satellites' elements (private/satellites/), the sked board skeds.json with its past tests skeds-past.json, and the chat chat.json with
+# its lines (private/chat/) live on the server only and are never uploaded or removed (any of the three in site/ would overwrite the live one, so
 # the upload refuses to start while there is one). Credentials come from Bitwarden Secrets Manager
 # (ftp_server/ftp_login/ftp_pw). The machine-account token is the first line of a .secrets file:
 # SECRETS_FILE, else the first one found searching upwards, else ../../oh2gba/.secrets. Nothing
@@ -81,8 +83,8 @@ case "${1:-}" in
   "") ;;
   *) echo "deploy.sh: unknown option $1" >&2; exit 2 ;;
 esac
-for board in skeds.json skeds-past.json; do
-  [ ! -e "$SITE/$board" ] || { echo "deploy.sh: site/$board would be uploaded over the live sked board; remove it" >&2; exit 1; }
+for board in skeds.json skeds-past.json chat.json; do
+  [ ! -e "$SITE/$board" ] || { echo "deploy.sh: site/$board would be uploaded over the live one of the server; remove it" >&2; exit 1; }
 done
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"

@@ -64,8 +64,25 @@ A post that is refused says why, in a short note that goes away by itself: too m
 
 The project can close the board. The tab then shows the tests without the box.
 
+## Chat
+
+Under the tests is the chat: one room for every station that uses the tab, to say "QRV on 7.0541, anyone?" or "heard you, 5 by 9" without leaving NeoAPRS. It goes over the Internet, through the project's server, and never on the air.
+
+- The lines are listed oldest first, each with its time in your own time (the whole date in the hover text), the call and the text. The list shows its newest line; while you scroll back to read older ones it stays where you are when a line comes.
+- Write in the line at the bottom and press Enter or **Send**. The call shown with your lines is the one of the My station tab, with its SSID. Without a call the line is off; reading works.
+- The text is kept until the chat has your line. If it could not be said (too many lines from here in a minute, the chat closed, the server not reached), the short note at the bottom of the page says why and the text stays for you to send again. A line being written stays when you go to another tab.
+- A line is one line of at most 200 characters. Other people's lines are shown as text, as they wrote them.
+- The chat keeps the newest 100 lines, so a station that was off for a while still finds what was said.
+- The project can close the chat: the tab then says "The chat is closed." and the line is off; what was said stays to read.
+
+NeoAPRS asks for the chat every 15 seconds while it runs, whether a page is open or not, so you are told of a new line as you are told of a message: the tab's badge counts the lines of others you have not seen, and the page's and the computer's notification tell you, once for the lines that came together ([notifications.md](notifications.md)). Your own lines, and those that were there when you first started NeoAPRS, never notify. **HF tests chat** in the **Notifications** group of the Settings tab switches the notifications of the chat off; the badge stays.
+
+What is sent: only a line you wrote, with your call and the installation's secret code (the one of your tests). Asking for the chat sends nothing about your station.
+
 ## On the project page
 
 The project page shows the same tests under the HF band, and the past tests under them: the calls, the time in UTC and the dial of each, never the note.
+
+The chat is not on the project page.
 
 Not in this version: a test that repeats ("every Saturday": enter the weeks to come one by one), a reminder before a test, and tests on the map.

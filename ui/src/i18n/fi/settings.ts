@@ -289,6 +289,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Kun Ilmoita minulle on päällä, komento suoritetaan viestin saapuessa.",
   "settings.alert_command.name": "Hälytyskomento",
   "settings.alert_command.label": "Komento",
+  "settings.chat_alert.name": "HF-testien chat",
+  "settings.chat_alert.tip1":
+    "Toisen aseman uusi rivi HF-testien chatissa ilmoitetaan kuten viesti, kerran yhdessä tulleista riveistä.",
   "settings.alert_command.tip1":
     "Suoritetaan jokaisesta uudesta viestistä ja asemahälytyksestä; NEOAPRS_TITLE ja NEOAPRS_TEXT sisältävät otsikon ja tekstin.",
   "settings.alert_test": "Testaa",

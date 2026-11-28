@@ -22,7 +22,7 @@ import { isLoopbackHost, notificationTitle } from "@/lib/pagealert";
 import { daemonTells, inApp } from "@/lib/shell";
 import { writeStored } from "@/lib/storage";
 import { firedText } from "@/lib/stationalert";
-import type { MessageRow, StationAlertMessage } from "@/protocol/protocol";
+import type { ChatFreshMessage, MessageRow, StationAlertMessage } from "@/protocol/protocol";
 
 export type Alerted = Pick<MessageRow, "id" | "from_call" | "text">;
 
@@ -85,6 +85,15 @@ function showStationPopup(fired: StationAlertMessage, failed: () => void): boole
   return notify(t("station.alert.popup_title", { call: fired.call }), firedText(fired), tag, () => undefined, failed);
 }
 
+/** The notification of new lines of the chat, one for the lines of one reading; a click opens the tab. */
+function showChatPopup(fresh: ChatFreshMessage, open: () => void, failed: () => void): boolean {
+  const title =
+    fresh.count === 1
+      ? t("skeds.chat_popup", { call: fresh.call })
+      : t("skeds.chat_popup_more", { n: fresh.count, call: fresh.call });
+  return notify(title, fresh.text, `neoaprs-chat-${fresh.id}`, open, failed);
+}
+
 /** What the browser lets the page do with notifications now; denied where it cannot show one. */
 function permissionNow(possible: boolean): NotificationPermission {
   return possible ? Notification.permission : "denied";
@@ -126,7 +135,7 @@ function useNote(
   });
 }
 
-export function useBrowserAlerts(openConversation: (call: string) => void) {
+export function useBrowserAlerts(openConversation: (call: string) => void, openChat: () => void = () => undefined) {
   const chime = new Chime();
   const tab = useTabAlert();
   const app = inApp();
@@ -240,6 +249,9 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
      */
     announceStation: (fired: StationAlertMessage): void =>
       ring(fired.call, (failed) => [showStationPopup(fired, failed)], true),
+    /** What new lines of the chat do in this browser: the chimes, a notification, or the tab alert. */
+    announceChat: (fresh: ChatFreshMessage): void =>
+      ring(fresh.call, (failed) => [showChatPopup(fresh, openChat, failed)]),
     choose,
     testSound,
     testPopup,

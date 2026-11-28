@@ -31,4 +31,14 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.dial": "Frequenza di sintonia",
   "skeds.note": "Nota",
   "skeds.post": "Pubblica su neo.oh2gba.eu",
+  "skeds.chat_title": "Chat",
+  "skeds.chat_label": "Una riga per la chat",
+  "skeds.chat_send": "Invia",
+  "skeds.chat_empty": "Non è stato ancora detto niente.",
+  "skeds.chat_closed": "La chat è chiusa.",
+  "skeds.chat_popup": "Chat dei test HF: {call}",
+  "skeds.chat_popup_more": {
+    one: "Chat dei test HF: {n} nuova riga, da {call}",
+    other: "Chat dei test HF: {n} nuove righe, l’ultima da {call}",
+  },
 } as const;

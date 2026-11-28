@@ -57,7 +57,7 @@ export const de: Catalogue = {
 
   "unread.not_seen": { one: "{n} ungelesene Nachricht", other: "{n} ungelesene Nachrichten" },
   "unread.new_bulletins": { one: "{n} neues Bulletin", other: "{n} neue Bulletins" },
-  "unread.new_skeds": { one: "{n} neuer KW-Test", other: "{n} neue KW-Tests" },
+  "unread.new_hf": { one: "{n} neuer Test oder Chat-Beitrag", other: "{n} neue Tests oder Chat-Beiträge" },
 
   "tab.messages": "Nachrichten",
   "tab.stations": "Stationen",
@@ -150,6 +150,9 @@ export const de: Catalogue = {
   "error.sked.past": "dieser Test ist schon zu Ende",
   "error.sked.far": "dieser Test beginnt erst in mehr als 30 Tagen",
   "error.sked.unreachable": "die Tafel der KW-Tests war gerade nicht erreichbar; versuche es später noch einmal",
+  "error.chat.rate": "von hier wurden gerade zu viele Zeilen gesagt; versuche es in einer Minute noch einmal",
+  "error.chat.closed": "der Chat nimmt jetzt keine Zeilen an",
+  "error.chat.unreachable": "der Chat war gerade nicht erreichbar; versuche es später noch einmal",
   "error.radio.busy": "die Suche nach dem Funkgerät läuft bereits",
   "error.radio.last_enabled": "mindestens ein Funkgerät bleibt an: schalte zuerst ein anderes an",
   "error.radio.name_form":
@@ -628,6 +631,16 @@ export const de: Catalogue = {
   "skeds.dial": "Dial-Frequenz",
   "skeds.note": "Notiz",
   "skeds.post": "Auf neo.oh2gba.eu eintragen",
+  "skeds.chat_title": "Chat",
+  "skeds.chat_label": "Eine Zeile für den Chat",
+  "skeds.chat_send": "Senden",
+  "skeds.chat_empty": "Noch nichts gesagt.",
+  "skeds.chat_closed": "Der Chat ist geschlossen.",
+  "skeds.chat_popup": "Chat der KW-Tests: {call}",
+  "skeds.chat_popup_more": {
+    one: "Chat der KW-Tests: {n} neue Zeile, von {call}",
+    other: "Chat der KW-Tests: {n} neue Zeilen, die letzte von {call}",
+  },
 
   // objects
   "schedule.sent": { "=0": "noch nicht gesendet", "=1": "einmal gesendet", other: "{n}-mal gesendet" },
@@ -1756,6 +1769,9 @@ export const de: Catalogue = {
     "Bei eingeschaltetem „Benachrichtigen“ wird der Befehl ausgeführt, wenn eine Nachricht ankommt.",
   "settings.alert_command.name": "Alarmbefehl",
   "settings.alert_command.label": "Befehl",
+  "settings.chat_alert.name": "Chat der KW-Tests",
+  "settings.chat_alert.tip1":
+    "Eine neue Zeile einer anderen Station im Chat der KW-Tests meldet sich wie eine Nachricht, einmal für Zeilen, die zusammen kommen.",
   "settings.alert_command.tip1":
     "Läuft für jede neue Nachricht und Stationsbenachrichtigung; NEOAPRS_TITLE und NEOAPRS_TEXT enthalten Titel und Text.",
   "settings.alert_test": "Test",

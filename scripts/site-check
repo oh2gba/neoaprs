@@ -20,7 +20,7 @@ LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 TIMEOUT_SEC = 30
 WORKERS = 8
 # The PHP the web calls, under server/neo/; every other PHP file there must answer 403.
-PUBLIC_PHP = ("api/v1/view.php", "support/send.php", "api/v1/skeds.php", "api/v1/satellites.php")
+PUBLIC_PHP = ("api/v1/view.php", "support/send.php", "api/v1/skeds.php", "api/v1/chat.php", "api/v1/satellites.php")
 # Places that must answer 403 whatever the repository holds.
 PRIVATE = (
     "/private/",
@@ -34,12 +34,20 @@ PRIVATE = (
     "/private/skeds/salt",
     "/private/skeds/lock",
     "/private/logs/skeds.log",
+    "/private/chat/",
+    "/private/chat/lines.json",
+    "/private/chat/rate.json",
+    "/private/chat/salt",
+    "/private/chat/lock",
+    "/private/logs/chat.log",
+    "/private/endpoint.php",
     "/private/satellites-list.json",
     "/private/satellites/",
     "/private/satellites/satellites.json",
     "/private/satellites/elements.csv",
     "/skeds.json.part",
     "/skeds-past.json.part",
+    "/chat.json.part",
     "/.htaccess",
     "/.user.ini",
     "/support/.user.ini",

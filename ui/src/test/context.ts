@@ -6,6 +6,7 @@ import { computed, isRef, nextTick, shallowReactive, shallowRef, watch, type Ref
 import { vi, type Mock } from "vitest";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
+import { useChat } from "@/composables/useChat";
 import { useFindRadio } from "@/composables/useFindRadio";
 import { useLayerTables, useLayerThings, type TrafficParts } from "@/composables/useLayerThings";
 import { useSatelliteStore, useSatellites } from "@/composables/useSatellites";
@@ -82,10 +83,26 @@ function radiosPart(given: RadioTopic | Ref<RadioTopic> | undefined, connected: 
   });
 }
 
+/** A part of the context as a test gave it (a value or a ref), else its fallback. */
+const part = <T>(given: T | Ref<T> | undefined, fallback: T): Ref<T> =>
+  isRef(given) ? given : shallowRef(given === undefined ? fallback : given);
+
+/** The chat's topics, given or empty, and the chat the shell would make of them. */
+function chatOf(
+  over: Given,
+  parts: Pick<DaemonContext, "lastError" | "connection" | "send">,
+  panel: DaemonContext["panel"],
+) {
+  const topics = {
+    chatState: part(over.chatState, null),
+    chatLines: part(over.chatLines, null),
+    chatFresh: part(over.chatFresh, null),
+  };
+  return { ...topics, chat: over.chat ?? useChat({ ...topics, ...parts }, panel, () => undefined) };
+}
+
 export function fakeDaemon(over: Given = {}): FakeDaemon {
   const send = vi.fn((_command: Command) => true);
-  const part = <T>(given: T | Ref<T> | undefined, fallback: T): Ref<T> =>
-    isRef(given) ? given : shallowRef(given === undefined ? fallback : given);
   const config = part(over.config, configValues());
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
@@ -189,6 +206,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     guide: over.guide ?? useSetupGuide(config, lastError, unnumbered, radios, connection, saved),
     panel: over.panel ?? usePanel(),
   };
+  Object.assign(context, chatOf(over, { lastError, connection, send: sender }, context.panel));
   // The browser alert listens to the window: it is made when a pane asks for it.
   let alerts = over.alerts;
   Object.defineProperty(context, "alerts", {

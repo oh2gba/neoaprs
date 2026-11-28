@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
+import { chatText } from "@/lib/chat";
 import { DIAL, pastGroups } from "@/lib/skeds";
 import { pairCall } from "@/lib/settingspair";
 import { replyAddressOk } from "@/lib/support";
@@ -23,6 +24,10 @@ describe("the vectors of the daemon", () => {
 
   it("say which addresses for a reply Send logs takes", () => {
     for (const { input, ok } of vectors.reply_addresses) expect(replyAddressOk(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say what a line of the chat keeps of its text", () => {
+    for (const { input, text } of vectors.chat_texts) expect(chatText(input), JSON.stringify(input)).toBe(text);
   });
 
   it("say which dials a sked takes", () => {

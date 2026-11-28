@@ -7,6 +7,8 @@ import type {
   AlertResultMessage,
   SavedMessage,
   BulletinRow,
+  ChatFreshMessage,
+  ChatLineRow,
   Command,
   ErrorMessage,
   HelloMessage,
@@ -108,6 +110,8 @@ export interface Store {
   satellites(message: SatellitesMessage): void;
   /** An alert set on a station fired (sent once to every page, not an answer). */
   stationAlert(message: StationAlertMessage): void;
+  /** New lines of others came into the chat (sent once to every page, not an answer). */
+  chatFresh(message: ChatFreshMessage): void;
   /**
    * A row of a radio's waterfall for a page that asked for its scope: a binary frame (PROTOCOL.md).
    */
@@ -134,6 +138,8 @@ export interface Store {
   replaceQru(value: TopicValues["qru"]): void;
   replaceGeneral(value: TopicValues["general"]): void;
   replaceSkeds(value: TopicValues["skeds"]): void;
+  replaceChat(value: TopicValues["chat"]): void;
+  replaceChatLines(rows: Record<string, ChatLineRow>): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setRadio(key: string, row: RadioRow): void;
@@ -143,6 +149,7 @@ export interface Store {
   setStationKey(call: string, key: StationKey): void;
   setOwnObject(name: string, row: OwnObjectRow): void;
   setOwnBulletin(slot: string, row: OwnBulletinRow): void;
+  setChatLine(key: string, row: ChatLineRow): void;
   delStation(key: string): void;
   delPacket(key: string): void;
   delRadio(key: string): void;
@@ -152,6 +159,7 @@ export interface Store {
   delStationKey(call: string): void;
   delOwnObject(name: string): void;
   delOwnBulletin(slot: string): void;
+  delChatLine(key: string): void;
 }
 
 /** The store method that takes the whole value of each topic. */
@@ -173,6 +181,8 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   qru: "replaceQru",
   general: "replaceGeneral",
   skeds: "replaceSkeds",
+  chat: "replaceChat",
+  chat_lines: "replaceChatLines",
 };
 
 /** What the hub needs of a WebSocket (the browser's has more). */
@@ -380,6 +390,9 @@ export class Hub {
       case "station_alert":
         this.store.stationAlert(message);
         break;
+      case "chat_fresh":
+        this.store.chatFresh(message);
+        break;
       default:
         this.answer(message);
     }
@@ -446,6 +459,7 @@ export class Hub {
     else if (topic === "station_keys") this.store.setStationKey(key, value as StationKey);
     else if (topic === "own_objects") this.store.setOwnObject(key, value as OwnObjectRow);
     else if (topic === "own_bulletins") this.store.setOwnBulletin(key, value as OwnBulletinRow);
+    else if (topic === "chat_lines") this.store.setChatLine(key, value as ChatLineRow);
   }
 
   private del(topic: TopicName, key: string): void {
@@ -458,5 +472,6 @@ export class Hub {
     else if (topic === "station_keys") this.store.delStationKey(key);
     else if (topic === "own_objects") this.store.delOwnObject(key);
     else if (topic === "own_bulletins") this.store.delOwnBulletin(key);
+    else if (topic === "chat_lines") this.store.delChatLine(key);
   }
 }

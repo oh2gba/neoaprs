@@ -191,6 +191,8 @@ SETTINGS: tuple[Setting, ...] = (
     ),
     # Empty: the path recommended for the symbol; DIRECT: none.
     Setting("beacon_path", "beacon/path", digipeater_path),
+    # A new line of the chat of the HF tests tab notifies (the alert command and the pages).
+    Setting("messages_chat_alert", "messages/chat_alert", boolean),
     Setting("messages_alert", "messages/alert", boolean),
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),
     # off, text or rig. Empty: see Config.status_choice.
@@ -266,6 +268,7 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
+    messages_chat_alert: bool = True
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND
     status_source: str = ""

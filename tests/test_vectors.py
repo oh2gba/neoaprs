@@ -161,6 +161,7 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         "sked_dials",
         "sked_times",
         "sked_notes",
+        "chat_texts",
     } <= v.keys()
     assert {(c["power"], c["height"], c["gain"], c["direction"]): c["text"] for c in v["phg"]}[
         (5, 10, 3, "NE")

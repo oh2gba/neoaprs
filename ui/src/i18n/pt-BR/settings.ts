@@ -291,6 +291,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Com Notificar-me ligado, o comando é executado quando chega uma mensagem.",
   "settings.alert_command.name": "Comando de alerta",
   "settings.alert_command.label": "Comando",
+  "settings.chat_alert.name": "Chat dos testes HF",
+  "settings.chat_alert.tip1":
+    "Uma linha nova de outra estação no chat dos testes HF avisa como uma mensagem, uma vez para linhas que chegam juntas.",
   "settings.alert_command.tip1":
     "Executado a cada mensagem nova e aviso de estação; NEOAPRS_TITLE e NEOAPRS_TEXT trazem o título e o texto.",
   "settings.alert_test": "Testar",

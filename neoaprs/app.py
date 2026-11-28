@@ -67,6 +67,7 @@ from .services.selfupdate import SelfUpdate
 from .services.sender import Sender
 from .services.stationalerts import StationAlerts
 from .services.frequencies import Frequencies
+from .services.chat import ChatRoom
 from .services.skeds import Skeds
 from .services.updatecheck import UpdateCheck
 from .signal import Signal
@@ -328,6 +329,13 @@ class Services:
             platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
             lambda: self.config,
             lambda: self.suggested_frequencies,
+            memory=self.store,
+        )
+        self.chat = ChatRoom(
+            VERSION,
+            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            lambda: self.config,
+            self.skeds.token,
             memory=self.store,
         )
         self.layers = Layers(

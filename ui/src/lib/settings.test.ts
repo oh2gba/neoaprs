@@ -47,7 +47,7 @@ describe("groupKeys", () => {
     // Its fields are the radios' radio/<id>/digipeat: the form draws it while a radio may repeat.
     expect(groups[2]?.keys).toEqual([]);
     expect(groups[4]?.title).toBe("Notifications");
-    expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[4]?.keys).toEqual(["messages/chat_alert", "messages/alert", "messages/alert_command"]);
     expect(groups[5]?.keys).toEqual([
       "map/radius_km",
       "map/aircraft",

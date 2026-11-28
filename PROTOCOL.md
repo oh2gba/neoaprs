@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-65 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+66 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -639,6 +639,16 @@ board is read again. An `error` (`sked.unreachable`) when the project's server c
 |---|---|---|---|
 | `id` | string |  |  |
 
+### `chat_say`
+
+Says a line in the chat of the HF tests tab: the daemon posts it to the project's server with our call (the setting `station/call`, as the board has it) and this installation's token, over the Internet and never by radio. Cleaned as the server cleans it (white space
+becomes single spaces, control and invisible characters go, at most 200 characters). Answered by the topic `chat_lines`, which then has it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter), too many lines were said from here
+in the last minute (`chat.rate`), the chat takes no lines now (`chat.closed`; the topic `chat` then says `closed`), or the project's server could not be reached or would not take it (`chat.unreachable`).
+
+| field | type | | description |
+|---|---|---|---|
+| `text` | string |  | the line; not empty once cleaned (max 800 chars) |
+
 ### `page_error`
 
 An error that happened in the page itself (the browser's script, not a refusal of the daemon): the daemon writes it to its log as a warning, `page error (vue) on page BUILD: MESSAGE | FIRST LINE OF THE STACK`, and keeps the latest 100 for
@@ -779,7 +789,7 @@ With `on` false, or when the page closes, no more. While a page looks, the daemo
 
 ## Server to client
 
-25 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+26 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -1035,6 +1045,17 @@ An alert set on a station fired (`set_station_alert`): told to every page that i
 | `at` | time |  | when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved) |
 | `km` | number \| null |  | for `within`, how far the station is, km with one decimal; else null |
 
+### `chat_fresh`
+
+Lines of others came into the chat that were not seen before (newer than the newest this installation had seen, a restart too): told to every page that is open, once for the lines of one reading, and only while `messages/chat_alert` is on. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says).
+
+| field | type | | description |
+|---|---|---|---|
+| `count` | integer |  | how many lines came (>= 1, <= 100) |
+| `id` | integer |  | the newest of them (>= 1) |
+| `call` | string |  | who said the newest |
+| `text` | string |  | what the newest says (max 200 chars) |
+
 ### `radio_added`
 
 The answer to `radio_add`, to the page that asked: the id the new radio was given.
@@ -1108,6 +1129,8 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `igate` | IgateState | the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second |
 | `qru` | QruState | local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes |
 | `skeds` | SkedsState | the sked board (the page calls it HF tests): when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes |
+| `chat` | ChatState | the chat of the HF tests tab, as the project's server keeps it: whether it can be read and takes lines; told whole as it changes |
+| `chat_lines` | { [key: string]: ChatLineRow } | the lines of the chat by id (as text), the newest 100 the server keeps, all of them sent with the first `state`: a line read or said is a `set` of its row, one the server no longer has a `del`. Read every 15 seconds while the daemon runs |
 | `general` | GeneralState | asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes |
 
 ## Objects
@@ -1541,6 +1564,26 @@ The packets one radio, or the internet, heard in each hour.
 |---|---|---|---|
 | `radio` | integer \| null |  | the radio that heard them, its id (a row of the topic `radios`, a removed one too); null for the internet |
 | `counts` | integer[] |  | the packets heard in each hour from the message's `start`, the oldest first, `hours` of them (an hour with none is 0) |
+
+### ChatLineRow
+
+A line of the chat, checked again by the daemon: one line of text of at most 200 characters, without control or invisible characters, never empty. The page shows it as text, never as markup.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | integer |  | the server's id of the line, which grows by one with each line said (>= 1) |
+| `at` | time |  | when the server took it, by the server's clock |
+| `call` | string |  | the call that said it, upper case without an SSID of 0 (`OH2GBA`, `OH2GBA-7`) |
+| `text` | string |  | what was said (max 200 chars, min 1 chars) |
+| `ours` | boolean |  | this installation said it, or it is under our call: it never notifies |
+
+### ChatState
+
+Where the chat stands. The value of the topic `chat`, told whole as it changes.
+
+| field | type | | description |
+|---|---|---|---|
+| `state` | "ok" \| "offline" \| "off" \| "closed" |  | `ok`: the chat was read (or has not been tried yet), and a line may be said. `offline`: the project's server could not be read; `chat_lines` are the last ones known. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or said, `chat_lines` is empty. `closed`: the chat takes no lines now (closed by the project, or for this call); the lines are still shown |
 
 ### DfBearingValues
 
