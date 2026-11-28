@@ -51,7 +51,7 @@ if [ -n "${NEOAPRS_CHECK_STAGES:-}" ] && is_a_tree; then
 fi
 
 # The stages in the order of their result lines: Python ones, the page's (ui-types ... dup, which
-# need node 22.12 or newer, from the PATH or ~/.nvm), the duplication check, the security checks,
+# need node 22.22.2 or newer, from the PATH or ~/.nvm), the duplication check, the security checks,
 # the outside links, the newest releases of the pins, smoke.
 STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security links level smoke)
 EXTRA_STAGES=(sim audit flaky)  # run only by name: sim is minutes long, audit needs the network, flaky is an hour
@@ -87,9 +87,9 @@ fi
 # `#!/usr/bin/env python3` line finds this Python.
 PATH="$(dirname "$python"):$PATH"
 
-# Node 22.12 or newer from the PATH, else the newest of ~/.nvm, first on the PATH so every stage
+# Node 22.22.2 or newer from the PATH, else the newest of ~/.nvm, first on the PATH so every stage
 # runs the same one.
-node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
+node_ok() { command -v node >/dev/null && node -e 'const [a, b, c] = process.versions.node.split(".").map(Number); process.exit((a * 1000 + b) * 1000 + c >= 22022002 ? 0 : 1)'; }
 if ! node_ok; then
     newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
     [ -n "$newest" ] && PATH="$newest:$PATH"
@@ -207,7 +207,7 @@ ui_install() { (cd ui && npm ci); }
 ui_install_failed=""
 ui_run() {
     [ -d ui ] || { echo "no ui/ in this tree: nothing to do"; return 0; }
-    node_ok || { echo "node 22.12 or newer is needed (on the PATH or in ~/.nvm)"; return 1; }
+    node_ok || { echo "node 22.22.2 or newer is needed (on the PATH or in ~/.nvm)"; return 1; }
     [ -z "$ui_install_failed" ] || { echo "ui/node_modules is not installed: npm ci failed (the line npm-ci)"; return 1; }
     if ui_modules_missing; then ui_install || return 1; fi
     (cd ui && "$@")

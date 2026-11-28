@@ -16,12 +16,12 @@ cd "$ROOT"
 command -v uv >/dev/null || { echo "worktree-setup: uv is not installed"; exit 1; }
 uv sync --frozen --all-extras --offline 2>/dev/null || uv sync --frozen --all-extras
 
-node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
+node_ok() { command -v node >/dev/null && node -e 'const [a, b, c] = process.versions.node.split(".").map(Number); process.exit((a * 1000 + b) * 1000 + c >= 22022002 ? 0 : 1)'; }
 if ! node_ok; then
     newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
     [ -n "$newest" ] && export PATH="$newest:$PATH"
 fi
-node_ok || { echo "worktree-setup: node 22.12 or newer is needed (on the PATH or in ~/.nvm)"; exit 1; }
+node_ok || { echo "worktree-setup: node 22.22.2 or newer is needed (on the PATH or in ~/.nvm)"; exit 1; }
 
 cd ui
 if [ -L node_modules ]; then rm node_modules; fi        # only the link goes; what it pointed at is not touched

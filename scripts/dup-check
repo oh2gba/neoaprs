@@ -6,7 +6,7 @@
 #   scripts/dup-check --update     write the baseline from today's clones (never larger: only to tighten it)
 #
 # jscpd is the version pinned in ui/package.json; the baseline is what THIS version finds. NEOAPRS_JSCPD
-# overrides the command (the tests use it). Node 22.12 or newer from the PATH, else ~/.nvm, as scripts/check does.
+# overrides the command (the tests use it). Node 22.22.2 or newer from the PATH, else ~/.nvm, as scripts/check does.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -53,7 +53,7 @@ def tree(folder: Path) -> dict[str, str]:
     }
 
 
-NODE_NEEDED = (22, 12)  # what the page's build tools need (as scripts/check)
+NODE_NEEDED = (22, 22, 2)  # what the page's build tools need (as scripts/check)
 
 
 def node_version(node: str) -> tuple[int, ...]:
@@ -193,7 +193,7 @@ def test_the_marks_are_code_and_the_words_of_encrypted_messages_stay_in_the_comm
 
 def needs_vite[F: Callable[..., object]](test: F) -> F:
     no_node = pytest.mark.skipif(
-        node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt"
+        node_dir() is None, reason="no node 22.22.2 or newer (on the PATH or in ~/.nvm): the page is not rebuilt"
     )
     no_modules = pytest.mark.skipif(
         not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt"

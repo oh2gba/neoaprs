@@ -993,7 +993,7 @@ def test_the_page_stage_by_name_installs_what_is_missing_first_and_fails_when_it
     )
     assert gate.events() == events
     if not events:
-        assert done.stdout.splitlines()[1] == "      | node 22.12 or newer is needed (on the PATH or in ~/.nvm)"
+        assert done.stdout.splitlines()[1] == "      | node 22.22.2 or newer is needed (on the PATH or in ~/.nvm)"
 
 
 def test_serial_leaves_the_install_to_the_first_stage_that_needs_it(gate: Gate) -> None:

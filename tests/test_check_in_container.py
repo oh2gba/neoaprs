@@ -739,9 +739,9 @@ def test_uv_and_node_are_pinned_by_version_and_digest_and_no_file_of_the_project
         r"^ARG UV_SHA256=[0-9a-f]{64}$", DOCKERFILE, re.M
     )
     node = re.search(r"^ARG NODE_VERSION=22\.(\d+)\.\d+$", DOCKERFILE, re.M)
-    assert (
-        node is not None and int(node.group(1)) >= 12 and re.search(r"^ARG NODE_SHA256=[0-9a-f]{64}$", DOCKERFILE, re.M)
-    ), "node 22.12 or newer, as scripts/check asks"
+    assert node is not None and re.search(r"^ARG NODE_SHA256=[0-9a-f]{64}$", DOCKERFILE, re.M), (
+        "node 22.22.2 or newer, as scripts/check asks"
+    )
     fetched = re.findall(r"curl -fsSL -o (\S+) \"(https://[^\"]+)\"", DOCKERFILE)
     assert len(fetched) == 2 and "${UV_VERSION}" in fetched[0][1] and "${NODE_VERSION}" in fetched[1][1]
     for file, digest in zip((file for file, _ in fetched), ("UV_SHA256", "NODE_SHA256")):

@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.22.2"
+  },
   "description": "The page of NeoAPRS: Vue 3 + TypeScript, built with Vite into ../neoaprs/page",
   "scripts": {
     "dev": "vite",
