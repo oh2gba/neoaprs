@@ -20,6 +20,17 @@ instead of radios, and the tests of `tests/realmodems/` drive them through their
 - A beacon of A with the pair's call in its path is heard by B.
 - A message from H1 reaches H2 at 300 baud and H2's ack comes back, and both Direwolfs take the `MODEM 300` line the daemon writes without a
   complaint.
+- The Mercury pinned now and the one pinned before (`PREVIOUS_*` of `neoaprs/mercury.py`, built by `scripts/build-mercury --previous --install`)
+  carry a message from A to B and its ack, and one from B to A and its ack, once with B's daemon on the old Mercury and once with G's
+  (`test_old_and_new.py`, A, G and B alone; the old station's daemon runs from a virtual environment whose `tools/mercury` is the old build).
+- The real Mercury, started with the daemon's command line and configuration on the two ends of the HF cable, writes the lines the daemon
+  reads: its start lines, `IAMALIVE`, `PTT ON` and `PTT OFF` for a frame, `BUSY ON`, `BUSY OFF` and `SN` at the other end with the frame
+  handed over, `PTT ON` and `PTT OFF` for `TUNE` and `TUNE OFF`, and the line of a sound card that is not there; its four ports answer on
+  127.0.0.1 and are refused from the runner's own address (`test_mercury_program.py`). It also records DATAC3 frames for the Windows job.
+
+After the stations the job runs the suite's tests of the real programs (`tests/test_direwolf_real.py`, `tests/test_mercury_leadin.py`,
+`tests/test_mercury_scope_real.py`), which the suite's guard keeps from every other run. The job `windows` then runs `test_windows.py` on
+GitHub's Windows runner with the builds for Windows: what proves what is in [modem-updates.md](modem-updates.md).
 
 All of it runs through the real programs: Direwolf's AFSK 1200 and 300 modems and Mercury's DATAC3 modem encode and decode the audio, each on its own ALSA device, with
 the configuration and command line the daemon writes for them.
@@ -28,7 +39,7 @@ the configuration and command line the daemon writes for them.
 
 - Keying: every radio is keyed by VOX into a cable, so no keying line, CM108 pin or serial port is used.
 - Real radios and real sound cards: the levels, the card's own delays, a radio's VOX and squelch times, noise and fading. The cables are clean and without delay.
-- Windows and macOS: the runner is Linux, and the cables are PipeWire's.
+- Windows and macOS: the stations run on Linux, and the cables are PipeWire's; Windows decodes recordings only.
 - ALSA hardware devices (`plughw:CARD=…`): the daemons are given the cables' ALSA device names as their sound cards, so the listing of cards (`mercury -z`) and
   the card's own volume controls are not used.
 
@@ -69,6 +80,6 @@ gh run watch <id> --exit-status
 ```
 
 or Actions, realmodems, Run workflow (a workflow that is not on master yet is dispatched by its number: `gh workflow run <workflow id> --ref <branch>`). It
-takes about six minutes with the modems in the cache, the scenarios about two and a half. The folders of the five stations (each daemon's log and output,
-the modems' configurations) are the artifact `realmodems-stations` of every run. Run it before a release, and after a change to the pair, the Mercury or
-Direwolf driver, or a modem's pin.
+also runs on every push to master and every night, and `scripts/release` waits for its run of the release commit. The folders of the stations (each
+daemon's log and output, the modems' configurations) are the artifact `realmodems-stations` of every run, the recording for Windows
+`realmodems-recordings`. Run it by hand on a branch after a change to the pair, the Mercury or Direwolf driver, or a modem's pin.
