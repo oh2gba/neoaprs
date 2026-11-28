@@ -33,6 +33,10 @@ class StationChoices:
         station = self._book.get(call)
         return self._choices.get(call if station is None else station.call)
 
+    def chosen(self) -> list[str]:
+        """Return the calls that have a radio chosen."""
+        return list(self._choices)
+
     def choose(self, call: str, radio: RadioId | None) -> bool:
         """Set the radio messages to the station go out on (None: the daemon chooses).
 

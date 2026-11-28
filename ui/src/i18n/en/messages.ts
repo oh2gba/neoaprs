@@ -8,6 +8,8 @@ export const messages = {
   "messages.show_overheard": "Show overheard",
   "messages.services": "Services",
   "messages.service_write": "Write",
+  "messages.new_label": "New conversation",
+  "messages.new_call": "Call",
   "messages.service_title": "To {to}: {text}",
   "messages.service.ota_cq": "Who is on the air",
   "messages.service.ota_chase": "Chase an op",

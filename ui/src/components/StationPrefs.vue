@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // How messages to one station are sent (Route of a conversation and of the station panel): the
 // radio (when more than one is on; "Automatic" names the radio it gives now), then the path and
-// RF only. Path and RF only are greyed, value kept, while the radio in force carries no path
-// (`pathless`); RF only stays live when messages go through a gateway (`reply`). For an unknown
-// call the radio row is shown greyed (`fixed`) so nothing moves when the station is heard.
+// RF only. The path is greyed, value kept, while the radio in force carries no path (`pathless`);
+// RF only stays live there, as RFONLY alone or after the gateway (`reply`). The radio row is shown
+// greyed where it cannot be chosen (`fixed`: the email gateway).
 // `heard` is the path last heard to reach the station (null: none).
 import { useId } from "vue";
 import StationPath from "@/components/StationPath.vue";
@@ -24,7 +24,7 @@ withDefaults(
     choice?: RadioId | null;
     /** the radio "Automatic" gives now; null when it is not known */
     auto?: string | null;
-    /** the radio cannot be chosen yet (unknown call); the row is greyed so nothing moves later */
+    /** the radio cannot be chosen (the email gateway); the row is greyed */
     fixed?: boolean;
     /** the path and RF only are offered (a radio that is on may carry a path) */
     pathShown?: boolean;
@@ -89,12 +89,7 @@ function picked(event: Event, call: string, choice: RadioId | null): void {
       @set="(c, p) => emit('path', c, p)"
       @clear="emit('clearPath', $event)"
     >
-      <StationRfOnly
-        :call="call"
-        :rf-only="rfOnly"
-        :pathless="reply === '' ? pathless : undefined"
-        @set="(c, on) => emit('setRfOnly', c, on)"
-      />
+      <StationRfOnly :call="call" :rf-only="rfOnly" @set="(c, on) => emit('setRfOnly', c, on)" />
     </StationPath>
   </div>
 </template>

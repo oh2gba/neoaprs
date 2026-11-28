@@ -9,6 +9,8 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.show_overheard": "Mostra ascoltati",
   "messages.services": "Servizi",
   "messages.service_write": "Scrivi",
+  "messages.new_label": "Nuova conversazione",
+  "messages.new_call": "Nominativo",
   "messages.service_title": "A {to}: {text}",
   "messages.service.ota_cq": "Chi è in onda",
   "messages.service.ota_chase": "Caccia a un’attivazione",

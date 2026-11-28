@@ -88,7 +88,8 @@ Resize the panel and the layout follows, with the same conversation open.
 
 - The conversations are listed with the newest message first. A row has the call (an overheard pair as "OH2AAA > OH2BBB"), the age, the last text on one line ("You: " before one of yours; "You asked for its status" for a query you sent), the number of messages that came in since you last looked, and a trash can at its right end.
 - The open conversation is the filled row. A conversation with messages not seen that is not the open one has its text in bold and a bar at its left. A row is a button, so Tab walks the list.
-- There is no New message button. A chat starts from a station: the **Message** button of its card on the map or in the Stations table opens the conversation, or creates it. In the Stations tab you can also type a call that was never heard into the filter, and **Message OH2XYZ** writes to it all the same.
+- A chat starts from a station: the **Message** button of its card on the map or in the Stations table opens the conversation, or creates it. For a station you have not heard, press **+** at the top of the list, type its call and press **Write** (or Enter): the conversation opens empty, and its **Route** sets the radio and the path, for example the call of a digipeater or gateway that hears it. Write is off while the call is not one a message can go to, or is your own.
+- In the Stations tab you can also type a call that was never heard into the filter, and **Message OH2XYZ** writes to it all the same.
 - **Show overheard** (with an (i)) at the top of the list is off by default and remembered.
 - **Services** under it starts a message to a service station without remembering its format ([below](#messages-to-services)).
 
@@ -210,7 +211,9 @@ The path is checked as the field checks it (for Ask around and Local info, which
 
 The APRS-IS rules say that an iGate does not put on the internet a packet whose path holds `NOGATE` or `RFONLY`. An iGate may honour that; it is not required to.
 
-A station marked **RF only** (the tickbox beside the path, in the header of a conversation; its title says "iGates do not put these messages on the internet") gets `RFONLY` as the last element of the path of every frame you send to it: each attempt of a message, each ack of one of its messages and each answer to one of its queries. A path that holds `RFONLY` or `NOGATE` already gets no second one.
+A station marked **RF only** (the tickbox beside the path, in the header of a conversation; its title says "iGates do not put these messages on the internet") gets `RFONLY` as the last element of the path of every frame you send to it: each attempt of a message, each ack of one of its messages and each answer to one of its queries. On a radio that carries no path (Mercury) `RFONLY` is the frame's only path entry, or comes after the gateway's call; no digipeater repeats it there. A path that holds `RFONLY` or `NOGATE` already gets no second one.
+
+A message that came to you with `RFONLY` or `NOGATE` in its path is acked with `RFONLY` too.
 
 A path of 8 digipeaters has no room for it. A message to the station is then refused with `path too long for RF only`. An attempt that is due waits (it is not used up; the log says why once). An ack or an answer is not sent. The email gateway `EMAIL-2` is on the internet and can never be RF only.
 
@@ -226,8 +229,8 @@ With one radio on, every message goes on it and nothing here applies. With sever
 A message keeps the radio of its first attempt for all its retries, after a restart too. It moves when you choose another radio in Route, or when its radio is switched off or removed; a message that went on another radio only because its own was off goes back to its own once that is on again. A message that no longer fits the radio it moves to fails with its reason.
 
 - **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: Mercury"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too.
-- **Path and RF only** under it belong to the radio in force. On a radio that carries no path (Mercury) they are greyed with their value kept, their hover text says "Mercury: no path", and the line under them says "Automatic: direct". For a station heard there through a gateway the line names it, "Automatic: via OH2GBA-12", and RF only stays yours to tick. The path you set for a station on one radio is not used on another.
-- **A call that was never heard** has the row Radio greyed on Automatic until the station is heard. It names the radio the message will go on ("Automatic: Packet"), so you see it before Send.
+- **Path and RF only** under it belong to the radio in force. On a radio that carries no path (Mercury) the path is greyed with its value kept, its hover text says "Mercury: no path", and the line under it says "Automatic: direct". For a station heard there through a gateway the line names it, "Automatic: via OH2GBA-12". RF only stays yours to tick there. The path you set for a station on one radio is not used on another.
+- **A call that was never heard** has the same Route. Automatic names the radio the message will go on ("Automatic: Packet"), so you see it before Send; the radio and the path you choose are kept for that call and stay once it is heard.
 - **The station panel** of the Stations tab has the same Route, and its questions go on the station's radio. **Trace the route** is greyed on a radio that carries no path.
 - **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is. A message heard only on a radio that receives, or on one switched off or removed since, is acked on the radio a message to that station would take; a query heard only there is not answered.
 - **Email** (`EMAIL-2`) goes on the one radio chosen in the Email tab ([email.md](email.md#which-radio)). The Route of the gateway shows that radio greyed: it is chosen there and nowhere else.

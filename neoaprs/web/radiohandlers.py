@@ -295,6 +295,8 @@ async def station_radio(ctx: Ctx, cmd: StationRadio) -> None:
     if not ctx.ctl.radios.choose(call, cmd.radio) and cmd.radio is not None:  # None (daemon's choice) always succeeds
         raise no_radio(cmd.cmd, cmd.radio, ctx.ctl.config.radios)
     station = ctx.ctl.stationbook.get(call)
+    if station is None:
+        ctx.hub.changed("call_routes", call)
     for key in on_their_way(ctx.ctl.messaging.records(), call if station is None else station.call):
         ctx.hub.changed("messages", key)
 

@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
-from neoaprs.aprsmessage import MessageError
+from neoaprs.aprsmessage import MAX_TEXT, MessageError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
@@ -33,6 +33,7 @@ from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call,
 from neoaprs.services.acks import Acks
 from neoaprs.radiospec import told
 from neoaprs.radiotype import RadioId
+from neoaprs.route import NO_GATE_MARKERS
 from neoaprs.services.answers import as_pick
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
@@ -391,6 +392,21 @@ class Messaging:
         except MessagingError:
             return None
 
+    def text_max(self, to: str) -> int | None:
+        """Return the bytes of text a message to the station holds on its radio now, where fewer than MAX_TEXT fit.
+
+        None where the whole text fits, the radio has no frame limit, or no frame can be made."""
+        try:
+            radio = self.message_radios.station(to)
+            limit = radio.max_frame
+            if limit is None:
+                return None
+            empty = len(ax25.encode(self._frame(info(to, "x", MSG_IDS[0], ""), to, radio=radio))) - 1
+        except MessagingError:
+            return None
+        room = limit - empty - REPLY_ACK_ROOM
+        return max(0, room) if room < MAX_TEXT else None
+
     def radio_now(self, record: MessageRecord) -> AirRadio | None:
         """Return what `radio_of` would give, keeping and logging nothing; None if there is none."""
         try:
@@ -509,7 +525,12 @@ class Messaging:
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None:
         """Acknowledge message `msg_id` of station `to` on the radio the message (`packet`) came on.
 
-        The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack."""
+        The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack. It is RF
+        only when the message was."""
         self.acks.send(
-            to, msg_id, reply_ack, None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to)
+            to,
+            msg_id,
+            reply_ack,
+            None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to),
+            rf_only=packet is not None and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
         )

@@ -136,6 +136,16 @@ export interface BulletinUnpostCommand {
   slot: string;
 }
 
+/** How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard. */
+export interface CallRoute {
+  /** the radio the operator chose for messages to the call (`station_radio`), its id, while that radio is enabled; null for the daemon's choice */
+  radio_choice: number | null;
+  /** the radio a message to the call goes out on now, its id: the choice while it is in force, else the first radio that can send (`unheard_radio` of `status`); null while there is none */
+  radio_now: number | null;
+  /** the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row */
+  paths: { [key: string]: string };
+}
+
 /** The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set them): a slider is drawn only where the card has the control, at the card's level. */
 export interface CardLevelsRow {
   /** the card's playback level in percent, what the radio is given to transmit (ALSA's Speaker, PCM or Master control; the playing device's master volume on Windows); null where the card has no such control, the radio has no sound card or its card was never read */
@@ -2161,6 +2171,8 @@ export interface StationRow {
   replies: { [key: string]: string };
   /** the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) */
   paths: { [key: string]: string };
+  /** the bytes of text a message to the station holds on the radio of `radio_now`, where its frame leaves room for fewer than a message may have (Mercury's 123 bytes with a reply path and RFONLY); null where the whole text fits, and for a station that takes no message */
+  text_max: number | null;
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */
   track: [string, number, number][];
 }
@@ -2400,6 +2412,8 @@ export interface TopicValues {
   chat_lines: { [key: string]: ChatLineRow };
   /** asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes */
   general: GeneralState;
+  /** how messages go to each call the station book does not hold that has a radio chosen (`station_radio`) or a path set on a radio (`set_station_path`), by call in its normal form: `station_radio` and `set_station_path` for such a call give a `set` of its entry, and a `del` once nothing is left or the station is heard (its row says it then) */
+  call_routes: { [key: string]: CallRoute };
 }
 
 /** Stop following these topics. A topic that was not followed is ignored. */

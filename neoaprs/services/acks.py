@@ -1,12 +1,13 @@
 """Message ids and acks: allocate the next message id and send the ack for a message to us.
 
-An ack goes back on the radio the message came on; it is dropped while the interlock is shut and
-waits (`flush`, ACK_HOLD_MAX_SEC) while the radio is briefly unusable.
+An ack goes back on the radio the message came on, with RFONLY when the message had RFONLY or NOGATE;
+it is dropped while the interlock is shut and waits (`flush`, ACK_HOLD_MAX_SEC) while the radio is
+briefly unusable.
 """
 
 import logging
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
 from neoaprs import ax25
@@ -15,6 +16,7 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.message import MSG_IDS, MessageRecord, MessagingError, next_msg_id
 from neoaprs.radiotype import RadioId
+from neoaprs.route import rf_only_path
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
 from neoaprs.source import Source
 
@@ -31,6 +33,7 @@ class Waiting:
     reply_ack: str | None
     until: datetime
     radio: RadioId
+    rf_only: bool = False
 
 
 class Acks:
@@ -66,7 +69,9 @@ class Acks:
         self._last_id = ident
         return ident
 
-    def send(self, to: str, msg_id: str, reply_ack: str | None = None, radio: AirRadio | None = None) -> None:
+    def send(
+        self, to: str, msg_id: str, reply_ack: str | None = None, radio: AirRadio | None = None, rf_only: bool = False
+    ) -> None:
         """Ack message `msg_id` of `to` on `radio` (default: first sender), now or once usable."""
         if self._interlock.refused("ack"):
             return
@@ -78,11 +83,13 @@ class Acks:
             # A copy of the message arriving while its ack waits gets that one ack.
             if not any(ack.to == to and ack.msg_id == msg_id for ack in self.waiting):
                 self.waiting.append(
-                    Waiting(to, msg_id, reply_ack, self._clock() + timedelta(seconds=ACK_HOLD_MAX_SEC), radio.id)
+                    Waiting(
+                        to, msg_id, reply_ack, self._clock() + timedelta(seconds=ACK_HOLD_MAX_SEC), radio.id, rf_only
+                    )
                 )
                 log.info("the ack of message %s from %s waits: %s", msg_id, to, radio.why_unusable())
             return
-        self._transmit(to, msg_id, reply_ack, radio)
+        self._transmit(to, msg_id, reply_ack, radio, rf_only)
 
     def flush(self) -> None:
         """Send waiting acks whose radio is usable again; drop those older than ACK_HOLD_MAX_SEC."""
@@ -103,17 +110,28 @@ class Acks:
             elif (
                 radio is None
                 or not radio.usable
-                or not self._transmit(ack.to, ack.msg_id, ack.reply_ack, radio, quiet=True)
+                or not self._transmit(ack.to, ack.msg_id, ack.reply_ack, radio, ack.rf_only, quiet=True)
             ):
                 self.waiting.append(ack)
 
-    def _transmit(self, to: str, msg_id: str, reply_ack: str | None, radio: AirRadio, quiet: bool = False) -> bool:
+    def _transmit(
+        self, to: str, msg_id: str, reply_ack: str | None, radio: AirRadio, rf_only: bool = False, quiet: bool = False
+    ) -> bool:
         """Send the ack; return False if the TNC refused it. An unbuildable ack counts as done."""
         try:
-            sent = radio.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to, radio))
+            frame = self._frame(b":" + format_ack(to, msg_id, reply_ack), to, radio)
+            sent = radio.send_frame(_rf_only(frame) if rf_only else frame)
         except (MessageError, MessagingError) as e:
             log.warning("no ack for message %s from %s: %s", msg_id, to, e)
             return True
         if not sent and not quiet:
             log.warning("the ack of message %s from %s was not sent: the TNC would not take it", msg_id, to)
         return sent
+
+
+def _rf_only(frame: ax25.Frame) -> ax25.Frame:
+    """Return the frame with RFONLY last in its path, unchanged if that makes the path too long."""
+    calls = rf_only_path(tuple(str(hop) for hop in frame.path))
+    if len(calls) > ax25.MAX_PATH:
+        return frame
+    return replace(frame, path=tuple(ax25.Address.parse(call) for call in calls))

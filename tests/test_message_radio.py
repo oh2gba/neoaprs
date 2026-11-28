@@ -148,6 +148,23 @@ async def test_the_page_chooses_the_radio_of_a_station_and_its_row_says_it(tmp_p
     assert error["code"] == "radio.unknown"
 
 
+async def test_a_call_never_heard_gets_its_radio_and_its_path_there_told_back_until_it_is_heard(tmp_path: Path) -> None:
+    e, page = await with_page(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    await page.until(lambda: "call_routes" in page.topics)
+    assert page.topics["call_routes"] == {}
+    await page.send({"cmd": "station_radio", "call": "ea8ee-2", "radio": 2})
+    await page.until(lambda: "EA8EE-2" in page.topics["call_routes"])
+    assert page.topics["call_routes"]["EA8EE-2"] == {"radio_choice": 2, "radio_now": 2, "paths": {}}
+    await page.send({"cmd": "station_radio", "call": "EA8EE-2", "radio": None})
+    await page.until(lambda: "EA8EE-2" not in page.topics["call_routes"])
+    await page.send({"cmd": "set_station_path", "call": "OH2DPN", "path": "OH2GBA-12", "radio": 2})
+    await page.until(lambda: "OH2DPN" in page.topics["call_routes"])
+    assert page.topics["call_routes"]["OH2DPN"]["paths"] == {"2": "OH2GBA-12"}
+    e.feed(on_air("OH2DPN", b"=6015.42N/02447.93E-Nick"))
+    await page.until(lambda: "OH2DPN" in page.topics["stations"] and "OH2DPN" not in page.topics["call_routes"])
+    assert page.topics["stations"]["OH2DPN"]["paths"] == {"2": "OH2GBA-12"}, "its row says it now"
+
+
 def test_a_station_the_book_lets_go_takes_its_radio_along_and_a_restart_does_not_bring_it_back() -> None:
     r, book, kept = radios()
     book.removed.connect(r.forget)  # (as wiring.py connects them)

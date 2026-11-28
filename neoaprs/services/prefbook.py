@@ -117,7 +117,7 @@ class PrefBook:
             key, own, path = "", None, None
         if (spec := self._config().radio(radio_id)) is not None and not _has_path(spec):
             reply = self._gateway(key, radio_id)
-            return rf_only_path(reply) if reply and own is not None and own.rf_only else reply
+            return rf_only_path(reply) if own is not None and own.rf_only else reply
         if path is None and attempt is not None and key != EMAIL_GATEWAY:
             path = automatic_path(self._heard(key), self._clock(), attempt)
         if path is None:

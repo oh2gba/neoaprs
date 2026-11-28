@@ -51,8 +51,7 @@ fieldset.composebox > legend {
 .field.disabled label,
 .field.disabled .unit,
 .field.disabled .check,
-.pathbox.disabled .path-label,
-.pathbox.disabled .rfonly {
+.pathbox.disabled .path-label {
   opacity: 0.5;
 }
 .field-control {

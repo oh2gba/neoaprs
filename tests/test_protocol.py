@@ -284,6 +284,7 @@ STATION: dict[str, Any] = {
     "radio_now": 1,
     "paths": {"3": "OH2RCH-2"},
     "replies": {"2": "OH2GBA-12"},
+    "text_max": 66,
     "own": False,
     "weather": WEATHER_FIELDS,
     "weather_at": NOW,
@@ -1317,6 +1318,7 @@ def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
         "own_objects",
         "own_bulletins",
         "chat_lines",
+        "call_routes",
     }
 
 

@@ -29,6 +29,7 @@ from neoaprs.signal import Signal
 from neoaprs.station import Station
 from neoaprs.stationbook import carries_path
 
+from .callroutes import CallRoutes
 from .chatwire import ChatFreshMsg, ChatLineRow
 from .hub import StateHub, Topic
 from .layerfeed import LayerLooks
@@ -111,7 +112,7 @@ class Topics:
         self._distances_at = float("-inf")
         self._config = ctl.config  # the settings the stations were last told with
         self._follow_ticks(ctl.config)
-        self.station_radios = StationRadios(self._radio_choice, self._radio_now, self._paths_of, self._replies_of)
+        self.station_radios, self.call_routes = self._routes()
         hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
         hub.add(Topic("radios", self._radios, self._radio, interval=TNC_EVERY_SEC))
@@ -165,7 +166,22 @@ class Topics:
             )
         )
         hub.add(Topic("general", lambda: general_state(ctl.generalask.asked(), ctl.generalask.sent_on())))
+        hub.add(Topic("call_routes", self.call_routes.whole, self.call_routes.item))
         self.connected = False
+
+    def _routes(self) -> tuple[StationRadios, CallRoutes]:
+        """Return what a station's row says of the radios, and the same for calls the book does not hold."""
+        ctl = self.ctl
+        radios = StationRadios(
+            self._radio_choice, self._radio_now, self._paths_of, self._replies_of, ctl.messaging.text_max
+        )
+        return radios, CallRoutes(
+            lambda call: ctl.stationbook.get(call) is not None,
+            lambda: ctl.radios.chosen(),
+            lambda radio: ctl.prefbook.paths(radio),
+            lambda: (spec.id for spec in ctl.config.live_radios),
+            radios,
+        )
 
     def _chat_row(self, line: Line) -> dict[str, Any]:
         return ChatLineRow.of(line, self.ctl.chat.ours(line))
@@ -390,15 +406,19 @@ class Topics:
 
     def _station_changed(self, station: Station) -> None:
         self.hub.changed("stations", station.call)
+        if station.call in self.call_routes.told:
+            self.hub.changed("call_routes", station.call)  # heard: its row says it now
 
     def _station_removed(self, call: str) -> None:
         self.hub.changed("stations", call)
+        self.hub.changed("call_routes", call)
 
     def _stations_cleared(self) -> None:
         """Drop heard packets from the window when every station but ours was forgotten."""
         self.window.drop_heard()
         self.hub.changed("stations")
         self.hub.changed("packets")
+        self.hub.changed("call_routes")
 
     def _radio_changed(self, id: RadioId) -> None:
         self.hub.changed("radios", str(id))
@@ -409,6 +429,7 @@ class Topics:
     def _path_changed(self, call: str, radio: RadioId) -> None:
         """Update the station's row `paths`; radio 1's path is also in `station_prefs`."""
         self.hub.changed("stations", call)
+        self.hub.changed("call_routes", call)
 
     def _packet(self, packet: Packet) -> None:
         for number in self.window.add(packet):
@@ -477,6 +498,8 @@ class Topics:
 
     def _pref_changed(self, call: str, pref: Pref | None) -> None:
         self.hub.changed("station_prefs", call)
+        if self.ctl.stationbook.get(call) is not None:
+            self.hub.changed("stations", call)  # its text_max follows RF only
 
     def _key_changed(self, call: str) -> None:
         self.hub.changed("station_keys", call)
@@ -517,6 +540,7 @@ class Topics:
         )
         if radios:
             self.hub.changed("stations")  # the radio each message takes now, and the choices in force
+            self.hub.changed("call_routes")
             self.hub.changed("own_objects")  # a removed radio left the objects' radios
             for key in on_their_way(self.ctl.messaging.records()):
                 self.hub.changed("messages", key)  # the radio each goes on next

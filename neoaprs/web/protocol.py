@@ -77,7 +77,7 @@ from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly, StationAlertMsg, StationPref
 from .chatwire import ChatFreshMsg, ChatLineRow, ChatSay, ChatState
 from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
-from .stationwire import ForgetAllStations, ForgetStation, StationRow, StationTrack, StationTrackMsg
+from .stationwire import CallRoute, ForgetAllStations, ForgetStation, StationRow, StationTrack, StationTrackMsg
 from .supportwire import PageError
 from .tncwire import Frequencies, RadioRow
 from .updatewire import UpdateCancel, UpdateNow, UpdateState
@@ -226,6 +226,10 @@ class TopicValues(_Model):
     general: GeneralState = Field(
         description="asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes"
     )
+    call_routes: dict[str, CallRoute] = Field(
+        description="how messages go to each call the station book does not hold that has a radio chosen (`station_radio`) or a path set on a radio (`set_station_path`), by call in its normal form: "
+        "`station_radio` and `set_station_path` for such a call give a `set` of its entry, and a `del` once nothing is left or the station is heard (its row says it then)"
+    )
 
 
 TOPIC_NAMES: tuple[str, ...] = tuple(get_type_hints(TopicValues))
@@ -242,6 +246,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {
     "own_objects": TypeAdapter(OwnObjectRow),
     "own_bulletins": TypeAdapter(OwnBulletinRow),
     "chat_lines": TypeAdapter(ChatLineRow),
+    "call_routes": TypeAdapter(CallRoute),
 }
 """A validator for one item of a table topic: the outgoing check looks at the `set` ops with it."""
 

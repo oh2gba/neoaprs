@@ -233,7 +233,7 @@ class Answers:
             return False
         try:
             calls = self._paths(asker, None, tnc.id)
-            calls = path_on(tnc, self._config(), rf_only_path(calls) if rf_only else calls)
+            calls = path_on(tnc, self._config(), rf_only_path(calls) if rf_only else calls, rf_only=rf_only)
             if len(calls) > ax25.MAX_PATH:
                 raise MessagingError(f"path too long for RF only: {len(calls)} digipeaters")
             path = tuple(ax25.Address.parse(call) for call in calls)

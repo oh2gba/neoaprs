@@ -10,6 +10,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.show_overheard": "Näytä kuullut",
   "messages.services": "Palvelut",
   "messages.service_write": "Kirjoita",
+  "messages.new_label": "Uusi keskustelu",
+  "messages.new_call": "Kutsu",
   "messages.service_title": "Vastaanottaja {to}: {text}",
   "messages.service.ota_cq": "Ketkä ovat äänessä",
   "messages.service.ota_chase": "Jahtaa aktivointia",

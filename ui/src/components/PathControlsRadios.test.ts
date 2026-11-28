@@ -102,19 +102,19 @@ describe("Route in a conversation", () => {
     expect(box.find("select").exists()).toBe(false);
   });
 
-  it("is there for a station messaged on Mercury while the Packet radio is on too: its radio first, then the path and RF only greyed with the reason as their titles, and the line saying what the messages go by (plan section 6)", async () => {
+  it("is there for a station messaged on Mercury while the Packet radio is on too: its radio first, then the path greyed with the reason as its title, RF only live, and the line saying what the messages go by (plan section 6)", async () => {
     const box = await opened(conversation(BOTH, "OH2HF"));
     expect(box.findAll("label").map((l) => l.text())).toEqual(["Radio", "Path", "RF only"]);
     expect(options(box)).toEqual(["Automatic: Mercury", "Packet", "Mercury"]);
     const path = box.find<HTMLInputElement>(".pathbox input[type='text']");
     expect([path.element.disabled, path.attributes("title")]).toEqual([true, "Mercury: no path"]);
-    expect(box.find<HTMLInputElement>(".rfonly input").element.disabled).toBe(true);
-    expect(box.find(".rfonly").attributes("title")).toBe("Mercury: no path");
+    expect(box.find<HTMLInputElement>(".rfonly input").element.disabled).toBe(false);
+    expect(box.find(".rfonly").attributes("title")).toBe("iGates do not put these messages on the internet");
     expect(box.find(".path-line").text()).toBe("Automatic: direct");
     expect(box.find<HTMLButtonElement>(".pathbox button").element.disabled).toBe(true);
   });
 
-  it("says the gateway a station on Mercury is answered through, with RF only live and the path still greyed", async () => {
+  it("says the gateway a station on Mercury is answered through, with RF only live there and heard direct too, and the path still greyed", async () => {
     const wrapper = conversation(BOTH, "OH2HF", stations({ ...hfHeard, replies: { "2": "OH2GBA-12,WIDE2-1" } }));
     const box = await opened(wrapper);
     expect(box.find(".path-line").text()).toBe("Automatic: via OH2GBA-12,WIDE2-1");
@@ -130,7 +130,7 @@ describe("Route in a conversation", () => {
     expect([
       wrapper.find(".path-line").text(),
       wrapper.find<HTMLInputElement>(".rfonly input").element.disabled,
-    ]).toEqual(["Automatic: direct", true]);
+    ]).toEqual(["Automatic: direct", false]);
   });
 
   it("keeps the path of the Packet radio while the station goes over Mercury, and shows it again once it goes over Packet", async () => {
@@ -200,7 +200,7 @@ describe("Route in a conversation", () => {
     expect(box.findAll(".route-radio select")).toHaveLength(1);
   });
 
-  it("has the radio's row greyed on Automatic for a call the book does not hold, whose choice no row could say back, and live once the station is heard, nothing above Path moving", async () => {
+  it("has the radio's row live on Automatic for a call the book does not hold, and still once the station is heard, nothing above Path moving", async () => {
     const wrapper = conversation(BOTH, "OH2NEW", stations(fmHeard));
     const box = await opened(wrapper);
     const list = box.find<HTMLSelectElement>(".route-radio select");
@@ -210,8 +210,8 @@ describe("Route in a conversation", () => {
       options(box),
       box.findAll("label").map((l) => l.text()),
     ]).toEqual([
-      true,
-      expect.arrayContaining(["disabled"]),
+      false,
+      ["pathbox", "route-radio"],
       ["Automatic: Packet", "Packet", "Mercury"],
       ["Radio", "Path", "RF only"],
     ]);
@@ -247,8 +247,8 @@ describe("Route in a conversation", () => {
     const sheet = readFileSync(resolve(__dirname, "../styles/settings.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const dimmed =
       sheet.match(/([^{}]*)\{\s*opacity: 0\.5;\s*\}/g)?.find((rule) => rule.includes(".field.disabled label")) ?? "";
-    for (const part of [".pathbox.disabled .path-label", ".pathbox.disabled .rfonly"])
-      expect(dimmed, part).toContain(part);
+    expect(dimmed).toContain(".pathbox.disabled .path-label");
+    expect(dimmed, "RF only stays live on a radio that carries no path").not.toContain(".rfonly");
   });
 
   it("sets and clears the path of the radio in force: radio 1's as before, another's with the radio named, its own path setting as the automatic one", async () => {

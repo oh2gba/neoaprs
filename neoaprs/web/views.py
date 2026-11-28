@@ -126,6 +126,7 @@ class StationRadios:
     now: Callable[[str], RadioId | None] = lambda call: None
     paths: Callable[[str], Mapping[RadioId, tuple[str, ...]]] = lambda call: {}
     replies: Callable[[str], Mapping[RadioId, tuple[str, ...]]] = lambda call: {}
+    text_max: Callable[[str], int | None] = lambda call: None
 
 
 NO_RADIOS = StationRadios()
@@ -141,6 +142,7 @@ def _radio_fields(station: Station, radios: StationRadios) -> dict[str, Any]:
         "radio_now": radios.now(station.call) if station.can_message else None,
         "paths": {str(id): ",".join(path) for id, path in sorted(radios.paths(station.call).items())},
         "replies": {str(id): ",".join(path) for id, path in sorted(radios.replies(station.call).items()) if path},
+        "text_max": radios.text_max(station.call) if station.can_message else None,
     }
 
 

@@ -18,6 +18,7 @@ from neoaprs.message import EMAIL_GATEWAY, path_choice, same_call
 from neoaprs.packet import Packet
 from neoaprs.radiotype import Allowed, Kind, Limits, RadioId
 from neoaprs.radiotypes import recommended_path
+from neoaprs.route import RF_ONLY
 from neoaprs.tnc2line import text_of
 from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
@@ -137,10 +138,12 @@ def fit_frame(
     return replace(frame, info=frame.info[: len(frame.info) - over])
 
 
-def path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tuple[str, ...]:
-    """Return the digipeaters of our frame on the radio: none, the given path, or its default."""
+def path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None, *, rf_only: bool = False) -> tuple[str, ...]:
+    """Return the path of our frame on the radio: the given path, or its default.
+
+    A radio that carries no path gets none, or RFONLY alone with `rf_only`."""
     if not radio.allowed.paths:
-        return ()
+        return (RF_ONLY,) if rf_only else ()
     if path is not None:
         return path
     chosen = path_choice(str(radio.choice("path")))

@@ -1151,6 +1151,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `chat` | ChatState | the chat of the HF tests tab, as the project's server keeps it: whether it can be read and takes lines; told whole as it changes |
 | `chat_lines` | { [key: string]: ChatLineRow } | the lines of the chat by id (as text), the newest 100 the server keeps, all of them sent with the first `state`: a line read or said is a `set` of its row, one the server no longer has a `del`. Read every 15 seconds while the daemon runs |
 | `general` | GeneralState | asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes |
+| `call_routes` | { [key: string]: CallRoute } | how messages go to each call the station book does not hold that has a radio chosen (`station_radio`) or a path set on a radio (`set_station_path`), by call in its normal form: `station_radio` and `set_station_path` for such a call give a `set` of its entry, and a `del` once nothing is left or the station is heard (its row says it then) |
 
 ## Objects
 
@@ -1228,6 +1229,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `radio_now` | integer \| null |  | the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (Packet, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio |
 | `replies` | { [key: string]: string } |  | the path a message or an ack of ours to the station goes by on each radio that carries no path (Mercury), by the radio's id as text: the gateway its latest packet there came by, then WIDE2-1 when a digipeater stood before the gateway, calls separated by commas, without RFONLY; a radio that carries a path, and one on which they go direct, has no entry |
 | `paths` | { [key: string]: string } |  | the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) |
+| `text_max` | integer \| null |  | the bytes of text a message to the station holds on the radio of `radio_now`, where its frame leaves room for fewer than a message may have (Mercury's 123 bytes with a reply path and RFONLY); null where the whole text fits, and for a station that takes no message (>= 0) |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow
@@ -1564,6 +1566,16 @@ entry stays on the board until it is deleted.
 | `first_heard` | time |  | when this text was first heard; a sender that changes the text starts again |
 | `last_heard` | time |  | when it was last heard |
 | `times_heard` | integer |  | how often this text was heard (the copies of one transmission that came by different digipeaters within 10 seconds are one) (>= 1) |
+
+### CallRoute
+
+How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard.
+
+| field | type | | description |
+|---|---|---|---|
+| `radio_choice` | integer \| null |  | the radio the operator chose for messages to the call (`station_radio`), its id, while that radio is enabled; null for the daemon's choice |
+| `radio_now` | integer \| null |  | the radio a message to the call goes out on now, its id: the choice while it is in force, else the first radio that can send (`unheard_radio` of `status`); null while there is none |
+| `paths` | { [key: string]: string } |  | the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row |
 
 ### CardLevelsRow
 

@@ -216,7 +216,9 @@ async def test_the_answer_goes_on_the_radio_the_request_came_on_by_the_path_that
     packet = Packet(rig.clock(), "in", b"", "OH2FAR", "APRS", (), b"", Message("QRU", "INFO", None), None, "rf", HF_ID)
     assert rig.qru.heard(packet, Message("QRU", "INFO", None))
     await until(lambda: len(hf.sent) == 1)
-    assert [f.path for f in hf.sent] == [()] and rig.tnc.sent == [], "over HF with no path, nothing on FM"
+    assert [f.path_text for f in hf.sent] == ["RFONLY"] and rig.tnc.sent == [], (
+        "over HF with RFONLY alone, nothing on FM"
+    )
 
 
 def test_an_answer_with_a_path_too_long_for_rfonly_is_not_sent(caplog: pytest.LogCaptureFixture) -> None:

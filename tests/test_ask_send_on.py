@@ -142,7 +142,9 @@ async def test_with_one_radio_that_can_send_everything_goes_on_it_whatever_is_st
         assert station.general.ask("aprs").radios == (2,)
         station.qru.ask("INFO")
         assert station.frames() == {2: 2, 4: 0, 1: 0}
-        assert station.tnc2(2) == ["OH2GBA>APZNEO:?APRS?", "OH2GBA>APZNEO::QRU      :INFO"], "Mercury carries no path"
+        assert station.tnc2(2) == ["OH2GBA>APZNEO,RFONLY:?APRS?", "OH2GBA>APZNEO,RFONLY::QRU      :INFO"], (
+            "Mercury carries no path: RFONLY alone"
+        )
 
 
 # ---- Ask around ----------------------------------------------------------------------------------
@@ -156,8 +158,8 @@ def test_a_query_goes_once_on_each_ticked_radio_and_on_no_unticked_receive_only_
         "a radio that only receives and one that is off are not even offered the frame"
     )
     assert station.tnc2(1) == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:?APRS?"] and station.tnc2(2) == [
-        "OH2GBA>APZNEO:?APRS?"
-    ], "each by the path it carries: Mercury none"
+        "OH2GBA>APZNEO,RFONLY:?APRS?"
+    ], "each by the path it carries: Mercury RFONLY alone"
     assert (asked.radios, asked.path) == ((1, 2), ("WIDE1-1", "WIDE2-1", "RFONLY")), (
         "the record holds its radios, and the path of the one that carries a path"
     )
@@ -176,7 +178,7 @@ def test_a_path_typed_goes_on_the_radios_that_carry_a_path_and_each_radios_own_d
     own = station.general.ask("wx")
     assert [station.tnc2(id)[-1] for id in (1, 2, 3)] == [
         "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:?WX?",
-        "OH2GBA>APZNEO:?WX?",
+        "OH2GBA>APZNEO,RFONLY:?WX?",
         "OH2GBA>APZNEO,WIDE1-1,RFONLY:?WX?",
     ], "none typed: each radio's own (LoRa's WIDE1-1)"
     assert own.path is None and own.radios == (1, 2, 3), (
@@ -353,7 +355,7 @@ def test_the_log_says_each_radio_a_query_went_on_and_a_radio_that_did_not_take_i
     assert [(r.name, r.levelname, r.getMessage()) for r in caplog.records] == [
         ("neoaprs.services", "WARNING", "asking around: the LoRa radio (radio 3) did not take the frame"),
         ("neoaprs.queries", "INFO", "asked around: ?APRS? by WIDE1-1,WIDE2-1,RFONLY on Packet"),
-        ("neoaprs.queries", "INFO", "asked around: ?APRS? by no digipeaters on Mercury"),
+        ("neoaprs.queries", "INFO", "asked around: ?APRS? by RFONLY on Mercury"),
     ]
 
 
@@ -369,7 +371,7 @@ async def test_the_request_info_goes_once_on_each_ticked_radio_and_on_no_unticke
         and station.lines[5].asked == 0
     )
     assert station.tnc2(1) == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO 50"] and station.tnc2(2) == [
-        "OH2GBA>APZNEO::QRU      :INFO 50"
+        "OH2GBA>APZNEO,RFONLY::QRU      :INFO 50"
     ]
     assert isinstance(station.qru.asked, AskedOn) and station.qru.asked.radios == (1, 2), (
         "the request records its radios"

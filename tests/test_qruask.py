@@ -230,7 +230,7 @@ async def test_a_request_goes_on_the_one_radio_that_can_send_by_the_path_it_carr
     # The HF radio alone: the one radio that can send, which carries no path
     rig.radios.on = {HF_ID}
     rig.qru.ask("INFO")
-    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == []
+    assert hf.lines() == ["OH2GBA>APZNEO,RFONLY::QRU      :INFO"] and rig.tnc.sent == []
     rig.set(fm_enabled=True)
     # Both on, no tick stored: ticked nowhere, nothing goes
     rig.radios.on.add(FM_ID)
@@ -250,8 +250,8 @@ async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_i
     rig = Rig(hf_enabled=True)
     hf = with_hf(rig, rig.radios)
     rig.qru.ask("INFO", radio=HF_ID)
-    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], (
-        "on the radio named (Mercury: no path)"
+    assert hf.lines() == ["OH2GBA>APZNEO,RFONLY::QRU      :INFO"] and rig.tnc.sent == [], (
+        "on the radio named (Mercury: RFONLY alone)"
     )
     assert rig.paths_asked == [("QRU", None, HF_ID)], "the path of messages to QRU is asked for that radio"
     assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radios) == ("INFO", (HF_ID,)), (

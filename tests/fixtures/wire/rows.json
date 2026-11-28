@@ -2501,6 +2501,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -2588,6 +2589,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -2683,6 +2685,7 @@
    "symbol_table": "\\",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -2770,6 +2773,7 @@
    "symbol_table": "\\",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -2861,6 +2865,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -2934,6 +2939,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -3003,6 +3009,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -3105,6 +3112,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -3207,6 +3215,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -3299,6 +3308,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -3398,6 +3408,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -3493,6 +3504,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -3595,6 +3607,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -3691,6 +3704,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -3783,6 +3797,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -3870,6 +3885,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -3950,6 +3966,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -4046,6 +4063,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4127,6 +4145,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4208,6 +4227,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4289,6 +4309,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4370,6 +4391,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4451,6 +4473,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4532,6 +4555,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4683,6 +4707,7 @@
     "sequence": 5
    },
    "telemetry_at": "2026-10-21T12:00:00Z",
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4764,6 +4789,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -4845,6 +4871,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": {
     "gust_kmh": 8.0,
@@ -4947,6 +4974,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -5050,6 +5078,7 @@
    "symbol_table": "",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -5117,6 +5146,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [],
    "weather": null,
    "weather_at": null
@@ -5198,6 +5228,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -5294,6 +5325,7 @@
    "symbol_table": "/",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",
@@ -5392,6 +5424,7 @@
    "symbol_table": "\\",
    "telemetry": null,
    "telemetry_at": null,
+   "text_max": null,
    "track": [
     [
      "2026-10-21T12:00:00Z",

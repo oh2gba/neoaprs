@@ -2,11 +2,11 @@
 // Route chooses it. It is the daemon's (lib/radios.ts `sendingRadio`). It is named only where
 // more than one radio is on, and always while it is not on. A control that sends over it is off
 // while its link is down. Route holds, in order: the radio choice (the radios that are on and
-// send, and "Automatic"), where more than one sends (greyed on "Automatic" for a call the book
-// does not hold, as the daemon keeps a choice by call but only the station's row says it back;
-// greyed on the email radio for the email gateway); then the station's own path on the radio in
-// force and RF only, while a radio that is on may carry a path. A path belongs to the radio it
-// was set on: radio 1's is the topic `station_prefs`, another radio's the station row's `paths`.
+// send, and "Automatic"), where more than one sends (greyed on the email radio for the email
+// gateway); then the station's own path on the radio in force and RF only, while a radio that is
+// on may carry a path. A path belongs to the radio it was set on: radio 1's is the topic
+// `station_prefs`, another radio's the station row's `paths`. For a call the book does not hold,
+// the topic `call_routes` says the choice, the radio now and the paths as a row would.
 import { computed } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
@@ -15,7 +15,7 @@ import { normalizeCall } from "@/lib/calls";
 import { radioBlockedReason } from "@/lib/compose";
 import { isGateway } from "@/lib/messages";
 import type { PageRadio, RadioId } from "@/lib/radios";
-import type { MessageRow, StationRow } from "@/protocol/protocol";
+import type { CallRoute, MessageRow, StationRow } from "@/protocol/protocol";
 
 /**
  * The radio whose path for a station the topic `station_prefs` carries; the target of a path
@@ -42,16 +42,20 @@ export function useStationRadio(
   thread: () => readonly Pick<MessageRow, "state" | "radio_now">[] = () => [],
 ) {
   const radios = useRadios();
-  const { prefs, fallbackPath, send } = useDaemonContext();
+  const { prefs, fallbackPath, send, callRoutes } = useDaemonContext();
   const gateway = computed(() => isGateway(call()));
+  /** The station's row, else the route the daemon keeps for a call it does not hold; null for neither. */
+  const route = computed<StationRow | CallRoute | null>(
+    () => row() ?? callRoutes.value.get(normalizeCall(call())) ?? null,
+  );
   const over = computed(() =>
-    gateway.value ? radios.email.value : (radios.forStation(row(), thread()) ?? radios.unheard.value),
+    gateway.value ? radios.email.value : (radios.forStation(route.value, thread()) ?? radios.unheard.value),
   );
   const named = computed(() => over.value !== null && radios.named(over.value.id));
   const onPrefs = computed(() => over.value === null || over.value.id === PREFS_RADIO);
   const paths = computed<ReadonlyMap<string, string>>(() => {
     if (onPrefs.value) return prefs.paths.value;
-    const own = row()?.paths[String(over.value?.id)];
+    const own = route.value?.paths[String(over.value?.id)];
     return new Map(own === undefined ? [] : [[normalizeCall(call()), own]]);
   });
   const fallback = computed(() => (over.value === null ? fallbackPath.value : radios.pathOf(over.value)));
@@ -64,13 +68,12 @@ export function useStationRadio(
     named,
     offline: computed(() => radioBlockedReason(over.value, named.value)),
     choices,
-    /**
-     * The radio cannot be chosen here (a call the book does not hold, or the email gateway);
-     * Route's row stays, greyed.
-     */
-    fixed: computed(() => row() === null || gateway.value),
-    choice: computed(() => (gateway.value ? (radios.email.value?.id ?? null) : (row()?.radio_choice ?? null))),
-    auto: computed(() => (!gateway.value && row()?.radio_choice == null ? (over.value?.name ?? null) : null)),
+    /** The radio cannot be chosen here (the email gateway); Route's row stays, greyed. */
+    fixed: gateway,
+    choice: computed(() => (gateway.value ? (radios.email.value?.id ?? null) : (route.value?.radio_choice ?? null))),
+    auto: computed(() => (!gateway.value && route.value?.radio_choice == null ? (over.value?.name ?? null) : null)),
+    /** The bytes of text a message holds on the radio now where its frame leaves fewer; null: the message's own. */
+    textMax: computed(() => row()?.text_max ?? null),
     pathShown,
     pathless: computed(() =>
       pathShown.value && over.value !== null && !over.value.carriesPath

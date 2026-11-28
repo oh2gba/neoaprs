@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // The Messages tab's conversation list, newest first: call (or overheard pair), age, last text
 // and unseen count. The trash button deletes the whole conversation after "sure?"; a single
-// message has no button. Right-click copies the call (CopyMenu). The head has Show overheard and
-// Services (MessageServices).
+// message has no button. Right-click copies the call (CopyMenu). The head has Show overheard, the
+// + that opens a conversation with a call typed (one no radio heard too; Write is on while the
+// call is one the daemon takes and not ours), and Services (MessageServices).
+import { nextTick, ref } from "vue";
 import TagMark from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -12,12 +14,23 @@ import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
+import { normalizeCall, validName } from "@/lib/calls";
 import { ageText } from "@/lib/format";
 import { shownText } from "@/lib/lock";
 import { askedNote, conversationName, isHighlighted, overheardPair, type Conversation } from "@/lib/messages";
 import { unreadText } from "@/lib/unread";
 
-defineProps<{ conversations: readonly Conversation[]; selected: string | null; now: number; showOverheard: boolean }>();
+const props = withDefaults(
+  defineProps<{
+    conversations: readonly Conversation[];
+    selected: string | null;
+    now: number;
+    showOverheard: boolean;
+    /** our own call, which no conversation is with */
+    ours?: string | null;
+  }>(),
+  { ours: null },
+);
 const emit = defineEmits<{
   select: [call: string];
   "update:showOverheard": [show: boolean];
@@ -29,6 +42,27 @@ const emit = defineEmits<{
 }>();
 
 const sure = useSure<string>();
+
+/** The + was pressed: the call field shows until a conversation is opened, + again or Esc. */
+const adding = ref(false);
+const typed = ref("");
+const field = ref<HTMLInputElement | null>(null);
+/** Whether the typed call is one a message may go to: a station's name, not our own call. */
+function writable(text: string): boolean {
+  return validName(text) && normalizeCall(text) !== normalizeCall(props.ours ?? "");
+}
+async function toggleAdding(): Promise<void> {
+  adding.value = !adding.value;
+  typed.value = "";
+  await nextTick();
+  field.value?.focus();
+}
+function openTyped(): void {
+  if (!writable(typed.value)) return;
+  emit("write", normalizeCall(typed.value), "");
+  adding.value = false;
+  typed.value = "";
+}
 /** The copy menu of a row: its call, or both calls of an overheard pair. */
 const copy = useCopyMenu((row) => {
   const call = row.dataset["call"];
@@ -69,7 +103,28 @@ function remove(call: string): void {
           {{ t("messages.show_overheard") }}</label
         >
         <InfoTip :label="t('messages.overheard_help_label')">{{ t("messages.overheard_help") }}</InfoTip>
+        <IconButton kind="add" class="convlist-add" :label="t('messages.new_label')" @click="toggleAdding" />
       </div>
+      <form
+        v-if="adding"
+        class="convlist-services convlist-new"
+        @submit.prevent="openTyped"
+        @keydown.esc.stop="adding = false"
+      >
+        <label for="msg-new-call">{{ t("messages.new_call") }}</label>
+        <input
+          id="msg-new-call"
+          ref="field"
+          v-model="typed"
+          class="input"
+          :class="{ invalid: typed.trim() !== '' && !writable(typed) }"
+          :aria-invalid="typed.trim() !== '' && !writable(typed)"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button type="submit" class="btn" :disabled="!writable(typed)">{{ t("messages.service_write") }}</button>
+      </form>
       <MessageServices @write="(to, text) => emit('write', to, text)" />
     </div>
     <ul class="convs">

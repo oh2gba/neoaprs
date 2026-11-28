@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The one small button for a row or card: delete, close, message (MessageGlyph), path, pin and
-// lock (toggles; `pressed` becomes aria-pressed), at least 32 by 32 px. `label` is the
+// The one small button for a row or card: delete, close, add, message (MessageGlyph), path, pin
+// and lock (toggles; `pressed` becomes aria-pressed), at least 32 by 32 px. `label` is the
 // screen-reader name. `armed` is the first press of a delete (useSure): it shows "sure?" in a
 // fixed-width slot (TwoWords) so that nothing moves under the finger.
 import MessageGlyph from "@/components/MessageGlyph.vue";
@@ -9,7 +9,7 @@ import { t } from "@/i18n";
 
 withDefaults(
   defineProps<{
-    kind: "delete" | "close" | "message" | "pin" | "path" | "lock";
+    kind: "delete" | "close" | "add" | "message" | "pin" | "path" | "lock";
     label: string;
     title?: string;
     armed?: boolean;
@@ -33,7 +33,7 @@ const encryption = __ENCRYPTION__;
     :aria-pressed="kind === 'pin' || kind === 'lock' ? pressed : undefined"
     :title="
       title ??
-      (kind === 'message' || kind === 'path' || kind === 'lock'
+      (kind === 'message' || kind === 'path' || kind === 'lock' || kind === 'add'
         ? label
         : kind === 'delete'
           ? t('iconbutton.delete')
@@ -87,6 +87,7 @@ const encryption = __ENCRYPTION__;
         <circle cx="12.5" cy="12" r="1.6" />
         <path d="M4.3 10.6l2.9-5.2M8.8 5.4l2.9 5.2" />
       </template>
+      <path v-else-if="kind === 'add'" d="M8 3v10M3 8h10" />
       <path v-else d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
     </svg>
   </button>

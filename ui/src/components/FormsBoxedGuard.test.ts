@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 const COMPONENTS = resolve(__dirname);
 
 const FORMS: Record<string, string> = {
+  "ConversationList.vue":
+    "the call of a new conversation in the head of the conversation list: one field and its button in a line",
   "ComposeBar.vue":
     "the box of every form of the Bulletins, Email and Objects tabs: a fieldset with its legend unless it is `inline` (the chat line)",
   "SettingsForm.vue": "the Settings and My station tabs: a fieldset for each group",

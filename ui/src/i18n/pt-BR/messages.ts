@@ -10,6 +10,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.show_overheard": "Mostrar captadas",
   "messages.services": "Serviços",
   "messages.service_write": "Escrever",
+  "messages.new_label": "Nova conversa",
+  "messages.new_call": "Indicativo",
   "messages.service_title": "Para {to}: {text}",
   "messages.service.ota_cq": "Quem está no ar",
   "messages.service.ota_chase": "Caçar uma ativação",

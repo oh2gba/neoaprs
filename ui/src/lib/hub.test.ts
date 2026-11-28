@@ -161,6 +161,9 @@ function memory() {
     delStationKey: (k) => void seen.keys.delete(k),
     delOwnObject: (k) => void seen.ownObjects.delete(k),
     delOwnBulletin: (k) => void seen.ownBulletins.delete(k),
+    replaceCallRoutes: () => undefined,
+    setCallRoute: () => undefined,
+    delCallRoute: () => undefined,
   };
   return { seen, store };
 }
