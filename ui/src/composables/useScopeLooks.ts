@@ -93,6 +93,7 @@ export function useScopeLooks(
     monitor,
     showOnMonitor: (radio) => void (chosen.value = radio),
     look: (looking, radio = first, reach) =>
-      looks(looking, radio, reach && (() => (reach() > 0 ? askSeconds(reach()) : undefined))),
+      // a reach not known yet asks for the least, never the whole history
+      looks(looking, radio, reach && (() => askSeconds(Math.max(0, reach())))),
   };
 }

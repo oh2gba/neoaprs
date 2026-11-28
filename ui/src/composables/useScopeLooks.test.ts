@@ -57,6 +57,12 @@ describe("who looks at the scope", () => {
     expect(asked().at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
   });
 
+  it("asks for a minute while a pane looks whose reach is not known yet, never for the whole history", () => {
+    const { pane, asked } = setup();
+    pane(shallowRef(true), shallowRef(0));
+    expect(asked()).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
+  });
+
   it("asks for the seconds the panes show, the longest in whole minutes, again when that changes, and keeps as much of the radio's rows", async () => {
     const { pane, asked, kept, keptWhenSent } = setup();
     const [small, tall] = [shallowRef(50_000), shallowRef(250_000)];
