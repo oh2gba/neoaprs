@@ -20,6 +20,7 @@ CARDS = Path("/proc/asound/cards")
 ASOUNDRC = Path(__file__).with_name("asoundrc")  # the workflow copies it to ~/.asoundrc
 PAIR_SSID = 12
 START_SEC = 180.0  # a daemon up and its modems running
+CROSS_SEC = 240.0  # a message and its ack: two Mercury frames of about 4 s each, and the retries' pauses
 _CARD_LINE = re.compile(r"^\s*(\d+) \[(\S+)\s*\]: (\S+) - ")
 _DEVICE = re.compile(r"^pcm\.(\w+) \{", re.M)
 _SINK = re.compile(r'playback_node "(\w+)"')
@@ -115,8 +116,28 @@ def read_machine() -> Machine:
     return Machine(_text(CARDS), listed, _text(Path.home() / ".asoundrc"))
 
 
-def programs() -> list[Path]:
-    return [tools_dir() / "mercury" / "mercury", tools_dir() / "direwolf" / "direwolf"]
+PREVIOUS_TOOL = "mercury-previous"  # scripts/build-mercury --previous --install
+
+
+def programs(previous: bool = False) -> list[Path]:
+    mercury = tools_dir() / (PREVIOUS_TOOL if previous else "mercury") / "mercury"
+    return [mercury, tools_dir() / "direwolf" / "direwolf"]
+
+
+def previous_python(folder: Path) -> str:
+    """The Python of a virtual environment under `folder` whose tools are the previous Mercury and this
+    one's Direwolf, with this environment's packages: a daemon started by it runs the Mercury pinned
+    before (neoaprs/bundled.py finds the programs under sys.prefix)."""
+    venv = folder / "previous-venv"
+    if not venv.is_dir():
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(venv)], check=True)
+        site = next(venv.glob("lib/python*/site-packages"))
+        here = next(Path(sys.prefix).glob("lib/python*/site-packages"))
+        (site / "neoaprs-realmodems.pth").write_text(f"import site; site.addsitedir({str(here)!r})\n", encoding="utf-8")
+        (venv / "tools").mkdir()
+        (venv / "tools" / "mercury").symlink_to(tools_dir() / PREVIOUS_TOOL)
+        (venv / "tools" / "direwolf").symlink_to(tools_dir() / "direwolf")
+    return str(venv / "bin" / "python")
 
 
 def daemon_env() -> dict[str, str]:
@@ -220,25 +241,31 @@ class StationPage(Page):
 class World:
     """The stations: each daemon on its own data folder under `folder`, its output beside it."""
 
-    def __init__(self, folder: Path) -> None:
+    def __init__(
+        self, folder: Path, stations: tuple[Station, ...] = STATIONS, previous: frozenset[str] = frozenset()
+    ) -> None:
+        """`previous`: the calls of the stations whose daemon runs the Mercury pinned before."""
         self.folder = folder
+        self.stations = stations
+        self.previous = previous
         self.daemons: dict[str, subprocess.Popen[bytes]] = {}
         self.pages: dict[str, StationPage] = {}
 
     def start(self) -> dict[str, str]:
         bases: dict[str, str] = {}
-        for station in STATIONS:
+        for station in self.stations:
             data = self.folder / station.call.lower()
             write_settings(data, station)
             out = (self.folder / f"{station.call.lower()}.out").open("wb")
+            python = previous_python(self.folder) if station.call in self.previous else sys.executable
             self.daemons[station.call] = subprocess.Popen(
-                [sys.executable, "-m", "neoaprs", "--data", str(data), "--web-port", "0"],
+                [python, "-m", "neoaprs", "--data", str(data), "--web-port", "0"],
                 stdin=subprocess.DEVNULL,
                 stdout=out,
                 stderr=subprocess.STDOUT,
                 env=daemon_env(),
             )
-        for station in STATIONS:
+        for station in self.stations:
             bases[station.call] = wait_for_page(
                 self.daemons[station.call], self.folder / station.call.lower(), START_SEC
             )
@@ -248,7 +275,7 @@ class World:
         for call, base in bases.items():
             page = self.pages[call] = StationPage(call)
             await page.open(base)
-        for station in STATIONS:
+        for station in self.stations:
             page = self.pages[station.call]
             if station.live:
                 await page.set_config(station.live)
@@ -265,3 +292,19 @@ class World:
 
     def __getitem__(self, call: str) -> StationPage:
         return self.pages[call]
+
+
+def crossed(page: StationPage, after: int, sender: str, kind: str) -> list[dict[str, object]]:
+    """The packets of `sender` this station heard after `after` that came by way of the pair's call."""
+    return [p for p in page.packets(after, direction="in", sender=sender, kind=kind) if f"{PAIR_CALL}*" in p["path"]]
+
+
+async def exchange(world: World, sender: str, addressee: str, text: str) -> None:
+    """`sender` sends `text` to `addressee` by way of the pair's call; it arrives and its ack comes back."""
+    page, far = world[sender], world[addressee]
+    await page.set_path(addressee, PAIR_CALL)
+    after = far.last_packet()
+    await page.send({"cmd": "send_message", "to": addressee, "text": text})
+    await far.until(f"{addressee} receiving {text!r}", lambda: far.message("in", text) is not None, CROSS_SEC)
+    await page.until(f"the ack of {text!r} at {sender}", lambda: page.state_of(text) == "acked", CROSS_SEC)
+    assert crossed(far, after, sender, "message"), "the message came over the gateway's pair"

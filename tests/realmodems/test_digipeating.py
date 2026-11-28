@@ -12,11 +12,24 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from tests.realmodems.stations import A, B, G, H1, H2, PAIR_CALL, StationPage, World, programs, read_machine, refusal
+from tests.realmodems.stations import (
+    A,
+    B,
+    CROSS_SEC,
+    G,
+    H1,
+    H2,
+    PAIR_CALL,
+    World,
+    crossed,
+    exchange,
+    programs,
+    read_machine,
+    refusal,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
-CROSS_SEC = 240.0  # a message and its ack: two Mercury frames of about 4 s each, and the retries' pauses
 HEARD_SEC = 120.0
 QUIET_SEC = 40.0  # long enough for a frame G would have passed on to be on HF and heard by B
 
@@ -38,22 +51,6 @@ async def world(tmp_path_factory: pytest.TempPathFactory) -> AsyncIterator[World
     finally:
         w.close_pages()
         await asyncio.to_thread(w.stop)
-
-
-def crossed(page: StationPage, after: int, sender: str, kind: str) -> list[dict[str, object]]:
-    """The packets of `sender` this station heard after `after` that came by way of the pair's call."""
-    return [p for p in page.packets(after, direction="in", sender=sender, kind=kind) if f"{PAIR_CALL}*" in p["path"]]
-
-
-async def exchange(world: World, sender: str, addressee: str, text: str) -> None:
-    """`sender` sends `text` to `addressee` by way of the pair's call; it arrives and its ack comes back."""
-    page, far = world[sender], world[addressee]
-    await page.set_path(addressee, PAIR_CALL)
-    after = far.last_packet()
-    await page.send({"cmd": "send_message", "to": addressee, "text": text})
-    await far.until(f"{addressee} receiving {text!r}", lambda: far.message("in", text) is not None, CROSS_SEC)
-    await page.until(f"the ack of {text!r} at {sender}", lambda: page.state_of(text) == "acked", CROSS_SEC)
-    assert crossed(far, after, sender, "message"), "the message came over the gateway's pair"
 
 
 async def test_a_message_from_a_reaches_b_over_mercury_and_bs_ack_comes_back(world: World) -> None:
