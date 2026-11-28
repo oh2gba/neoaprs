@@ -15,6 +15,7 @@ from neoaprs.app import Services
 from neoaprs.aprsparse import parse
 from neoaprs.clock import utc
 from neoaprs.config import Config
+from neoaprs.packet import RF_GATED, ThirdParty
 from neoaprs.message import MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
@@ -155,6 +156,24 @@ async def test_the_ack_of_a_message_that_came_rf_only_goes_rf_only_and_of_one_th
         ("RFONLY", f":{STATION:<9}:ack12".encode()),
         ("", f":{STATION:<9}:ack13".encode()),
     ]
+
+
+async def test_the_ack_of_a_message_an_igate_put_on_the_air_takes_no_rfonly_from_the_igates_own_path(
+    rig: GatewayRig,
+) -> None:
+    """The outer path of a third-party packet is the iGate's frame; its NOGATE or RFONLY says nothing of
+    the message, and an ack sent RF only would never get back to the internet sender."""
+    rig.hear("")
+    heard = replace(rig.heard(STATION, "OH3XYZ", "Moi!", "12"), radio_id=HF_ID)
+    gated = replace(
+        heard,
+        source="OH2IGT",
+        path=("NOGATE",),
+        third_party=ThirdParty(STATION, "APRS", ("TCPIP", "OH2IGT*")),
+        via=RF_GATED,
+    )
+    rig.m.on_packet(gated)
+    assert [f.path_text for f in rig.hf.sent] == [""] and rig.hf.sent[0].info == f":{STATION:<9}:ack12".encode()
 
 
 async def test_the_ack_of_a_message_heard_on_hf_goes_back_by_the_gateway(rig: GatewayRig) -> None:

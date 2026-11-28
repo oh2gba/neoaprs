@@ -532,5 +532,8 @@ class Messaging:
             msg_id,
             reply_ack,
             None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to),
-            rf_only=packet is not None and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
+            # the outer path of a third-party packet is the iGate's frame, not the sender's
+            rf_only=packet is not None
+            and packet.third_party is None
+            and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
         )
