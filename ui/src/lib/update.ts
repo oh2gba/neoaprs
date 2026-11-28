@@ -17,6 +17,8 @@ export interface Step {
   command?: string;
   /** A file to download, or a page to open: a button. */
   link?: { href: string; label: string };
+  /** One of several ways, of which the operator takes one: the steps without it lead in. */
+  either?: true;
 }
 
 export const releaseNotes = (version: string): string => `${RELEASES}/tag/v${version}`;
@@ -97,8 +99,12 @@ function macSteps(install: InstallInfo, version: string): Step[] {
 function containerSteps(): Step[] {
   return [
     { text: t("help.update.container.new_image") },
-    { text: t("help.update.container.compose"), command: "docker compose pull && docker compose up -d" },
-    { text: t("help.update.container.run"), command: `docker pull ${IMAGE}:latest` },
+    {
+      text: t("help.update.container.compose"),
+      command: "docker compose pull && docker compose up -d",
+      either: true,
+    },
+    { text: t("help.update.container.run"), command: `docker pull ${IMAGE}:latest`, either: true },
   ];
 }
 

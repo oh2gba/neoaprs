@@ -1,4 +1,6 @@
+import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import UpdateSteps from "@/components/UpdateSteps.vue";
 import {
   appImageUrl,
   debName,
@@ -158,6 +160,20 @@ describe("updateHelp", () => {
     ]);
     expect(steps.some((s) => s.link)).toBe(false);
     expect(commands(steps).join(" ")).not.toMatch(/\b(apt|dpkg|deb|systemctl)\b/);
+  });
+
+  it("shows a container's compose file and docker run as two alternatives under the first line, not as steps", () => {
+    const shown = mount(UpdateSteps, { props: { steps: updateHelp(install("container"), "0.28.0") } });
+    expect(shown.find("ol").exists()).toBe(false);
+    expect(shown.find("p.updatesteps-lead").text()).toBe(
+      "A container is updated by a new image: your settings and messages stay in its data volume",
+    );
+    expect(shown.findAll("ul.updatesteps > li").map((li) => li.find("code").text())).toEqual([
+      "docker compose pull && docker compose up -d",
+      "docker pull ghcr.io/oh2gba/neoaprs:latest",
+    ]);
+    const steps = mount(UpdateSteps, { props: { steps: updateHelp(install("source"), "0.28.0") } });
+    expect([steps.findAll("ol.updatesteps > li").length, steps.find("ul").exists()]).toEqual([3, false]);
   });
 
   it("has only the release page while the daemon has not said how it was installed", () => {
