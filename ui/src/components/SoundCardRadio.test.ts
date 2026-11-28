@@ -302,6 +302,8 @@ describe("a Sound card radio's box", () => {
         "dtr:/dev/ttyUSB1",
         "rts:/dev/ttyUSB0",
         "dtr:/dev/ttyUSB0",
+        "flrig",
+        "rigctld",
       ]);
       // no heading: the order alone
       expect(
@@ -309,6 +311,48 @@ describe("a Sound card radio's box", () => {
       ).toHaveLength(0);
     },
   );
+
+  it("keyed through rigctld, has an Address row under the keying with the program's own address shown, sent when left, and the Test beside the keying", async () => {
+    const config = configValues({});
+    const values = { ...OWN, "radio/3/keying": "rigctld" };
+    const daemon = fakeDaemon({
+      config: {
+        ...config,
+        radio_values: { ...config.radio_values, ...values },
+        radio_defaults: { ...config.radio_defaults, ...OWN },
+      },
+      radios: radios(),
+      ports,
+      portsByRadio: new Map([[3, ports]]),
+      status: status({ unheard_radio: 1 }),
+    });
+    const wrapper = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon(daemon),
+      attachTo: document.body,
+    });
+    mounted = wrapper;
+    await flushPromises();
+    const address = wrapper.find<HTMLInputElement>("#set-radio-3-keying-address");
+    expect(address.exists()).toBe(true);
+    expect(address.attributes("placeholder")).toBe("127.0.0.1:4532");
+    expect(address.element.value).toBe("");
+    expect(address.element.closest(".field")?.querySelector("label")?.textContent).toBe("Address");
+    expect(wrapper.find("#set-radio-3-keying-test").exists()).toBe(true);
+    await address.setValue("192.168.1.5:4532");
+    await address.trigger("keydown.enter");
+    expect(daemon.send).toHaveBeenCalledWith({
+      cmd: "set_config",
+      values: { "radio/3/keying": "rigctld:192.168.1.5:4532" },
+    });
+  });
+
+  it("has no Address row for a keying by a line, a chip or VOX", async () => {
+    const { wrapper } = make();
+    mounted = wrapper;
+    await flushPromises();
+    expect(wrapper.find("#set-radio-3-keying-address").exists()).toBe(false);
+  });
 
   it("says why its modem waits, and has the (i) of its keying, Tune and transmit level, in words of any modem: never Mercury's, the ALC or a steady tone", () => {
     const waiting = (reason: ModemState["reason"]) =>

@@ -131,7 +131,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "表示可能なASCII以外の文字があります",
   "error.setting.not_boolean": "「{value}」は true でも false でもありません",
-  "error.setting.not_keying": "'{value}'は無線機の送信切替の方法ではありません：vox、cm108、rts:PORT、dtr:PORT",
+  "error.setting.not_keying":
+    "'{value}'は無線機の送信切替の方法ではありません：vox、cm108、rts:PORT、dtr:PORT、flrig、rigctld",
   "error.setting.not_among": "{value} は {choices} のいずれでもありません",
   "error.setting.not_direction": "「{value}」は omni でも N NE E SE S SW W NW のいずれでもありません",
   "error.setting.not_globs":
@@ -197,6 +198,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "TNCがコマンドモードです(KISS ONを再送します)",
   "error.radio.checking": "TNCが無線機の接続を確認しています",
   "error.radio.channel_busy": "チャンネルが使用中です",
+  "error.radio.rig_silent": "無線機の制御プログラムが応答しません",
   "error.qru.form":
     "「{request}」はQRUへの問い合わせではありません: INFO、NEXT、または{max}文字以内の英数字のグループと1〜{km}の距離です",
   "error.object.unknown": "自局のオブジェクトまたはアイテム「{name}」はありません",

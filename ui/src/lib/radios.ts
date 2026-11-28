@@ -106,6 +106,8 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "modem.ports_taken": "settings.tnc.hf.ports_taken",
   "modem.receive_stalled": "settings.tnc.hf.receive_stalled",
   "modem.receive_deaf": "settings.tnc.hf.receive_deaf",
+  "modem.rig_silent": "settings.tnc.hf.rig_silent",
+  "modem.rig_keyed_long": "settings.tnc.hf.rig_keyed_long",
 };
 
 /**

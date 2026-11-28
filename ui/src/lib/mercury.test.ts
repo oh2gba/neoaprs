@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { portRow, soundCard } from "@/test/fixtures";
-import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
+import {
+  keyingChoices,
+  rigAddress,
+  rigDefault,
+  rigKind,
+  soundCardChoices,
+  soundCardPick,
+  soundCardWith,
+  withAddress,
+} from "@/lib/mercury";
 import { holderOf } from "@/lib/portchoice";
 import type { PortsMessage } from "@/protocol/protocol";
 
@@ -31,6 +40,8 @@ describe("the keying choices of the Mercury modem", () => {
       "dtr:/dev/ttyUSB0",
       "rts:COM3",
       "dtr:COM3",
+      "flrig",
+      "rigctld",
     ]);
     expect(keyingChoices(ports).map((c) => c.label)).toEqual([
       "The radio keys itself (VOX)",
@@ -39,6 +50,8 @@ describe("the keying choices of the Mercury modem", () => {
       "DTR on /dev/ttyUSB0",
       "RTS on COM3",
       "DTR on COM3",
+      "flrig",
+      "rigctld",
     ]);
   });
 
@@ -49,8 +62,39 @@ describe("the keying choices of the Mercury modem", () => {
         .map((c) => c.value)
         .filter((v) => v === "rts:COM3"),
     ).toHaveLength(1);
-    expect(keyingChoices(null).map((c) => c.value)).toEqual(["vox", "cm108"]);
-    expect(keyingChoices(null, "vox").map((c) => c.value)).toEqual(["vox", "cm108"]);
+    expect(keyingChoices(null).map((c) => c.value)).toEqual(["vox", "cm108", "flrig", "rigctld"]);
+    expect(keyingChoices(null, "vox").map((c) => c.value)).toEqual(["vox", "cm108", "flrig", "rigctld"]);
+  });
+});
+
+describe("keying through a rig program the operator runs", () => {
+  it("is offered after the lines, and the choice in force keeps its address", () => {
+    const values = keyingChoices(ports, "rigctld:10.0.0.2:4532").map((c) => c.value);
+    expect(values.slice(-2)).toEqual(["flrig", "rigctld:10.0.0.2:4532"]);
+    expect(
+      keyingChoices(ports, "flrig")
+        .map((c) => c.value)
+        .slice(-2),
+    ).toEqual(["flrig", "rigctld"]);
+  });
+
+  it("is told by its kind, its address is what follows, and an empty address is the program's own", () => {
+    expect([rigKind("flrig"), rigKind("RIGCTLD:host:1"), rigKind("rts:COM3"), rigKind("")]).toEqual([
+      "flrig",
+      "rigctld",
+      "",
+      "",
+    ]);
+    expect([rigAddress("flrig"), rigAddress("rigctld:10.0.0.2:4532"), rigAddress("flrig:[::1]:12345")]).toEqual([
+      "",
+      "10.0.0.2:4532",
+      "[::1]:12345",
+    ]);
+    expect([withAddress("flrig", " 10.0.0.2:12345 "), withAddress("rigctld", "")]).toEqual([
+      "flrig:10.0.0.2:12345",
+      "rigctld",
+    ]);
+    expect([rigDefault("flrig"), rigDefault("rigctld")]).toEqual(["127.0.0.1:12345", "127.0.0.1:4532"]);
   });
 });
 
@@ -77,6 +121,8 @@ describe("the keying choices of a radio whose sound card sits on one USB hub wit
       "dtr:/dev/ttyUSB0",
       "rts:/dev/ttyS0",
       "dtr:/dev/ttyS0",
+      "flrig",
+      "rigctld",
     ]);
     expect(keyingChoices(two, "", "ftx1")[2]?.label).toBe("RTS on /dev/ttyUSB1"); // same words: no heading, no mark
     const plain = keyingChoices(two).map((c) => c.value);

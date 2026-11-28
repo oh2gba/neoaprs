@@ -165,12 +165,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.tip_label": "Over de PTT",
   "settings.keying.tip1":
     "Hoe de radio op zenden schakelt: vanzelf (VOX of de datamodus), via een CM108-geluidschip of via een lijn van een seriële poort.",
-  "settings.keying.tip2": "Een Digirig bedient de PTT via RTS van zijn seriële poort.",
+  "settings.keying.tip2":
+    "Een Digirig bedient de PTT via RTS van zijn seriële poort. flrig of rigctld schakelen per commando; dat programma start u zelf.",
   "settings.keying.vox": "De radio schakelt zelf (VOX)",
   "settings.keying.cm108": "CM108-geluidschip",
   "settings.keying.rts": "RTS op {port}",
   "settings.keying.dtr": "DTR op {port}",
   "settings.keying.test": "Testen",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Adres",
   "settings.hf_frequencies.label": "Voorgestelde frequenties",
   "settings.hf_frequencies.show": "Tonen",
   "settings.hf_frequencies.what":
@@ -506,6 +510,8 @@ export const settings: Record<keyof typeof source, Message> = {
     "{port} is de inkomende Bluetooth-poort van de computer: kies de andere poort van het apparaat",
   "settings.tnc.write_timeout": "De poort neemt geen data aan: in {seconds} s ging er niets door",
   "settings.tnc.hf.receive_deaf": "Mercury hoort niets (de ontvangst hangt): het wordt zo opnieuw gestart",
+  "settings.tnc.hf.rig_silent": "Het radioprogramma antwoordt niet: frames wachten",
+  "settings.tnc.hf.rig_keyed_long": "De radio zond te lang uit en is vrijgegeven",
   "settings.tnc.hf.receive_stalled": "Mercury hoort niets, ook niet na herstarten: zet de radio uit en weer aan",
   "settings.tnc.hf.not_installed": "Deze installatie bevat het modem van deze radio niet",
   "settings.tnc.hf.stopped": "Draait niet",

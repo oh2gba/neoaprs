@@ -157,12 +157,16 @@ export const settings = {
   "settings.keying.tip_label": "About keying",
   "settings.keying.tip1":
     "How the radio is switched to transmit: by itself (VOX or its data mode), a CM108 sound chip, or a line of a serial port.",
-  "settings.keying.tip2": "A Digirig keys on RTS of its serial port.",
+  "settings.keying.tip2":
+    "A Digirig keys on RTS of its serial port. flrig or rigctld key the radio by command; you start that program yourself.",
   "settings.keying.vox": "The radio keys itself (VOX)",
   "settings.keying.cm108": "CM108 sound chip",
   "settings.keying.rts": "RTS on {port}",
   "settings.keying.dtr": "DTR on {port}",
   "settings.keying.test": "Test",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Address",
   "settings.hf_frequencies.label": "Suggested frequencies",
   "settings.hf_frequencies.show": "Show",
   "settings.hf_frequencies.what":
@@ -493,6 +497,8 @@ export const settings = {
   "settings.tnc.incoming_port": "{port} is the computer's incoming Bluetooth port: choose the device's other port",
   "settings.tnc.write_timeout": "The port takes no data: nothing went through in {seconds} s",
   "settings.tnc.hf.receive_deaf": "Mercury hears nothing (its receive side stalled): it is started again shortly",
+  "settings.tnc.hf.rig_silent": "The rig program does not answer: frames wait",
+  "settings.tnc.hf.rig_keyed_long": "The radio stayed keyed too long and was let go",
   "settings.tnc.hf.receive_stalled": "Mercury hears nothing, even after restarts: switch the radio off and on again",
   "settings.tnc.hf.not_installed": "This installation does not carry this radio's modem",
   "settings.tnc.hf.stopped": "Not running",

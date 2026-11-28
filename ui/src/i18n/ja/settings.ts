@@ -152,12 +152,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.tip_label": "送信切替について",
   "settings.keying.tip1":
     "無線機を送信に切り替える方法：無線機自身（VOXまたはデータモード）、CM108サウンドチップ、またはシリアルポートの信号線。",
-  "settings.keying.tip2": "DigirigはシリアルポートのRTSで切り替えます。",
+  "settings.keying.tip2":
+    "DigirigはシリアルポートのRTSで切り替えます。flrigまたはrigctldはコマンドで切り替えます。そのプログラムはご自分で起動してください。",
   "settings.keying.vox": "無線機自身で切り替え（VOX）",
   "settings.keying.cm108": "CM108サウンドチップ",
   "settings.keying.rts": "{port}のRTS",
   "settings.keying.dtr": "{port}のDTR",
   "settings.keying.test": "テスト",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "アドレス",
   "settings.hf_frequencies.label": "推奨周波数",
   "settings.hf_frequencies.show": "表示",
   "settings.hf_frequencies.what":
@@ -469,6 +473,8 @@ export const settings: Record<keyof typeof source, Message> = {
     "{port} はコンピューターの受信用Bluetoothポートです: 機器のもう一方のポートを選んでください",
   "settings.tnc.write_timeout": "ポートがデータを受け付けません: {seconds} 秒で何も送れませんでした",
   "settings.tnc.hf.receive_deaf": "Mercuryは何も受信していません（受信が止まっています）: まもなく再起動します",
+  "settings.tnc.hf.rig_silent": "無線機の制御プログラムが応答しません：フレームは待機中です",
+  "settings.tnc.hf.rig_keyed_long": "無線機の送信が長すぎたため解除しました",
   "settings.tnc.hf.receive_stalled":
     "Mercuryは再起動後も何も受信しません: 無線機をいったんオフにしてオンにしてください",
   "settings.tnc.hf.not_installed": "このインストールにはこの無線機のモデムが含まれていません",

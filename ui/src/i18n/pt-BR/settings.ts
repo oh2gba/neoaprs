@@ -159,12 +159,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.tip_label": "Sobre o chaveamento",
   "settings.keying.tip1":
     "Como o rádio passa a transmitir: sozinho (VOX ou seu modo de dados), por um chip de som CM108 ou por uma linha de uma porta serial.",
-  "settings.keying.tip2": "Um Digirig chaveia pelo RTS da sua porta serial.",
+  "settings.keying.tip2":
+    "Com flrig ou rigctld, o rádio é chaveado por comando; você mesmo inicia esse programa. Um Digirig chaveia pelo RTS da sua porta serial.",
   "settings.keying.vox": "O rádio chaveia sozinho (VOX)",
   "settings.keying.cm108": "Chip de som CM108",
   "settings.keying.rts": "RTS em {port}",
   "settings.keying.dtr": "DTR em {port}",
   "settings.keying.test": "Testar",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Endereço",
   "settings.hf_frequencies.label": "Frequências sugeridas",
   "settings.hf_frequencies.show": "Mostrar",
   "settings.hf_frequencies.what":
@@ -499,6 +503,8 @@ export const settings: Record<keyof typeof source, Message> = {
     "{port} é a porta Bluetooth de entrada do computador: escolha a outra porta do dispositivo",
   "settings.tnc.write_timeout": "A porta não aceita dados: nada passou em {seconds} s",
   "settings.tnc.hf.receive_deaf": "O Mercury não ouve nada (a recepção travou): ele será reiniciado em breve",
+  "settings.tnc.hf.rig_silent": "O programa do rádio não responde: os quadros aguardam",
+  "settings.tnc.hf.rig_keyed_long": "O rádio ficou chaveado tempo demais e foi liberado",
   "settings.tnc.hf.receive_stalled": "O Mercury não ouve nada, mesmo após reinícios: desligue o rádio e ligue de novo",
   "settings.tnc.hf.not_installed": "Esta instalação não inclui o modem deste rádio",
   "settings.tnc.hf.stopped": "Não está em execução",

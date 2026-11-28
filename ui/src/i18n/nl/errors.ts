@@ -130,7 +130,8 @@ export const errors: Record<keyof typeof source, Message> = {
     "het is geen toegangssleutel (drie groepen van vier cijfers en letters, zoals k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "het bevat tekens die geen afdrukbare ASCII zijn",
   "error.setting.not_boolean": "‘{value}’ is niet true of false",
-  "error.setting.not_keying": "‘{value}’ is geen manier om de PTT te bedienen: vox, cm108, rts:POORT of dtr:POORT",
+  "error.setting.not_keying":
+    "‘{value}’ is geen manier om de PTT te bedienen: vox, cm108, rts:POORT, dtr:POORT, flrig of rigctld",
   "error.setting.not_among": "{value} hoort niet bij {choices}",
   "error.setting.not_direction": "‘{value}’ is niet omni of een van N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -197,6 +198,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "de TNC staat in commandomodus (KISS ON wordt opnieuw verzonden)",
   "error.radio.checking": "de TNC controleert of de radio er is",
   "error.radio.channel_busy": "het kanaal is bezet",
+  "error.radio.rig_silent": "het radioprogramma antwoordt niet",
   "error.qru.form":
     "‘{request}’ is geen verzoek aan QRU: INFO, NEXT of een groep van maximaal {max} letters en cijfers, en een afstand van 1 tot {km}",
   "error.object.unknown": "er is geen object of item ‘{name}’ van ons",

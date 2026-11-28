@@ -132,7 +132,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
     "no es una clave de acceso (tres grupos de cuatro dígitos y letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tiene caracteres que no son ASCII imprimible",
   "error.setting.not_boolean": "“{value}” no es true ni false",
-  "error.setting.not_keying": "'{value}' no es una forma de conmutar la radio: vox, cm108, rts:PUERTO o dtr:PUERTO",
+  "error.setting.not_keying":
+    "'{value}' no es una forma de conmutar la radio: vox, cm108, rts:PUERTO, dtr:PUERTO, flrig o rigctld",
   "error.setting.not_among": "{value} no es ninguno de {choices}",
   "error.setting.not_direction": "“{value}” no es omni ni uno de N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -198,6 +199,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.radio.command_mode": "el TNC está en modo de comandos (se vuelve a enviar KISS ON)",
   "error.radio.checking": "el TNC está comprobando que la radio está ahí",
   "error.radio.channel_busy": "el canal está ocupado",
+  "error.radio.rig_silent": "el programa de la radio no responde",
   "error.qru.form":
     "“{request}” no es una petición a QRU: INFO, NEXT o un grupo de hasta {max} letras y dígitos, y una distancia de 1 a {km}",
   "error.object.unknown": "no hay ningún objeto ni ítem “{name}” nuestro",

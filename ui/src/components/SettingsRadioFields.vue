@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // The fields of one radio, each worked as in the form: a typed field is sent when left or on Enter,
 // a choice at once. Packet radios have TNC type, port, speed or TCP host and port; HF radios have type,
-// sound card and keying with a Test button (useHfTests).
+// sound card and keying with a Test button (useHfTests), and an Address row under a keying through
+// a rig program (flrig, rigctld), whose empty value is the program's own address on this computer.
 // The daemon's proposal for the sound card and keying (`pick`, `keying`) is preselected and stored
 // while the setting is empty. Keys are the radio's own (`radio/3/port`). Sound cards and proposals
 // are read from the answer for this radio only (`portsByRadio`). A proposal the daemon refused is
 // not stored again from the same answer.
-import { computed, watchEffect } from "vue";
+import { computed, ref, watchEffect } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
 import type { Settings } from "@/composables/useSettings";
@@ -15,7 +16,16 @@ import { useHfTests } from "@/composables/useHfTests";
 import { useRadios } from "@/composables/useRadios";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
+import {
+  keyingChoices,
+  rigAddress,
+  rigDefault,
+  rigKind,
+  soundCardChoices,
+  soundCardPick,
+  soundCardWith,
+  withAddress,
+} from "@/lib/mercury";
 import { holderOf } from "@/lib/portchoice";
 import { typeOf, type PageRadio } from "@/lib/radios";
 import { fieldFor, type FieldInfo } from "@/lib/settings";
@@ -80,6 +90,17 @@ const keyingInfo = computed<FieldInfo>(() => ({
   kind: "choice",
   choices: keyingChoices(ports.value, valueOf(keyingKey.value ?? ""), cardGroup.value),
 }));
+/** The rig program the keying names, "" for a keying by a line, a chip or VOX. */
+const rig = (key: string): string => rigKind(valueOf(key));
+/** The address as it is typed; null while the keying's own is shown. */
+const addressDraft = ref<string | null>(null);
+const addressOf = (key: string): string => addressDraft.value ?? rigAddress(valueOf(key));
+const addressInfo = computed<FieldInfo>(() => ({ label: t("settings.keying.address") }));
+function commitAddress(key: string): void {
+  const typed = addressOf(key);
+  addressDraft.value = null;
+  if (typed.trim() !== rigAddress(valueOf(key))) props.form.choose({ [key]: withAddress(rig(key), typed) });
+}
 /** A field's words: the kind's own where they differ. */
 const wordsOf = (key: string): FieldInfo => fieldFor(key, {}, props.radio?.kind);
 const infoOf = (key: string): FieldInfo =>
@@ -161,7 +182,7 @@ function refresh(key: string): void {
       :info="infoOf(key)"
       :model-value="valueOf(key)"
       :fallback="fallback(key)"
-      :error="settings.errors[key] ?? ''"
+      :error="isKeying(key) && rig(key) !== '' ? '' : (settings.errors[key] ?? '')"
       :changed="form.changed(key)"
       :apply="true"
       @update:model-value="typed(key, $event)"
@@ -185,5 +206,18 @@ function refresh(key: string): void {
         </button>
       </template>
     </SettingsField>
+    <SettingsField
+      v-if="isKeying(key) && rig(key) !== ''"
+      :id="ids(`${inputId(key)}-address`)"
+      :info="addressInfo"
+      :model-value="addressOf(key)"
+      :fallback="rigDefault(rig(key))"
+      :error="settings.errors[key] ?? ''"
+      :changed="false"
+      :apply="true"
+      @update:model-value="addressDraft = $event"
+      @commit="commitAddress(key)"
+      @cancel="addressDraft = null"
+    />
   </template>
 </template>

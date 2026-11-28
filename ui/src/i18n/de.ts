@@ -244,7 +244,8 @@ export const de: Catalogue = {
     "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "es enthält Zeichen, die kein druckbares ASCII sind",
   "error.setting.not_boolean": "„{value}“ ist weder true noch false",
-  "error.setting.not_keying": "„{value}“ ist keine Art, das Funkgerät zu tasten: vox, cm108, rts:PORT oder dtr:PORT",
+  "error.setting.not_keying":
+    "„{value}“ ist keine Art, das Funkgerät zu tasten: vox, cm108, rts:PORT, dtr:PORT, flrig oder rigctld",
   "error.setting.not_among": "{value} ist keiner der Werte {choices}",
   "error.setting.not_direction": "„{value}“ ist weder omni noch eines von N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -313,6 +314,7 @@ export const de: Catalogue = {
   "error.radio.command_mode": "der TNC ist im Befehlsmodus (KISS ON wird erneut gesendet)",
   "error.radio.checking": "der TNC prüft, ob das Funkgerät da ist",
   "error.radio.channel_busy": "der Kanal ist belegt",
+  "error.radio.rig_silent": "das Rig-Programm antwortet nicht",
   "error.qru.form":
     "„{request}“ ist keine Anfrage an QRU: INFO, NEXT oder eine Gruppe aus bis zu {max} Buchstaben und Ziffern, und eine Entfernung von 1 bis {km}",
   "error.object.unknown": "von uns gibt es kein Objekt und kein Item „{name}“",
@@ -1632,12 +1634,16 @@ export const de: Catalogue = {
   "settings.keying.tip_label": "Über die Tastung",
   "settings.keying.tip1":
     "Wie das Funkgerät auf Senden schaltet: von selbst (VOX oder Datenmodus), per CM108-Soundchip oder über eine Leitung eines seriellen Ports.",
-  "settings.keying.tip2": "Ein Digirig tastet über RTS seines seriellen Ports.",
+  "settings.keying.tip2":
+    "Ein Digirig tastet über RTS seines seriellen Ports. flrig oder rigctld tasten per Befehl; dieses Programm starten Sie selbst.",
   "settings.keying.vox": "Das Funkgerät tastet selbst (VOX)",
   "settings.keying.cm108": "CM108-Soundchip",
   "settings.keying.rts": "RTS an {port}",
   "settings.keying.dtr": "DTR an {port}",
   "settings.keying.test": "Test",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Adresse",
   "settings.hf_frequencies.label": "Vorgeschlagene Frequenzen",
   "settings.hf_frequencies.show": "Anzeigen",
   "settings.hf_frequencies.what":
@@ -1975,6 +1981,8 @@ export const de: Catalogue = {
     "{port} ist der eingehende Bluetooth-Port des Computers: den anderen Port des Geräts wählen",
   "settings.tnc.write_timeout": "Der Port nimmt keine Daten an: in {seconds} s ging nichts durch",
   "settings.tnc.hf.receive_deaf": "Mercury hört nichts (sein Empfang hängt): es wird gleich neu gestartet",
+  "settings.tnc.hf.rig_silent": "Das Rig-Programm antwortet nicht: Aussendungen warten",
+  "settings.tnc.hf.rig_keyed_long": "Das Funkgerät war zu lange getastet und wurde freigegeben",
   "settings.tnc.hf.receive_stalled":
     "Mercury hört nichts, auch nach Neustarts: das Funkgerät aus- und wieder einschalten",
   "settings.tnc.hf.not_installed": "Diese Installation enthält das Modem dieses Funkgeräts nicht",

@@ -58,19 +58,19 @@ const ALLOWED: Record<string, Record<string, string>> = {
 
 /** One word a text of a language says as the English does, because the language says it so too (a loan or a cognate), by language: a new such word is looked at before it is let in. */
 const SAME_WORD: Record<string, string> = {
-  de: `chat doppler downlink elevation uplink app bits bulletin bulletins bus code details digipeater eyeball feedback filter gateway hotel igates item jogger km laptop locator mac monitor name
+  de: `flrig chat doppler downlink elevation uplink app bits bulletin bulletins bus code details digipeater eyeball feedback filter gateway hotel igates item jogger km laptop locator mac monitor name
   normal omni pause port ports position radius rate restaurant rover signal skywarn station status symbol tanker terminal test text tornado update wind yacht`,
-  es: "chat doppler downlink uplink bits digipeater digipeaters dir hospital hotel igates jeep km locator mac monitor normal omni radio radios rover skywarn terminal tornado",
-  fi: "chat doppler km mac radio rover skywarn tornado",
-  fr: `doppler downlink uplink mode satellites altitude ambulance bits bulletin bulletins bus code conversations cyan deg destination digipeater digipeaters direct eyeball igates item items jeep km
+  es: "flrig chat doppler downlink uplink bits digipeater digipeaters dir hospital hotel igates jeep km locator mac monitor normal omni radio radios rover skywarn terminal tornado",
+  fi: "flrig chat doppler km mac radio rover skywarn tornado",
+  fr: `flrig doppler downlink uplink mode satellites altitude ambulance bits bulletin bulletins bus code conversations cyan deg destination digipeater digipeaters direct eyeball igates item items jeep km
   latitude locator longitude mac message messages note notification notifications omni parking pause police port portable ports position positions radio radios
   restaurant rover satellite services signal simplex skywarn source station stations stop terminal test triangle type via violet yacht`,
-  it: "chat doppler downlink uplink antenna app area beacon digipeater dir email feedback fix gateway item km locator mac monitor omni radio rover satellite simplex skywarn stop tornado via yacht",
-  ja: "km mac skywarn",
-  nl: `chat doppler downlink uplink ambulance app bits bulletin bulletins bus code details digipeater digipeaters direct eyeball feedback filter fix gateway help hops hotel igates in item items
+  it: "flrig chat doppler downlink uplink antenna app area beacon digipeater dir email feedback fix gateway item km locator mac monitor omni radio rover satellite simplex skywarn stop tornado via yacht",
+  ja: "flrig km mac skywarn",
+  nl: `flrig chat doppler downlink uplink ambulance app bits bulletin bulletins bus code details digipeater digipeaters direct eyeball feedback filter fix gateway help hops hotel igates in item items
   jeep km laptop locator mac monitor node object omni radio restaurant route rover school simplex skywarn spectrum station stations status storm tanker terminal timer
   tornado type update via violet wind`,
-  "pt-BR": `chat doppler downlink uplink altitude beacon beacons bits digipeater digipeaters dir eyeball feedback gateway hospital hotel igates item km latitude locator longitude mac monitor
+  "pt-BR": `flrig chat doppler downlink uplink altitude beacon beacons bits digipeater digipeaters dir eyeball feedback gateway hospital hotel igates item km latitude locator longitude mac monitor
   normal omni rover simplex skywarn status terminal tornado van via`,
 };
 
