@@ -63,6 +63,8 @@ class Endpoint:
     def start(self, workers: int = 1) -> None:
         (self.site / "api" / "v1").mkdir(parents=True)
         shutil.copy(ROOT / "server" / "neo" / "api" / "v1" / "skeds.php", self.site / "api" / "v1" / "skeds.php")
+        (self.site / "private").mkdir()
+        shutil.copy(ROOT / "server" / "neo" / "private" / "endpoint.php", self.site / "private" / "endpoint.php")
         environment = {"PATH": os.environ["PATH"], **({"PHP_CLI_SERVER_WORKERS": str(workers)} if workers > 1 else {})}
         assert PHP is not None
         for _ in range(3):

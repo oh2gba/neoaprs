@@ -197,7 +197,13 @@ def test_a_tracked_name_with_a_line_end_or_a_tab_stops_the_upload(repo: Path, to
 
 @pytest.mark.parametrize(
     ("script", "args"),
-    [("deploy.sh", []), ("skeds.sh", ["rm", "0123456789ab"]), ("support-fetch.sh", []), ("usage-report.sh", [])],
+    [
+        ("deploy.sh", []),
+        ("skeds.sh", ["rm", "0123456789ab"]),
+        ("chat.sh", ["rm", "12"]),
+        ("support-fetch.sh", []),
+        ("usage-report.sh", []),
+    ],
 )
 def test_a_token_file_that_was_named_and_is_missing_is_never_replaced_by_the_one_beside_the_checkout(
     repo: Path, tmp_path: Path, script: str, args: list[str]
@@ -285,7 +291,8 @@ def test_a_blocked_list_that_is_not_there_starts_empty(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("script", "args"), [("skeds.sh", ["blocked"]), ("support-fetch.sh", ["--list"]), ("usage-report.sh", [])]
+    ("script", "args"),
+    [("skeds.sh", ["blocked"]), ("chat.sh", ["--list"]), ("support-fetch.sh", ["--list"]), ("usage-report.sh", [])],
 )
 def test_the_login_reaches_curl_on_stdin_and_never_on_its_command_line(
     tmp_path: Path, script: str, args: list[str]
@@ -299,3 +306,30 @@ def test_the_login_reaches_curl_on_stdin_and_never_on_its_command_line(
 def test_the_deploy_sends_the_login_on_stdin_too(repo: Path, tools: Path) -> None:
     done, args = run(repo, tools, "--site")
     assert done.returncode == 0 and MADE_UP not in "\n".join(args) and "-K" in args
+
+
+@pytest.mark.parametrize("name", ["skeds.json", "skeds-past.json", "chat.json"])
+def test_a_file_the_server_writes_itself_in_site_stops_the_upload(repo: Path, tools: Path, name: str) -> None:
+    """The board, its past tests and the chat are written by the endpoints on the server: a copy in
+    site/ would be uploaded over the live one, and the upload never names them otherwise."""
+    (repo / "site" / name).write_text("{}\n", encoding="utf-8")
+    git(repo, "add", "--", f"site/{name}")
+    done, args = run(repo, tools, "--site")
+    assert done.returncode == 1 and f"site/{name} would be uploaded over the live one" in done.stderr and args == []
+    (repo / "site" / name).unlink()
+    git(repo, "rm", "-q", "--cached", "--", f"site/{name}")
+    done, args = run(repo, tools, "--site")
+    assert done.returncode == 0 and not any(name in a for a in args), "nothing of that name is sent or removed"
+
+
+def test_the_chat_moderation_takes_out_a_line_by_adding_it_to_the_list_that_is_not_there_yet(tmp_path: Path) -> None:
+    done, args, login = run_tool(tmp_path, "chat.sh", ["rm", "42"], code=78)
+    assert "-T" in args and any(a.endswith("/private/chat/removed.txt") for a in args), (args, done.stderr)
+    assert "could not be read" not in done.stderr
+    assert MADE_UP not in "\n".join(args) and MADE_UP in login
+
+
+def test_a_removed_list_of_the_chat_that_could_not_be_read_is_never_replaced(tmp_path: Path) -> None:
+    done, args, _ = run_tool(tmp_path, "chat.sh", ["rm", "42"], code=6)
+    assert done.returncode == 1 and "could not be read" in done.stderr
+    assert "-T" not in args, "nothing was uploaded"

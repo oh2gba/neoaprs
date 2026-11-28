@@ -96,6 +96,7 @@ class Host:
                     "/support/.user.ini",
                     "/skeds.json.part",
                     "/skeds-past.json.part",
+                    "/chat.json.part",
                 )
                 code = 200 if path in host.files else 403 if private else 404
             body = host.files.get(path, b"") if code == 200 else b""
@@ -211,6 +212,21 @@ def test_the_places_of_the_sked_board_are_asked_too(repo: Path, host: tuple[Host
         assert place in module().private_places(repo, datetime.now(UTC)), place
     served.files["/skeds.json.part"] = b"{}"
     assert "not forbidden: /skeds.json.part (status 200, it must be 403)" in check(url, repo).stdout
+
+
+def test_the_places_of_the_chat_are_asked_too(repo: Path, host: tuple[Host, str]) -> None:
+    served, url = host
+    for place in (
+        "/private/chat/lines.json",
+        "/private/chat/rate.json",
+        "/private/chat/salt",
+        "/private/logs/chat.log",
+        "/private/endpoint.php",
+        "/chat.json.part",
+    ):
+        assert place in module().private_places(repo, datetime.now(UTC)), place
+    served.files["/private/chat/lines.json"] = b"{}"
+    assert "not forbidden: /private/chat/lines.json (status 200, it must be 403)" in check(url, repo).stdout
 
 
 def test_the_logs_of_the_version_page_of_this_month_and_the_last_are_asked(repo: Path, host: tuple[Host, str]) -> None:
@@ -341,7 +357,11 @@ def test_every_endpoint_it_leaves_alone_is_a_php_file_the_repository_tracks() ->
         name
         for name in loaded.tracked(ROOT, "server/neo")
         if name.endswith(".php")
-        and "$_SERVER['REQUEST_METHOD']" in (ROOT / "server" / "neo" / name).read_text(encoding="utf-8")
+        and not name.startswith("private/")
+        and any(
+            reads in (ROOT / "server" / "neo" / name).read_text(encoding="utf-8")
+            for reads in ("$_SERVER['REQUEST_METHOD']", "neo_request(")
+        )
     }
     assert endpoints == set(loaded.PUBLIC_PHP), (
         "a PHP file that reads the request's method is an endpoint the web calls: it answers by itself (405 to a GET), and is no private place"
