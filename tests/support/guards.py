@@ -1114,13 +1114,23 @@ def threads_left(before: set[threading.Thread], seconds: float = THREAD_END_SEC)
     return [t for t in started if t.is_alive() and not any(t.name.startswith(name) for name in THREADS_LEFT_ALLOWED)]
 
 
+# The processes that may outlive their test, by a word of their command, and why
+PROCESSES_LEFT_ALLOWED = {
+    "QtWebEngineProcess": "the helpers of Qt's web engine, which live as long as the Qt application of the process",
+}
+
+
 @pytest.fixture(autouse=True)
 def no_leaked_processes() -> Iterator[None]:
     """A process the test started (a daemon, a stand-in modem) that still runs after its teardown is
     ended, and fails the test: left, it would hold its ports for the tests after it (Linux)."""
     before = children.descendants()
     yield
-    left = children.left_since(before)
+    left = {
+        pid
+        for pid in children.left_since(before)
+        if not any(name in children.command_of(pid) for name in PROCESSES_LEFT_ALLOWED)
+    }
     if left:
         said = [f"{pid}: {children.command_of(pid)}" for pid in sorted(left)]
         children.end(left)
