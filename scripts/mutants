@@ -144,15 +144,14 @@ def run_module(key: str, row: dict, program: Path, workers: int, show: bool) -> 
 
 
 def record(scores: list[dict]) -> None:
-    text = TABLE.read_text(encoding="utf-8")
-    for score in scores:
-        if "score" not in score:
-            continue
-        floor = math.floor(score["score"] * 10) / 10
-        section = re.compile(rf"(\[modules\.{re.escape(score['key'])}\][^\[]*?floor = )[0-9.]+", re.S)
-        text, count = section.subn(rf"\g<1>{floor:.1f}", text)
-        assert count == 1, score["key"]
-    TABLE.write_text(text, encoding="utf-8")
+    floors = {score["key"]: math.floor(score["score"] * 10) / 10 for score in scores if "score" in score}
+    lines, section = TABLE.read_text(encoding="utf-8").split("\n"), None
+    for i, line in enumerate(lines):
+        if found := re.fullmatch(r"\[modules\.(\w+)\]", line):
+            section = found.group(1)
+        elif section in floors and line.startswith("floor = "):
+            lines[i] = f"floor = {floors[section]:.1f}"
+    TABLE.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:
