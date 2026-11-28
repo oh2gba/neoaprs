@@ -5,12 +5,15 @@ heard with `,qAO,IGATECALL` appended (aprs-is.net IGate details)."""
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from typing import NamedTuple
 
 from neoaprs import ax25
 from neoaprs.aprsisline import MAX_LINE
 from neoaprs.aprsthirdparty import MARK, header_of
 from neoaprs.callsign import PLACEHOLDER_CALLS, CallsignError, normal_name
 from neoaprs.packet import DuplicateKey, duplicate_key
+from neoaprs.radiotype import RadioId
 from neoaprs.route import INTERNET_MARKERS, NO_GATE_MARKERS, is_q_construct
 
 Q_CONSTRUCT = "qAO"
@@ -47,6 +50,14 @@ REASON_WORDS = {
     NOT_AIR: "not from the air",
 }
 # why a packet was not gated
+
+
+class SentLine(NamedTuple):
+    """A line put on APRS-IS: when, the radio that heard it (None for our own position) and the text as sent."""
+
+    at: datetime
+    radio: RadioId | None
+    line: str
 
 
 @dataclass(frozen=True, slots=True)

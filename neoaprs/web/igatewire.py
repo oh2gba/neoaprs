@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Model
+from .wirebase import Iso, _Command, _Message, _Model
 
 
 class IgateState(_Model):
@@ -33,3 +33,29 @@ class IgateState(_Model):
         "`frame` (not a UI frame, or a third-party header that is none), `offline` (heard while not connected), `not_air` (not heard on the radio: a packet from the internet or one the Dummy radio made up). A reason that has not happened is not a key"
     )
     last_gated_at: Iso | None = Field(description="when the latest packet was gated; null before the first")
+
+
+class IgateSentLine(_Model):
+    """A line that was put on APRS-IS."""
+
+    at: Iso = Field(description="when it was sent")
+    radio: int | None = Field(ge=1, description="the radio that heard the packet; null for our own position")
+    line: str = Field(
+        description="the line as it went to the server, after the gating rules (the TNC2 text): other stations' data, shown as text only"
+    )
+
+
+class IgateLook(_Command):
+    """With `on`, this page shows the lines that Send what I hear has put on APRS-IS (the Internet box of the settings is open, `igate/gate` is on and the page is in front): it is sent `igate_sent` with the kept lines at once and then each line as it is
+    sent. With `on` false, or when the page closes, no more. Never refused."""
+
+    cmd: Literal["igate_look"]
+    on: bool
+
+
+class IgateSentMsg(_Message):
+    """The lines put on APRS-IS, to a page that looks (`igate_look`): `whole` true replaces the page's list with `lines` (the newest 200 since the daemon started, oldest first, as the page opened the box), false adds `lines` (one line as it is sent) to its end."""
+
+    type: Literal["igate_sent"]
+    whole: bool
+    lines: list[IgateSentLine] = Field(max_length=200)

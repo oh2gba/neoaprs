@@ -6,7 +6,7 @@ position goes out as `OURCALL>APZNEO,TCPIP*:`, the only path a client may use (a
 
 import asyncio
 import logging
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Literal, NamedTuple
@@ -17,10 +17,10 @@ from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import Config
 from neoaprs.geo import distance_km
 from neoaprs.hourcount import HourCount
-from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
+from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, SentLine, gate_of
 from neoaprs.packet import GATEABLE, DuplicateKey, Packet
 from neoaprs.policy import DIGI_DUPLICATE_SEC
-from neoaprs.radiospec import RadioSpec
+from neoaprs.radiospec import RadioId, RadioSpec
 from neoaprs.radiotype import RadioTypeError
 from neoaprs.recent import Recent
 from neoaprs.services.common import ConfigSource
@@ -33,6 +33,9 @@ POSITION_SEC = 1800.0
 MOBILE_EVERY_SEC = 60.0
 SUMMARY_SEC = 3600.0
 TICK_SEC = 1.0
+# The lines put on APRS-IS that the page's Internet box can show: enough to read back a busy quarter of an hour,
+# and few enough to stay small in memory and in the one message that opens the box.
+SENT_KEPT = 200
 IgateStateName = Literal["off", "connecting", "connected", "listening", "unverified"]
 IgateReason = Literal["", "no_server", "no_call", "unreachable", "offline", "not_server", "lost", "unverified"]
 
@@ -96,6 +99,8 @@ class Igate:
             tick_sec,
         )
         self.changed: Signal[[]] = Signal("igate.changed")
+        self.line_sent: Signal[[SentLine]] = Signal("igate.line_sent")
+        self.sent: deque[SentLine] = deque(maxlen=SENT_KEPT)
         self.gated = 0
         self.dropped: Counter[str] = Counter()
         self.last_gated_at: datetime | None = None
@@ -297,8 +302,15 @@ class Igate:
         self._hour_gated += 1
         self.gated_hour.note(now)
         self.last_gated_at = now
+        self._record(now, packet.radio_id, line)
         log.debug("igate: gated %s", line.decode("latin-1"))
         self.changed.emit()
+
+    def _record(self, now: datetime, radio: RadioId | None, line: bytes) -> None:
+        """Keep the line as it went to the server and tell the pages that look."""
+        sent = SentLine(now, radio, line.decode("latin-1"))
+        self.sent.append(sent)
+        self.line_sent.emit(sent)
 
     def _wanted_to_gate(self) -> bool:
         """Whether it gates at all: Send what I hear on, with a passcode the server has not refused."""
@@ -339,5 +351,6 @@ class Igate:
         self._position_due = now + timedelta(seconds=self.position_sec)
         if self._link.send_line(line):
             self._position_sent = now
+            self._record(now, None, line)
             log.info("igate: our position sent to APRS-IS")
             log.debug("igate: sent %s", line.decode("latin-1"))

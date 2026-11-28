@@ -27,6 +27,7 @@ OWN = {
     "DecodedTelemetry.comment",
     "DecodedUndecoded.text",
     "DecodedWeather.raw",
+    "IgateSentLine.line",
     "MessageRow.text",
     "NoteSection.text",
     "ObjectSet.comment",

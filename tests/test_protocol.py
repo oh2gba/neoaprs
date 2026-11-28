@@ -919,6 +919,21 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         },
         {"type": "satellites", "at": "2026-11-28T12:05:00Z", "elements_at": None, "satellites": [], "cards": []},
     ],
+    "igate_sent": [
+        {"type": "igate_sent", "whole": True, "lines": []},
+        {
+            "type": "igate_sent",
+            "whole": False,
+            "lines": [
+                {
+                    "at": "2026-11-28T12:05:00Z",
+                    "radio": 1,
+                    "line": "OH2RDG-7>APRS,WIDE1-1,qAO,OH2GBA:!6010.00N/02456.00E>hello",
+                },
+                {"at": "2026-11-28T12:05:30Z", "radio": None, "line": "OH2GBA>APZNEO,TCPIP*:!6010.00N/02456.00E>"},
+            ],
+        },
+    ],
     "station_track": [
         {
             "type": "station_track",
@@ -1212,6 +1227,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "layer_look": {"cmd": "layer_look", "layer": "ships", "on": True},
     "satellite_look": {"cmd": "satellite_look", "on": True, "cards": [25544]},
+    "igate_look": {"cmd": "igate_look", "on": True},
     "map_estimate": {"cmd": "map_estimate"},
     "map_fetch": {"cmd": "map_fetch"},
     "map_wanted": {"cmd": "map_wanted"},

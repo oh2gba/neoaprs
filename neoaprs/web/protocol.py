@@ -13,7 +13,7 @@ from .bulletinwire import BulletinDelete, BulletinRow
 from .configwire import ConfigValues, SetConfig
 from .generalwire import GeneralQuery, GeneralState
 from .gpswire import GpsState
-from .igatewire import IgateState
+from .igatewire import IgateLook, IgateSentMsg, IgateState
 from .historywire import (
     PacketHistory,
     PacketHistoryMsg,
@@ -151,6 +151,7 @@ AnyCommand = Union[
     StationTrack,
     LayerLook,
     SatelliteLook,
+    IgateLook,
 ]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
@@ -263,6 +264,7 @@ AnyMessage = Union[
     RadioLevelMsg,
     LayerThingsMsg,
     SatellitesMsg,
+    IgateSentMsg,
 ]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""

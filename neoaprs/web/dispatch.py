@@ -19,6 +19,7 @@ from .pageerrors import PageErrors
 from .problems import describe_errors
 from .protocol import COMMAND_NAMES, COMMANDS, AnyCommand
 from .layerfeed import LayerLooks
+from .igatefeed import IgateLooks
 from .levelfeed import RadioLevels
 from .satellitefeed import SatelliteLooks
 from .scopefeed import RadioScopes
@@ -54,6 +55,7 @@ class Ctx:
     levels: RadioLevels | None = None
     layers: LayerLooks | None = None
     satellites: SatelliteLooks | None = None
+    igate: IgateLooks | None = None
 
 
 type Fn[M: BaseModel] = Callable[[Ctx, M], Awaitable[None]]
@@ -99,12 +101,14 @@ class Dispatcher:
         levels: RadioLevels | None = None,
         layers: LayerLooks | None = None,
         satellites: SatelliteLooks | None = None,
+        igate: IgateLooks | None = None,
     ) -> None:
         self.ctl = ctl
         self.hub = hub
         self.status = status
         self.page_errors = page_errors
         self.scopes, self.levels, self.layers, self.satellites = scopes, levels, layers, satellites
+        self.igate = igate
         self.registry = REGISTRY if registry is None else registry
 
     async def run(self, conn: Connection, raw: dict[str, Any]) -> None:
@@ -154,6 +158,7 @@ class Dispatcher:
                 self.levels,
                 self.layers,
                 self.satellites,
+                self.igate,
             ),
             cmd,
         )
