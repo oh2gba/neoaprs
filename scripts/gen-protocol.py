@@ -1264,7 +1264,7 @@ CHAT_TEXTS = [
     "a\x00b\x07c\x1bd\x7fe",
     "a\ue000b",
     "<b>&amp;</b> <script>alert(1)</script>",
-    "\"quoted\" and \\back\\slash",
+    '"quoted" and \\back\\slash',
     "",
     "   ",
     "\u200b\u2060",
