@@ -9,15 +9,19 @@ import logging
 from typing import Any, Coroutine, Protocol
 
 from . import kiss
+from .coded import Reason
 from .loraboard import LoraBoard
 from .source import Source
 from .tncentry import KissEntry
-from .tncmode import Mode, ModeDetector, TextAfterKiss
+from .tncmode import Mode, ModeDetector, TextAfterKiss, TextWatch, is_ui
 from .tncport import TncPort
 from .tncprofile import Profile
 from .tncwatchdog import EntryAgain, TncStats, Watchdog
 
 log = logging.getLogger("neoaprs.tnc")
+
+# monitor text, GPS sentences or KISS written as hex: the device is set to send something else
+SENDS_TEXT = Reason("the device sends text, not KISS: set it to KISS", "radio.sends_text")
 
 
 class Line(Protocol):
@@ -63,6 +67,7 @@ class Reader:
         self.entered = self.kiss_seen = self.told_text = False
         self.again = EntryAgain()  # repeats the entry for a TNC that still types text
         self.typed = TextAfterKiss()  # text after KISS frames: the radio was restarted
+        self.text_watch = TextWatch()  # lines of text and no frame: the device is set to send something else
         self.settle_until = 0.0
         # a check or probe is under way: nothing is sent, and the keep-alive itself enters KISS
         self.looking = False
@@ -97,6 +102,9 @@ class Reader:
         mode = self._heard(port, chunk, loop_now)
         if loop_now < self.settle_until:
             return
+        if not self.looking and self.text_watch.feed(chunk, loop_now):
+            log.warning("%s: %s", tnc.label, SENDS_TEXT)
+            tnc._note(SENDS_TEXT)
         if typed and mode is Mode.KISS and self.kiss_seen and tnc.profile.detect_command_mode:
             # switch to KISS now, not at the next check: text keeps the line quiet
             self.kiss_seen = self.told_text = False
@@ -115,6 +123,9 @@ class Reader:
 
     def _decode(self, chunk: bytes) -> None:
         for frame in self.decoder.feed(chunk):
+            if is_ui(frame) and self.text_watch.frame():
+                log.info("%s: KISS frames come now", self._tnc.label)
+                self._tnc._note("KISS frames come now")
             self._tnc._handle(frame)
         if self.decoder.dropped > self.dropped_seen:
             self._tnc.stats.rejected += self.decoder.dropped - self.dropped_seen

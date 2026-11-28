@@ -316,7 +316,7 @@ class Tnc(TimedSource):
             return
         self._port = None
         self._drop_tasks()
-        text = f"{port.path} lost: {reason}"
+        text = Reason.of(reason, f"{port.path} lost: {reason}")
         self.write_stuck = (
             Reason.of(reason, f"{port.path}: a write timed out: {reason}")
             if code_of(reason)[0] == "radio.write_timeout"
@@ -402,6 +402,8 @@ class Tnc(TimedSource):
         lambda self: self._port is not None and self._reader.entered and not self._reader.kiss_seen
     )
     is_dummy = property(lambda self: self.profile.transport == "dummy")
+    # the line brings lines of text and no KISS frame (tncmode.TextWatch)
+    sends_text = property(lambda self: self._port is not None and self._reader.text_watch.alarm)
 
     def look_begin(self) -> bool:
         """Start a check or probe (nothing is sent meanwhile); False when there is no line."""

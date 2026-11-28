@@ -305,7 +305,7 @@ def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
         "--port",
         default="",
         metavar="PATH",
-        help="radio 1's port for this run only (its own port is not changed): /dev/ttyUSB0, COM3, socket://host:port for your own Direwolf or soundmodem (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal",
+        help="radio 1's port for this run only (its own port is not changed): /dev/ttyUSB0, COM3, socket://host:port for your own Direwolf or soundmodem (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux, Windows), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal",
     )
     parser.add_argument(
         "--hf-port",

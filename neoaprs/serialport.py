@@ -18,8 +18,9 @@ from collections.abc import Callable
 from typing import Any
 
 import serial  # type: ignore[import-untyped]
+import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from . import nodevices
+from . import bthenum, nodevices, openfailure, portgate
 from .btle import BleSerial, is_ble
 from .btserial import BluetoothSerial, is_bluetooth
 from .coded import Reason
@@ -37,6 +38,8 @@ JOIN_SEC = 0.5
 CLOSE_WAIT_SEC = 10.0
 MAX_CHUNK_BYTES = 4096
 MAX_QUEUED_WRITES = 256
+# how often an open Bluetooth COM port's lines are read
+LINES_EVERY_SEC = 5.0
 
 
 class SerialError(Exception):
@@ -112,6 +115,33 @@ def _in_use(e: BaseException) -> bool:
             or "access is denied" in text.lower()
         )
     return getattr(e, "errno", None) in (errno.EAGAIN, errno.EBUSY)
+
+
+def _bluetooth_com(path: str) -> bool:
+    """Return whether `path` is a Windows COM port that reaches a Bluetooth device (by its hardware id)."""
+    if not _on_windows() or is_url(path):
+        return False
+    name = path.strip().upper().removeprefix("\\\\.\\")
+    try:
+        listed = serial.tools.list_ports.comports()
+    except OSError as e:
+        log.debug("listing the ports failed: %s", e)
+        return False
+    return any(p.device.upper() == name and bthenum.reaches_device(p.hwid or "") for p in listed)
+
+
+def lines_off(ser: Any) -> bool:
+    """Return whether CTS, DSR and CD are all off: nothing is connected to a Bluetooth COM port."""
+    try:
+        return not (ser.cts or ser.dsr or ser.cd)
+    except Exception as e:  # a line that cannot be read decides nothing
+        log.debug("the lines of %s were not read: %s", getattr(ser, "port", ser), os_error_text(e))
+        return False
+
+
+def no_connection(path: str) -> Reason:
+    why = Reason(f"{path}: the device does not answer (switched off, asleep or out of range)", "radio.no_answer")
+    return Reason(f"{why}: CTS, DSR and CD are off", why.code)
 
 
 def _build(path: str, baud: int) -> Any:
@@ -234,6 +264,8 @@ def _close_quietly(ser: Any) -> None:
         ser.close()
     except Exception as e:  # a failed close can only be logged
         log.info("closing: %s", os_error_text(e))
+    finally:
+        portgate.release(ser)
 
 
 class _Line:
@@ -247,9 +279,13 @@ class _Line:
         on_data: Callable[["_Line", bytes], None],
         on_lost: Callable[["_Line", str], None],
         on_written: Callable[["_Line"], None] | None = None,
+        watch_lines: bool = False,
     ) -> None:
         self.ser, self._loop, self._on_data, self._on_lost = ser, loop, on_data, on_lost
         self._on_written = on_written
+        self.name = name
+        # a Bluetooth COM port whose lines say whether the device is still connected
+        self._lines_at = time.monotonic() + LINES_EVERY_SEC if watch_lines else None
         self._stop = threading.Event()
         self.outbox: queue.SimpleQueue[bytes | None] = queue.SimpleQueue()
         self._reader = threading.Thread(target=self._read, name=f"serial-read {name}", daemon=True)
@@ -278,6 +314,11 @@ class _Line:
                 return
             if chunk:
                 self._post(self._on_data, bytes(chunk))
+            if self._lines_at is not None and time.monotonic() >= self._lines_at:
+                self._lines_at = time.monotonic() + LINES_EVERY_SEC
+                if lines_off(ser) and not self._stop.is_set():
+                    self._post(self._on_lost, no_connection(self.name))
+                    return
 
     def _write(self) -> None:
         told = False  # the first write that went through is told, once
@@ -355,7 +396,7 @@ class SerialPort:
         self._opening, self._closed_while_opening = True, False
         hand = _Handover(self.path)
         try:
-            ser = await asyncio.to_thread(self._open_blocking, hand)
+            ser, watch = await asyncio.to_thread(self._open_blocking, hand)
         except BaseException:
             hand.abandon()
             raise
@@ -365,27 +406,49 @@ class SerialPort:
             self._close_line_of(ser)
             raise SerialError(f"{self.path}: closed while it was being opened")
         self._line = line = _Line(
-            ser, asyncio.get_running_loop(), self.path, self._line_data, self._line_lost, self._line_written
+            ser, asyncio.get_running_loop(), self.path, self._line_data, self._line_lost, self._line_written, watch
         )
         line.start()
 
-    def _open_blocking(self, hand: _Handover) -> Any:
+    def _open_blocking(self, hand: _Handover) -> tuple[Any, bool]:
+        """Return the open pyserial object and whether its lines are watched (a Bluetooth COM port)."""
         _wait_for_closes(self.path)  # a device is opened again only once its closes are done
+        if names_tcp(self.path):  # a connection, not a device: two radios may each have one
+            return self._open_device(hand)
+        with portgate.turn(self.path) as ours:
+            if not ours:
+                raise SerialError(f"{self.path}: another open of the port by NeoAPRS is still under way")
+            if _on_windows() and portgate.held(self.path):
+                raise SerialError(
+                    f"{self.path}: NeoAPRS has the port open already (a search, Find my radio or another radio)"
+                )
+            return self._open_device(hand)
+
+    def _open_device(self, hand: _Handover) -> tuple[Any, bool]:
+        bluetooth = False
         try:
             nodevices.check_port(self.path)
+            bluetooth = _bluetooth_com(self.path)
             ser = _build(self.path, self.baud)
             ser.open()
         except (serial.SerialException, OSError, ValueError) as e:
-            what = (
-                f"{self.path}: in use by another program (close it: a terminal, Direwolf, a rig program)"
-                if _in_use(e)
-                else _words(self.path, e)
-            )
-            raise SerialError(what) from e
+            raise SerialError(
+                openfailure.failure(
+                    self.path,
+                    e,
+                    _words(self.path, e),
+                    in_use=_in_use(e),
+                    bluetooth=bluetooth or is_bluetooth(self.path),
+                )
+            ) from e
+        portgate.hold(ser, self.path)
+        if bluetooth and lines_off(ser):
+            _close_quietly(ser)
+            raise SerialError(no_connection(self.path))
         _keep_alive(ser)
         if not hand.offer(ser):
             raise SerialError(f"{self.path}: the open was cancelled")
-        return ser
+        return ser, bluetooth
 
     def close(self) -> None:
         """Close the line; one being opened is closed when the open ends."""

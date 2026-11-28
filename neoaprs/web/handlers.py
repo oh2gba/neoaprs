@@ -24,7 +24,15 @@ from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.radiospec import FM_ID
 from neoaprs.radiotype import ResourceKind
 from neoaprs.radiosearch import Trying
-from neoaprs.serialprobe import can_find, can_search, claim_value, offered_ports, paired_bluetooth_ports, with_links
+from neoaprs.serialprobe import (
+    PortInfo,
+    can_find,
+    can_search,
+    claim_value,
+    offered_ports,
+    paired_bluetooth_ports,
+    with_links,
+)
 from neoaprs.usbtie import together
 
 from .beaconwire import BeaconNow, StatusNow
@@ -142,6 +150,15 @@ def _holder(claims: Claims, kind: ResourceKind, value: str | None) -> int | None
     return None if held is None else held.holder or 0
 
 
+def listed_ports() -> list[PortInfo]:
+    """Return the ports and paired devices to offer; a listing that fails is logged and offers none."""
+    try:
+        return with_links(offered_ports()) + paired_bluetooth_ports()
+    except Exception:  # the page gets the list it can have, never a failure it can do nothing about
+        log.warning("listing the ports failed", exc_info=True)
+        return []
+
+
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     # Lists the ports and, for a radio with a sound-card modem, its sound cards, each with its
@@ -149,7 +166,7 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     radio, claims = None if cmd.radio is None else named_radio(ctx, cmd.cmd, cmd.radio), ctx.ctl.radios.claims
     modem = None if radio is None else radio.driver.modem
     # Read in a thread (files, registry, BlueZ): by-id names, user links, paired Bluetooth devices.
-    ports = await asyncio.to_thread(lambda: with_links(offered_ports()) + paired_bluetooth_ports())
+    ports = await asyncio.to_thread(listed_ports)
     # Runs the modem program; only for a sound-card modem.
     cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []
     # sysfs: which sit on one radio's USB hub; the page orders the keying by it.

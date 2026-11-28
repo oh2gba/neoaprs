@@ -1,7 +1,7 @@
-"""List the Bluetooth devices paired with this computer (Linux), for the list of ports.
+"""List the Bluetooth devices paired with this computer (Linux, Windows), for the list of ports.
 
-BlueZ answers over the system D-Bus without root: `busctl` first, `bluetoothctl` if it is missing.
-Nothing is connected to or changed; devices with no serial port are left out.
+BlueZ answers over the system D-Bus without root: `busctl` first, `bluetoothctl` if it is missing;
+Windows answers from what it remembers. Nothing is connected to or changed.
 """
 
 import json
@@ -88,14 +88,36 @@ def from_bluetoothctl(output: str) -> list[PairedDevice]:
 def paired_devices(run: Callable[[list[str]], str] | None = None) -> list[PairedDevice]:
     """Return the paired devices that may have a serial port, sorted by name.
 
-    The list is empty if BlueZ gives no answer.
+    The list is empty if BlueZ gives no answer; on Windows, where no bt:// port can be opened.
     """
+    if _on_windows():
+        return _sorted(windows_devices())
     if not _on_linux():
         return []
     ask = run or _run
     answer = ask(BUSCTL)
-    devices = from_busctl(answer) if answer else from_bluetoothctl(ask(BLUETOOTHCTL))
+    return _sorted(from_busctl(answer) if answer else from_bluetoothctl(ask(BLUETOOTHCTL)))
+
+
+def _sorted(devices: list[PairedDevice]) -> list[PairedDevice]:
     return sorted(devices, key=lambda d: (d.name.lower(), d.address))
+
+
+def windows_devices() -> list[PairedDevice]:
+    """Return the devices Windows has paired, where a direct RFCOMM socket can reach them; else none."""
+    from . import winbluetooth  # ctypes only where it is used
+
+    if not winbluetooth.usable():
+        return []
+    try:
+        return [PairedDevice(d.address, d.name) for d in winbluetooth.paired_devices(winbluetooth.bthprops())]
+    except OSError as e:
+        log.info("the paired Bluetooth devices could not be listed: %s", e)
+        return []
+
+
+def _on_windows() -> bool:
+    return sys.platform == "win32"
 
 
 def _on_linux() -> bool:

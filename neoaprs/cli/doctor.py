@@ -30,7 +30,8 @@ from neoaprs.paths import default_data_dir
 from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.serialboards import board_kind
 from neoaprs.serialholders import held_by
-from neoaprs.serialprobe import PortInfo, available_ports, bluetooth_address
+from neoaprs.bthenum import plain
+from neoaprs.serialprobe import PortInfo, available_ports, bluetooth_address, by_name
 from neoaprs.stopfile import migrating
 from neoaprs.store import DB_NAME, Store
 
@@ -236,13 +237,18 @@ def check_radios(
     return found
 
 
-def _bluetooth_words(port: PortInfo) -> str:
-    """Say which of a Windows Bluetooth device's two ports this is."""
+def _bluetooth_words(port: PortInfo, named: dict[str, str]) -> str:
+    """Say which of a Windows Bluetooth device's two ports this is, and whether the device is offered by name."""
     address = bluetooth_address(port)
     if address is None:
         return ""
     if address == "000000000000":
         return "  (the computer's incoming Bluetooth port: it reaches no device, and NeoAPRS does not offer it)"
+    if address in named:
+        return (
+            f"  (Bluetooth: the port that reaches the device {address}; NeoAPRS offers the device itself,"
+            f" Bluetooth: {named[address] or address}, and connects to it directly)"
+        )
     return f"  (Bluetooth: the port that reaches the device {address})"
 
 
@@ -254,6 +260,7 @@ def check_ports() -> Finding:
             "no serial port is listed by the system",
             "plug in the TNC's USB cable (a radio of the type Sound card, or your own Direwolf, needs no serial port)",
         )
+    named = {plain(d.address): d.name for d in by_name(ports)} if sys.platform == "win32" else {}
     lines = []
     for p in ports:
         ids = f"{p.vid:04x}:{p.pid:04x}" if p.vid is not None and p.pid is not None else "-"
@@ -262,7 +269,7 @@ def check_ports() -> Finding:
         lines.append(
             f"    {p.device}  {p.description or '-'}  VID:PID {ids}"
             + (f"  ({board}: the search leaves it alone; name the port to use it)" if board else "")
-            + _bluetooth_words(p)
+            + _bluetooth_words(p, named)
             + (f"  {holder}" if holder else "")
         )
     return Finding(

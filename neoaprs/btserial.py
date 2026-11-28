@@ -1,7 +1,8 @@
 """A classic Bluetooth serial port (RFCOMM) as a pyserial port: `bt://AA:BB:CC:DD:EE:FF[/channel]`.
 
-It is pyserial's socket:// port over an RFCOMM socket; a paired device needs no `rfcomm bind` or
-root. Without a channel in the URL, the channels the device lists, then 1 to 3, are tried in turn.
+It is pyserial's socket:// port over an RFCOMM socket, on Linux and Windows; a paired device needs no
+`rfcomm bind`, COM port or root. Without a channel in the URL, the channels the device lists, then 1
+to 3, are tried in turn.
 """
 
 import errno
@@ -20,7 +21,8 @@ log = logging.getLogger("neoaprs.btserial")
 SCHEME = "bt://"
 FALLBACK_CHANNELS = (1, 2, 3)
 CONNECT_TIMEOUT_SEC = 12.0
-REFUSED = (errno.ECONNREFUSED, errno.ECONNRESET)
+# Linux's refusals, and Windows' 10064: the device answered DM (the channel is busy or not offered)
+REFUSED = (errno.ECONNREFUSED, errno.ECONNRESET, 10064)
 _URL = re.compile(r"^bt://([0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5})(?:/(\d{1,2}))?/?$", re.IGNORECASE)
 
 
@@ -43,18 +45,44 @@ def parse_url(path: str) -> tuple[str, int | None]:
 
 
 def available() -> bool:
-    """Return True if this Python can make RFCOMM sockets (Linux with BlueZ)."""
+    """Return True if this Python can make RFCOMM sockets (Linux with BlueZ, Windows with its Bluetooth library)."""
+    if _on_windows():
+        from . import winbluetooth  # ctypes only where it is used
+
+        return winbluetooth.usable()
     return sys.platform.startswith("linux") and hasattr(socket, "AF_BLUETOOTH") and hasattr(socket, "BTPROTO_RFCOMM")
+
+
+def _on_windows() -> bool:
+    return sys.platform == "win32"
 
 
 def new_rfcomm_socket() -> socket.socket:
     return socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
 
+def listed_channels(address: str) -> list[int]:
+    """Return the serial channels the device lists; raise OSError if it cannot be reached (Linux)."""
+    if _on_windows():
+        from . import winbluetooth
+
+        try:
+            return winbluetooth.serial_channels(address, winbluetooth.ws2_32())
+        except OSError as e:
+            log.info("%s: the service directory was not read: %s", address, e)
+            return []
+    return btsdp.serial_channels(address)
+
+
 def channels_for(address: str) -> list[int]:
     """Return the device's listed serial channels, then the fallback ones."""
-    listed = btsdp.serial_channels(address)
+    listed = listed_channels(address)
     return listed + [c for c in FALLBACK_CHANNELS if c not in listed]
+
+
+def _number(e: OSError) -> int | None:
+    winerror = getattr(e, "winerror", None)
+    return winerror if isinstance(winerror, int) else e.errno
 
 
 def connect(address: str, channel: int | None) -> socket.socket:
@@ -67,7 +95,7 @@ def connect(address: str, channel: int | None) -> socket.socket:
             sock.connect((address, number))
         except OSError as e:
             sock.close()
-            if e.errno not in REFUSED or number == channels[-1]:
+            if _number(e) not in REFUSED or number == channels[-1]:
                 raise
             log.info("%s: nothing on RFCOMM channel %d (%s)", address, number, e)
             continue
@@ -94,13 +122,12 @@ class BluetoothSerial(protocol_socket.Serial):  # type: ignore[misc]
             address, channel = parse_url(self.portstr)
             if not available():
                 raise OSError(
-                    "Bluetooth ports (bt://) are for Linux; on Windows use the COM port of the paired device, on macOS its /dev/cu.* port"
+                    "Bluetooth ports (bt://) are for Linux and Windows; on macOS use the device's /dev/cu.* port"
                 )
             sock = connect(address, channel)
         except (OSError, ValueError) as e:
             self._socket = None
-            why = "no answer from the device (is it switched on and in range?)" if isinstance(e, TimeoutError) else e
-            raise serial.SerialException(f"Could not open port {self.portstr}: {why}") from e
+            raise serial.SerialException(f"Could not open port {self.portstr}: {e}") from e
         sock.setblocking(False)
         self._socket = sock
         self.is_open = True

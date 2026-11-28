@@ -968,6 +968,7 @@ def test_a_radio_that_is_not_connected_says_why_by_a_code() -> None:
             state=state,
             searching=searching,
             silent_since=None,
+            sends_text=False,
             modem_in_use=modem,
             why_unusable=lambda: "",
             write_stuck=None,

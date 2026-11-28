@@ -171,6 +171,12 @@ RadioProblemCode = Literal[
     "radio.silent",
     "radio.text_lines",
     "radio.incoming_port",
+    "radio.port_in_use",
+    "radio.no_answer",
+    "radio.not_paired",
+    "radio.refused",
+    "radio.open_failed",
+    "radio.sends_text",
     "radio.write_timeout",
     "radio.resource_held",
     "modem.not_installed",
@@ -192,7 +198,7 @@ class RadioProblem(_Model):
 
     code: RadioProblemCode = Field(
         description="`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: "
-        "when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
+        "when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.port_in_use` another program has its port; `radio.no_answer` its Bluetooth device does not answer (switched off, asleep or out of range); `radio.not_paired` its Bluetooth device is not paired with this computer; `radio.refused` its Bluetooth device refused the connection; `radio.open_failed` its Bluetooth port could not be opened for another reason (the log says Windows' words); `radio.sends_text` its line is open and the KISS device on it sends text lines (monitor text, GPS sentences, KISS written as text) and no KISS frame; `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
         "`GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; `modem.receive_deaf` its Mercury modem runs and hears nothing (its receive side stalled) and is started again soon; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, "
         "and that reason's values)"
     )

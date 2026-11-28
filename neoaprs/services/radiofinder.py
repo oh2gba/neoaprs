@@ -48,7 +48,9 @@ def candidates(pattern: str, skip: tuple[str, ...]) -> list[str]:
     never = {port_key(p) for p in skip}
     # Windows, macOS: the system's list; the globs are Linux paths, so only the default applies
     if not serialprobe.can_search():
-        ports = serialprobe.system_ports() if pattern == serialprobe.DEFAULT_PATTERN else []
+        if pattern != serialprobe.DEFAULT_PATTERN:
+            return []
+        ports = serialprobe.system_ports() + serialprobe.paired_bluetooth_ports()
         return [p.device for p in ports if port_key(p.device) not in never]
     paths, _ = serialprobe.searchable_ports(pattern)
     found = [p for p in paths if port_key(p) not in never and not held_by(p)]

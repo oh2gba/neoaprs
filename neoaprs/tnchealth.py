@@ -22,6 +22,18 @@ from .tnctextreader import RX_ONLY
 COMMAND_MODE = Reason("the TNC is in command mode (KISS ON is sent again)", "radio.command_mode")
 
 
+# Why a port did not open, said while the line is down (openfailure.py, serialprobe.py)
+PORT_PROBLEMS = frozenset(
+    {
+        "radio.incoming_port",
+        "radio.port_in_use",
+        "radio.no_answer",
+        "radio.not_paired",
+        "radio.refused",
+        "radio.open_failed",
+    }
+)
+
 # The reasons of a waiting modem shown while the line is connected: the radio looks connected and hears
 # nothing. Any other reason shows only once the line is down too (a modem that ended takes its line with it).
 DEAF_REASONS = frozenset({"receive_stalled"})
@@ -57,6 +69,8 @@ class Line(Protocol):
     def silent_since(self) -> datetime | None: ...
     @property
     def modem_in_use(self) -> Modem | None: ...
+    @property
+    def sends_text(self) -> bool: ...
     def why_unusable(self) -> str: ...
 
 
@@ -91,14 +105,16 @@ def _problem(line: Line) -> tuple[str | None, Mapping[str, Param]]:
                 return f"modem.{modem.reason}", {}
             if modem.deaf:
                 return "modem.receive_deaf", {}
-        return ("radio.text_lines", {}) if code_of(line.why_unusable())[0] == "radio.text_lines" else (None, {})
+        if code_of(line.why_unusable())[0] == "radio.text_lines":
+            return "radio.text_lines", {}
+        return ("radio.sends_text", {}) if line.sends_text else (None, {})
     if modem is not None and modem.test:
         return None, {}  # Tune or the keying test has the radio; the line is down meanwhile
     if modem is not None and modem.state == "waiting" and modem.reason:
         return f"modem.{modem.reason}", {}
     if state is Source.State.SILENT:
         return "radio.silent", {"since": iso(line.silent_since) or ""}
-    if (why := code_of(line.problem))[0] == "radio.incoming_port":
+    if (why := code_of(line.problem))[0] in PORT_PROBLEMS:
         return why
     if line.searching:
         return "radio.searching", {}

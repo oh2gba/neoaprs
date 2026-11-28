@@ -605,7 +605,9 @@ async def test_the_serial_line_opens_no_device_no_bluetooth_port_and_no_tcp_port
     ):
         with pytest.raises(SerialError) as refused:
             await SerialPort(port).open()
-        assert str(refused.value) == f"{port}: {REFUSED}"
+        # (a Bluetooth port's own refusal is a port that could not be opened, openfailure.py)
+        said = f"{port}: the port could not be opened: {REFUSED}" if port.startswith("bt://") else f"{port}: {REFUSED}"
+        assert str(refused.value) == said
     assert os.path.realpath(device) not in doors.opened and doors.untouched() and doors.connected == []
 
 

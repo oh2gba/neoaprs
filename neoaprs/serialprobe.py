@@ -16,9 +16,9 @@ from typing import TypedDict, Unpack
 
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from . import nodevices
+from . import bthenum, nodevices
 from .coded import Reason
-from .btpaired import paired_devices
+from .btpaired import PairedDevice, paired_devices
 from .claims import PORT_KINDS, Claim
 from .config import DEFAULT_SERIAL_PATTERN, Config
 from .serialboards import board_kind, describe
@@ -99,13 +99,22 @@ def moved_to(adapter: AdapterId | None, gone: str) -> str | None:
     return same[0] if len(same) == 1 else None
 
 
+def by_name(ports: list[PortInfo]) -> list[PairedDevice]:
+    """Return the paired devices offered by name: on Windows those with a COM port of their own (a serial port)."""
+    devices = paired_devices()
+    if not _on_windows():
+        return devices
+    served = {bluetooth_address(p) for p in ports}
+    return [d for d in devices if bthenum.plain(d.address) in served]
+
+
 def paired_bluetooth_ports() -> list[PortInfo]:
-    """Return paired Bluetooth devices (Linux) as ports `bt://ADDRESS`; never opened here."""
+    """Return paired Bluetooth devices as ports `bt://ADDRESS`; never opened here."""
     if nodevices.refused(NOT_LISTED, logging.INFO):
         return []
     return [
         PortInfo(f"bt://{d.address}", f"Bluetooth: {d.name}" if d.name else "Bluetooth device", "", None, None)
-        for d in paired_devices()
+        for d in by_name(available_ports() if _on_windows() else [])
     ]
 
 
@@ -114,7 +123,9 @@ LINK_DIRS = ("/dev/serial/by-id", "/dev")
 
 
 def with_links(ports: list[PortInfo], dirs: Collection[str] = LINK_DIRS) -> list[PortInfo]:
-    """Return `ports` with, after each, the links in `dirs` that lead to its device."""
+    """Return `ports` with, after each, the links in `dirs` that lead to its device; nothing is opened."""
+    if _on_windows():
+        return list(ports)  # a COM port has no links, and resolving its name opens it
     names: dict[str, list[str]] = {}
     for folder in dirs:
         try:
@@ -127,7 +138,12 @@ def with_links(ports: list[PortInfo], dirs: Collection[str] = LINK_DIRS) -> list
     out: list[PortInfo] = []
     for port in ports:
         out.append(port)
-        for link in names.get(os.path.realpath(port.device), []):
+        try:
+            real = os.path.realpath(port.device) if names else ""
+        except (OSError, ValueError) as e:  # a port that cannot be resolved is listed as it is
+            log.debug("the links of %s were not looked for: %s", port.device, e)
+            continue
+        for link in names.get(real, []):
             if link != port.device:
                 said = (
                     f"{port.device}, {port.description}"
@@ -194,24 +210,22 @@ def is_bluetooth_com(port: PortInfo) -> bool:
     return port.hwid.upper().startswith("BTHENUM") or "bluetooth" in port.description.lower()
 
 
-# Windows: the device's address ends a BTHENUM hwid, `..&0&000CBF18376C_C00000000`
-_BT_ADDRESS = re.compile(r"&([0-9A-F]{12})_[0-9A-F]+$")
-
-
 def bluetooth_address(port: PortInfo) -> str | None:
     """Return the device address of a Windows Bluetooth COM port, "000000000000" for the incoming one."""
-    found = _BT_ADDRESS.search(port.hwid.upper()) if port.hwid.upper().startswith("BTHENUM") else None
-    return found.group(1) if found else None
+    return bthenum.address_in(port.hwid)
 
 
 def is_incoming_bluetooth(port: PortInfo) -> bool:
     """Return whether this is the computer's incoming Bluetooth port, which reaches no device."""
-    return bluetooth_address(port) == "000000000000"
+    return bluetooth_address(port) == bthenum.INCOMING
 
 
 def offered_ports() -> list[PortInfo]:
-    """Return the listed ports a radio may use: all but the incoming Bluetooth port."""
-    return [p for p in available_ports() if not is_incoming_bluetooth(p)]
+    """Return the listed ports a radio may use: not the incoming Bluetooth port, nor a device's COM port
+    where the device itself is offered by name (paired_bluetooth_ports)."""
+    ports = available_ports()
+    named = {bthenum.plain(d.address) for d in by_name(ports)} if _on_windows() else set()
+    return [p for p in ports if not is_incoming_bluetooth(p) and bluetooth_address(p) not in named]
 
 
 def _on_windows() -> bool:

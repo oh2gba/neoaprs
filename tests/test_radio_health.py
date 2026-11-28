@@ -101,6 +101,7 @@ def test_every_line_state_with_every_modem_reason_shows_the_problem_of_before_an
         usable=state is Source.State.CONNECTED,
         searching=[],
         silent_since=None,
+        sends_text=False,
         modem_in_use=SimpleNamespace(state="waiting" if reason else "running", reason=reason, test="", deaf=False),
         why_unusable=lambda: "",
     )
@@ -112,7 +113,7 @@ def test_a_test_tone_hides_the_modems_problem_and_a_deaf_modem_shows_only_while_
         values: dict[str, object] = {"state": "running", "reason": "", "test": "", "deaf": False, **modem}
         line = SimpleNamespace(
             state=line_state, problem="", write_stuck=None, entering_kiss=False, usable=True, searching=[],
-            silent_since=None, modem_in_use=SimpleNamespace(**values), why_unusable=lambda: "",
+            silent_since=None, sends_text=False, modem_in_use=SimpleNamespace(**values), why_unusable=lambda: "",
         )  # fmt: skip
         return line_health(line).code  # type: ignore[arg-type]
 

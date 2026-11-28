@@ -19,6 +19,8 @@ log = logging.getLogger("neoaprs.tnc")
 
 _TAIL_BYTES = 4096
 _TEXT_BYTES = frozenset(range(0x20, 0x7F)) | {0x09, 0x0A, 0x0D, 0x11, 0x13}  # ASCII, space, XON/XOFF
+# ends a line of text a device sends
+_LINE_ENDS = frozenset(b"\r\n")
 # ends a command-mode text line (a TH-D7 sends XON after its prompt)
 _LINE_BREAKS = re.compile(rb"[\r\n\x11\x13]")
 # a monitored header: TNC-2 and TH-D7 "A>B,C*:", Kantronics "A>B,C <UI>:"
@@ -85,6 +87,52 @@ class TextAfterKiss:
             self._since_fend.extend(chunk)
             del self._since_fend[: -self.TAIL_BYTES]
         return typed_text(bytes(self._since_fend))
+
+
+class TextWatch:
+    """Notice a KISS line that brings lines of text (monitor text, GPS sentences, KISS written as hex) and no frame.
+
+    Text counts once a line of it comes HOLD_SEC after the first with no valid KISS frame between, so a
+    start-up banner followed by KISS, or noise, raises nothing. `frame` clears it.
+    """
+
+    HOLD_SEC = 10.0
+    MIN_LINE = 16  # shorter text (a prompt, a banner's pieces) is not counted
+    # text with no line break this long is a line too (KISS written as hex may have none)
+    MAX_RUN = 256
+
+    def __init__(self) -> None:
+        self._run = bytearray()
+        self._first: float | None = None
+        self._lines = 0
+        self.alarm = False
+
+    def feed(self, chunk: bytes, now: float) -> bool:
+        """Take the bytes heard at `now` (seconds); return whether the alarm went on."""
+        before = self.alarm
+        for byte in chunk:
+            if byte in _LINE_ENDS:
+                self._end(now)
+            elif byte in _TEXT_BYTES:
+                self._run.append(byte)
+                if len(self._run) >= self.MAX_RUN:
+                    self._end(now)
+            else:
+                self._run.clear()
+        return self.alarm and not before
+
+    def _end(self, now: float) -> None:
+        if len(self._run) >= self.MIN_LINE:
+            self._first = now if self._first is None else self._first
+            self._lines += 1
+            self.alarm = self.alarm or (self._lines >= 2 and now - self._first >= self.HOLD_SEC)
+        self._run.clear()
+
+    def frame(self) -> bool:
+        """A valid KISS frame came: forget the text; return whether the alarm went off."""
+        was, self.alarm, self._first, self._lines = self.alarm, False, None, 0
+        self._run.clear()
+        return was
 
 
 def typed_text(segment: bytes) -> bool:

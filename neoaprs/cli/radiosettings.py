@@ -8,6 +8,7 @@ from typing import Any
 
 from neoaprs.config import KEYS, LAST_PORT, STATION_KEYS, Config
 from neoaprs.configradios import radio_key_of
+from neoaprs.btserial import is_bluetooth
 from neoaprs.dberror import Connection, Row
 from neoaprs.migrations import schema_version
 from neoaprs.radiospec import RadioId, RadioSpec
@@ -95,6 +96,8 @@ def reached(spec: RadioSpec) -> list[tuple[str, str]]:
     rtype = type_or_none(spec)
     if rtype is None:
         return [("Type", f"{spec.type}: no type of this NeoAPRS")]
+    if rtype.transport == "serial" and is_bluetooth(port := spec.value("port")):
+        return [("Port", f"{port} (a Bluetooth device, connected to directly: no COM port, no speed)")]
     if rtype.transport == "serial":
         speed = spec.value("baud") or profile_baud(rtype) or 9600
         return [("Port", spec.value("port") or "(found by searching)"), ("Speed", f"{speed} baud")]

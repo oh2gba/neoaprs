@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, btpaired, btsdp, btserial, serialprobe
+from neoaprs import ax25, btpaired, btsdp, btserial, serialprobe, winbluetooth
 from neoaprs.btserial import BluetoothSerial, is_bluetooth, parse_url
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, port_key
@@ -239,7 +239,7 @@ async def test_what_is_written_just_before_the_close_still_goes_out(device: Fake
     [
         (OSError(errno.ECONNREFUSED, "Connection refused"), "Connection refused"),
         (OSError(errno.EHOSTDOWN, "Host is down"), "Host is down"),
-        (TimeoutError("timed out"), "no answer from the device"),
+        (TimeoutError("timed out"), "the device does not answer (switched off, asleep or out of range)"),
     ],
 )
 async def test_a_device_that_does_not_answer_is_an_error_with_its_words(
@@ -265,7 +265,7 @@ async def test_an_address_that_is_wrong_and_a_system_without_bluetooth_are_said_
     with pytest.raises(SerialError, match="bt://AA:BB:CC:DD:EE:FF"):
         await SerialPort("bt://nonsense").open()
     monkeypatch.setattr("neoaprs.btserial.available", lambda: False)
-    with pytest.raises(SerialError, match="COM port"):
+    with pytest.raises(SerialError, match="macOS"):
         await SerialPort(URL).open()
 
 
@@ -544,14 +544,22 @@ def test_the_directory_is_not_read_where_the_system_has_no_l2cap(monkeypatch: py
         btsdp.new_l2cap_socket()
 
 
-def test_bluetooth_sockets_are_made_on_linux_builds_that_have_them_only(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_bluetooth_sockets_are_made_on_linux_builds_that_have_them_and_on_windows_with_its_library(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(socket, "AF_BLUETOOTH", 32, raising=False)
     monkeypatch.setattr(socket, "BTPROTO_RFCOMM", 3, raising=False)
     for platform, want in (("linux", True), ("win32", False), ("darwin", False)):
         monkeypatch.setattr(sys, "platform", platform)
+        assert btserial.available() is want, "the tests' Windows has no Bluetooth library"
+    monkeypatch.setattr(winbluetooth, "_library", lambda name, calls: object())
+    for platform, want in (("linux", True), ("win32", True), ("darwin", False)):
+        monkeypatch.setattr(sys, "platform", platform)
         assert btserial.available() is want
-    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.delattr(socket, "BTPROTO_RFCOMM")
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert btserial.available() is False
+    monkeypatch.setattr(sys, "platform", "linux")
     assert btserial.available() is False
 
 
