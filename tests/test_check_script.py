@@ -589,9 +589,14 @@ def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> N
         "ignored",
         pytest.param(
             "blocked",
-            marks=pytest.mark.skipif(
-                not Path("/proc/self/status").exists(), reason="the script reads a blocked TERM in /proc"
-            ),
+            marks=[
+                pytest.mark.skipif(
+                    not Path("/proc/self/status").exists(), reason="the script reads a blocked TERM in /proc"
+                ),
+                pytest.mark.nightly(
+                    "quarantined 2026-11-28: the run did not end within 30 s of its INT once on GitHub's Linux runner (docs/flakes.md)"
+                ),
+            ],
         ),
     ],
 )
