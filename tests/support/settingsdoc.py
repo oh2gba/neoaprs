@@ -430,7 +430,7 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     ),
     "keying": (
         "Settings tab, Radio (Keying)",
-        "how the radio's modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice",
+        "how the radio's modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces), `flrig` or `rigctld` (the radio's own commands through the operator's flrig or Hamlib rigctld, this computer on the program's own port, or `rigctld:HOST:PORT`; the daemon never chooses these). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice",
     ),
     "tx_gain_db": (
         "Settings tab, Radio (Transmit level)",
