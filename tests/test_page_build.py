@@ -198,7 +198,8 @@ def needs_vite[F: Callable[..., object]](test: F) -> F:
     no_modules = pytest.mark.skipif(
         not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt"
     )
-    return no_node(no_modules(test))
+    # vite refuses a second build of the same project while one runs: one worker has them all
+    return pytest.mark.xdist_group("vite-build")(no_node(no_modules(test)))
 
 
 def build(out: Path, encryption: bool = False) -> None:
