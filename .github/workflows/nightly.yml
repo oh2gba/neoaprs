@@ -1,6 +1,7 @@
 # The tests marked nightly (tests/support/timebudget.py): too slow for the gate and for what a push
-# must pass, run each night on both systems, and by hand on any branch. A red run is a fault to mend
-# or a flake for docs/flakes.md, never a run to repeat. No secrets, nothing is published.
+# must pass, run each night on both systems, and by hand on any branch; then the random-input tests
+# with twenty times the examples and a new seed (the profile nightly of tests/conftest.py). A red run
+# is a fault to mend or a flake for docs/flakes.md, never a run to repeat. No secrets, nothing is published.
 name: nightly
 
 on:
@@ -39,3 +40,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends libegl1 libgl1 libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libasound2t64 libdbus-1-3 libfontconfig1 libxcb-cursor0 libxkbfile1
       - run: uv sync --frozen --extra app --extra ble
       - run: uv run pytest -n auto --dist loadgroup -m nightly --durations=30
+      - name: The random-input tests with twenty times the examples
+        if: ${{ !cancelled() }}
+        shell: bash
+        env:
+          HYPOTHESIS_PROFILE: nightly
+        run: uv run pytest -n auto -p no:randomly tests/test_properties_*.py tests/test_tnc2text.py tests/test_settings_reach.py

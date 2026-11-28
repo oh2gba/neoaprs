@@ -64,7 +64,8 @@ os.environ["NEOAPRS_TEST_RUN_PID"] = str(os.getpid())
 
 
 # 'ci' is the default profile so that a run is reproducible (derandomized, no example database).
-# HYPOTHESIS_PROFILE=dev explores far more and keeps what it finds in .hypothesis/.
+# HYPOTHESIS_PROFILE=dev explores far more and keeps what it finds in .hypothesis/; nightly (nightly.yml) is twenty
+# times ci with a new seed each night.
 try:
     from hypothesis import settings as _hypothesis_settings
 except ImportError:
@@ -72,6 +73,7 @@ except ImportError:
 else:
     _hypothesis_settings.register_profile("ci", max_examples=200, deadline=None, derandomize=True, database=None)
     _hypothesis_settings.register_profile("dev", max_examples=2000, deadline=None)
+    _hypothesis_settings.register_profile("nightly", max_examples=4000, deadline=None, database=None, print_blob=True)
     _hypothesis_settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "ci"))
 
 from tests.support.clock import FixedClock  # noqa: E402, F401

@@ -225,11 +225,13 @@ Coverage says a line ran, not that a test would notice it wrong. `scripts/mutant
 can in `neoaprs/kiss.py` (a flipped comparison, a constant changed, a call left out), one at a time, in a copy of the tree under
 `build/mutants/`, and runs the module's short list of tests from `scripts/mutants.toml` against each: the score is the share of
 faults the tests caught, and the survivors are listed by name. `--show` prints the change of each survivor. A run on one module
-takes seconds to minutes; the whole table about an hour on four cores, so it is no stage of the gate. The workflow `mutants.yml`
-runs one group of the table each night (and any group or all by hand) and fails when a module's score falls below its floor.
-The floor is the score recorded in the table (`--record` writes the scores of a run); it is raised when tests are added and never
-lowered without a reason in the commit. A survivor gets a test of the behaviour it would break, or is named as one that changes
-nothing a user or another module can see.
+takes seconds to a minute and the whole table some minutes, but it is no stage of the gate. The workflow `mutants.yml` runs every
+group of the table each night (one group or all by hand), prints the change of every survivor and fails when a module's score
+falls below its floor. The floor is the score recorded in the table (`--record` writes the scores of a run); it is raised when
+tests are added and never lowered without a reason in the commit. The target for every module of the table is 90 %. A survivor
+gets a test of the behaviour it would break; a refusal's English is held to the page's sentence by `tests/support/english.py`. A
+line all of whose faults change nothing anyone can observe (a default never read, a symmetric swap, a bound no input reaches)
+ends in `# pragma: no mutate`, and mutmut plants nothing there.
 
 ### Flakes, order and time
 

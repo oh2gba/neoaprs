@@ -1,7 +1,7 @@
 # Planted faults for the critical modules (scripts/mutants, the table scripts/mutants.toml): each
-# night one group of modules, in turn by the day of the year; by hand one group, or all of them as
-# one job a group. A job fails when a module's score is below the floor the table records. Not part
-# of what a push must pass. No secrets, nothing is published but the scores.
+# night every group, one job a group (a few minutes each); by hand one group or all. A job fails when a
+# module's score is below the floor the table records; the log shows the change of every survivor.
+# Not part of what a push must pass. No secrets, nothing is published but the scores.
 name: mutants
 
 on:
@@ -34,8 +34,7 @@ jobs:
           ASKED: ${{ github.event.inputs.group }}
         run: |
           case "${ASKED:-}" in
-            "") groups="[$(( 10#$(date -u +%j) % 4 + 1 ))]" ;;
-            all) groups="[1, 2, 3, 4]" ;;
+            "" | all) groups="[1, 2, 3, 4]" ;;
             [1-4]) groups="[$ASKED]" ;;
             *) echo "no group $ASKED" >&2; exit 2 ;;
           esac
@@ -62,7 +61,7 @@ jobs:
       - name: Planted faults against the floors
         env:
           GROUP: ${{ matrix.group }}
-        run: scripts/mutants --group "$GROUP" --check
+        run: scripts/mutants --group "$GROUP" --check --show
       - name: The scores
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
