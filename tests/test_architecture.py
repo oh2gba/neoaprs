@@ -1405,6 +1405,7 @@ def test_signals_are_connected_in_the_composition_root_only(real_tree: Tree) -> 
     )
 
 
+@pytest.mark.slow("reads every module of the program")
 def test_the_ways_out_of_the_process_are_the_listed_ones_and_only_the_alert_command_is_a_shell_line(
     real_tree: Tree,
 ) -> None:

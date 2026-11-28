@@ -46,15 +46,17 @@ def _state(pid: int) -> str:
     return stat.rpartition(")")[2].split()[0] if ")" in stat else ""
 
 
-def descendants(pid: int | None = None) -> set[int]:
-    """Every live process under `pid` (this one), children of children included."""
+def descendants(pid: int | None = None, beside: Iterable[int] = ()) -> set[int]:
+    """Every live process under `pid` (this one), children of children included, but for those in
+    `beside` and everything under them."""
     if not supported():
         return set()
+    skip = set(beside)
     seen: set[int] = set()
     todo = [os.getpid() if pid is None else pid]
     while todo:
         for child in _children(todo.pop()):
-            if child not in seen:
+            if child not in seen and child not in skip:
                 seen.add(child)
                 todo.append(child)
     return {p for p in seen if _state(p) not in ("", "Z")}
@@ -68,10 +70,11 @@ def command_of(pid: int) -> str:
 
 
 def left_since(before: set[int], seconds: float = END_SEC) -> set[int]:
-    """The processes started since `before` that are still running after `seconds`."""
+    """The processes started since `before` that are still running after `seconds`. What runs under a
+    process of `before` (a browser or a daemon of a wider fixture) is that process's own, and ends with it."""
     deadline = time.monotonic() + seconds
     while True:
-        left = descendants() - before
+        left = descendants(beside=before)
         if not left or time.monotonic() >= deadline:
             return left
         time.sleep(0.05)

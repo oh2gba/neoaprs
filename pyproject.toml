@@ -92,7 +92,7 @@ mutants = [
 # the built page, and axe-playwright-python carries axe-core's rules. Its own group, installed by
 # that stage, so neither the program nor the other tools carry it.
 browser = [
-    "playwright==1.63.0",
+    "playwright==1.65.2",
     "axe-playwright-python==0.1.9",
 ]
 

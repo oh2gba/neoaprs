@@ -1106,6 +1106,7 @@ THREAD_END_SEC = 2.0
 THREADS_LEFT_ALLOWED = {
     "serial-close ": "a port's close is made off the loop and may still run a moment after its port was closed",
     "neoaprs-app-single": "the desktop app's single-instance listener, blocked on a socket of the test's folder",
+    "neoaprs-browser-loop": "the browser suite's Playwright loop, which lives as long as the session's browser",
     "neoaprs-test-loop-nudge": "the Windows test loops' one nudger of the process (tests/support/winloop.py)",
     "map-cut": "a worker of the map's cut, left to end its piece after a stop or a failure (neoaprs/pmtilesrange.py)",
 }

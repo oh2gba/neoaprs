@@ -203,6 +203,7 @@ TIMEOUT_121 = "could not open port 'COM7': OSError(22, 'Se agotó el tiempo de e
 BLOCK_SEC = 0.5
 
 
+@pytest.mark.slow("many opens that each block half a second")
 async def test_a_tracker_that_does_not_answer_is_said_not_to_answer_every_time_never_in_use(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

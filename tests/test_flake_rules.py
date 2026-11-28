@@ -347,6 +347,7 @@ def short_joins(statement: ast.stmt) -> list[ast.Call]:
 def sources() -> Iterator[Path]:
     yield from sorted((ROOT / "tests").glob("test_*.py"))
     yield from sorted((ROOT / "tests" / "support").glob("*.py"))
+    yield from sorted((ROOT / "tests" / "browser").glob("*.py"))
 
 
 def found_in_the_suite() -> list[Found]:
