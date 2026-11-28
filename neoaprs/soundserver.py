@@ -191,9 +191,8 @@ def cards(nodes: Sequence[Node], card_names: Mapping[int, str]) -> list[SoundCar
 def server_cards(card_names: Mapping[int, str], run: Run | None = None) -> list[SoundCard]:
     """Return the server's devices as sound card rows; none without a server, or without the system's
     ALSA plug-in of it that a modem opens them through. Blocks."""
-    if not sys.platform.startswith("linux") or system_alsa() is None:
-        return []
-    return cards(list_nodes(run) or [], card_names)
+    on = sys.platform.startswith("linux") and system_alsa() is not None
+    return cards(list_nodes(run) or [], card_names) if on else []
 
 
 # ---- what a start needs
