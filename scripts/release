@@ -820,12 +820,14 @@ class Release:
             return f"would start the run of the container image on the tag: {start}"
         runs = json.loads(
             self.gh(
-                "run", "list", "--workflow", CONTAINER_WORKFLOW, "--branch", self.tag, "--json", "databaseId,url"
+                "run", "list", "--workflow", CONTAINER_WORKFLOW, "--branch", self.tag, "--json", "databaseId,url,status,conclusion"
             ).stdout
             or "[]"
         )  # fmt: skip
-        if runs:
-            return f"skipped: the run of the container image of {self.tag} is started already: {runs[0]['url']}"
+        # a run that failed or was cancelled left no image
+        going = [r for r in runs if r.get("status") != "completed" or r.get("conclusion") == "success"]
+        if going:
+            return f"skipped: the run of the container image of {self.tag} is started already: {going[0]['url']}"
         self.gh("workflow", "run", CONTAINER_WORKFLOW, "--ref", self.tag, "-f", f"tag={self.tag}")
         return f"started: {CONTAINER_WORKFLOW} pushes the image {self.version} once its checks pass (gh run list --workflow {CONTAINER_WORKFLOW}); a failed one leaves the release as it is"
 

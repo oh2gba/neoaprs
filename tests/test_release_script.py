@@ -595,6 +595,27 @@ def test_the_published_release_starts_the_run_of_its_container_image_on_its_own_
     assert "would start" in rig.release("--dry-run").stdout
 
 
+@pytest.mark.parametrize("ended", ["failure", "cancelled"])
+def test_a_run_of_the_container_image_that_failed_or_was_cancelled_is_started_again(rig: Rig, ended: str) -> None:
+    assert rig.release().returncode == 0
+    state = rig.load_state()
+    for run in state["runs"]:
+        if run["workflow"] == "container.yml":
+            run["status"], run["conclusion"] = "completed", ended
+    rig.state = state
+    rig.save_state()
+    again = rig.release()
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert rig.kinds().count("dispatch container.yml") == 2, "a run that left no image is started again"
+    state = rig.load_state()
+    for run in state["runs"]:
+        if run["workflow"] == "container.yml":
+            run["status"], run["conclusion"] = "completed", "success"
+    rig.state = state
+    rig.save_state()
+    assert rig.release().returncode == 0 and rig.kinds().count("dispatch container.yml") == 2, "one that made it is not"
+
+
 def test_deploy_runs_the_deploy_script_at_the_end_only_when_asked(rig: Rig) -> None:
     done = rig.release("--deploy")
     assert done.returncode == 0, done.stdout + done.stderr
