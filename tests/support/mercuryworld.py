@@ -41,11 +41,13 @@ class FmStation(FakeRadio):
 
 class FmAir:
     """The FM air of a world: no collisions, no digipeaters, every frame delivered to every other
-    station at once (the VHF network's part is tested elsewhere; here it is the other radio)."""
+    station at once (the VHF network's part is tested elsewhere; here it is the other radio), but
+    for pairs of stations put out of each other's reach (`apart`)."""
 
     def __init__(self) -> None:
         self.stations: list[FmStation] = []
         self.delivered: list[tuple[FmStation, FmStation, bytes]] = []
+        self.apart: set[frozenset[FmStation]] = set()
 
     def station(self) -> FmStation:
         radio = FmStation(self)
@@ -54,7 +56,7 @@ class FmAir:
 
     def transmit(self, sender: FmStation, payload: bytes) -> None:
         for other in self.stations:
-            if other is not sender:
+            if other is not sender and frozenset((sender, other)) not in self.apart:
                 other.feed(kiss.encode(payload))
                 self.delivered.append((sender, other, payload))
 
@@ -126,6 +128,10 @@ class World:
         """
         e = self.stations[call]
         await until(lambda: e.hf.usable and not e.ctl.messaging.retries.away(e.hf), timeout_sec)
+
+    def out_of_reach(self, one: str, other: str) -> None:
+        """The two stations' FM radios do not hear each other."""
+        self.fm_air.apart.add(frozenset((self[one].radio, self[other].radio)))  # type: ignore[arg-type]
 
     def __getitem__(self, call: str) -> Env:
         return self.stations[call]

@@ -24,6 +24,7 @@ import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import { listensOnly } from "@/lib/radios";
 import type { Connection } from "@/lib/hub";
 import type {
+  CallRoute,
   Command,
   PacketRow,
   RadioRow,
@@ -208,6 +209,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     home: part(over.home, null),
     fallbackPath: part(over.fallbackPath, ""),
     stations: part(over.stations, new Map<string, StationRow>()),
+    callRoutes: part(over.callRoutes, new Map<string, CallRoute>()),
     aging: part(over.aging, { defaultMin: DEFAULT_TIMEOUT_MIN }),
     heardPaths: part(over.heardPaths, new Map<string, string | null>()),
     heardDirect: part(over.heardDirect, new Set<string>()),

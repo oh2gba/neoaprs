@@ -10,6 +10,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.show_overheard": "Meegehoorde tonen",
   "messages.services": "Diensten",
   "messages.service_write": "Schrijven",
+  "messages.new_label": "Nieuw gesprek",
+  "messages.new_call": "Roepnaam",
   "messages.service_title": "Aan {to}: {text}",
   "messages.service.ota_cq": "Wie is in de lucht",
   "messages.service.ota_chase": "Een activatie jagen",

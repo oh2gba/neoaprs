@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
-from neoaprs.aprsmessage import MessageError
+from neoaprs.aprsmessage import MAX_TEXT, MessageError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
@@ -391,6 +391,21 @@ class Messaging:
             return self.message_radios.of(record)
         except MessagingError:
             return None
+
+    def text_max(self, to: str) -> int | None:
+        """Return the bytes of text a message to the station holds on its radio now, where fewer than MAX_TEXT fit.
+
+        None where the whole text fits, the radio has no frame limit, or no frame can be made."""
+        try:
+            radio = self.message_radios.station(to)
+            limit = radio.max_frame
+            if limit is None:
+                return None
+            empty = len(ax25.encode(self._frame(info(to, "x", MSG_IDS[0], ""), to, radio=radio))) - 1
+        except MessagingError:
+            return None
+        room = limit - empty - REPLY_ACK_ROOM
+        return max(0, room) if room < MAX_TEXT else None
 
     def radio_now(self, record: MessageRecord) -> AirRadio | None:
         """Return what `radio_of` would give, keeping and logging nothing; None if there is none."""

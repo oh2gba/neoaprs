@@ -271,9 +271,28 @@ class StationRow(_Model):
     paths: dict[str, str] = Field(
         description="the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too)"
     )
+    text_max: int | None = Field(
+        ge=0,
+        description="the bytes of text a message to the station holds on the radio of `radio_now`, where its frame leaves room for fewer than a message may have (Mercury's 123 bytes with a reply path "
+        "and RFONLY); null where the whole text fits, and for a station that takes no message",
+    )
     track: list[tuple[Iso, float, float]] = Field(
         max_length=TRACK_MAX,
         description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed",
+    )
+
+
+class CallRoute(_Model):
+    """How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard."""
+
+    radio_choice: int | None = Field(
+        description="the radio the operator chose for messages to the call (`station_radio`), its id, while that radio is enabled; null for the daemon's choice"
+    )
+    radio_now: int | None = Field(
+        description="the radio a message to the call goes out on now, its id: the choice while it is in force, else the first radio that can send (`unheard_radio` of `status`); null while there is none"
+    )
+    paths: dict[str, str] = Field(
+        description="the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row"
     )
 
 

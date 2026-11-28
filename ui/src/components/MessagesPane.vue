@@ -45,7 +45,7 @@ const emit = defineEmits<{
   deleteOverheard: [from: string, to: string];
   "update:showOverheard": [show: boolean];
 }>();
-const { now, stations } = useDaemonContext();
+const { now, stations, call } = useDaemonContext();
 const radios = useRadios();
 
 /** Whether the link of each group recipient's radio is up (each text is a separate message). */
@@ -127,6 +127,7 @@ function sent(send: () => void): void {
       :selected="selected"
       :now="now"
       :show-overheard="showOverheard"
+      :ours="call"
       @select="emit('select', $event)"
       @update:show-overheard="emit('update:showOverheard', $event)"
       @delete-conversation="emit('deleteConversation', $event)"

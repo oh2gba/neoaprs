@@ -200,7 +200,7 @@ describe("Route in a conversation", () => {
     expect(box.findAll(".route-radio select")).toHaveLength(1);
   });
 
-  it("has the radio's row greyed on Automatic for a call the book does not hold, whose choice no row could say back, and live once the station is heard, nothing above Path moving", async () => {
+  it("has the radio's row live on Automatic for a call the book does not hold, and still once the station is heard, nothing above Path moving", async () => {
     const wrapper = conversation(BOTH, "OH2NEW", stations(fmHeard));
     const box = await opened(wrapper);
     const list = box.find<HTMLSelectElement>(".route-radio select");
@@ -210,8 +210,8 @@ describe("Route in a conversation", () => {
       options(box),
       box.findAll("label").map((l) => l.text()),
     ]).toEqual([
-      true,
-      expect.arrayContaining(["disabled"]),
+      false,
+      ["pathbox", "route-radio"],
       ["Automatic: Packet", "Packet", "Mercury"],
       ["Radio", "Path", "RF only"],
     ]);

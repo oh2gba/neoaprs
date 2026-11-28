@@ -55,7 +55,7 @@ export function toastOf(text: string, code = "other", params: Record<string, str
 
 type StationRadios = Pick<
   StationRow,
-  "heard" | "last_path_radio" | "last_direct_any_at" | "radio_choice" | "radio_now" | "paths" | "replies"
+  "heard" | "last_path_radio" | "last_direct_any_at" | "radio_choice" | "radio_now" | "paths" | "replies" | "text_max"
 >;
 
 const latest = (a: string | null, b: string | null): string | null => (a === null ? b : b === null || a >= b ? a : b);
@@ -81,6 +81,7 @@ function stationRadios(row: Omit<StationRow, keyof StationRadios>, extra: Partia
     radio_now: !row.can_message ? null : (choice ?? (ids.length === 1 && ids[0] === HF_RADIO ? 2 : 1)),
     paths: {},
     replies: {},
+    text_max: null,
   };
 }
 

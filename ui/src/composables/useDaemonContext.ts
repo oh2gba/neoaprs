@@ -25,6 +25,7 @@ import type { ScopeMemory } from "@/lib/scopememory";
 import type {
   AlertResultMessage,
   Command,
+  CallRoute,
   ConfigValues,
   GeneralState,
   GpsState,
@@ -116,6 +117,8 @@ export interface DaemonContext {
   home: Read<Home | null>;
   fallbackPath: Read<string>;
   stations: Read<ReadonlyMap<string, StationRow>>;
+  /** How messages go to each call the stations do not hold (topic `call_routes`), by call. */
+  callRoutes: Read<ReadonlyMap<string, CallRoute>>;
   aging: Read<Aging>;
   heardPaths: Read<ReadonlyMap<string, string | null>>;
   heardDirect: Read<ReadonlySet<string>>;

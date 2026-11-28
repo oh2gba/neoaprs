@@ -8,6 +8,7 @@ import type {
   SavedMessage,
   BulletinRow,
   ChatFreshMessage,
+  CallRoute,
   ChatLineRow,
   Command,
   ErrorMessage,
@@ -144,6 +145,7 @@ export interface Store {
   replaceSkeds(value: TopicValues["skeds"]): void;
   replaceChat(value: TopicValues["chat"]): void;
   replaceChatLines(rows: Record<string, ChatLineRow>): void;
+  replaceCallRoutes(rows: Record<string, CallRoute>): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setRadio(key: string, row: RadioRow): void;
@@ -154,6 +156,7 @@ export interface Store {
   setOwnObject(name: string, row: OwnObjectRow): void;
   setOwnBulletin(slot: string, row: OwnBulletinRow): void;
   setChatLine(key: string, row: ChatLineRow): void;
+  setCallRoute(call: string, route: CallRoute): void;
   delStation(key: string): void;
   delPacket(key: string): void;
   delRadio(key: string): void;
@@ -164,6 +167,7 @@ export interface Store {
   delOwnObject(name: string): void;
   delOwnBulletin(slot: string): void;
   delChatLine(key: string): void;
+  delCallRoute(call: string): void;
 }
 
 /** The store method that takes the whole value of each topic. */
@@ -187,6 +191,7 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   skeds: "replaceSkeds",
   chat: "replaceChat",
   chat_lines: "replaceChatLines",
+  call_routes: "replaceCallRoutes",
 };
 
 /** What the hub needs of a WebSocket (the browser's has more). */
@@ -464,6 +469,7 @@ export class Hub {
     else if (topic === "own_objects") this.store.setOwnObject(key, value as OwnObjectRow);
     else if (topic === "own_bulletins") this.store.setOwnBulletin(key, value as OwnBulletinRow);
     else if (topic === "chat_lines") this.store.setChatLine(key, value as ChatLineRow);
+    else if (topic === "call_routes") this.store.setCallRoute(key, value as CallRoute);
   }
 
   private del(topic: TopicName, key: string): void {
@@ -477,5 +483,6 @@ export class Hub {
     else if (topic === "own_objects") this.store.delOwnObject(key);
     else if (topic === "own_bulletins") this.store.delOwnBulletin(key);
     else if (topic === "chat_lines") this.store.delChatLine(key);
+    else if (topic === "call_routes") this.store.delCallRoute(key);
   }
 }

@@ -192,6 +192,19 @@ async def test_the_longest_message_with_a_two_hop_reply_path_and_rfonly_leaves_h
     assert frame.path_text == "OH2GBA-12,WIDE2-1,RFONLY" and len(ax25.encode(frame)) == 118
 
 
+async def test_the_text_room_of_a_message_on_hf_is_what_the_frame_leaves_and_none_where_the_whole_text_fits(
+    rig: GatewayRig,
+) -> None:
+    rig.hear("OH2RCH-2*,OH2GBA-12*")
+    assert rig.m.text_max(STATION) is None, "67 characters fit by the gateway and WIDE2-1"
+    await rig.prefs.set_rf_only(STATION, True)
+    assert rig.m.text_max(STATION) == 66, "RFONLY's 7 bytes leave room for 66"
+    await rig.m.send(STATION, "x" * 66)
+    rig.hear("OH2GBA-12*")
+    assert rig.m.text_max(STATION) is None
+    assert rig.m.text_max("OH2FM") is None, "a radio with no frame limit"
+
+
 async def test_a_message_accepted_for_hf_still_fits_when_it_carries_a_five_character_reply_ack(rig: GatewayRig) -> None:
     await rig.prefs.set_rf_only(STATION, True)
     rig.hear("OH2RCH-2*,OH2GBA-12*")

@@ -5,7 +5,7 @@
 // (`offline`) or the text is empty or too long (lib/recipients.ts `canSendAll`). One recipient
 // emits `send`; several emit `sendMany`. With `lockable` a padlock precedes Send: when pressed
 // the message is encrypted, the counter counts the 34 bytes an encrypted message holds and ä and
-// ö are allowed.
+// ö are allowed. `max` is fewer bytes where the radio's frame leaves no room for more.
 import { computed, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -19,10 +19,17 @@ import { bytes, leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
 import { LIMITS } from "@/protocol/lists";
 
 const props = withDefaults(
-  defineProps<{ to: readonly string[]; connected: boolean; lockable?: boolean; offline?: string }>(),
+  defineProps<{
+    to: readonly string[];
+    connected: boolean;
+    lockable?: boolean;
+    offline?: string;
+    max?: number | null;
+  }>(),
   {
     lockable: false,
     offline: undefined,
+    max: null,
   },
 );
 const emit = defineEmits<{
@@ -47,7 +54,7 @@ watch(
 );
 /** The bytes a message holds (34 if encrypted); the field takes no more (lib/textlimit.ts). */
 const limit = computed<TextLimit>(() => ({
-  max: locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax,
+  max: Math.min(locked.value ? LIMITS.message.lockedMax : LIMITS.message.textMax, props.max ?? Infinity),
   measure: bytes,
   kind: "bytes",
 }));
@@ -63,7 +70,7 @@ const refused = computed(() => {
 const ready = computed(() =>
   locked.value
     ? props.connected && text.value.trim() !== "" && left.value >= 0
-    : canSendAll(props.connected, props.to, "", text.value),
+    : canSendAll(props.connected, props.to, "", text.value) && left.value >= 0,
 );
 const sendLabel = computed(() =>
   props.to.length > 1 ? t("messages.send_to", { n: props.to.length }) : t("messages.send"),

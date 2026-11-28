@@ -113,7 +113,7 @@ describe("the radio of a conversation", () => {
     ).toBe("Mercury");
   });
 
-  it('shows in Route, before Send, which radio Automatic gives a call no radio heard: the row greyed on "Automatic: NAME", in the page\'s own words', async () => {
+  it('shows in Route, before Send, which radio Automatic gives a call no radio heard: the row live on "Automatic: NAME", in the page\'s own words', async () => {
     const route = async (given: Given) => {
       const wrapper = header("OH2NEW", [], [], given);
       await wrapper.find(".route-button").trigger("click");
@@ -126,12 +126,12 @@ describe("the radio of a conversation", () => {
       ];
     };
     expect(await route({ status: status({ unheard_radio: 2 }) })).toEqual([
-      true,
+      false,
       "Automatic: Mercury",
       ["Automatic: Mercury", "Packet", "Mercury"],
     ]);
     expect(await route({ status: status({ unheard_radio: 1 }) })).toEqual([
-      true,
+      false,
       "Automatic: Packet",
       ["Automatic: Packet", "Packet", "Mercury"],
     ]);

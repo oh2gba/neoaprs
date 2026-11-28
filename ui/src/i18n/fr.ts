@@ -347,6 +347,8 @@ export const fr: Catalogue = {
   "messages.show_overheard": "Afficher les messages captés",
   "messages.services": "Services",
   "messages.service_write": "Écrire",
+  "messages.new_label": "Nouvelle conversation",
+  "messages.new_call": "Indicatif",
   "messages.service_title": "À {to} : {text}",
   "messages.service.ota_cq": "Qui est sur l'air",
   "messages.service.ota_chase": "Chasser une activation",

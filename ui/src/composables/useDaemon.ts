@@ -265,6 +265,7 @@ export function useDaemon(url: () => string = socketUrl) {
     ...board,
     stationPrefs: station.stationPrefs,
     stationKeys: station.stationKeys,
+    callRoutes: station.callRoutes,
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
     ...whole.refs,

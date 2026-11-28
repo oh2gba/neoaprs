@@ -345,6 +345,8 @@ export const de: Catalogue = {
   "messages.show_overheard": "Mitgehörte zeigen",
   "messages.services": "Dienste",
   "messages.service_write": "Schreiben",
+  "messages.new_label": "Neue Unterhaltung",
+  "messages.new_call": "Rufzeichen",
   "messages.service_title": "An {to}: {text}",
   "messages.service.ota_cq": "Wer ist QRV",
   "messages.service.ota_chase": "Aktivierung jagen",

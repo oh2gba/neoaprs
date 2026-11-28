@@ -503,3 +503,11 @@
   gap: 6px;
   margin: 4px 8px;
 }
+.convlist-add {
+  margin-left: auto;
+}
+.convlist-new input {
+  flex: 1 1 8em;
+  min-width: 0;
+  text-transform: uppercase;
+}

@@ -53,6 +53,7 @@ const {
   pathShown,
   pathless,
   reply,
+  textMax,
   setPath,
   clearPath,
   choose,
@@ -175,6 +176,7 @@ onMounted(() => {
       :connected="offline === undefined"
       :offline="offline"
       :lockable="lockable"
+      :max="textMax"
       @send="(to, body, locked) => emit('send', to, body, locked)"
     />
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />

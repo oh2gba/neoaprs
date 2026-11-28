@@ -51,7 +51,7 @@ import { rxSwitch } from "@/lib/rxswitch";
 import { RX_ONLY_KEY } from "@/lib/settings";
 import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
-import type { ConfigValues, RadioRow } from "@/protocol/protocol";
+import type { CallRoute, ConfigValues, RadioRow } from "@/protocol/protocol";
 
 const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
 
@@ -93,6 +93,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const listening = computed(() => listensOnly(daemon.radios.value));
   return {
     ...heard,
+    callRoutes: computed<ReadonlyMap<string, CallRoute>>(() => daemon.callRoutes),
     settings,
     prefs,
     keys,

@@ -87,6 +87,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
             "chat",
             "chat_lines",
             "general",
+            "call_routes",
         ]
     )
     status = await page.expect("status")
