@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Make a release in one command; run it again after a failure and it goes on where it stopped.
 
-  scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS] | --verify
+  scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS] [--run-limit MINUTES] | --verify
 See docs/MAINTAINING.md, "A release"."""
 
 import argparse
@@ -49,6 +49,8 @@ FAILED_LINE = re.compile(r"\bFAILED\b|\bFAIL\b|\bERROR\b|AssertionError|error TS
 BACKOFF_TRIES = 5
 # Looks for a run that has not started yet: 40 intervals.
 WAIT_FOR_RUN_TRIES = 40
+# How long one run of a workflow may take, from the first look at it, before the script stops.
+RUN_LIMIT_MIN = 240.0
 FAILED_LINES_SHOWN = 30
 COMMAND = "scripts/release"
 # The id of the signing key's secret in Bitwarden Secrets Manager.
@@ -169,8 +171,17 @@ def changelog_parts(text: str) -> tuple[str, dict[str, str]]:
 
 
 class Release:
-    def __init__(self, version: str, dry_run: bool, rerun: bool, deploy: bool, interval: float) -> None:
+    def __init__(
+        self,
+        version: str,
+        dry_run: bool,
+        rerun: bool,
+        deploy: bool,
+        interval: float,
+        run_limit_min: float = RUN_LIMIT_MIN,
+    ) -> None:
         self.version, self.dry_run, self.rerun, self.deploy, self.interval = version, dry_run, rerun, deploy, interval
+        self.run_limit_min = run_limit_min
         self.tag = f"v{version}"
         # The commit the steps from ci on are about: the release commit, or HEAD after it.
         self.commit: str | None = None
@@ -589,7 +600,7 @@ class Release:
             )
         rerun_done = False
         while True:
-            run = self.settle(run["databaseId"])
+            run = self.settle(workflow, run["databaseId"])
             if run["conclusion"] == "success":
                 return f"done: {workflow} run {run['databaseId']} passed"
             self.show_failure(run)
@@ -607,26 +618,36 @@ class Release:
             rerun_done = True
             self.pause()
 
-    def settle(self, run_id: int) -> dict[str, Any]:
-        """Watch a run until completed; `gh run watch` may end early on a network fault, so ask
-        again."""
+    def settle(self, workflow: str, run_id: int) -> dict[str, Any]:
+        """Watch a run until completed, for at most the run limit; `gh run watch` may end early on a
+        network fault, so ask again."""
+        deadline = time.monotonic() + self.run_limit_min * 60
         while True:
             run = self.ghjson(
                 "run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,headSha,jobs"
             )
             if run["status"] == "completed":
                 return run  # type: ignore[no-any-return]
-            self.run(
-                "gh",
-                "run",
-                "watch",
-                str(run_id),
-                "--exit-status",
-                "--interval",
-                str(max(int(self.interval), 1)),
-                check=False,
-                capture=False,
-            )
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise Refusal(
+                    f"the {workflow} run {run_id} has not ended in {self.run_limit_min:g} minutes ({run['url']}, {run['status']}): look at its jobs on GitHub (one waiting for a runner, or stuck); once it has ended, run the same command again"
+                )
+            try:
+                self.run(
+                    "gh",
+                    "run",
+                    "watch",
+                    str(run_id),
+                    "--exit-status",
+                    "--interval",
+                    str(max(int(self.interval), 1)),
+                    check=False,
+                    capture=False,
+                    timeout=left,
+                )
+            except subprocess.TimeoutExpired:
+                pass
             self.pause()
 
     def show_failure(self, run: dict[str, Any]) -> None:
@@ -879,12 +900,19 @@ def main(argv: list[str] | None = None) -> int:
         help="seconds between two looks at GitHub (default %(default)s)",
     )
     parser.add_argument(
+        "--run-limit",
+        type=float,
+        default=RUN_LIMIT_MIN,
+        metavar="MINUTES",
+        help="how long one CI, real-modem or release run may take before the script stops (default %(default)g)",
+    )
+    parser.add_argument(
         "--verify",
         action="store_true",
         help="only check the published release: its files, the signature of SHA256SUMS and the download links",
     )
     args = parser.parse_args(argv)
-    r = Release(args.version, args.dry_run and not args.verify, args.rerun, args.deploy, args.interval)
+    r = Release(args.version, args.dry_run and not args.verify, args.rerun, args.deploy, args.interval, args.run_limit)
     try:
         parse(r.version)
         if args.verify:

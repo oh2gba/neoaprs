@@ -773,6 +773,15 @@ def test_rerun_runs_the_failed_jobs_of_ci_once_and_the_release_goes_on(rig: Rig)
     assert_released(rig)
 
 
+def test_a_run_that_does_not_end_within_the_limit_stops_the_release_and_the_same_command_goes_on(rig: Rig) -> None:
+    stopped = rig.release("--run-limit", "0")
+    assert stopped.returncode == 1 and "has not ended in 0 minutes" in stopped.stdout + stopped.stderr
+    assert "watch ci.yml" not in rig.kinds() and rig.git("tag", "--list", TAG) == ""
+    done = rig.release()
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert_released(rig)
+
+
 def test_rerun_runs_the_failed_jobs_only_once_per_run(rig: Rig) -> None:
     rig.state["ci.yml"]["plan"] = ["failure"]
     rig.save_state()
@@ -911,7 +920,7 @@ def test_the_script_answers_help_and_names_its_flags() -> None:
         [sys.executable, str(ROOT / "scripts" / "release"), "--help"], capture_output=True, text=True, timeout=30
     )
     assert done.returncode == 0
-    for flag in ("--dry-run", "--rerun", "--deploy", "--interval"):
+    for flag in ("--dry-run", "--rerun", "--deploy", "--interval", "--run-limit"):
         assert flag in done.stdout
 
 

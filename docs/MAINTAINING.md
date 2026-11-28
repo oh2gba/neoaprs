@@ -88,7 +88,7 @@ uv moves the same way, in one commit: `UV_VERSION` and `UV_SHA256` of the Docker
 **The way** is one command, on `master` with a clean tree that is up to date with origin and has the notes of the release under `## Unreleased` in `CHANGELOG.md` (a one-sentence summary line first, then one short line for each thing a user can see or do;
 `scripts/release-notes.py` prints it as GitHub will show it; overlapping lines merged and only the final behaviour kept):
 
-    scripts/release 0.9.2 [--dry-run] [--rerun] [--deploy]
+    scripts/release 0.9.2 [--dry-run] [--rerun] [--deploy] [--run-limit MINUTES]
     scripts/release 0.9.2 --verify
 
 It uses your own `gh` (`gh auth login` once): the anonymous API of a sandbox hit GitHub's rate limit, so the script refuses to start without a login and waits and asks again when GitHub answers with 403 and its rate limit.
@@ -102,7 +102,7 @@ Each step says in one line what it does, and every one is skipped when it is don
    so the release commit holds no page; a committed page that is not what `ui/` builds stops the release, with the tree as it was: run `scripts/build-page`, commit `neoaprs/page/`, run the command again.
 4. **check**: `scripts/check`, which includes the stages `security` and `smoke`: run it outside a sandbox that keeps uv from its cache, and run `scripts/security-tools` once before (it fetches the programs of `security`). It reads the notes once more, now under `## <version>` (`tests/test_changelog_brief.py`): notes that are not brief stop the release here; correct them in that section and run the command again. The simulation of the HF net (`scripts/check --stage sim`, about six minutes) is not in it; the CI job `sim` runs it on every push to master, so a green CI run of the release commit covers it.
 5. **commit** `<version>: the changelog section and the version`, **push** `master`.
-6. **ci**: waits for the CI run of that commit (`gh run watch`). A failure prints the failed jobs and the lines of the failed tests and stops; `--rerun` runs the failed jobs of that run again once, for a flaky test.
+6. **ci**: waits for the CI run of that commit (`gh run watch`). A failure prints the failed jobs and the lines of the failed tests and stops; `--rerun` runs the failed jobs of that run again once, for a flaky test. A run that has not ended after `--run-limit` minutes (240) stops the script with its address; once it has ended, the same command goes on.
    **realmodems**: then for the run of `.github/workflows/realmodems.yml` of that commit (every push to master starts one: the real Direwolf and Mercury on virtual cables, the old Mercury against the new, the modems for Windows; [modem-updates.md](modem-updates.md)), the same way.
 7. **tag** `v<version>` on that commit and **push the tag**. A tag is never moved: one that names another commit stops the script, and a failure of the release run is never answered with a new tag of the same number.
    **A fix after the release commit** (its CI run failed, the fix is on `master` and pushed, no tag yet): run the same command; when `HEAD` has the same `VERSION` and the same section of the changelog (nothing under `Unreleased`), `HEAD` is the release, and steps 6 and 7 are about it (the output says "the release is HEAD"; `--dry-run` shows it). A `HEAD` that changed either is refused, and a tag that exists is never moved.
