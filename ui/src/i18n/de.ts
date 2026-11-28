@@ -1764,6 +1764,7 @@ export const de: Catalogue = {
     other: "Weitergeleitet: {n} Pakete seit dem Start von NeoAPRS",
   },
   "settings.igate.fold.named": "{name} ({server})",
+  "settings.igate.sent_label": "An APRS-IS gesendete Pakete",
 
   "settings.alert.tip1":
     "Bei eingeschaltetem „Benachrichtigen“ wird der Befehl ausgeführt, wenn eine Nachricht ankommt.",

@@ -28,6 +28,7 @@ withDefaults(
     link: undefined,
   },
 );
+const emit = defineEmits<{ folded: [open: boolean] }>();
 const slots = useSlots();
 
 /** Whether the slot nodes draw anything: a false `v-if` leaves a comment, blank text is empty. */
@@ -47,6 +48,7 @@ function drawn(nodes: readonly VNode[] | undefined): boolean {
     :title="line"
     :open="open"
     :summary-class="{ statushead: true, 'statushead-parts': parts !== null }"
+    @folded="emit('folded', $event)"
   >
     <template #summary
       ><StatusLine :state="state" :tone="tone" :line="line" :hover="hover" :link="link" :parts="parts"

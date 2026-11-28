@@ -41,6 +41,7 @@ from . import historyhandlers  # noqa: F401  (importing registers the log-answer
 from . import confighandlers  # noqa: F401  (importing registers set_config and alert_test)
 from . import skedhandlers  # noqa: F401  (importing registers the sked commands)
 from . import chathandlers  # noqa: F401  (importing registers chat_say)
+from . import igatehandlers  # noqa: F401  (importing registers igate_look)
 from .dispatch import Ctx, UserError, command
 from .radiohandlers import named_radio, sending_radio  # importing also registers the radio commands
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes

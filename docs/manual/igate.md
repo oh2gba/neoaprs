@@ -40,7 +40,9 @@ It has nothing to do with **RX only** (`station/transmit`): the radio does not t
 
 ## The status row and the Internet mark
 
-The status row is the one of the radio: **connected** (with the server and how many stations are within the radius, or, with only **Send what I hear**, how many packets were sent), **connecting**, or **waiting** with why it is not connected; behind its arrow are the server, the filter while the stations are shown, and what was sent while what you hear is sent. If the connection is lost it is opened again after 5, 10, 20 and then 30 seconds. A server that says nothing for three minutes counts as lost.
+The status row is the one of the radio: **connected** (with the server and how many stations are within the radius, or, with only **Send what I hear**, how many packets were sent), **connecting**, or **waiting** with why it is not connected; behind its arrow are the server, the filter while the stations are shown, and what was sent while what you hear is sent.
+
+With **Send what I hear** on, the arrow also opens a list of the packets it put on APRS-IS since NeoAPRS started (the newest 200, the newest at the bottom), each with its time and the radio that heard it, as it went to the server. The daemon sends them to the page only while that list is open. If the connection is lost it is opened again after 5, 10, 20 and then 30 seconds. A server that says nothing for three minutes counts as lost.
 
 While the login is up the header has the **Internet** mark; its words when you point at it say which of the two it is for. It turns lime if the server does not take what your radios hear.
 

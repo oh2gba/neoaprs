@@ -115,6 +115,7 @@ function memory() {
     radioLevel: (m) => seen.levels.push(m),
     layerThings: (m) => seen.layerThings.push(m),
     satellites: () => undefined,
+    igateSent: () => undefined,
     stationAlert: (m) => seen.stationAlerts.push(m),
     hfScopeRow: (r) => seen.rows.push(r),
     hfScopeHistory: (history) => seen.histories.push(history),

@@ -32,6 +32,7 @@ from .chatwire import ChatFreshMsg, ChatLineRow
 from .hub import StateHub, Topic
 from .layerfeed import LayerLooks
 from .satellitefeed import SatelliteLooks
+from .igatefeed import IgateLooks
 from .levelfeed import LevelFeed, Leveled, RadioLevels
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
@@ -104,6 +105,7 @@ class Topics:
         self.levels = RadioLevels(self._wire_level)
         self.layers = LayerLooks(ctl.layers)
         self.satellites = SatelliteLooks(ctl.satellites)
+        self.igate_looks = IgateLooks(ctl.igate)
         # monotonic time stations were last told whole because we moved
         self._distances_at = float("-inf")
         self._config = ctl.config  # the settings the stations were last told with
@@ -318,6 +320,7 @@ class Topics:
             (ctl.gps.changed, self._gps_changed),
             (ctl.gps.moved, self._gps_moved),
             (ctl.igate.changed, self._igate_changed),
+            (ctl.igate.line_sent, self.igate_looks.told),
             (ctl.messaging.changed, self._message_changed),
             (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed),

@@ -61,6 +61,7 @@ class Api:
             levels=self.topics.levels,
             layers=self.topics.layers,
             satellites=self.topics.satellites,
+            igate=self.topics.igate_looks,
         )
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
@@ -160,6 +161,7 @@ class Api:
             self.topics.levels.forget(conn)
             self.topics.layers.forget(conn)
             self.topics.satellites.forget(conn)
+            self.topics.igate_looks.forget(conn)
         self.out.close(client)
 
     # commands

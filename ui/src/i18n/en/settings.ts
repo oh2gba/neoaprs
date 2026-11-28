@@ -284,6 +284,7 @@ export const settings = {
     other: "Sent: {n} packets since NeoAPRS started",
   },
   "settings.igate.fold.named": "{name} ({server})",
+  "settings.igate.sent_label": "Packets sent to APRS-IS",
 
   "settings.alert.tip1": "With Notify me on, the Command is run when a message arrives.",
   "settings.alert_command.name": "Alert command",

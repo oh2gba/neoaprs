@@ -30,6 +30,7 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
+import { useIgateLook } from "@/composables/useIgateLook";
 import { useRadioAsks } from "@/composables/useRadioAsks";
 import { useScopeLooks } from "@/composables/useScopeLooks";
 import { useSettings } from "@/composables/useSettings";
@@ -328,6 +329,7 @@ export function useAppShell() {
   });
   const scope = useScopeLooks(send, connection, pageVisible(), { radios: daemon.radios });
   const level = useRadioAsks("radio_level", send, connection, pageVisible(), () => null);
+  const igateLook = useIgateLook(send, connection, pageVisible());
   const mapwrap = ref<HTMLElement | null>(null);
   const mapWidth = useElementWidth(mapwrap);
   const overlays = useMapOverlays(scope.available, layout.phone, mapWidth);
@@ -363,6 +365,7 @@ export function useAppShell() {
     ...daemon,
     scope,
     level,
+    igateLook,
     traffic,
     satellites,
     weatherSeries: daemon.weatherSeriesByCall,

@@ -32,6 +32,7 @@ export const MESSAGE_TYPES = [
   "chat_fresh",
   "error",
   "hello",
+  "igate_sent",
   "layer_things",
   "packet_history",
   "packet_stats",

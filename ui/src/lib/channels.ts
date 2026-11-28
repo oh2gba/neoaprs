@@ -276,3 +276,13 @@ export function packetCameBy(packet: Packet, radios: readonly PageRadio[]): stri
     ? t("packets.came_by.radio", { name: tag.label })
     : tag.title;
 }
+
+/** The tag of the radio with id `id`, as a packet that radio heard has it; null for a radio the page
+ * does not know yet. */
+export function radioTag(id: RadioId, radios: readonly PageRadio[]): HeardTag | null {
+  const part = radioPart(id, null, radios);
+  if (part === null) return null;
+  if (dummyMark(radios, id)) return { ...wordTag("dummy"), key: part.key };
+  const { key, label, title, tone } = part;
+  return { key, label, title, tone };
+}

@@ -70,6 +70,7 @@ const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full
           values: { "igate/server": "rotate.aprs2.net:14580", "map/radius_km": "50" },
           stations: 3,
         },
+        global: withDaemon(fakeDaemon()),
       }),
   },
   ObjectsQru: {

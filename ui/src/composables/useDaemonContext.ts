@@ -7,6 +7,7 @@ import { inject, provide, type InjectionKey, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import type { FindRadio } from "@/composables/useFindRadio";
+import type { IgateLook } from "@/composables/useIgateLook";
 import type { LayerTraffic } from "@/composables/useLayerThings";
 import type { Panel } from "@/composables/usePanel";
 import type { RadioAsks } from "@/composables/useRadioAsks";
@@ -28,6 +29,7 @@ import type {
   GeneralState,
   GpsState,
   InstallInfo,
+  IgateSentLine,
   IgateState,
   MapState,
   PacketHistoryMessage,
@@ -69,6 +71,9 @@ export interface DaemonContext {
   satellites: SatelliteLayer;
   gps: Read<GpsState | null>;
   igate: Read<IgateState | null>;
+  /** The lines put on APRS-IS, oldest first, while the page looks (`igate`'s box is open). */
+  igateSent: Read<readonly IgateSentLine[]>;
+  igateLook: IgateLook;
   qru: Read<QruState | null>;
   general: Read<GeneralState | null>;
   skeds: Read<SkedsState | null>;

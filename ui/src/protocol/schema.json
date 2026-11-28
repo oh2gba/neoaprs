@@ -2443,6 +2443,86 @@
       "title": "HttpsState",
       "type": "object"
     },
+    "IgateLook": {
+      "additionalProperties": false,
+      "description": "With `on`, this page shows the lines that Send what I hear has put on APRS-IS (the Internet box of the settings is open, `igate/gate` is on and the page is in front): it is sent `igate_sent` with the kept lines at once and then each line as it is\nsent. With `on` false, or when the page closes, no more. Never refused.",
+      "properties": {
+        "cmd": {
+          "const": "igate_look",
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "on"
+      ],
+      "title": "IgateLookCommand",
+      "type": "object"
+    },
+    "IgateSentLine": {
+      "additionalProperties": false,
+      "description": "A line that was put on APRS-IS.",
+      "properties": {
+        "at": {
+          "description": "when it was sent",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio that heard the packet; null for our own position"
+        },
+        "line": {
+          "description": "the line as it went to the server, after the gating rules (the TNC2 text): other stations' data, shown as text only",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "radio",
+        "line"
+      ],
+      "title": "IgateSentLine",
+      "type": "object"
+    },
+    "IgateSentMsg": {
+      "additionalProperties": false,
+      "description": "The lines put on APRS-IS, to a page that looks (`igate_look`): `whole` true replaces the page's list with `lines` (the newest 200 since the daemon started, oldest first, as the page opened the box), false adds `lines` (one line as it is sent) to its end.",
+      "properties": {
+        "type": {
+          "const": "igate_sent",
+          "type": "string"
+        },
+        "whole": {
+          "type": "boolean"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/IgateSentLine"
+          },
+          "maxItems": 200,
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "whole",
+        "lines"
+      ],
+      "title": "IgateSentMessage",
+      "type": "object"
+    },
     "IgateState": {
       "additionalProperties": false,
       "description": "The login to APRS-IS (neoaprs/services/igate.py): it shows the internet's stations (`igate/enabled`), puts what the radios hear on APRS-IS (`igate/gate`, the iGate), or both, and nothing from APRS-IS is\never sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second.",
@@ -9881,6 +9961,7 @@
           "forget_station_key": "#/$defs/ForgetStationKey",
           "frequencies": "#/$defs/Frequencies",
           "general_query": "#/$defs/GeneralQuery",
+          "igate_look": "#/$defs/IgateLook",
           "layer_look": "#/$defs/LayerLook",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
@@ -10133,6 +10214,9 @@
         },
         {
           "$ref": "#/$defs/SatelliteLook"
+        },
+        {
+          "$ref": "#/$defs/IgateLook"
         }
       ],
       "title": "Command"
@@ -10144,6 +10228,7 @@
           "chat_fresh": "#/$defs/ChatFreshMsg",
           "error": "#/$defs/Error",
           "hello": "#/$defs/Hello",
+          "igate_sent": "#/$defs/IgateSentMsg",
           "layer_things": "#/$defs/LayerThingsMsg",
           "packet_history": "#/$defs/PacketHistoryMsg",
           "packet_stats": "#/$defs/PacketStatsMsg",
@@ -10247,6 +10332,9 @@
         },
         {
           "$ref": "#/$defs/SatellitesMsg"
+        },
+        {
+          "$ref": "#/$defs/IgateSentMsg"
         }
       ],
       "title": "Message"
