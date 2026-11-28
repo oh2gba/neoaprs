@@ -865,6 +865,7 @@ def test_the_lines_of_a_sound_card_gone_while_mercury_runs_are_known_and_a_reope
     assert fakemercury.AUDIO_LOST_LINE in LOST_LINES
 
 
+@pytest.mark.slow("runs made-up Mercury modems on the loopback with real time on the air")
 async def test_a_sound_card_gone_while_mercury_runs_ends_the_run_and_is_the_radios_problem_until_it_starts_again(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -873,7 +874,9 @@ async def test_a_sound_card_gone_while_mercury_runs_ends_the_run_and_is_the_radi
     m = Mercury(
         tmp_path,
         finder=lambda: fakemercury.program(audio_lost=True),
-        backoff=Backoff([0.5, 0.5]),
+        # (the radio's problem shows from the end of the run to the start of the next: a back-off
+        # wide enough to be seen on a busy runner)
+        backoff=Backoff([2.0, 2.0]),
         control_backoff=Backoff([0.05, 0.05]),
         **of_radio(tmp_path),
     )
@@ -892,8 +895,9 @@ async def test_a_sound_card_gone_while_mercury_runs_ends_the_run_and_is_the_radi
         first = m.pid
         await until_started(lambda: m.reason == "sound_card" and m.problem == SOUND_CARD_FAILED)
         assert "lost its sound card" in caplog.text
+        seen: set[tuple[str, bool]] = set()
+        await until_started(lambda: seen.add((tnc.problem, tnc.usable)) or (SOUND_CARD_FAILED, False) in seen)
         await until_started(lambda: not _alive(first))
-        await until_started(lambda: tnc.problem == SOUND_CARD_FAILED and not tnc.usable)
         await until_started(lambda: m.starts >= 2)
     finally:
         await tnc.stop()

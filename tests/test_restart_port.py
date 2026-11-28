@@ -354,7 +354,8 @@ async def test_the_update_test_finds_the_page_beside_the_port_it_holds_and_the_s
     try:
         port = await daemons.start("--web-port", str(held))
         page, found = await e2e.Page.among(range(held + 1, held + e2e.PORT_TRIES + 1), VERSION, 30)
-        assert found == port == held + 1 and page.hello["version"] == VERSION
+        # (the first free one after it: on Windows the ports there are the system's to hand out too)
+        assert held < found == port <= held + e2e.PORT_TRIES and page.hello["version"] == VERSION
         await closed(page.connection)
         await daemons.restart(
             ["/home/ham/NeoAPRS.AppImage", "run", "--data", str(daemons.data), "--web-port", str(held)]
