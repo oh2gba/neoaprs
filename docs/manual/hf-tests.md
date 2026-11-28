@@ -57,7 +57,7 @@ A test under your call that another installation posted can be removed only by t
 ## Limits
 
 - A test may start up to 30 days ahead and is at most 24 hours long.
-- At most five tests to come for one installation, ten under one call, and 100 on the board.
+- At most five tests planned under one call (whatever its SSID; joining one of them adds none) until one has passed or been deleted, five for one installation, and 100 on the board.
 - At most ten posts an hour from one address. The address is scrambled for the hour and forgotten, as the project page says.
 
 A post that is refused says why, in a short note that goes away by itself: too many posted lately, no room on the board, the test has ended, or the board could not be reached just now. When the board cannot be reached, Post is off and the tab says nothing; it works again when the board is back.

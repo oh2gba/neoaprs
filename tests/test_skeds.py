@@ -756,6 +756,7 @@ async def test_the_refusals_the_operator_can_do_something_about_are_errors_with_
     for reason, status, code in (
         ("rate", 429, "sked.rate"),
         ("full", 409, "sked.full"),
+        ("call_full", 409, "sked.call_full"),
         ("past", 422, "sked.past"),
         ("too_far", 422, "sked.far"),
     ):

@@ -59,6 +59,8 @@ EXPIRE_SEC = 30.0
 MAX_BYTES = 131072
 # how far ahead the server lets a sked begin
 MAX_AHEAD = timedelta(days=30)
+# planned tests one call may have on the board (server/neo/api/v1/skeds.php MAX_TESTS_PER_CALL)
+CALL_TESTS = 5
 # development and tests: a server on this computer, instead of SKEDS_URL
 ENV_URL = "NEOAPRS_SKEDS_URL"
 State = Literal["ok", "offline", "off", "closed"]
@@ -343,6 +345,10 @@ class Skeds:
             raise SkedError("too many tests were posted from here lately; try again later", "sked.rate")
         if reason == "full":
             raise SkedError("the board has no room for another test now", "sked.full")
+        if reason == "call_full":
+            raise SkedError(
+                f"your call has {CALL_TESTS} tests planned on the board already", "sked.call_full", max=CALL_TESTS
+            )
         if reason == "past":
             raise SkedError("that test has ended already", "sked.past")
         if reason == "too_far":

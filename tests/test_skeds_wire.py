@@ -125,6 +125,7 @@ async def test_the_refusals_come_with_codes_and_a_closed_board_is_a_state_not_an
     for reason, status, code in (
         ("rate", 429, "sked.rate"),
         ("full", 409, "sked.full"),
+        ("call_full", 409, "sked.call_full"),
         ("past", 422, "sked.past"),
         ("bad_request", 400, "sked.unreachable"),
     ):
