@@ -22,14 +22,14 @@
  *
  * Few limits: the call has the form of an amateur call (as the board's), the text is one line of at
  * most 200 characters, its control and invisible characters removed and its white space made single
- * spaces, and not empty. A brake stops only a program gone wild: 20 lines a minute from one address
+ * spaces, and not empty. A brake stops a flood: 6 lines a minute from one address
  * and 200 a minute in all. A line is never removed by a request.
  *
  * What is kept: every line in private/chat/lines.json with the hash of the token that said it and the
  * next id, written to a .part and renamed under one lock (the file `lock`), as chat.json is, so that
  * two writers never lose a line and a reader never gets half a file. The address is hashed under the
  * folder's own salt for the brake and forgotten after the minute; a refresh is counted apart
- * (refresh.json, 60 an hour from one address).
+ * (refresh.json, 60 an hour from one address and 2000 from everyone).
  *
  * Moderation (server/chat.sh, over SFTP): a file `closed` in private/chat/ makes every line answer
  * `closed` and the chat say "closed": true; `removed.txt` there holds an id per line that is taken
@@ -54,10 +54,11 @@ const MAX_BODY         = 1024;
 const MAX_TEXT         = 200;
 // the history, so that a station that was offline still finds what was said: the newest lines, kept and served
 const MAX_LINES        = 100;
-const RATE_PER_ADDRESS = 20;      // lines a minute from one address
+const RATE_PER_ADDRESS = 6;       // lines a minute from one address
 const RATE_IN_ALL      = 200;     // lines a minute from everyone
 const RATE_WINDOW_SEC  = 60;
-const RATE_REFRESH     = 60;      // refreshes an hour from one address, counted apart from the lines and never in all
+const RATE_REFRESH     = 60;      // refreshes an hour from one address, counted apart from the lines
+const REFRESH_IN_ALL   = 2000;    // refreshes an hour from everyone
 const TEXT_KEPT        = '\P{C}';  // what a line keeps: every character but the control, format, private and unassigned ones
 const TIME_FORM        = '/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/';
 
@@ -136,7 +137,7 @@ function chat_say(string $dir, array $in, int $now): never
 /** The chat written again from the kept lines, only when what it says differs from what is served. */
 function chat_refresh(string $dir, int $now): never
 {
-    if (!neo_allowed($dir, neo_address(), $now, 'refresh.json', RATE_REFRESH, PHP_INT_MAX, 3600)) {
+    if (!neo_allowed($dir, neo_address(), $now, 'refresh.json', RATE_REFRESH, REFRESH_IN_ALL, 3600)) {
         neo_refuse(429, 'rate', ['Retry-After: 3600']);
     }
     $lock = neo_lock($dir);

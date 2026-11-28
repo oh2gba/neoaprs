@@ -14,7 +14,8 @@
 #   server/chat.sh block CALL       refuse the lines of a call (every SSID of it, when CALL has
 #                                   none) and take its lines out, as `server/skeds.sh block` does for
 #                                   the board, then write both again
-#   server/chat.sh unblock CALL     take them again
+#   server/chat.sh unblock CALL     take the lines of the call again; it does not bring back the lines
+#                                   already taken out
 #   server/chat.sh refresh          write the chat again (a POST of {"action": "refresh"})
 #
 # Every change ends with a refresh, so the chat says it at once. A line is never edited here. Refused

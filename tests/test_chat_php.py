@@ -28,7 +28,7 @@ pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_LINES = 100
-RATE_PER_ADDRESS = 20
+RATE_PER_ADDRESS = 6
 
 
 def ago(seconds: float) -> str:
@@ -176,7 +176,7 @@ def test_a_line_that_is_not_well_formed_is_left_out_and_the_ids_go_on(endpoint: 
     assert endpoint.say("next")[1]["id"] == 9
 
 
-def test_the_brake_stops_one_address_after_twenty_lines_a_minute_and_everyone_after_two_hundred(
+def test_the_brake_stops_one_address_after_six_lines_a_minute_and_everyone_after_two_hundred(
     endpoint: Endpoint,
 ) -> None:
     endpoint.start()
@@ -294,8 +294,21 @@ def test_the_moderation_script_refuses_what_is_no_id_or_call_before_it_asks_for_
     environment = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "SECRETS_FILE": str(tmp_path / "none")}
     shown = subprocess.run([str(script), "--help"], env=environment, capture_output=True, text=True, timeout=30)
     assert shown.returncode == 0 and all(word in shown.stdout for word in ("--list", "rm", "close", "block"))
+    assert "does not bring back the lines" in shown.stdout, "unblock lets new lines in; what was taken out stays out"
     for args in ([], ["rm"], ["rm", "0"], ["rm", "1x"], ["block"], ["block", "OH2GBA/P"], ["close", "now"], ["x"]):
         done = subprocess.run([str(script), *args], env=environment, capture_output=True, text=True, timeout=30)
         assert done.returncode == 2, (args, done.stdout, done.stderr)
     done = subprocess.run([str(script), "rm", "12"], env=environment, capture_output=True, text=True, timeout=30)
     assert done.returncode == 1 and "no .secrets file" in done.stderr, "a good id goes on to the login"
+
+
+def test_refreshes_from_many_addresses_have_a_total_too(endpoint: Endpoint) -> None:
+    """A refresh reads and writes its whole file under the lock: the hour's file cannot grow without end."""
+    endpoint.start()
+    endpoint.stored.mkdir(parents=True, exist_ok=True)
+    now = int(time.time())
+    others = {f"{n:016x}": [now] * 2 for n in range(1000)}
+    (endpoint.stored / "refresh.json").write_text(json.dumps(others), encoding="utf-8")
+    assert endpoint.refresh() == (429, {"ok": False, "reason": "rate"})
+    (endpoint.stored / "refresh.json").write_text(json.dumps({k: [now - 3601] * 2 for k in others}), encoding="utf-8")
+    assert endpoint.refresh()[0] == 200
