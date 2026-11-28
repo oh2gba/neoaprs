@@ -1,12 +1,19 @@
-# Five NeoAPRS daemons with the real Direwolf and the real Mercury on three virtual sound cables
-# (PipeWire null sinks), and a gateway's pair proven through them: messages and acks cross between a
-# station on VHF and one on HF, a WIDE path alone and a message to the gateway stay off HF, a beacon by
-# way of the pair's call is heard on HF; two stations at 300 baud exchange a message and its ack
-# (tests/realmodems, docs/realmodems.md). Keying is VOX into a
-# null sink, so nothing is keyed. By hand only, before a release among other times; no secrets.
+# The real Direwolf and the real Mercury that NeoAPRS carries, built by the scripts the release builds
+# them with, and what proves a modem update (docs/modem-updates.md). On Linux, five NeoAPRS daemons on
+# three virtual sound cables (PipeWire null sinks): a gateway's pair carries messages and acks between
+# VHF and HF, a WIDE path alone and a message to the gateway stay off HF, two stations exchange a
+# message at 300 baud, the Mercury pinned now and the one pinned before carry a message and its ack both
+# ways, and the lines the daemon reads of Mercury are the ones it writes (tests/realmodems,
+# docs/realmodems.md); then the suite's tests of the real programs. On Windows, the two modems built
+# for it decode what the Linux builds recorded, and Mercury ends in order on Ctrl-Break. Keying is VOX
+# into a null sink, so nothing is keyed. On every push to master, every night and by hand; no secrets.
 name: realmodems
 
 on:
+  push:
+    branches: [master]
+  schedule:
+    - cron: "17 2 * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,12 +25,12 @@ env:
 
 concurrency:
   group: realmodems-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}  # every push to master is checked to the end
 
 jobs:
   realmodems:
     runs-on: ubuntu-26.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -70,6 +77,20 @@ jobs:
         with:
           path: .venv/tools/mercury
           key: ${{ steps.mercury.outputs.cache-primary-key }}
+      - name: The previous Mercury built before
+        id: previous
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv/tools/mercury-previous
+          key: mercury-previous-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.name }}-${{ hashFiles('scripts/build-mercury', 'neoaprs/mercury.py', 'packaging/mercury/**') }}
+      - name: Build the Mercury pinned before into the venv (scripts/build-mercury --previous --install)
+        if: steps.previous.outputs.cache-hit != 'true'
+        run: uv run scripts/build-mercury --previous --install
+      - if: steps.previous.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv/tools/mercury-previous
+          key: ${{ steps.previous.outputs.cache-primary-key }}
       - name: The Direwolf built before
         id: direwolf
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -87,10 +108,17 @@ jobs:
       - name: The stations and the scenarios
         env:
           NEOAPRS_REAL_MODEMS: "1"
+          NEOAPRS_RECORDINGS: ${{ runner.temp }}/recordings
         run: >-
           uv run pytest -v -p no:cacheprovider --confcutdir tests/realmodems
           -o faulthandler_timeout=0 -o tmp_path_retention_policy=all
           --basetemp "$RUNNER_TEMP/realmodems" tests/realmodems
+      # The suite's tests of the real programs: the guard of the suite (tests/conftest.py) keeps the
+      # programs of the venv from every test, so they run here, past it, on a runner with no sound card.
+      - name: The suite's tests of the real Direwolf and Mercury
+        run: >-
+          uv run pytest -v -p no:cacheprovider --confcutdir tests/realmodems
+          tests/test_direwolf_real.py tests/test_mercury_leadin.py tests/test_mercury_scope_real.py
       - name: The stations' folders (each daemon's log and output, the modems' configurations)
         if: always()
         run: tar czf realmodems-stations.tar.gz -C "$RUNNER_TEMP" realmodems || echo "no folder"
@@ -100,3 +128,63 @@ jobs:
           name: realmodems-stations
           path: realmodems-stations.tar.gz
           if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: realmodems-recordings
+          path: ${{ runner.temp }}/recordings
+          if-no-files-found: error
+
+  # The two modems for Windows, as the release builds them (release.yml, mercury-windows and
+  # direwolf-windows), with Direwolf's decoder of recorded audio beside it for the job below.
+  windows-builds:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 40
+    container: debian:trixie
+    steps:
+      - name: The tools of the builds (a bare container has none)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential cmake python3 ca-certificates git patch file gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - run: python3 scripts/build-mercury --windows --out modems
+      - run: python3 scripts/build-direwolf --windows --with-atest --out modems
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: realmodems-windows-builds
+          path: |
+            modems/mercury
+            modems/direwolf
+          if-no-files-found: error
+
+  windows:
+    needs: [realmodems, windows-builds]
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: realmodems-windows-builds
+          path: ${{ runner.temp }}/modems
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: realmodems-recordings
+          path: ${{ runner.temp }}/recordings
+      - name: The modems for Windows on what Linux recorded, and Mercury's end on Ctrl-Break
+        env:
+          NEOAPRS_REAL_MODEMS: "1"
+          NEOAPRS_WINDOWS_MODEMS: ${{ runner.temp }}/modems
+          NEOAPRS_RECORDINGS: ${{ runner.temp }}/recordings
+        run: uv run pytest -v -p no:cacheprovider --confcutdir tests/realmodems tests/realmodems/test_windows.py
+      - name: mercury.exe listens on 127.0.0.1 only
+        run: uv run python packaging/windows/smoke_mercury.py "${{ runner.temp }}/modems/mercury/mercury.exe"
