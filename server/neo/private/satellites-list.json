@@ -14,17 +14,17 @@
       "id": 59112,
       "name": "SONATE-2",
       "downlink": [{ "mhz": 145.825, "sure": true }],
-      "uplink": [{ "mhz": 145.825, "sure": false }],
+      "uplink": [{ "mhz": 145.825, "sure": true }],
       "mode": { "value": "afsk1200", "sure": true },
-      "path": { "value": "DP0SNX", "sure": false },
-      "source": "Orbital Radar, heard 14 times in 24 h on 27 Nov 2026; the alias from a search snippet only"
+      "path": { "value": "DP0SNX", "sure": true },
+      "source": "the operator's SONATE-2 radio amateur page (uni-wuerzburg.de), read 28 Nov 2026: 145.825 MHz half duplex, 1k2 AFSK, DP0SNX; only in announced windows"
     },
     {
       "id": 67683,
       "name": "KNACKSAT-2",
       "downlink": [{ "mhz": 145.825, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 25 times or more in 24 h on 27 Nov 2026"
     },
@@ -33,7 +33,7 @@
       "name": "KOSTKA",
       "downlink": [{ "mhz": 436.87, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 17 times in 24 h on 27 Nov 2026"
     },
@@ -42,7 +42,7 @@
       "name": "LASARsat",
       "downlink": [{ "mhz": 436.925, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 25 times or more in 24 h on 27 Nov 2026"
     },
@@ -51,7 +51,7 @@
       "name": "GRBBeta",
       "downlink": [{ "mhz": 436.785, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 25 times or more in 24 h on 27 Nov 2026"
     },
@@ -60,7 +60,7 @@
       "name": "CroCube",
       "downlink": [{ "mhz": 436.775, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 22 times in 24 h on 27 Nov 2026"
     },
@@ -78,7 +78,7 @@
       "name": "AO-129",
       "downlink": [{ "mhz": 435.9, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 10 times in 24 h on 27 Nov 2026; AMSAT status reports it"
     },
@@ -87,7 +87,7 @@
       "name": "AO-130",
       "downlink": [{ "mhz": 145.92, "sure": true }],
       "uplink": [],
-      "mode": { "value": "", "sure": false },
+      "mode": { "value": "gmsk9600", "sure": false },
       "path": { "value": "", "sure": false },
       "source": "Orbital Radar, heard 6 times in 24 h on 27 Nov 2026"
     }

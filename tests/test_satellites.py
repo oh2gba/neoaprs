@@ -10,6 +10,7 @@ import io
 import json
 import math
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -20,6 +21,8 @@ from sgp4.model import Satrec as PureSatrec
 from neoaprs import satellites as sat
 from neoaprs.satellitelist import MAX_ELEMENTS_AGE, read_file, shown
 from tests.support.files import fixture_text
+
+ROOT = Path(__file__).resolve().parent.parent
 
 HELSINKI = sat.Station(60.17, 24.94, 20.0)
 NOW = datetime(2026, 11, 27, 18, 0, tzinfo=UTC)
@@ -211,3 +214,25 @@ def test_a_satellite_whose_elements_are_older_than_fourteen_days_is_not_shown() 
     assert iss.orbit is not None
     assert shown(iss, iss.orbit.epoch + MAX_ELEMENTS_AGE) is not None
     assert shown(iss, iss.orbit.epoch + MAX_ELEMENTS_AGE + timedelta(seconds=1)) is None
+
+
+def test_the_projects_list_gives_a_card_only_what_is_confirmed_and_no_9600_satellite_as_1200() -> None:
+    """The list the server serves (server/neo/private/satellites-list.json): the ISS and SONATE-2 as their
+    operators confirm them; the 9600 baud digipeaters stored as such, unconfirmed, so a card names no mode."""
+    listed = (ROOT / "server" / "neo" / "private" / "satellites-list.json").read_bytes()
+    read = read_file(listed)
+    assert read is not None
+    card = {one.name: one for one in read.satellites}
+    iss, sonate = card["ISS"], card["SONATE-2"]
+    assert (iss.downlinks_hz, iss.uplinks_hz, iss.mode, iss.path) == ((437_825_000,), (437_825_000,), "afsk1200", "")
+    assert (sonate.downlinks_hz, sonate.uplinks_hz, sonate.mode, sonate.path) == (
+        (145_825_000,),
+        (145_825_000,),
+        "afsk1200",
+        "DP0SNX",
+    )
+    rows = {row["name"]: row for row in json.loads(listed)["satellites"]}
+    for name in ("KNACKSAT-2", "KOSTKA", "LASARsat", "GRBBeta", "CroCube", "AO-129", "AO-130"):
+        assert rows[name]["mode"] == {"value": "gmsk9600", "sure": False}, name
+        assert card[name].mode is None, name
+    assert {"NO-44", "AO-130"} <= set(rows) and len(rows) == 10
