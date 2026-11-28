@@ -21,6 +21,7 @@ from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sende
 from neoaprs.source import Source
 
 log = logging.getLogger("neoaprs.messaging")
+TOLD_FULL_MAX = 100
 
 # The sender's first retry comes 32 s after its message; waiting longer would ack a copy on its way.
 ACK_HOLD_MAX_SEC = 60
@@ -50,6 +51,7 @@ class Acks:
         self._clock = clock
         self._last_id: str | None = None
         self.waiting: list[Waiting] = []
+        self._told_full: dict[tuple[str, str], bool] = {}  # acks whose RFONLY had no room, told once
 
     def resume(self, records: Iterable[MessageRecord]) -> None:
         """Continue the numbering after the latest outgoing id in `records` (oldest first)."""
@@ -120,7 +122,9 @@ class Acks:
         """Send the ack; return False if the TNC refused it. An unbuildable ack counts as done."""
         try:
             frame = self._frame(b":" + format_ack(to, msg_id, reply_ack), to, radio)
-            sent = radio.send_frame(_rf_only(frame) if rf_only else frame)
+            if rf_only:
+                frame = self._rf_only(frame, to, msg_id)
+            sent = radio.send_frame(frame)
         except (MessageError, MessagingError) as e:
             log.warning("no ack for message %s from %s: %s", msg_id, to, e)
             return True
@@ -128,10 +132,19 @@ class Acks:
             log.warning("the ack of message %s from %s was not sent: the TNC would not take it", msg_id, to)
         return sent
 
-
-def _rf_only(frame: ax25.Frame) -> ax25.Frame:
-    """Return the frame with RFONLY last in its path, unchanged if that makes the path too long."""
-    calls = rf_only_path(tuple(str(hop) for hop in frame.path))
-    if len(calls) > ax25.MAX_PATH:
+    def _rf_only(self, frame: ax25.Frame, to: str, msg_id: str) -> ax25.Frame:
+        """Return the frame with RFONLY last in its path, unchanged if that makes the path too long."""
+        calls = rf_only_path(tuple(str(hop) for hop in frame.path))
+        if len(calls) <= ax25.MAX_PATH:
+            return replace(frame, path=tuple(ax25.Address.parse(call) for call in calls))
+        if self._told_full.get((to, msg_id)) is None:
+            self._told_full[(to, msg_id)] = True
+            while len(self._told_full) > TOLD_FULL_MAX:
+                del self._told_full[next(iter(self._told_full))]
+            log.info(
+                "the ack of message %s from %s goes without RFONLY: its path of %d digipeaters has no room for it",
+                msg_id,
+                to,
+                len(frame.path),
+            )
         return frame
-    return replace(frame, path=tuple(ax25.Address.parse(call) for call in calls))
