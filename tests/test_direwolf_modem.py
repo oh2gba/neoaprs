@@ -46,7 +46,7 @@ from neoaprs.radiotype import HF_ID
 from neoaprs.serialprobe import PortInfo, claim_value
 from neoaprs.source import Backoff
 from tests.support import fakedirewolf, fakemercury
-from tests.support.env import until, until_started
+from tests.support.env import remember_stop, until, until_started
 from tests.support.fakemercury import of_radio
 from tests.support.modemports import base_of_this_test, own_ports
 from tests.support.radioconfig import with_radio
@@ -103,6 +103,7 @@ def modem(
         lister=fakemercury.program,
     )
     m.ports = lambda: []
+    remember_stop(m.stop)  # (stopped at the test's end, also when it fails before its own stop)
     return m
 
 

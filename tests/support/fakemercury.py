@@ -21,6 +21,7 @@ from neoaprs.radiotype import HF_ID, RadioId
 from neoaprs.mercury import CONTROL_OFFSET, FRAME_SEC, MAX_PAYLOAD, SOURCE_COMMIT, VERSION
 from tests.support.fakemercuryui import FakeUi
 from tests.support.fakeradio import FakeRadio
+from tests.support import children
 
 VERSION_LINE = f"Rhizomatica Mercury Version {VERSION} (fake, tests/support/fakemercury.py)"
 SOUND_CARDS = """Listing ALSA soundcards:
@@ -449,4 +450,5 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
 
 
 if __name__ == "__main__":
+    children.end_with_the_run()
     sys.exit(main())

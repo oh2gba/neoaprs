@@ -21,6 +21,7 @@ from neoaprs.cli.logfile import LOG_NAME, page_of_the_run_before, read_page
 from neoaprs.controller import Controller
 from tests.support.daemonrun import PATIENCE_SEC, log_text, signals_restored as signals_restored
 from tests.support.env import until
+from tests.support.webports import next_web_port
 from tests.test_main import taken_ports
 from tests.test_scripts import load_script
 from tests.test_scripts_on_the_daemon import closed
@@ -350,12 +351,16 @@ async def test_the_update_test_finds_the_page_beside_the_port_it_holds_and_the_s
     of this tree in the place of both versions (the real files are the release workflow's to run).
     """
     e2e = load_script("update-e2e.py")
-    holder, held = e2e.held_port()
+    # (the script's own held port is one the system gives, where on Windows other tests' daemons
+    # answer too: here a port of this worker's block, whose ports after it are free)
+    held = next_web_port()
+    if not held:
+        pytest.skip("every slot of this worker's block of ports is taken")
+    holder = socket.create_server(("127.0.0.1", held))
     try:
         port = await daemons.start("--web-port", str(held))
         page, found = await e2e.Page.among(range(held + 1, held + e2e.PORT_TRIES + 1), VERSION, 30)
-        # (the first free one after it: on Windows the ports there are the system's to hand out too)
-        assert held < found == port <= held + e2e.PORT_TRIES and page.hello["version"] == VERSION
+        assert found == port == held + 1 and page.hello["version"] == VERSION
         await closed(page.connection)
         await daemons.restart(
             ["/home/ham/NeoAPRS.AppImage", "run", "--data", str(daemons.data), "--web-port", str(held)]

@@ -36,6 +36,7 @@ from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.cli import supportgather
 from neoaprs.dbthread import DbThread
 from neoaprs.services import alerts
+from tests.support import children
 from tests.support import env as env_module
 
 # Not errors of the code under test: "asyncio" reports a task that was never awaited from the
@@ -1111,6 +1112,19 @@ def threads_left(before: set[threading.Thread], seconds: float = THREAD_END_SEC)
     for thread in started:
         thread.join(max(0.0, deadline - time.monotonic()))
     return [t for t in started if t.is_alive() and not any(t.name.startswith(name) for name in THREADS_LEFT_ALLOWED)]
+
+
+@pytest.fixture(autouse=True)
+def no_leaked_processes() -> Iterator[None]:
+    """A process the test started (a daemon, a stand-in modem) that still runs after its teardown is
+    ended, and fails the test: left, it would hold its ports for the tests after it (Linux)."""
+    before = children.descendants()
+    yield
+    left = children.left_since(before)
+    if left:
+        said = [f"{pid}: {children.command_of(pid)}" for pid in sorted(left)]
+        children.end(left)
+        pytest.fail("the test left processes running (stop what it started):\n  " + "\n  ".join(said), pytrace=False)
 
 
 @pytest.fixture(autouse=True)

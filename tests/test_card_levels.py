@@ -28,7 +28,7 @@ from neoaprs.source import Backoff
 from neoaprs.web.radioview import radio_row
 from neoaprs.winmixer import Windows
 from tests.support import fakedirewolf, fakemercury
-from tests.support.env import until, until_started
+from tests.support.env import remember_stop, until, until_started
 from tests.support.modemports import base_of_this_test
 from tests.test_direwolf_modem import modem as direwolf_modem
 from tests.test_direwolf_modem import running
@@ -170,6 +170,7 @@ def direwolf_driver(tmp_path: Path, mixer: FakeMixer, radio: RadioSpec) -> Direw
     )
     driver.modem.ports = lambda: []
     driver.configure(radio, DEFAULTS, RunOverrides(check_sec=0.0))
+    remember_stop(driver.stop)  # (stopped at the test's end, also when it fails before its own stop)
     return driver
 
 

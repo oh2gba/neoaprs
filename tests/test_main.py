@@ -439,11 +439,13 @@ def test_a_port_that_is_in_use_moves_the_page_to_the_next_free_one_and_the_log_s
     data = tmp_path / "data"
     with taken_ports(1) as taken:
         proc = start(data, "--web-port", str(taken))
-        url = page_url(data, proc)
-        with urllib.request.urlopen(url, timeout=10) as answer:
-            assert answer.status == 200
-        stop(proc)
-        out, err = ended(proc, data)
+        try:
+            url = page_url(data, proc)
+            with urllib.request.urlopen(url, timeout=10) as answer:
+                assert answer.status == 200
+        finally:
+            stop(proc)
+            out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     port = int(url.rstrip("/").rsplit(":", 1)[1])
     assert taken < port <= taken + 10, "one of the ten after the port it was asked for"

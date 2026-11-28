@@ -29,7 +29,7 @@ from neoaprs.web.radioview import radio_row
 from neoaprs.web.tncwire import RadioRow
 from tests.support import fakedirewolf, fakemercury
 from tests.support.fakedriver import with_radios
-from tests.support.env import idle_for, until, until_started
+from tests.support.env import idle_for, remember_stop, until, until_started
 from tests.support.modemports import base_of_this_test
 from tests.test_no_devices import under_the_switch  # noqa: F401  (the fixture)
 from tests.test_radios_wire import added, refused, started
@@ -65,6 +65,7 @@ def driver_of(tmp_path: Path, claims: Claims | None = None, radio: RadioSpec | N
     driver.modem.ports = lambda: []
     driver.line.backoff = Backoff([0.05, 0.05])
     driver.configure(radio, DEFAULTS, RunOverrides(check_sec=0.0))
+    remember_stop(driver.stop)  # (stopped at the test's end, also when it fails before its own stop)
     return driver
 
 

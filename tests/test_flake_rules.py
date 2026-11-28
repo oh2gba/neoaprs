@@ -120,6 +120,11 @@ ALLOWED: dict[tuple[str, str, str], str] = {
         "test_a_refresh_writes_the_board_only_when_what_it_says_has_changed",
         "sleep",
     ): "the next second of the file's time stamp, which a write would change",
+    (
+        "tests/test_children.py",
+        "test_a_stand_in_ends_by_itself_when_the_process_of_the_run_is_gone",
+        "sleep",
+    ): "a window in which the stand-in must still run: a stall only lengthens it",
     ("tests/test_mercury_leadin.py", "<module>", "port"): "the base from which free pairs of ports are probed",
     ("tests/test_mercury_scope_real.py", "<module>", "port"): "the base from which free pairs of ports are probed",
 }

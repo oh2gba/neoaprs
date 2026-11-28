@@ -11,6 +11,8 @@ from typing import Any
 
 import pytest
 
+from tests.support import children
+
 LIMIT_SEC = 600.0
 EXIT_CODE = 70
 
@@ -33,6 +35,7 @@ def _over(test: str, seconds: float, capture: Any) -> None:
     err.flush()
     faulthandler.dump_traceback(file=err, all_threads=True)
     err.flush()
+    children.end(children.descendants())  # (what the test started does not outlive the process)
     os._exit(EXIT_CODE)
 
 

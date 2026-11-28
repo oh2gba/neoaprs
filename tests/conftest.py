@@ -58,6 +58,11 @@ for _name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHOR
 os.environ["NEOAPRS_NO_DEVICES"] = "1"
 
 
+# A stand-in program a test starts ends by itself when this process is gone (tests/support/children.py):
+# none outlives the run, also when a worker is killed. Each pytest-xdist worker sets its own.
+os.environ["NEOAPRS_TEST_RUN_PID"] = str(os.getpid())
+
+
 # 'ci' is the default profile so that a run is reproducible (derandomized, no example database).
 # HYPOTHESIS_PROFILE=dev explores far more and keeps what it finds in .hypothesis/.
 try:
@@ -88,13 +93,14 @@ from tests.support.guards import (  # noqa: E402
     isolated_machine,  # noqa: F401
     logging_restored,  # noqa: F401
     no_leaked_db_threads,  # noqa: F401
+    no_leaked_processes,  # noqa: F401
     no_leaked_threads,  # noqa: F401
     no_leaked_tasks,  # noqa: F401
     no_unexpected_errors,  # noqa: F401
 )
 from tests.support.ptyline import ptys  # noqa: E402, F401
 from tests.support.timelimit import a_test_has_a_time_limit  # noqa: E402, F401
-from tests.support import timebudget, winloop  # noqa: E402
+from tests.support import children, timebudget, winloop  # noqa: E402
 
 # The time of every test, summed in the process that reports (the controller under pytest-xdist)
 _time = timebudget.Clock()
@@ -168,6 +174,10 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    # What any test of this process left is ended (the controller of pytest-xdist has its workers
+    # under it, which end by themselves)
+    if not session.config.pluginmanager.has_plugin("dsession"):
+        children.end(children.descendants())
     if _reports_here and exitstatus == 0 and not timebudget.kept(_time):
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
 

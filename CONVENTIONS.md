@@ -205,6 +205,7 @@ Every `NEOAPRS_*` variable the code, the scripts, the units or the tests use is 
 | `NEOAPRS_TEST_LIMIT_SEC` | `tests/support/timelimit.py` | seconds one test may run before the run ends it with the test's name and the stack of every thread (600 when unset; `0` is no limit) |
 | `NEOAPRS_TEST_SEED` | `scripts/check` | the seed of the random order of the stage `pytest` (pytest-randomly); unset, a new one each run, printed |
 | `NEOAPRS_TEST_BUDGET_SEC` | `tests/support/timebudget.py` | seconds the tests of a run may take in sum, and the switch for the 5 s limit of a test without a slow or nightly marker; `scripts/check` sets it to the budget measured on the project's machine, `0` (and CI) none |
+| `NEOAPRS_TEST_RUN_PID` | `tests/conftest.py`, `tests/support/children.py` | the process of the test run: a stand-in program a test starts ends by itself when it is gone (set by the suite) |
 | `NEOAPRS_TEST_ORDER` | `tests/conftest.py` | `reverse` or `shuffle[:SEED]` runs the test files in another order, to find a test that depends on an earlier one |
 
 ## Data

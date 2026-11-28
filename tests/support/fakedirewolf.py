@@ -11,6 +11,8 @@ import sys
 import threading
 from pathlib import Path
 
+from tests.support import children
+
 ROOT = Path(__file__).resolve().parents[2]
 RUNS_FILE = "fake-direwolf-runs.txt"
 BANNER = "Dire Wolf Release 1.8.1, November 2025 (fake, tests/support/fakedirewolf.py)"
@@ -275,5 +277,6 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    children.end_with_the_run()
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     sys.exit(main())
