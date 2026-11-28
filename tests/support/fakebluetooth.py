@@ -5,7 +5,6 @@ made.
 
 import asyncio
 import errno
-import os
 import socket
 import struct
 from typing import Any
@@ -136,7 +135,7 @@ class FakeBluetooth:
         theirs = self._pending.pop(0)
         if self.error is not None or address[1] != self.channel:
             theirs.close()
-            raise self.error or OSError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))
+            raise self.error or OSError(errno.ECONNREFUSED, "Connection refused")
         theirs.setblocking(False)
         self.peer = theirs
 
