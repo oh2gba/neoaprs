@@ -3,10 +3,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import SkedsPane from "@/components/SkedsPane.vue";
 import type { SkedPast, SkedRow, SkedsState } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
+import { cssRule } from "@/test/css";
 import { NOW, sked, skedsState, toastOf } from "@/test/fixtures";
 
 let daemon: FakeDaemon;
-beforeEach(() => (daemon = fakeDaemon({ skeds: skedsState() })));
+beforeEach(() => {
+  localStorage.clear();
+  daemon = fakeDaemon({ skeds: skedsState() });
+});
 afterEach(() => document.body.replaceChildren());
 /** The dialog of Plan a test, which is put at the end of the page. */
 const dialog = () => document.querySelector<HTMLElement>(".skeddialog");
@@ -225,6 +229,28 @@ describe("SkedsPane", () => {
       expect(wrapper.find(".boardpane").element.lastElementChild).toBe(section.element);
     });
 
+    it("fold by the arrow of their title as a Settings group does, closed at first with nothing but the title, and remembered in this browser", async () => {
+      const wrapper = pane([], { past: [gone("a")] });
+      const section = wrapper.find("fieldset.sked-past");
+      const arrow = section.find("legend > button.groupfold");
+      const body = section.find(".group-body");
+      expect([arrow.text(), arrow.attributes("aria-expanded"), arrow.attributes("aria-controls")]).toEqual([
+        "Past tests",
+        "false",
+        body.attributes("id"),
+      ]);
+      expect(section.classes("folded")).toBe(true);
+      expect((body.element as HTMLElement).style.display).toBe("none");
+      expect(section.find("legend").text()).toBe("Past tests");
+      await arrow.trigger("click");
+      expect([arrow.attributes("aria-expanded"), (body.element as HTMLElement).style.display]).toEqual(["true", ""]);
+      const again = pane([], { past: [gone("a")] });
+      expect(again.find("fieldset.sked-past legend button").attributes("aria-expanded")).toBe("true");
+      await again.find("fieldset.sked-past legend button").trigger("click");
+      await tell(daemon, { skeds: skedsState([], { past: [gone("a"), gone("b", { from: at(-9), to: at(-8) })] }) });
+      expect(again.find("fieldset.sked-past legend button").attributes("aria-expanded")).toBe("false");
+    });
+
     it("show a test in the board's own row: the time in UTC with the viewer's own in the title, the dial, every call and the note, with no Join", () => {
       const wrapper = pane([], {
         past: [gone("a", { call: "OH2GBA", note: "Mercury, 10 W" }), gone("b", { call: "OH3ABC" })],
@@ -336,6 +362,18 @@ describe("SkedsPane", () => {
       await tell(daemon, { skeds: skedsState([]) });
       expect(plan(wrapper).exists()).toBe(true);
     });
+  });
+});
+
+describe("the tab on a phone", () => {
+  it("is one scrolling column of the board, the past tests, Plan a test and the chat, so that neither squeezes the board", () => {
+    const wrapper = pane([sked("a")]);
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(["boardwrap", "skedswrap"]));
+    expect(cssRule(".size-phone .skedswrap")).toMatch(/overflow-y:\s*auto/);
+    expect(cssRule(".size-phone .skedswrap > *")).toMatch(/flex:\s*none/);
+    expect(cssRule(".size-phone .skedswrap > .boardpane")).toMatch(/overflow:\s*visible/);
+    // the field scrolled into view above the keyboard brings its counter and Send with it
+    expect(cssRule(".size-phone .skedswrap .chat-compose .compose-text")).toMatch(/scroll-margin-bottom:\s*\d+px/);
   });
 });
 

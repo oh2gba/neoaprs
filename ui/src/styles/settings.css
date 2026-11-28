@@ -459,6 +459,7 @@ fieldset.composebox > legend {
   margin-right: 0;
 }
 .settings fieldset.folded,
+.boardpane fieldset.folded,
 .setup fieldset.folded {
   padding-bottom: 0;
 }

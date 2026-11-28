@@ -44,7 +44,7 @@ A test is on the board until it ends. There is no change: to change a test, dele
 
 ## Past tests
 
-Under the board, **Past tests** lists the tests that have ended, the newest first: the time, the dial, the calls that were there and the note, in the same rows as the board. A test leaves the board for this list when it ends, while the tab is open. A past test cannot be joined. The list shows the 20 newest, and each stays for 30 days after its end. The bin on a past test takes it off your own list, on every screen of your NeoAPRS; other stations still see it.
+Under the board, **Past tests** is folded: its arrow opens it, and your browser remembers whether it is open. It lists the tests that have ended, the newest first: the time, the dial, the calls that were there and the note, in the same rows as the board. A test leaves the board for this list when it ends, while the tab is open. A past test cannot be joined. The list shows the 20 newest, and each stays for 30 days after its end. The bin on a past test takes it off your own list, on every screen of your NeoAPRS; other stations still see it.
 
 ## What is public
 

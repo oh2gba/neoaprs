@@ -4,7 +4,7 @@ sked board, so the page is told the daemon's frames (`__neoTell`, the page's own
 reader scrolled up looks at moves when a line comes at the bound, nothing above a past test moves when it
 goes, and the lists with lines pass the screen checks."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from neoaprs.clock import iso, utcnow
@@ -172,6 +172,8 @@ def test_a_past_test_taken_off_asks_twice_sends_its_ids_and_goes_with_nothing_ab
         )
         state(page, "skeds", skeds_with(["p0", "p1", "p2", "p3"]))
         drive.settle(page)
+        page.locator(".sked-past legend button.groupfold").click()  # (folded at first)
+        drive.settle(page)
         assert [f for f in findings(page, "en") if "sked" in f] == []
         rows = ".boardpane .sked"
         trash = page.locator(".sked-past .sked").nth(2).locator(".xbtn")
@@ -189,3 +191,58 @@ def test_a_past_test_taken_off_asks_twice_sends_its_ids_and_goes_with_nothing_ab
         drive.settle(page)
         after = page.eval_on_selector_all(rows, PLACES)
         assert len(after) == len(tops) - 1 and after[:3] == tops[:3], "the board and the newer past tests stay put"
+
+
+def busy_board() -> dict[str, Any]:
+    """The topic `skeds` with five tests to come, each with a note, and two past tests."""
+    value = skeds_with(["p0", "p1"])
+    first = value["rows"][0]
+    start = datetime.fromisoformat(first["from"])
+    value["rows"] = [
+        {
+            **first,
+            "id": f"00000000001{n}",
+            "call": call,
+            "from": iso(start + timedelta(hours=n)),
+            "to": iso(start + timedelta(hours=n + 1)),
+            "note": "Mercury 10 W, dipole, will listen first",
+        }
+        for n, call in enumerate(("OH2XYZ", "SM5ABC", "DL1ABC", "OH3XYZ", "G4ABC"))
+    ]
+    return value
+
+
+# (the rows of the board, the past tests' title, Plan a test and the chat, where they stand)
+COLUMN = """() => { const box = s => document.querySelector(s)?.getBoundingClientRect();
+    const rows = [...document.querySelectorAll('#pane-skeds .boardpane > .board > .sked')].map(r => r.getBoundingClientRect());
+    const pane = document.querySelector('#pane-skeds .boardpane');
+    return { rows: rows.map(r => [r.top, r.bottom]), past: box('.sked-past')?.bottom, plan: box('.sked-planbar')?.top,
+      chat: box('#pane-skeds fieldset.chat')?.top, lines: box('.chat-lines')?.height, paneScrolls: pane.scrollHeight > pane.clientHeight + 1,
+      wide: [...document.querySelectorAll('#pane-skeds *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1).length }; }"""
+
+
+@pytest.mark.parametrize(("width", "height"), [(390, 844), (360, 780)])
+def test_the_hf_tests_tab_on_a_phone_is_one_column_with_the_board_whole_and_the_chat_reachable_with_the_keyboard_up(
+    browser: Any, demo: Any, faults: Any, width: int, height: int
+) -> None:
+    with drive.opened(browser, demo.url, faults, width=width, height=height, tab="skeds") as page:
+        state(page, "skeds", busy_board())
+        state(page, "chat", {"state": "ok"})
+        state(page, "chat_lines", chat_lines(1, 40))
+        drive.settle(page)
+        assert ours(findings(page, "en")) == [] and [f for f in findings(page, "en") if "sked" in f] == []
+        assert page.locator(".sked-past legend button").get_attribute("aria-expanded") == "false"
+        found = page.evaluate(COLUMN)
+        assert len(found["rows"]) == 5 and all(bottom - top > 40 for top, bottom in found["rows"]), "each row whole"
+        assert found["rows"][-1][1] <= found["past"] <= found["plan"] <= found["chat"], "one column, none over another"
+        assert not found["paneScrolls"], "the tab scrolls as one, the board has no scroll of its own"
+        assert found["lines"] >= 120 and found["wide"] == 0
+        field = page.locator("#pane-skeds fieldset.chat input").first
+        field.click()
+        page.set_viewport_size({"width": width, "height": height - 300})  # (the keyboard up)
+        page.wait_for_timeout(400)  # (the page scrolls the field into view after the keyboard's 300 ms)
+        drive.settle(page)
+        for part in (field, page.locator("#pane-skeds .chat-compose button[type='submit']")):
+            place = part.bounding_box()
+            shown = place is not None and place["y"] >= 84 and place["y"] + place["height"] <= height - 300 + 0.5
+            assert shown, "the input and Send show"

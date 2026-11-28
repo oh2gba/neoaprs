@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The Skeds tab: the board of when stations will be on the air (the project's board, read by the
-// daemon: topic `skeds`), nearest first, and under it the past tests, newest first, in a section of
-// the Bulletins tab's kind. Skeds with the same times and dial are one row (lib/skeds.ts, SkedItem).
+// daemon: topic `skeds`), nearest first, and under it the past tests, newest first, in a group that
+// folds as a Settings group does, folded until opened (kept in this browser). Skeds with the same times and dial are one row (lib/skeds.ts, SkedItem).
 // A row with a sked of ours has Delete (two presses); other rows have Join, which opens Plan a test
 // filled with the same day, times and dial. That column keeps its width and Join is off, not gone,
 // while a post is not possible. A past test has the trash there (two presses), which takes it off this installation's
@@ -13,6 +13,7 @@
 import { computed, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import ChatBox from "@/components/ChatBox.vue";
+import SettingsGroup from "@/components/SettingsGroup.vue";
 import SkedCompose from "@/components/SkedCompose.vue";
 import SkedItem from "@/components/SkedItem.vue";
 import TabHelp from "@/components/TabHelp.vue";
@@ -54,7 +55,7 @@ function join(g: SkedGroup, event: Event): void {
 </script>
 
 <template>
-  <div class="boardwrap">
+  <div class="boardwrap skedswrap">
     <TabHelp :label="t('skeds.about_label')">
       <span class="info-line">{{ t("skeds.about1") }}</span>
       <span class="info-line">{{ t("skeds.about2") }}</span>
@@ -86,8 +87,13 @@ function join(g: SkedGroup, event: Event): void {
           </button>
         </SkedItem>
       </ul>
-      <fieldset v-if="listed || past.length > 0" class="board-section sked-past" :aria-label="t('skeds.past_title')">
-        <legend class="board-title">{{ t("skeds.past_title") }}</legend>
+      <SettingsGroup
+        v-if="listed || past.length > 0"
+        id="skeds-past"
+        class="board-section sked-past"
+        :title="t('skeds.past_title')"
+        closed
+      >
         <p v-if="past.length === 0" class="empty">{{ t("skeds.past_empty") }}</p>
         <ul v-else class="board">
           <SkedItem v-for="g in past" :key="g.key" :group="g">
@@ -100,7 +106,7 @@ function join(g: SkedGroup, event: Event): void {
             />
           </SkedItem>
         </ul>
-      </fieldset>
+      </SettingsGroup>
     </div>
     <div v-if="state !== 'closed'" class="sked-planbar">
       <button type="button" class="btn primary sked-plan" @click="plan">{{ t("skeds.post_label") }}</button>

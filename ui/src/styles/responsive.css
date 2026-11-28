@@ -124,6 +124,22 @@ button,
   padding-right: 10px;
   padding-left: 10px;
 }
+/* the HF tests tab on a phone is one scrolling column (the board, the past tests, Plan a test, the
+   chat): with the chat at its own height under a board that scrolled by itself, the board was a
+   sliver, and nothing with the keyboard up */
+.size-phone .skedswrap {
+  overflow-y: auto;
+}
+.size-phone .skedswrap > * {
+  flex: none;
+}
+.size-phone .skedswrap > .boardpane {
+  overflow: visible;
+}
+/* the chat's field, scrolled into view above the keyboard, brings its counter and Send under it */
+.size-phone .skedswrap .chat-compose .compose-text {
+  scroll-margin-bottom: 56px;
+}
 /* while no call is set its button takes the room of the marks: they get a row of their own under
    it, as wide as the header, so that none is shortened */
 .size-phone .appheader:has(> .nocall) {
