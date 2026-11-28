@@ -161,7 +161,7 @@ def test_every_alsa_name_given_is_defined_in_the_configuration_which_takes_in_th
     conf = soundserver.CONF.read_text(encoding="utf-8")
     assert [line for line in conf.splitlines() if line and not line.startswith("#")][
         0
-    ] == f"<{soundserver.SYSTEM_CONF}>"
+    ] == f"<{soundserver.SYSTEM_CONF.as_posix()}>"
     for via in soundserver.PLUGINS.values():
         assert f"pcm.{via.prefix} {{" in conf
         for n in range(len(soundserver.ALSA_ORDER)):
