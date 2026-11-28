@@ -15,7 +15,7 @@ import type { ChatFreshMessage, ChatLineRow, ChatState, Command } from "@/protoc
 
 const KEY = "chatseen";
 /** The longest a line waits for its answer before Send is offered again; the text stays. */
-export const SAY_WAIT_MS = 20_000;
+const SAY_WAIT_MS = 20_000;
 
 interface ChatParts {
   chatState: Readonly<Ref<ChatState | null>>;
