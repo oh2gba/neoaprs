@@ -145,6 +145,23 @@ def test_a_value_that_is_not_text_is_passed_over(station: FakeRegistry, monkeypa
     assert serialprobe.serialcomm_names() == ["COM6"]
 
 
+def test_only_a_name_of_the_form_com_and_digits_is_taken_from_the_map(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows names its serial ports COM1 to COM256; a stray driver value (a pipe, a file, text) is no port."""
+    odd = {
+        "a": "\\\\.\\pipe\\x",
+        "b": "C:\\file",
+        "c": "x" * 5000,
+        "d": "COM1\x07",
+        "e": "CNCA0",
+        "f": "COM",
+        "g": "COM12345",
+        "h": "LPT1",
+        "i": "COM10",
+    }
+    monkeypatch.setattr(serialprobe, "_registry", lambda: FakeRegistry(odd))
+    assert serialprobe.serialcomm_names() == ["COM10"]
+
+
 def test_a_registry_that_cannot_be_read_is_no_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def missing() -> Any:
         raise ImportError("No module named 'winreg'")

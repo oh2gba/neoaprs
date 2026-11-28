@@ -56,6 +56,10 @@ def _registry() -> Any:
     return importlib.import_module("winreg")
 
 
+# Windows names a serial port COM1 to COM256; any other value of the map is not taken for one.
+PORT_NAME = re.compile(r"COM[1-9][0-9]{0,2}", re.IGNORECASE)
+
+
 def serialcomm_names(registry: Any = None) -> list[str]:
     """Return the port names in Windows' registry map, each once whatever its case; none if it cannot be read."""
     try:
@@ -69,7 +73,7 @@ def serialcomm_names(registry: Any = None) -> list[str]:
                 except OSError:  # no more values
                     break
                 index += 1
-                if isinstance(data, str) and (name := data.strip().rstrip("\0").strip()):
+                if isinstance(data, str) and PORT_NAME.fullmatch(name := data.strip().rstrip("\0").strip()):
                     found.setdefault(name.upper(), name)
     except (ImportError, OSError) as e:
         log.debug("the registry map of serial ports was not read: %s", e)
