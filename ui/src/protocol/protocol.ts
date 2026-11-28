@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand | SatelliteLookCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | ChatSayCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand | SatelliteLookCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | SavedMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage | SatellitesMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | SavedMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | ChatFreshMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage | SatellitesMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -152,6 +152,46 @@ export interface ChannelHours {
   radio: number | null;
   /** the packets heard in each hour from the message's `start`, the oldest first, `hours` of them (an hour with none is 0) */
   counts: number[];
+}
+
+/** Lines of others came into the chat that were not seen before (newer than the newest this installation had seen, a restart too): told to every page that is open, once for the lines of one reading, and only while `messages/chat_alert` is on. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says). */
+export interface ChatFreshMessage {
+  type: "chat_fresh";
+  /** how many lines came */
+  count: number;
+  /** the newest of them */
+  id: number;
+  /** who said the newest */
+  call: string;
+  /** what the newest says */
+  text: string;
+}
+
+/** A line of the chat, checked again by the daemon: one line of text of at most 200 characters, without control or invisible characters, never empty. The page shows it as text, never as markup. */
+export interface ChatLineRow {
+  /** the server's id of the line, which grows by one with each line said */
+  id: number;
+  /** when the server took it, by the server's clock */
+  at: string;
+  /** the call that said it, upper case without an SSID of 0 (`OH2GBA`, `OH2GBA-7`) */
+  call: string;
+  /** what was said */
+  text: string;
+  /** this installation said it, or it is under our call: it never notifies */
+  ours: boolean;
+}
+
+/** Says a line in the chat of the HF tests tab: the daemon posts it to the project's server with our call (the setting `station/call`, as the board has it) and this installation's token, over the Internet and never by radio. Cleaned as the server cleans it (white space becomes single spaces, control and invisible characters go, at most 200 characters). Answered by the topic `chat_lines`, which then has it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter), too many lines were said from here in the last minute (`chat.rate`), the chat takes no lines now (`chat.closed`; the topic `chat` then says `closed`), or the project's server could not be reached or would not take it (`chat.unreachable`). */
+export interface ChatSayCommand {
+  cmd: "chat_say";
+  /** the line; not empty once cleaned */
+  text: string;
+}
+
+/** Where the chat stands. The value of the topic `chat`, told whole as it changes. */
+export interface ChatState {
+  /** `ok`: the chat was read (or has not been tried yet), and a line may be said. `offline`: the project's server could not be read; `chat_lines` are the last ones known. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or said, `chat_lines` is empty. `closed`: the chat takes no lines now (closed by the project, or for this call); the lines are still shown */
+  state: "ok" | "offline" | "off" | "closed";
 }
 
 /** Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked. */
@@ -2327,6 +2367,10 @@ export interface TopicValues {
   qru: QruState;
   /** the sked board (the page calls it HF tests): when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes */
   skeds: SkedsState;
+  /** the chat of the HF tests tab, as the project's server keeps it: whether it can be read and takes lines; told whole as it changes */
+  chat: ChatState;
+  /** the lines of the chat by id (as text), the newest 100 the server keeps, all of them sent with the first `state`: a line read or said is a `set` of its row, one the server no longer has a `del`. Read every 15 seconds while the daemon runs */
+  chat_lines: { [key: string]: ChatLineRow };
   /** asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes */
   general: GeneralState;
 }
