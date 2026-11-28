@@ -87,6 +87,20 @@ function clip(ring: readonly Position[], west: number, east: number): Position[]
 
 const clampLat = (p: Position): Position => [p[0], Math.max(-EDGE_LAT, Math.min(EDGE_LAT, p[1]))];
 
+/** The edge of the footprint: the circle alone, cut where it crosses the antimeridian (no line along a cut). */
+export function footprintEdges(lat: number, lon: number, km: number): Position[][] {
+  if (km <= 0) return [];
+  const ring = Array.from({ length: RING_POINTS }, (_, i) => {
+    const [x, y] = destination(lat, lon, (360 * i) / RING_POINTS, km);
+    return clampLat([wrapLon(x), y]);
+  });
+  const lines = splitLine([...ring, ring[0]]);
+  const last = lines.length > 1 ? lines.pop() : undefined;
+  // the circle starts and ends at one point: the pieces on either side of it are one line
+  if (last) lines[0] = [...last, ...lines[0].slice(1)];
+  return lines;
+}
+
 /**
  * The footprint round a position: the polygons (outer rings, closed) that together cover it inside
  * -180..180. A circle over a pole runs round the world and is closed along the map's edge.
@@ -135,12 +149,14 @@ export interface SatelliteFeatures {
   marks: Collection<{ type: "Point"; coordinates: Position }, { id: number; name: string; open: boolean }>;
   tracks: Collection<{ type: "MultiLineString"; coordinates: Position[][] }, { id: number }>;
   footprints: Collection<{ type: "MultiPolygon"; coordinates: Position[][][] }, { id: number }>;
+  edges: Collection<{ type: "MultiLineString"; coordinates: Position[][] }, { id: number }>;
 }
 
 export const NO_SATELLITES: SatelliteFeatures = {
   marks: { type: "FeatureCollection", features: [] },
   tracks: { type: "FeatureCollection", features: [] },
   footprints: { type: "FeatureCollection", features: [] },
+  edges: { type: "FeatureCollection", features: [] },
 };
 
 /** The track of a card from where the satellite is now. */
@@ -202,6 +218,7 @@ export function satelliteFeatures(
   );
   const tracks: SatelliteFeatures["tracks"]["features"] = [];
   const footprints: SatelliteFeatures["footprints"]["features"] = [];
+  const edges: SatelliteFeatures["edges"]["features"] = [];
   for (const card of cards) {
     const at = here.get(card.id);
     if (!at) continue;
@@ -218,11 +235,17 @@ export function satelliteFeatures(
       },
       properties: { id: card.id },
     });
+    edges.push({
+      type: "Feature",
+      geometry: { type: "MultiLineString", coordinates: footprintEdges(at[1], at[0], card.footprint_km) },
+      properties: { id: card.id },
+    });
   }
   return {
     marks: drawn,
     tracks: { type: "FeatureCollection", features: tracks },
     footprints: { type: "FeatureCollection", features: footprints },
+    edges: { type: "FeatureCollection", features: edges },
   };
 }
 

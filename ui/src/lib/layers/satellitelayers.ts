@@ -14,6 +14,7 @@ export const SATELLITE_LAYER = "satellites";
 const MARKS_SOURCE = "satellites";
 const TRACKS_SOURCE = "satellite-tracks";
 const FOOTPRINTS_SOURCE = "satellite-footprints";
+const EDGES_SOURCE = "satellite-footprint-edges";
 const IMAGE = "satellite-mark";
 const SIDE = MARK_SIZE + 4;
 
@@ -37,6 +38,7 @@ export function addSatelliteLayers(map: MapLibreMap, data: SatelliteFeatures = N
   const ink = paletteColor("--map-satellite", "#00796b");
   const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
   map.addSource(FOOTPRINTS_SOURCE, { type: "geojson", data: data.footprints });
+  map.addSource(EDGES_SOURCE, { type: "geojson", data: data.edges });
   map.addSource(TRACKS_SOURCE, { type: "geojson", data: data.tracks });
   map.addSource(MARKS_SOURCE, { type: "geojson", data: data.marks });
   map.addLayer({
@@ -48,7 +50,7 @@ export function addSatelliteLayers(map: MapLibreMap, data: SatelliteFeatures = N
   map.addLayer({
     id: "satellite-footprint-edges",
     type: "line",
-    source: FOOTPRINTS_SOURCE,
+    source: EDGES_SOURCE,
     paint: { "line-color": ink, "line-width": 1, "line-opacity": 0.6 },
   });
   map.addLayer({
@@ -79,6 +81,7 @@ export function addSatelliteLayers(map: MapLibreMap, data: SatelliteFeatures = N
 
 export function setSatelliteData(map: MapLibreMap, data: SatelliteFeatures): void {
   void map.getSource<GeoJSONSource>(FOOTPRINTS_SOURCE)?.setData(data.footprints);
+  void map.getSource<GeoJSONSource>(EDGES_SOURCE)?.setData(data.edges);
   void map.getSource<GeoJSONSource>(TRACKS_SOURCE)?.setData(data.tracks);
   void map.getSource<GeoJSONSource>(MARKS_SOURCE)?.setData(data.marks);
 }

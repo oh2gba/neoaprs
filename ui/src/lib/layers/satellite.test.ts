@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  footprintEdges,
   footprintRings,
   positionAt,
   satelliteFeatures,
@@ -99,6 +100,31 @@ describe("footprintRings: the horizon circle on the ground", () => {
     expect(Math.min(...rings.flat().map(([, lat]) => lat))).toBeGreaterThan(55);
   });
 
+  it("has its edge drawn along the circle only: no line along the antimeridian or the map's edge", () => {
+    for (const [lat, lon] of [
+      [45, 10],
+      [20, 178],
+      [-15, -179],
+      [80, 30],
+      [-82, 120],
+    ]) {
+      const lines = footprintEdges(lat, lon, 2250);
+      const points = lines.flat();
+      expect(points.every(([x, y]) => x >= -180 && x <= 180 && Math.abs(y) < 85.0511)).toBe(true);
+      for (const line of lines) {
+        for (let i = 1; i < line.length; i++) {
+          const [a, b] = [line[i - 1], line[i]];
+          expect(Math.abs(a[0]) === 180 && Math.abs(b[0]) === 180, `${lat},${lon}`).toBe(false);
+          expect(Math.abs(b[0] - a[0])).toBeLessThan(10);
+        }
+      }
+    }
+    const whole = footprintEdges(45, 10, 2250);
+    expect(whole).toHaveLength(1);
+    expect(whole[0][0]).toEqual(whole[0].at(-1));
+    expect(footprintEdges(20, 178, 2250)).toHaveLength(2);
+  });
+
   it("wraps a longitude into -180..180", () => {
     expect([wrapLon(190), wrapLon(-190), wrapLon(180), wrapLon(0)]).toEqual([-170, 170, -180, 0]);
   });
@@ -113,6 +139,7 @@ describe("satelliteFeatures: what the map draws", () => {
     ]);
     expect(drawn.tracks.features.map((f) => f.properties.id)).toEqual([25544]);
     expect(drawn.footprints.features.map((f) => f.properties.id)).toEqual([25544]);
+    expect(drawn.edges.features.map((f) => f.properties.id)).toEqual([25544]);
     // the track begins where the mark is now and leaves the points behind it out
     expect(drawn.tracks.features[0]?.geometry.coordinates[0]).toEqual([
       [11.5, 45.7],
