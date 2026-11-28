@@ -8,8 +8,10 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { PICTURE_NAMES } from "@/help/names";
 import { PICTURES } from "@/help/pictures";
-import { t } from "@/i18n";
+import { CALLS } from "@/help/calls";
+import { setLocale, t } from "@/i18n";
 import { en } from "@/i18n/en";
+import { LOCALES } from "@/i18n/locales";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STYLES = join(HERE, "..", "styles");
@@ -45,6 +47,34 @@ describe("the pictures of the (i) notes", () => {
       expect(sheets.length > 0 || name === "accesskey" || name === "logs", name).toBe(true);
       expect(sheets.every((href) => /^symbols\/(primary|alternate|overlay)\.png$/.test(href ?? ""))).toBe(true);
       expect(svg.findAll("path, rect, circle").length).toBeGreaterThan(2);
+    }
+  });
+
+  it("draw the gated picture's words inside the frame in every language, and no call under the cloud", () => {
+    // A label is 10 px of the monospace font: 6 px a character, 10 px a wide one (CJK).
+    const width = (text: string): number => [...text].reduce((sum, c) => sum + (c.charCodeAt(0) > 0x2e80 ? 10 : 6), 0);
+    // The cloud's own shape (M196 98 ...) reaches from y 57 down to y 98 and from x 18 to x 72 once moved.
+    const CLOUD_TOP = 57;
+    try {
+      for (const { code } of LOCALES) {
+        setLocale(code);
+        const svg = mount(PICTURES.gated).find("svg.hp");
+        const cloudY = Number(
+          /translate\(-?\d+ (\d+)\)/.exec(svg.find("g[transform]").attributes("transform") ?? "")?.[1],
+        );
+        for (const label of svg.findAll("text.hp-label")) {
+          const x = Number(label.attributes("x"));
+          const y = Number(label.attributes("y"));
+          const w = width(label.text());
+          const left = label.classes("hp-label-start") ? x : x - w / 2;
+          expect([code, label.text(), left >= 0 && left + w <= 280 && y <= 150]).toEqual([code, label.text(), true]);
+          const inCloud = label.text() === CALLS.aprsIs;
+          const underCloud = left < 72 && left + w > 18 && y + 2 > cloudY + CLOUD_TOP;
+          expect([label.text(), !inCloud && underCloud && y < cloudY + 98]).toEqual([label.text(), false]);
+        }
+      }
+    } finally {
+      setLocale("en");
     }
   });
 
