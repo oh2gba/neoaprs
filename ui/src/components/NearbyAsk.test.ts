@@ -470,6 +470,10 @@ describe("the Send on of Ask around", () => {
     expect(cssRule(".ask-row")).toMatch(/flex-wrap:\s*wrap/);
     expect(cssRule(".ask-line")).toMatch(/text-overflow:\s*ellipsis/);
   });
+
+  it("has a question list as wide as its longest entry whichever is chosen, so no language's entry is cut", () => {
+    expect(cssRule(".ask-kind")).toMatch(/flex:\s*0 1 auto/);
+  });
 });
 
 describe("Ask around in flight", () => {

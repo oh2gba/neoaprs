@@ -31,8 +31,9 @@
   gap: 6px;
   margin: 2px 0 2px;
 }
+/* the question: as wide as its longest entry whichever is chosen, Ask beside it or under it */
 .ask-kind {
-  flex: 0 1 14em;
+  flex: 0 1 auto;
   min-width: 0;
 }
 .ask-line {
