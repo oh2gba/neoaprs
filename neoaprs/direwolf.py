@@ -29,6 +29,24 @@ LEVEL_NOW_MS = 100  # `-R`: "RXLEVEL 0 = N"
 
 # Flags after the last frame; on Windows the key drops by Direwolf's clock (audio_win.c).
 TXTAIL_MS = 200
+# Flags before the first frame when a rig program keys the radio (Direwolf's own is 300 ms): its command
+# and the rig's relay come first (docs/direwolf.md)
+RIG_TXDELAY_MS = 400
+# the largest frame: 8 digipeaters, 256 bytes of information, the FCS, one stuffed bit in five
+FRAME_BITS_MAX = (7 * 10 + 2 + 256 + 2) * 8 * 6 // 5
+# a key-down through a rig program lasts at most its flags, frames and tail, and this
+RIG_MARGIN_SEC = 1.0
+
+
+def frame_sec(baud: int) -> float:
+    """Return the time of the largest frame on the air at `baud`."""
+    return FRAME_BITS_MAX / baud
+
+
+def keyed_limit(baud: int, frames: int) -> float:
+    """Return how long a key-down of `frames` frames may last when a rig program keys the radio."""
+    return (RIG_TXDELAY_MS + TXTAIL_MS) / 1000 + frames * frame_sec(baud) + RIG_MARGIN_SEC
+
 
 # Receive level (direwolf.c:1329-1349): about 50 typical, over 110 too high.
 LEVEL_MAX = 200
@@ -86,8 +104,8 @@ def gain_percent(gain_db: int) -> int:
 
 
 def ptt_line(keying: Keying) -> str:
-    """Return the PTT line ("" for VOX); raise ValueError for a device that could inject a line."""
-    if keying.kind == "vox":
+    """Return the PTT line ("" for VOX and a rig program); raise ValueError for a device that could inject a line."""
+    if keying.kind == "vox" or keying.rig:
         return ""
     if keying.kind == "cm108":
         return "PTT CM108\n"
@@ -132,6 +150,7 @@ def conf_text(device: str, keying: Keying, kiss_port: int, baud: int = 1200) -> 
         "CHANNEL 0\n"
         f"{_MODEM_LINES[baud]}\n"
         f"TXTAIL {TXTAIL_MS // 10}\n"
+        f"{f'TXDELAY {RIG_TXDELAY_MS // 10}\n' if keying.rig else ''}"
         f"{ptt_line(keying)}"
         "KISSPORT 0\n"
         f"KISSPORT {kiss_port}\n"

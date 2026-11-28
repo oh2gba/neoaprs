@@ -103,7 +103,7 @@ Then **Port** and, only when the TNC's manual says so, **Speed** (a NinoTNC need
 
 - **Sound card**, the interface's card, proposed for you. When no card could be the radio's, the radio waits for one rather than play to the computer's speakers. One sound card is one radio's: a card a Mercury radio holds is refused, and the other way round.
 - On Linux with PipeWire or PulseAudio the sound is two choices, **Sound from the radio** and **Sound to the radio**. Each lists the sound cards and the desktop's own sound devices by the names its sound settings show, devices you made yourself too. A device of more than two channels is also offered one channel at a time (*Rubix44, channel 1*): choose the radio's, and nothing else on the device is mixed in. When a chosen device is gone the radio waits, as for a card that is not there, and never plays to the loudspeakers.
-- **Keying**, proposed from what is plugged in: the CM108 pin of an AIOC, RTS of the interface's own serial port (a Digirig), else VOX. On Linux the lines of the serial ports that sit on one USB hub with the sound card come first in its list. **Test** beside it keys the radio for a second.
+- **Keying**, proposed from what is plugged in: the CM108 pin of an AIOC, RTS of the interface's own serial port (a Digirig), else VOX. On Linux the lines of the serial ports that sit on one USB hub with the sound card come first in its list. At the end of the list are *flrig* and *rigctld*, for a radio keyed by its own commands ([below](#keying-through-flrig-or-rigctld)). **Test** beside it keys the radio for a second.
 - **Tune**, ten seconds of Direwolf's two tones, for the audio level or finding the radio's sound card, and **Transmit level**: where the sound card has a playback level of its own, a slider for it, from 0 to 100 %; else Direwolf's own level, from -20 to 0 dB with **-** and **+**. A radio whose Direwolf level you moved off 0 dB keeps its **-** and **+** until it is back at 0 dB and you open the box again; then the slider is there. Until the radio has run once since NeoAPRS started, the row shows neither.
 - **Receive level**, the level of the audio that arrives now, on a bar with its good range in green: a packet should reach the green, and with the radio off the bar is empty. While you look at it the bar follows the audio ten times a second, so you see at once what choosing another sound card, moving a plug or turning the radio's volume does. Where the sound card has a capture level of its own, its slider stands before the bar: move it and watch the bar.
 
@@ -111,7 +111,7 @@ The two sliders are the sound card's own levels, the ones the desktop's sound se
 
 A slider changes nothing else: Direwolf is not restarted. The card's own switches, a mute or an automatic gain, stay as they are; with the automatic gain on, the receive slider does less. Several presses of **-** and **+** in a row make the radio stop listening once, when you stop pressing.
 
-Each transmission is the same for every keying: from the moment the radio is keyed, 300 ms of flags (the steady sound before the packet, in which the radio comes up to power), the packet, then 200 ms of flags before the radio is let go.
+Each transmission is the same for every keying: from the moment the radio is keyed, 300 ms of flags (the steady sound before the packet, in which the radio comes up to power), the packet, then 200 ms of flags before the radio is let go. Through flrig or rigctld the flags last 400 ms, since the command to the radio comes first.
 
 **On HF** (*Sound card, 300 (HF)*) Direwolf runs its 300 baud modem, the tones 1600 and 1800 Hz with seven decoders 30 Hz apart, so that a station up to about 100 Hz off the dial is still decoded; the status line says *AFSK300*. A packet takes seconds on the channel there, so the radio is held as a Mercury radio is: the beacon every 30 minutes at the most often, a random pause of up to 5 minutes before what goes by the clock, a pause before each retry of a message, no fill-in digipeater and no SmartBeaconing.
 
@@ -258,7 +258,7 @@ Each box of a radio that is on has one line, the radio status, with an arrow in 
 The box of a Mercury radio has, behind the arrow of its status line, no port, speed or host:
 
 - **Sound card** is the radio's, chosen among the cards the modem finds (hold the pointer over one for its id); **Refresh** reads the list again. On Linux with PipeWire or PulseAudio it is two choices, the sound from and to the radio, as in the Sound card radio's box. NeoAPRS proposes the one USB sound card that records and plays, else the system's default device, and stores it when none is set. A sound card another radio holds is refused.
-- **Keying** is how the radio is switched to transmit: *The radio keys itself (VOX)*, *CM108 sound chip*, or RTS or DTR of a serial port, on Linux those of the ports on one USB hub with the sound card first. NeoAPRS proposes RTS of the one USB serial port of an interface when the sound card is a USB one, else VOX.
+- **Keying** is how the radio is switched to transmit: *The radio keys itself (VOX)*, *CM108 sound chip*, RTS or DTR of a serial port, on Linux those of the ports on one USB hub with the sound card first, or *flrig* or *rigctld* ([below](#keying-through-flrig-or-rigctld)). NeoAPRS proposes RTS of the one USB serial port of an interface when the sound card is a USB one, else VOX.
 - **Test**, beside Keying, keys the radio for a second; the status line says *Keyed*. With VOX it sends the tuning tone for that second.
 - **Tune** keys the radio and sends a steady tone for ten seconds, for an antenna tuner, the audio level or finding the radio's sound card; a second press, on *Stop*, ends it. No frame of yours goes out under the tone. Refused while a frame is on the air or the channel is busy.
 - **Transmit level** is how strong the modem's audio is to the radio, from -20 to 20 dB. Press **-** or **+** while Tune runs and watch the radio's ALC: it should hardly move. **Peak** turns orange at 0 dBFS, where the sound card clips. Where the sound card has a playback level of its own the row is its slider instead, from 0 to 100 %, as in the Sound card radio's box; a level you moved off 0 dB keeps its **-** and **+** until it is back at 0 dB and you open the box again, and until the radio has run once since NeoAPRS started the row shows neither.
@@ -291,6 +291,24 @@ Tick **Enable** in the box **PSK Reporter** at the end of the Mercury radio's bo
 - A station is reported once every five minutes at most on a band, and the reports go out together every five minutes or so.
 - It works while the station is RX only, and without either tick of Internet (APRS-IS).
 - Untick it, or leave the frequency empty, and nothing is reported.
+
+## Keying through flrig or rigctld
+
+Some stations share the radio's CAT port among several programs: flrig holds the radio, and the others switch it to transmit by a command through flrig, not by a line of a serial port. NeoAPRS can do the same, for a Sound card radio of either kind, Packet or Mercury.
+
+- Choose **Keying** *flrig* for flrig's own control, or *rigctld* for Hamlib's rigctld, which needs no flrig: start it yourself on the radio's CAT port, a real one or a virtual one, for example `rigctld -m MODEL -r COM8`, where MODEL is the number of your radio in the list that `rigctl -l` prints.
+- **Address**, under Keying, is where the program listens. Left empty it is this computer on the program's own port; type another `host:port` for a program elsewhere or on another port.
+- You run flrig or rigctld yourself, before or after NeoAPRS: NeoAPRS does not start it. NeoAPRS keys nothing else and opens no serial port for the keying, so it takes no port away from your other programs.
+- **Test** keys the radio for a second through the program: the radio should go to transmit and come back.
+
+A Mercury frame is about 4.1 s on the air this way instead of 3.8 s: the modem waits a little longer before its audio, so that the radio is transmitting when the frame begins.
+
+The radio is never left keyed by NeoAPRS: the radio is let go at the end of each transmission, when the radio or NeoAPRS stops, when the modem stops, and after the longest a transmission can take, whatever the modem says. Two lines tell what is in the way:
+
+- *The rig program does not answer: frames wait*: flrig or rigctld is not running, is at another address, has no radio connected, or did not confirm that it let the radio go. Nothing is sent meanwhile; NeoAPRS keeps asking and goes on by itself once it answers. Check the radio's transmit indicator if the line stays.
+- *The radio stayed keyed too long and was let go*: a transmission outlasted its time and NeoAPRS let the radio go. It goes away after the next transmission that ends by itself.
+
+`neoaprs doctor` says for each such radio whether its program answers.
 
 ## The TNC type
 

@@ -1,8 +1,8 @@
 // The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a
 // choice among what the daemon found (`sound_cards` of the ports message), and the keying as
 // one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound
-// chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how a radio's
-// `keying` is written.
+// chip, the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), or a rig program the
+// operator runs (`flrig`, `rigctld:10.0.0.2:4532`), which is how a radio's `keying` is written.
 import { t } from "@/i18n";
 import { heldChoice, type HolderOf } from "@/lib/portchoice";
 import type { Choice } from "@/lib/settingchoices";
@@ -129,5 +129,28 @@ export function keyingChoices(ports: PortsMessage | null, current = "", group: s
   const lines = devices.flatMap((d) =>
     LINES.map((line) => ({ value: `${line}:${d}`, label: t(`settings.keying.${line}`, { port: d }) })),
   );
-  return [...plain, ...lines];
+  const rigs = LIMITS.mercury.rigKinds.map((rig) => ({
+    value: rigKind(current) === rig ? current : rig,
+    label: t(`settings.keying.${rig}`),
+  }));
+  return [...plain, ...lines, ...rigs];
 }
+
+/** The rig program a keying names (`flrig`, `rigctld`), "" for any other keying. */
+export function rigKind(keying: string): string {
+  const kind = (keying.split(":", 1)[0] ?? "").trim().toLowerCase();
+  return (LIMITS.mercury.rigKinds as readonly string[]).includes(kind) ? kind : "";
+}
+
+/** The address after a rig program's name, "" for the program's own on this computer. */
+export const rigAddress = (keying: string): string => {
+  const at = keying.indexOf(":");
+  return rigKind(keying) === "" || at < 0 ? "" : keying.slice(at + 1).trim();
+};
+
+/** The keying of a rig program with the address typed; an empty one leaves the program's own. */
+export const withAddress = (kind: string, address: string): string =>
+  address.trim() === "" ? kind : `${kind}:${address.trim()}`;
+
+/** Where the rig program listens unless an address is typed. */
+export const rigDefault = (kind: string): string => (LIMITS.mercury.rigAddress as Record<string, string>)[kind] ?? "";

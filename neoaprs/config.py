@@ -153,7 +153,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("hf_profile", "hf/profile", hf_profile),
     # As `mercury -z` names it (plughw:1,0).
     Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),
-    # vox, cm108, rts:PORT or dtr:PORT.
+    # vox, cm108, rts:PORT, dtr:PORT, flrig or rigctld.
     Setting("mercury_keying", "mercury/keying", mercury_keying),
     # dB; 0 is the modem's own level (frames peak at -6 dBFS).
     Setting("mercury_tx_gain_db", "mercury/tx_gain_db", int_in(*RANGES["mercury/tx_gain_db"])),

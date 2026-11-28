@@ -7,7 +7,15 @@ import logging
 import math
 import time
 
-from .mercury import BUSY_HOLD_MAX_SEC, FRAME_SEC, ControlEvent
+from .mercury import (
+    BUSY_HOLD_MAX_SEC,
+    FRAME_SEC,
+    KEY_TEST_SEC,
+    RIG_FRAME_SEC,
+    RIG_MARGIN_SEC,
+    TUNE_SEC,
+    ControlEvent,
+)
 from .reading import Pending, Reading
 from .signal import Signal
 from .coded import Reason
@@ -27,6 +35,16 @@ class Channel:
     changed: Signal[[]]
     frames_keyed: int
 
+    def _rig_ptt(self, on: bool, limit_sec: float) -> None:
+        raise NotImplementedError
+
+    def _rig_release(self) -> None:
+        raise NotImplementedError
+
+    def _rig_limit(self) -> float:
+        """Return how long a key-down through a rig program may last: its frame, tone or test, and a margin."""
+        return {"tune": TUNE_SEC, "key": KEY_TEST_SEC}.get(self.test, RIG_FRAME_SEC) + RIG_MARGIN_SEC
+
     def _init_channel(self) -> None:
         self.keyed = False
         self.busy = False
@@ -41,7 +59,8 @@ class Channel:
         self._told_long: set[str] = set()
 
     def _clear_channel(self) -> None:
-        """Forget the state the modem reported."""
+        """Forget the state the modem reported; the rig is let go."""
+        self._rig_release()
         self.keyed = self.busy = self._mercury_busy = False
         self._auto_at = 0.0
         self._reading.clear()
@@ -73,6 +92,7 @@ class Channel:
             what = {"tune": "the tune tone", "key": "the keying test"}.get(self.test, f"frame {self.frames_keyed}")
             log.info("Mercury: the radio was keyed for %.1f s (%s)", now - self._keyed_since, what)
         self.keyed, self._keyed_at = on, now
+        self._rig_ptt(on, self._rig_limit())
 
     def _on_busy(self, on: bool, now: float) -> None:
         """Record Mercury's detector state, used while the spectrum is not read."""

@@ -17,7 +17,7 @@ from neoaprs.tncprofile import MERCURY, MERCURY_OWN
 
 # as `mercury -z` names it; empty: the daemon's own choice
 SOUND_CARD = Field("sound_card", "text", text_of(200), "", text="radio.field.sound_card", claims="sound_card")
-# vox, cm108, rts:PORT, dtr:PORT; empty: the daemon's own choice
+# vox, cm108, rts:PORT, dtr:PORT, flrig[:HOST:PORT], rigctld[:HOST:PORT]; empty: the daemon's own choice
 KEYING = Field("keying", "text", mercury_keying, "", text="radio.field.keying", claims="keying")
 TX_GAIN = Field(
     "tx_gain_db",

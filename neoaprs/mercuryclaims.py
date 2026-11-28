@@ -14,7 +14,7 @@ from .claims import Claim, Claims
 from .mercurycards import stable_alsa_id
 from .mercuryhelper import Command, alsa_card_names, expected_program, free_ports, pair_free
 from .mercurystale import end_stale
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PTT_WITH_DEVICE, Keying
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO
 from .radiotype import RadioId, ResourceKind
 from .signal import Signal
@@ -35,7 +35,7 @@ def keying_claim(keying: Keying, device: str | None, windows: bool = sys.platfor
 
     On Windows Direwolf keys the last of several CM108 chips, so one radio at a time may use it.
     """
-    if device:
+    if device and keying.kind in PTT_WITH_DEVICE:
         return device
     return "cm108" if keying.kind == "cm108" and windows else None
 

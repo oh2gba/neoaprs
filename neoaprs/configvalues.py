@@ -144,7 +144,7 @@ def hf_profile(text: str) -> str:
 
 
 def mercury_keying(text: str) -> str:
-    """Return how the modem keys the radio (`vox`, `cm108`, `rts:PORT`, `dtr:PORT`); empty: auto."""
+    """Return how the modem keys the radio (`vox`, `cm108`, `rts:PORT`, `dtr:PORT`, `flrig`, `rigctld`); empty: auto."""
     return keying_of(text).text if text.strip() else ""
 
 

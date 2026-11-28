@@ -345,6 +345,8 @@ describe("the Mercury radio's box in the Radio group", () => {
       "cm108",
       "rts:/dev/ttyUSB0",
       "dtr:/dev/ttyUSB0",
+      "flrig",
+      "rigctld",
     ]);
     expect(keying.element.value).toBe("vox");
   });

@@ -515,6 +515,8 @@ def limits() -> dict[str, Any]:
             "maxFrame": mercury.MAX_PAYLOAD,
             "frameSec": mercury.FRAME_SEC,
             "pttKinds": list(mercury.PTT_KINDS),
+            "rigKinds": list(mercury.RIG_KINDS),
+            "rigAddress": {kind: f"{host}:{port}" for kind, (host, port) in mercury.RIG_ADDRESS.items()},
         },
         "soundCard": {
             "version": direwolf.VERSION,

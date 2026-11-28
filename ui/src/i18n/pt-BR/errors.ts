@@ -128,7 +128,8 @@ export const errors: Record<keyof typeof source, Message> = {
     "não é uma chave de acesso (três grupos de quatro dígitos e letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tem caracteres que não são ASCII imprimível",
   "error.setting.not_boolean": "'{value}' não é true nem false",
-  "error.setting.not_keying": "'{value}' não é um modo de chavear o rádio: vox, cm108, rts:PORTA ou dtr:PORTA",
+  "error.setting.not_keying":
+    "'{value}' não é um modo de chavear o rádio: vox, cm108, rts:PORTA, dtr:PORTA, flrig ou rigctld",
   "error.setting.not_among": "{value} não é um de {choices}",
   "error.setting.not_direction": "'{value}' não é omni nem um de N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -194,6 +195,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "o TNC está no modo de comando (o KISS ON é enviado de novo)",
   "error.radio.checking": "o TNC está verificando se o rádio está lá",
   "error.radio.channel_busy": "o canal está ocupado",
+  "error.radio.rig_silent": "o programa do rádio não responde",
   "error.qru.form":
     "'{request}' não é um pedido ao QRU: INFO, NEXT ou um grupo de até {max} letras e dígitos, e uma distância de 1 a {km}",
   "error.object.unknown": "não há objeto ou item '{name}' nosso",

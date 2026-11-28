@@ -162,12 +162,16 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.tip_label": "Tietoa avainnuksesta",
   "settings.keying.tip1":
     "Miten radio kytketään lähetykselle: itsestään (VOX tai sen datatila), CM108-äänipiirillä tai sarjaportin linjalla.",
-  "settings.keying.tip2": "Digirig avaintaa sarjaporttinsa RTS-linjalla.",
+  "settings.keying.tip2":
+    "Digirig avaintaa sarjaporttinsa RTS-linjalla. flrig tai rigctld avaintaa komennoilla; käynnistät ohjelman itse.",
   "settings.keying.vox": "Radio avaintaa itse (VOX)",
   "settings.keying.cm108": "CM108-äänipiiri",
   "settings.keying.rts": "RTS portissa {port}",
   "settings.keying.dtr": "DTR portissa {port}",
   "settings.keying.test": "Testaa",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Osoite",
   "settings.hf_frequencies.label": "Ehdotetut taajuudet",
   "settings.hf_frequencies.show": "Näytä",
   "settings.hf_frequencies.what":
@@ -503,6 +507,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.incoming_port": "{port} on tietokoneen saapuva Bluetooth-portti: valitse laitteen toinen portti",
   "settings.tnc.write_timeout": "Portti ei ota vastaan dataa: {seconds} sekunnissa ei mennyt mitään läpi",
   "settings.tnc.hf.receive_deaf": "Mercury ei kuule mitään (vastaanotto on jumissa): se käynnistetään pian uudelleen",
+  "settings.tnc.hf.rig_silent": "Radion ohjausohjelma ei vastaa: kehykset odottavat",
+  "settings.tnc.hf.rig_keyed_long": "Radio oli avainnettuna liian kauan ja se vapautettiin",
   "settings.tnc.hf.receive_stalled":
     "Mercury ei kuule mitään uudelleenkäynnistystenkään jälkeen: kytke radio pois ja takaisin päälle",
   "settings.tnc.hf.not_installed": "Tämä asennus ei sisällä tämän radion modeemia",

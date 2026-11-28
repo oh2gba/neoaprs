@@ -129,7 +129,8 @@ export const errors = {
     "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "it has characters that are not printable ASCII",
   "error.setting.not_boolean": "'{value}' is not true or false",
-  "error.setting.not_keying": "'{value}' is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT",
+  "error.setting.not_keying":
+    "'{value}' is not a way of keying the radio: vox, cm108, rts:PORT, dtr:PORT, flrig or rigctld",
   "error.setting.not_among": "{value} is not one of {choices}",
   "error.setting.not_direction": "'{value}' is not omni or one of N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -192,6 +193,7 @@ export const errors = {
   "error.radio.command_mode": "the TNC is in command mode (KISS ON is sent again)",
   "error.radio.checking": "the TNC is checking that the radio is there",
   "error.radio.channel_busy": "the channel is busy",
+  "error.radio.rig_silent": "the rig program does not answer",
   "error.qru.form":
     "'{request}' is no request to QRU: INFO, NEXT or a group of up to {max} letters and digits, and a distance of 1 to {km}",
   "error.object.unknown": "there is no object or item '{name}' of ours",

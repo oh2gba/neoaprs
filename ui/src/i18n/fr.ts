@@ -247,7 +247,8 @@ export const fr: Catalogue = {
     "ce n'est pas une clé d'accès (trois groupes de quatre chiffres et lettres, comme k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "il contient des caractères qui ne sont pas de l'ASCII imprimable",
   "error.setting.not_boolean": "« {value} » n'est ni true ni false",
-  "error.setting.not_keying": "« {value} » n'est pas une façon de commuter la radio : vox, cm108, rts:PORT ou dtr:PORT",
+  "error.setting.not_keying":
+    "« {value} » n'est pas une façon de commuter la radio : vox, cm108, rts:PORT, dtr:PORT, flrig ou rigctld",
   "error.setting.not_among": "{value} n'est pas l'une des valeurs {choices}",
   "error.setting.not_direction": "« {value} » n'est ni omni ni l'un de N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -315,6 +316,7 @@ export const fr: Catalogue = {
   "error.radio.command_mode": "le TNC est en mode commande (KISS ON est renvoyé)",
   "error.radio.checking": "le TNC vérifie que la radio est là",
   "error.radio.channel_busy": "le canal est occupé",
+  "error.radio.rig_silent": "le programme de la radio ne répond pas",
   "error.qru.form":
     "« {request} » n'est pas une demande à QRU : INFO, NEXT ou un groupe d'au plus {max} lettres et chiffres, et une distance de 1 à {km}",
   "error.object.unknown": "il n'y a pas d'objet ou d'item « {name} » de notre part",
@@ -1574,12 +1576,16 @@ export const fr: Catalogue = {
   "settings.keying.tip_label": "À propos de la commutation",
   "settings.keying.tip1":
     "Comment la radio passe en émission : d'elle-même (VOX ou son mode données), par une puce son CM108 ou par une ligne d'un port série.",
-  "settings.keying.tip2": "Un Digirig commute par le RTS de son port série.",
+  "settings.keying.tip2":
+    "Un Digirig commute par le RTS de son port série. flrig ou rigctld commutent par commande ; vous lancez ce programme vous-même.",
   "settings.keying.vox": "La radio commute d'elle-même (VOX)",
   "settings.keying.cm108": "Puce son CM108",
   "settings.keying.rts": "RTS sur {port}",
   "settings.keying.dtr": "DTR sur {port}",
   "settings.keying.test": "Test",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Adresse",
   "settings.hf_frequencies.label": "Fréquences suggérées",
   "settings.hf_frequencies.show": "Afficher",
   "settings.hf_frequencies.what":
@@ -1923,6 +1929,8 @@ export const fr: Catalogue = {
     "{port} est le port Bluetooth entrant de l'ordinateur : choisissez l'autre port de l'appareil",
   "settings.tnc.write_timeout": "Le port n'accepte pas de données : rien n'est passé en {seconds} s",
   "settings.tnc.hf.receive_deaf": "Mercury n'entend rien (sa réception est bloquée) : il est bientôt redémarré",
+  "settings.tnc.hf.rig_silent": "Le programme de la radio ne répond pas : les trames attendent",
+  "settings.tnc.hf.rig_keyed_long": "La radio est restée en émission trop longtemps et a été relâchée",
   "settings.tnc.hf.receive_stalled":
     "Mercury n'entend rien, même après des redémarrages : éteignez puis rallumez la radio",
   "settings.tnc.hf.not_installed": "Cette installation ne contient pas le modem de cette radio",

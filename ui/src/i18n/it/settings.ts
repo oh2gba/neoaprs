@@ -164,12 +164,16 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.tip_label": "Informazioni sulla commutazione",
   "settings.keying.tip1":
     "Come la radio passa in trasmissione: da sola (VOX o il suo modo dati), con un chip audio CM108 o con una linea di una porta seriale.",
-  "settings.keying.tip2": "Un Digirig commuta con l’RTS della sua porta seriale.",
+  "settings.keying.tip2":
+    "Un Digirig commuta con l’RTS della sua porta seriale. flrig o rigctld commutano via comando; quel programma lo avvia lei.",
   "settings.keying.vox": "La radio commuta da sola (VOX)",
   "settings.keying.cm108": "Chip audio CM108",
   "settings.keying.rts": "RTS su {port}",
   "settings.keying.dtr": "DTR su {port}",
   "settings.keying.test": "Prova",
+  "settings.keying.flrig": "flrig",
+  "settings.keying.rigctld": "rigctld",
+  "settings.keying.address": "Indirizzo",
   "settings.hf_frequencies.label": "Frequenze suggerite",
   "settings.hf_frequencies.show": "Mostra",
   "settings.hf_frequencies.what":
@@ -512,6 +516,8 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     "{port} è la porta Bluetooth in entrata del computer: scegli l’altra porta del dispositivo",
   "settings.tnc.write_timeout": "La porta non accetta dati: niente è passato in {seconds} s",
   "settings.tnc.hf.receive_deaf": "Mercury non sente nulla (la ricezione si è bloccata): viene riavviato a breve",
+  "settings.tnc.hf.rig_silent": "Il programma della radio non risponde: i pacchetti attendono",
+  "settings.tnc.hf.rig_keyed_long": "La radio è rimasta in trasmissione troppo a lungo ed è stata rilasciata",
   "settings.tnc.hf.receive_stalled": "Mercury non sente nulla, nemmeno dopo i riavvii: spegni e riaccendi la radio",
   "settings.tnc.hf.not_installed": "Questa installazione non include il modem di questa radio",
   "settings.tnc.hf.stopped": "Non in esecuzione",

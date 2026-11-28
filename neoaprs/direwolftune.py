@@ -56,6 +56,9 @@ class Tuning:
     def _program_to_run(self) -> Command | None:
         raise NotImplementedError
 
+    def _rig_holds(self) -> Reason | str:
+        raise NotImplementedError
+
     async def _run(self, program: Command, test: str = "") -> None:
         raise NotImplementedError
 
@@ -121,8 +124,8 @@ class Tuning:
         """Return why no frame may go now (a calibration run has the radio), or ""."""
         return TRANSMITTING if self.test else ""
 
-    def frame_hold(self) -> str:
-        return self.hold()
+    def frame_hold(self) -> Reason | str:
+        return self._rig_holds() or self.hold()
 
     def refuses_line(self) -> str:
         """Direwolf's line is opened whenever it listens."""

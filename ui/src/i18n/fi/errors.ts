@@ -129,7 +129,8 @@ export const errors: Record<keyof typeof source, Message> = {
     "se ei ole pääsyavain (kolme neljän numeron ja kirjaimen ryhmää, kuten k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "siinä on merkkejä, jotka eivät ole tulostettavaa ASCII-merkkiä",
   "error.setting.not_boolean": "'{value}' ei ole true eikä false",
-  "error.setting.not_keying": "'{value}' ei ole tapa avaintaa radiota: vox, cm108, rts:PORTTI tai dtr:PORTTI",
+  "error.setting.not_keying":
+    "'{value}' ei ole tapa avaintaa radiota: vox, cm108, rts:PORTTI, dtr:PORTTI, flrig tai rigctld",
   "error.setting.not_among": "{value} ei ole mikään näistä: {choices}",
   "error.setting.not_direction": "'{value}' ei ole omni eikä mikään näistä: N NE E SE S SW W NW",
   "error.setting.not_globs":
@@ -193,6 +194,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.command_mode": "TNC on komentotilassa (KISS ON lähetetään uudelleen)",
   "error.radio.checking": "TNC tarkistaa, että radio on paikalla",
   "error.radio.channel_busy": "kanava on varattu",
+  "error.radio.rig_silent": "radion ohjausohjelma ei vastaa",
   "error.qru.form":
     "'{request}' ei ole QRU-pyyntö: INFO, NEXT tai enintään {max} kirjaimen ja numeron ryhmä sekä etäisyys 1–{km}",
   "error.object.unknown": "meillä ei ole kohdetta tai itemiä '{name}'",

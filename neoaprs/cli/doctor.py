@@ -2,7 +2,7 @@
 
 Each line is marked ok, warn or fail, with the fix under every line that is not ok. It covers:
 the Python, the data folder, the database and its version, the call, each radio (its type and how
-it is reached, or that it is off), the serial ports the system lists (on Linux also the group that
+it is reached, or that it is off; whether the rig program it is keyed through answers), the serial ports the system lists (on Linux also the group that
 owns them, brltty and ModemManager, which grab USB serial adapters, and Firefox as a Flatpak on
 KDE, whose web pop-ups can go missing), a running daemon and its page, the base map and whether
 the service is set up. Nothing is changed, written or sent: the database is opened read-only and
@@ -25,9 +25,12 @@ from neoaprs.configradios import radios_from_rows
 from neoaprs.db import READ_WAIT_MS, Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.instancelock import is_file
+from neoaprs.mercury import Keying, keying_of
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.paths import default_data_dir
 from neoaprs.radiospec import RadioSpec, log_name
+from neoaprs.radiotypes import kind_field
+from neoaprs.rigptt import RigRefused, ptt_for
 from neoaprs.serialboards import board_kind
 from neoaprs.serialholders import held_by
 from neoaprs.bthenum import plain
@@ -237,6 +240,47 @@ def check_radios(
     return found
 
 
+def _rig_keying(spec: RadioSpec) -> Keying | None:
+    """Return the radio's keying when a rig program keys it, else None."""
+    if kind_field(spec.kind, "keying") is None or not (text := str(spec.settings.get("keying", ""))):
+        return None
+    try:
+        keying = keying_of(text)
+    except ValueError:
+        return None
+    return keying if keying.rig else None
+
+
+async def _answers(keying: Keying) -> str:
+    """Return why the rig program does not answer, "" when it does."""
+    try:
+        await ptt_for(keying.kind, *keying.address).probe()
+    except RigRefused as e:
+        return str(e)
+    return ""
+
+
+def check_rig_programs(config: Config | None) -> list[Finding]:
+    """Return a line for each radio on that is keyed through flrig or rigctld: whether that program answers."""
+    found = []
+    for spec in config.enabled_radios if config is not None else ():
+        if (keying := _rig_keying(spec)) is None:
+            continue
+        host, port = keying.address
+        what = f"radio {log_name(spec, config.radios if config else ())} keyed through {keying.kind} at {host}:{port}"
+        why = asyncio.run(_answers(keying))
+        found.append(
+            Finding("ok", f"{what}: it answers")
+            if not why
+            else Finding(
+                "warn",
+                f"{what}: it does not answer ({why})",
+                f"start {keying.kind} (it is not started by NeoAPRS), or correct the address in the radio's Keying",
+            )
+        )
+    return found
+
+
 def _bluetooth_words(port: PortInfo, named: dict[str, str]) -> str:
     """Say which of a Windows Bluetooth device's two ports this is, and whether the device is offered by name."""
     address = bluetooth_address(port)
@@ -374,6 +418,7 @@ def diagnose(data: Path) -> list[Finding]:
         database,
         check_call(config),
         *check_radios(config, data / DB_NAME, unread, older),
+        *(check_rig_programs(config) if not unread and not older else []),
         check_ports(),
         check_group(),
         *check_grabbers(),

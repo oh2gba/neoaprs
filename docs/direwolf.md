@@ -39,6 +39,12 @@ them. On Linux `audio_wait` is `snd_pcm_drain`, which returns when the card has 
 `audio_wait` is `audio_flush`, and up to a second of audio is queued ahead), so the key goes off by the clock: the sound starts the card's output delay after the key and ends that delay after the clock says,
 and the tail of flags is all the room that delay has. With Direwolf's own 100 ms a card slower than that would cut the end of the frame; 200 ms cost 100 ms of keying a transmission.
 
+Keyed through a rig program (the keying `flrig` or `rigctld`), the configuration has no `PTT` line, as for VOX, and `TXDELAY 40`: 400 ms of flags (`direwolf.RIG_TXDELAY_MS`). NeoAPRS keys the
+rig on the line `PTT 0 = 1` that `-d o` prints at `ptt_set` (before any method is looked at, so with no PTT method too, and in the `-x` runs of Tune and Test) and lets it go on `PTT 0 = 0` (`rigkeyer.py`).
+The line is flushed as it is printed (flush.patch), on every system, and `-q d` prints no text of a heard station, so no station on the air can make one. NeoAPRS's own latency from the line to the program's
+key-down is a few milliseconds; the 100 ms added to Direwolf's 300 are for the program's command to the radio and its relay. A key-down lasts at most TXDELAY, TXTAIL and the time of the largest frame
+(330 bytes with every bit stuffed, 2.6 s at 1200 baud, 10.6 s at 300) for each frame handed since the last one, and a second (`direwolf.keyed_limit`); a frame handed while keyed lengthens it by one frame.
+
 Measured on 18 November 2026 with this Direwolf on ALSA's `file` plugin over `null` (no card: the samples go to a file as fast as they come, so the key is held by the clock, as on Windows), our configuration and
 command line, ten transmissions each, with Direwolf's own 100 ms tail: a frame of 80 bytes was keyed 950.6 ms (it alone needs 537 ms) and one of 250 bytes 2090.1 ms (1677 ms), the least and the most within
 0.1 ms; in the audio no silence before the first tone, 46 flags before the frame (307 ms: 300 ms and the opening flag) and 16 after it (107 ms); the key went off 0.1 to 0.7 ms after the last sample. With
