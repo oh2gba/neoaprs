@@ -18,7 +18,8 @@ import {
   curvePoints,
   dbOfByte,
   hzOfBin,
-  keptLines,
+  askSeconds,
+  historyLines,
   layout,
   lineOf,
   placeLabel,
@@ -38,8 +39,8 @@ import {
   type Tick,
 } from "@/lib/waterfall";
 
-/** Two minutes of lines at the normal pace. */
-const KEPT_LINES = keptLines(1000 / LINES_PER_SECOND);
+/** The lines of the daemon's ten minutes at the normal pace. */
+const HISTORY_LINES = historyLines(1000 / LINES_PER_SECOND);
 import { LIMITS } from "@/protocol/lists";
 import { Waterfall } from "@/lib/waterfallpainter";
 
@@ -63,19 +64,16 @@ function dice(seed: number): () => number {
 }
 
 describe("the bins of the passband", () => {
-  it("are the modem's own: 307 bins of 7.8 Hz from 300 to 2700 Hz, a row of two spectra each, ten a second by the modem's timer; a line of the picture is two rows, five a second, and two minutes of lines are kept", () => {
+  it("are the modem's own: 307 bins of 7.8 Hz from 300 to 2700 Hz, a row of two spectra each, ten a second by the modem's timer; a line of the picture is two rows, five a second, and the daemon's ten minutes are 3000 lines", () => {
     expect(BIN_HZ).toBe(7.8125);
     expect(BINS).toBe(307);
     expect([SPECTRA_PER_ROW, ROWS_PER_SECOND]).toEqual([2, 10]);
-    expect([ROWS_PER_LINE, LINES_PER_SECOND, KEPT_LINES]).toEqual([2, 5, 600]);
+    expect([ROWS_PER_LINE, LINES_PER_SECOND, HISTORY_LINES]).toEqual([2, 5, 3000]);
+    expect(LIMITS.scope.historySec).toBe(600);
   });
 
-  it("keep at least as many lines as the tallest picture shows, at any pixel ratio", () => {
-    let most = 0;
-    for (let ratio = 1; ratio <= 4; ratio += 0.05)
-      for (const width of [320, 380, 560]) most = Math.max(most, layout(width, 378, ratio).rows);
-    expect(most).toBeGreaterThan(380);
-    expect(most).toBeLessThanOrEqual(KEPT_LINES);
+  it("are asked of the daemon for the time a picture shows, in whole minutes, at least one and at most the ten kept", () => {
+    expect([1, 60_000, 60_001, 299_400, 600_000, 3_600_000].map(askSeconds)).toEqual([60, 60, 120, 300, 600, 600]);
   });
 
   it("give the bin of a frequency and the frequency of a bin, there and back", () => {
@@ -353,17 +351,16 @@ describe("the time", () => {
 });
 
 describe("the speeds of the monitor card", () => {
-  it("are lines of two fifths of a second at Slow, today's lines at Normal, and today's lines twice as high at Fast; two minutes of each are kept", () => {
+  it("are lines of two fifths of a second at Slow, today's lines at Normal, and today's lines twice as high at Fast; ten minutes of each fill the daemon's history", () => {
     expect(PACE).toEqual({
       slow: { lineMs: 400, tall: 1 },
       normal: { lineMs: 200, tall: 1 },
       fast: { lineMs: 200, tall: 2 },
     });
     expect(PACE.normal.lineMs).toBe(1000 / LINES_PER_SECOND);
-    expect([keptLines(PACE.slow.lineMs), keptLines(PACE.normal.lineMs), keptLines(PACE.fast.lineMs)]).toEqual([
-      300, 600, 600,
+    expect([historyLines(PACE.slow.lineMs), historyLines(PACE.normal.lineMs), historyLines(PACE.fast.lineMs)]).toEqual([
+      1500, 3000, 3000,
     ]);
-    expect(keptLines(PACE.normal.lineMs)).toBe(KEPT_LINES);
   });
 });
 
@@ -802,29 +799,20 @@ describe("the painter", () => {
     const painter = new Waterfall(canvas);
     for (let i = 0; i < 200; i++) line(painter, 0, START + 14_000 + i * 200);
     painter.label("Q1ABC −3 dB", START + 30_000);
+    const shown = layout(420, 240).rows;
     resize(560, 380);
     calls.length = 0;
     strips.length = 0;
     painter.push(row(0), START + 54_000, false);
     expect([canvas.width, canvas.height]).toEqual([560, 380]);
-    // Every line kept: a taller box shows more of them.
-    expect(strips).toHaveLength(200);
+    // Every line kept, as many as the smaller box showed; the caller shows its rows again for the rest.
+    expect(strips).toHaveLength(shown);
     expect(strips.every((strip) => strip.width === 560)).toBe(true);
-    expect(texts(calls)).toEqual([
-      "12:00:15",
-      "12:00:30",
-      "12:00:45",
-      "Q1ABC −3 dB",
-      "500",
-      "1000",
-      "1500",
-      "2000",
-      "2500",
-    ]);
+    expect(texts(calls)).toEqual(["12:00:30", "12:00:45", "Q1ABC −3 dB", "500", "1000", "1500", "2000", "2500"]);
     expect(drawn(calls, "drawImage")).toEqual([]);
     calls.length = 0;
-    painter.draw();
-    expect(drawn(calls, "putImageData")).toHaveLength(200);
+    expect(painter.draw()).toBe(true);
+    expect(drawn(calls, "putImageData")).toHaveLength(shown);
   });
 
   it("shows the picture as it stands at a moment: each row as far down as it is old, the time since the newest row a gap at the top, the labels on their lines", () => {
@@ -855,13 +843,14 @@ describe("the painter", () => {
     expect(texts(calls)).toContain("12:00:15");
   });
 
-  it("keeps two minutes of lines, forgets them all when it is cleared, and does nothing on a canvas that has no context", () => {
+  it("keeps as many lines as the picture shows, forgets them all when it is cleared, and does nothing on a canvas that has no context", () => {
     const { canvas, strips } = fakeCanvas(300, 900);
+    const shown = layout(300, 900).rows;
     const painter = new Waterfall(canvas);
-    for (let i = 0; i < KEPT_LINES + 50; i++) line(painter, 0, START + i * 200);
+    for (let i = 0; i < shown + 50; i++) line(painter, 0, START + i * 200);
     strips.length = 0;
     painter.draw();
-    expect(strips).toHaveLength(KEPT_LINES);
+    expect(strips).toHaveLength(shown);
     strips.length = 0;
     painter.clear();
     expect(strips).toEqual([]);
@@ -1007,43 +996,63 @@ describe("the painter at the monitor card's speeds", () => {
   });
 
   it.each(["slow", "normal", "fast"] as const)(
-    "at %s has the two minutes the page keeps whole, with no gap where there were rows",
+    "at %s fills a tall picture to its bottom from ten minutes of rows, with no gap and the times all the way down",
     (speed: Speed) => {
-      const { canvas, strips } = fakeCanvas(300, 1600); // A picture taller than any: every line kept is seen
+      const { canvas, calls, strips } = fakeCanvas(300, 1600);
+      const l = layout(300, 1600);
+      const shown = Math.ceil(l.rows / PACE[speed].tall);
       const painter = new Waterfall(canvas, speed);
-      const now = START + 120_000;
+      const now = START + 600_000;
       painter.show(rows(START, now, 118), [], now);
-      expect(strips).toHaveLength(keptLines(PACE[speed].lineMs));
+      expect(painter.reach()).toBe(shown * PACE[speed].lineMs);
+      expect(strips).toHaveLength(shown);
+      expect(Math.max(...bottoms(calls))).toBe(l.picture.y + l.picture.h);
       expect(strips.every((strip) => strip.data.slice(0, 4).join() === colourOf(0).join())).toBe(true);
+      const times = texts(calls).filter((text) => /^\d\d:\d\d:\d\d$/.test(text));
+      expect(times.length).toBeGreaterThanOrEqual(Math.floor((shown * PACE[speed].lineMs) / 15_000));
     },
   );
 
-  it("at Slow on a screen of 1.25 pixels to the CSS pixel leaves the ground under the two minutes, and moves nothing older into it", () => {
+  it("at Slow on a screen of 1.25 pixels to the CSS pixel fills the picture to its last line, and texts end where the picture does", () => {
     vi.stubGlobal("devicePixelRatio", 1.25);
     const { canvas, calls, strips } = fakeCanvas(560, 380);
     const l = layout(560, 380, 1.25);
     expect([l.rowPx, l.rows]).toEqual([1, 351]);
     const painter = new Waterfall(canvas, "slow");
-    const now = START + 120_000;
-    painter.show(rows(START, now, 118), [{ at: START + 500, text: "Q1OLD" }], now);
-    expect(strips).toHaveLength(300);
-    expect(Math.max(...strips.map((strip) => strip.y))).toBe(l.picture.y + 299);
-    // The time and the label on the oldest lines kept are written, and end where the lines kept
-    // end: they would be wiped from the ground under them as the picture moves.
-    expect(texts(calls)).toContain("12:00:00");
+    const now = START + 240_000;
+    painter.show(rows(START, now, 118), [{ at: START + 100_000, text: "Q1OLD" }], now);
+    expect(strips).toHaveLength(351);
+    expect(Math.max(...strips.map((strip) => strip.y))).toBe(l.picture.y + 350);
     expect(texts(calls)).toContain("Q1OLD");
     expect(drawn(calls, "rect").length).toBeGreaterThanOrEqual(2);
-    for (const clip of drawn(calls, "rect")) expect(clip).toBe(`rect(0,${l.picture.y},${l.width},300)`);
+    for (const clip of drawn(calls, "rect")) expect(clip).toBe(`rect(0,${l.picture.y},${l.width},351)`);
     calls.length = 0;
     for (let i = 0; i < 50; i++) painter.push(row(0), now + i * 118, false);
-    const copies = calls.flatMap((call, i) => (call.startsWith("drawImage(") ? [i] : []));
-    expect(copies.length).toBeGreaterThan(10);
-    for (const at of copies)
-      expect(calls.slice(at + 1, at + 3)).toEqual([
-        "fillStyle=#000828",
-        `fillRect(0,${l.picture.y + 300},${l.width},51)`,
-      ]);
-    expect(Math.max(...bottoms(calls))).toBeLessThanOrEqual(l.picture.y + 300);
+    expect(drawn(calls, "drawImage").length).toBeGreaterThan(10);
+    expect(Math.max(...bottoms(calls))).toBeLessThanOrEqual(l.picture.y + 351);
+  });
+
+  it("tells how long the picture it shows is at each speed, and when a taller canvas has room for more lines than it holds", () => {
+    const { canvas, resize } = fakeCanvas(560, 380);
+    const painter = new Waterfall(canvas);
+    expect(painter.reach()).toBe(0);
+    const now = START + 600_000;
+    painter.show(rows(START, now, 118), [], now);
+    const shown = layout(560, 380).rows;
+    expect(painter.reach()).toBe(shown * 200);
+    painter.setSpeed("slow");
+    painter.show(rows(START, now, 118), [], now);
+    expect(painter.reach()).toBe(shown * 400);
+    painter.setSpeed("fast");
+    painter.show(rows(START, now, 118), [], now);
+    expect(painter.reach()).toBe(Math.ceil(shown / 2) * 200);
+    expect(painter.draw()).toBe(false);
+    resize(560, 300);
+    expect(painter.draw()).toBe(false); // smaller: it holds every line it shows
+    resize(560, 900);
+    expect(painter.draw()).toBe(true); // taller: the rows must be shown again
+    expect(painter.reach()).toBe(Math.ceil(layout(560, 900).rows / 2) * 200);
+    expect(painter.draw()).toBe(false);
   });
 
   it("draws the picture again in place at another speed: the canvas keeps its size and a label stands on the line of its moment", () => {

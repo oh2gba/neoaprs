@@ -23,7 +23,9 @@ const scope = useHfScope(props.radio);
     :open="scope.open.value"
     @folded="scope.open.value = $event"
   >
-    <div class="scope-picture"><HfWaterfall :radio="scope.radio" @shown="scope.shown.value = $event" /></div>
+    <div class="scope-picture">
+      <HfWaterfall :radio="scope.radio" @reach="scope.reach.value = $event" @shown="scope.shown.value = $event" />
+    </div>
     <HfLevelBar :on="scope.wanted.value" :radio="scope.radio" tip :card="card" />
   </DisclosureBox>
 </template>

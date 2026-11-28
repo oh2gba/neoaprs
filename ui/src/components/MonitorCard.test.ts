@@ -10,7 +10,7 @@ import MonitorCard from "@/components/MonitorCard.vue";
 import { useScopeLooks } from "@/composables/useScopeLooks";
 import { useScopeRows } from "@/composables/useScopeRows";
 import type { ScopeRow } from "@/lib/scoperow";
-import { BINS } from "@/lib/waterfall";
+import { BINS, layout } from "@/lib/waterfall";
 import { Waterfall } from "@/lib/waterfallpainter";
 import { fakeDaemon, withDaemon, type Given } from "@/test/context";
 import { cssRule, mediaRule } from "@/test/css";
@@ -149,6 +149,42 @@ describe("the card that has no room for its picture", () => {
       await flushPromises();
       expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
       wrapper.unmount();
+    } finally {
+      width.restore();
+    }
+  });
+});
+
+describe("the card's history as long as the card is tall", () => {
+  it("asks for the minutes of rows its picture shows, more as soon as it is made taller or slower, and draws what is kept to its new bottom", async () => {
+    const width = stubWidth(540);
+    let high = 380;
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(() => high);
+    try {
+      const rows = useScopeRows();
+      const daemon = hfAlone({ scopeOf: rows.of });
+      const shows = vi.spyOn(Waterfall.prototype, "show");
+      const wrapper = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
+      await flushPromises();
+      expect(layout(540, 380).rows * 200).toBeLessThanOrEqual(60_000);
+      expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true, seconds: 60 }]);
+      const before = shows.mock.calls.length;
+      high = 1200;
+      width.set(540);
+      await flushPromises();
+      expect(layout(540, 1200).rows * 200).toBeGreaterThan(180_000);
+      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 240 });
+      expect(shows.mock.calls.length).toBe(before + 1); // the rows kept drawn again for the taller picture
+      high = 1000;
+      width.set(540);
+      await flushPromises();
+      expect(shows.mock.calls.length).toBe(before + 1); // smaller: what it holds is enough
+      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 180 });
+      localStorage.setItem("NeoAPRS.monitorspeed", "slow");
+      wrapper.unmount();
+      mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
+      await flushPromises();
+      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true, seconds: 360 });
     } finally {
       width.restore();
     }

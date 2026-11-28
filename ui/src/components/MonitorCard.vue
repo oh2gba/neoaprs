@@ -31,10 +31,12 @@ const drag = useFreeDrag(root, "monitorplace", () => props.movable);
 const LEAST = { width: 340, height: 300 };
 const sizing = useCardSize(root, "monitorsize", LEAST, drag, () => props.movable);
 const shown = ref(false); // its picture has room (HfWaterfall.vue says); mounted but empty under a phone panel tab
+const reach = ref(0); // how long its picture is: the rows asked for
 const radio = computed(() => scope.monitor.value);
 scope.look(
   () => shown.value,
   () => radio.value,
+  () => reach.value,
 );
 const on = computed(() => radio.value !== null && scope.asked.value.includes(radio.value));
 /** The card's name: with the radio's where several radios are on. */
@@ -73,7 +75,7 @@ const listeners = {
     </header>
     <div class="card-body" v-on="menu.pressOn">
       <div ref="picture" class="monitor-picture" tabindex="0" aria-haspopup="menu">
-        <HfWaterfall :speed="speed" :radio="radio" @shown="shown = $event" />
+        <HfWaterfall :speed="speed" :radio="radio" @reach="reach = $event" @shown="shown = $event" />
       </div>
       <HfLevelBar :on="on" :radio="radio" />
     </div>

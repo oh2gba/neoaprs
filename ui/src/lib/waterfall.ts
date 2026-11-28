@@ -25,8 +25,13 @@ export const ROWS_PER_SECOND = MODEM_SPECTRA_PER_SECOND / SPECTRA_PER_ROW;
  */
 export const ROWS_PER_LINE = 2;
 export const LINES_PER_SECOND = ROWS_PER_SECOND / ROWS_PER_LINE;
-/** Lines that fit the two minutes the daemon keeps rows for (LIMITS.scope.historySec). */
-export const keptLines = (lineMs: number): number => (historySec * 1000) / lineMs;
+/** Lines that the ten minutes the daemon keeps rows for fill (LIMITS.scope.historySec). */
+export const historyLines = (lineMs: number): number => (historySec * 1000) / lineMs;
+/** A picture asks the daemon for rows in whole minutes, so that a card being resized asks seldom. */
+const ASK_STEP_SEC = 60;
+/** The seconds of rows to ask the daemon for, for a picture that shows `ms`. */
+export const askSeconds = (ms: number): number =>
+  Math.min(historySec, Math.max(ASK_STEP_SEC, Math.ceil(ms / 1000 / ASK_STEP_SEC) * ASK_STEP_SEC));
 /** Speeds of the monitor card's waterfall; the box in Settings is always Normal. */
 export type Speed = "slow" | "normal" | "fast";
 export const SPEEDS: readonly Speed[] = ["slow", "normal", "fast"];

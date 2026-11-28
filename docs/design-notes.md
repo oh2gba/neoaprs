@@ -2240,3 +2240,15 @@ is looked at, which the page stops doing when the tab is hidden. Each step sets 
 data once, at most 20 times a second: placing 300 things and turning them into the GeoJSON the
 map takes costs about 0.25 ms a step on a desktop (Node 22, measured 27 Nov 2026), so the cost is
 the map's own setData; 20 a second is smooth at every zoom where a mark moves visibly.
+
+## ui/src/lib/waterfallpainter.ts and ui/src/lib/scopememory.ts
+
+A picture keeps as many lines as it shows (its canvas height over the line height of its speed), and
+the page keeps a radio's rows for the longest picture that looks at it, asked of the daemon in whole
+minutes (`askSeconds`) so that a card being resized asks a few times, not at every pixel. A card made
+taller keeps its top: the lines it holds stay where they are, the rows kept are drawn again under them
+at once, and the rows the daemon sends for the longer time fill the rest when they come. A card made
+smaller asks for fewer seconds, and the daemon then sends only the rows the page lacks. In the page a
+row is its dB as 307 floats, its bytes over the floor and two small objects, about 1.7 KB, so ten
+minutes of one radio (Slow on a screen 1,500 px tall) are about 10 MB; the Settings box alone asks for
+one minute, about 1 MB.

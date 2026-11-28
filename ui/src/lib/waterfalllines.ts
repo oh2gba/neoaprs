@@ -3,7 +3,7 @@
 // line of the moment it was made, so a row from forty seconds ago stands forty seconds down
 // whether live or kept by the daemon, and time without rows is a gap of as many lines. The
 // painter (waterfallpainter.ts) draws them; waterfall.ts has what a line is made of.
-import { LINES_PER_SECOND, keptLines, lineOf, quarterIn, silentOwn } from "@/lib/waterfall";
+import { LINES_PER_SECOND, historyLines, lineOf, quarterIn, silentOwn } from "@/lib/waterfall";
 
 /** A line is this many milliseconds of the page's clock: five lines a second. */
 const LINE_MS = 1000 / LINES_PER_SECOND;
@@ -52,15 +52,21 @@ export interface Line {
  */
 export class Lines {
   lines: Line[] = [];
-  /** How many lines are kept: two minutes of them. */
-  readonly kept: number;
+  /** How many lines are kept: as many as the picture shows, the daemon's ten minutes before it is drawn. */
+  kept: number;
   private open: { slot: number; rows: Uint8Array[]; tx: boolean } | null = null;
   private last = -Infinity; // the time of the newest row
   /** Whether the newest row is our own transmission. */
   sending = false;
 
   constructor(readonly lineMs = LINE_MS) {
-    this.kept = keptLines(lineMs);
+    this.kept = historyLines(lineMs);
+  }
+
+  /** Keep `count` lines from now on, the newest; fewer are forgotten at once. */
+  keep(count: number): void {
+    this.kept = Math.max(1, count);
+    if (this.lines.length > this.kept) this.lines.length = this.kept;
   }
 
   /** The number of the line the moment `at` falls in. */

@@ -1,7 +1,8 @@
 // What the page keeps of the HF radio's waterfall outside any picture, so a picture opened again
-// is drawn whole at once: the rows of the last two minutes (as sent by the daemon and as the
-// floor draws them, lib/waterfallfloor.ts), each stamped with this page's clock, and the stations
-// heard in that time, with the modem's SNR where the page saw it.
+// is drawn whole at once: the rows of the time its pictures ask the daemon for (`keepFor`; ten
+// minutes before one asks), as sent by the daemon and as the floor draws them
+// (lib/waterfallfloor.ts), each stamped with this page's clock, and the stations heard in that
+// time, with the modem's SNR where the page saw it.
 // The rows the daemon kept (lib/scoperow.ts `ScopeHistory`) fill the time no picture looked: if
 // they continue from the newest row held, only the newer ones are taken; else they replace all.
 // They carry the daemon's clock, which places a heard station at the time the daemon wrote.
@@ -11,7 +12,7 @@ import type { AgedRow, ScopeHistory, ScopeRow } from "@/lib/scoperow";
 import { RowFeed } from "@/lib/waterfallfloor";
 import { LIMITS } from "@/protocol/lists";
 
-/** Rows are kept as long as the daemon keeps them. */
+/** Before a picture asks, rows are kept as long as the daemon keeps them. */
 const KEEP_MS = LIMITS.scope.historySec * 1000;
 /**
  * The rows the daemon kept continue from the newest row held if that row is among them within
@@ -70,6 +71,7 @@ export class ScopeMemory {
   private offset = 0;
   // the latest moment told, and the steady clock then
   private mark = { at: -Infinity, steady: 0 };
+  private keep = KEEP_MS;
 
   /** `steady` is a clock that only goes forward. */
   constructor(
@@ -86,6 +88,12 @@ export class ScopeMemory {
     const at = Math.max(this.clock(), this.mark.at + steady - this.mark.steady);
     this.mark = { at, steady };
     return at;
+  }
+
+  /** Keep the rows and stations of the last `ms` from now on; older ones go at once. */
+  keepFor(ms: number): void {
+    this.keep = ms;
+    this.forget();
   }
 
   get rows(): readonly KeptRow[] {
@@ -145,7 +153,7 @@ export class ScopeMemory {
     const heard: Written = fresh
       ? { at: now, call, snr, wall: null }
       : { at: wall + this.offset + HALF_SECOND_MS, call, snr: null, wall };
-    if (heard.at < now - KEEP_MS) return;
+    if (heard.at < now - this.keep) return;
     // Keep `told` ordered; a station heard just now goes at the end.
     let at = this.told.length;
     while (at > 0 && this.told[at - 1].at > heard.at) at--;
@@ -182,7 +190,7 @@ export class ScopeMemory {
 
   /** Drop what is older than the time kept. */
   private forget(): void {
-    const oldest = this.now() - KEEP_MS;
+    const oldest = this.now() - this.keep;
     const first = this.kept.findIndex((kept) => kept.at >= oldest);
     if (first !== 0) this.kept = first < 0 ? [] : this.kept.slice(first);
     if (this.told.length > 0 && this.told[0].at < oldest) this.told = this.told.filter((heard) => heard.at >= oldest);

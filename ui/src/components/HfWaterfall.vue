@@ -3,7 +3,8 @@
 // waterfall, spectrum curve and the stations heard written on the line of their moment. Rows and
 // stations come from the page's memory (`scopeOf`, lib/scopememory.ts), so the picture is drawn
 // whole on mount and when the daemon's rows arrive, then row by row; a canvas that is not shown
-// is redrawn whole when it has room. `speed` is the monitor card's choice (MonitorMenu.vue).
+// is redrawn whole when it has room, and when it grew taller than the lines it held. `speed` is the
+// monitor card's choice (MonitorMenu.vue).
 // `radio` is the radio shown (null: ruler and background only).
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -16,8 +17,9 @@ import { Waterfall } from "@/lib/waterfallpainter";
 const props = withDefaults(defineProps<{ speed?: Speed; radio: RadioId | null }>(), { speed: "normal" });
 
 /** Whether the canvas has room (not in a closed fold, under another tab or in a hidden phone
- * panel); the pane looks at the scope only while it does. */
-const emit = defineEmits<{ shown: [shown: boolean] }>();
+ * panel); the pane looks at the scope only while it does. `reach`: how many ms the picture shows
+ * (0 while it has no room), told before `shown`. */
+const emit = defineEmits<{ shown: [shown: boolean]; reach: [ms: number] }>();
 const { scopeOf, scope } = useDaemonContext();
 const canvas = ref<HTMLCanvasElement | null>(null);
 let painter: Waterfall | null = null;
@@ -70,37 +72,49 @@ watch(
     whole();
   },
 );
+let reach = 0;
+/** Tell how long the picture is when that changed. */
+function tell(): void {
+  const now = painter?.reach() ?? 0;
+  if (now !== reach) emit("reach", (reach = now));
+}
 // another speed: the same rows drawn again in place at once
 watch(
   () => props.speed,
   (speed) => {
     painter?.setSpeed(speed);
     whole();
+    tell();
   },
 );
 
 let observer: ResizeObserver | null = null;
 let roomy = false;
 /** Update whether the canvas has room; true when it has just regained it. */
-const report = (): boolean => {
+const room = (): boolean => {
   const now = (canvas.value?.clientWidth ?? 0) > 0;
   const back = now && !roomy;
   roomy = now;
-  emit("shown", now);
   return back;
+};
+const report = (): void => {
+  tell();
+  emit("shown", roomy);
 };
 onMounted(() => {
   if (!canvas.value) return;
   painter = new Waterfall(canvas.value, props.speed);
   if (typeof ResizeObserver === "function") {
     observer = new ResizeObserver(() => {
-      if (report()) whole();
-      else painter?.draw();
+      // Regained room, or taller than the lines held: drawn whole from the rows kept, so the top stays.
+      if (room() || painter?.draw()) whole();
+      report();
     });
     observer.observe(canvas.value);
   }
   whole();
   listen();
+  room();
   report();
 });
 onBeforeUnmount(() => {

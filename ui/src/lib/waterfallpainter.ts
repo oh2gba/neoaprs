@@ -115,6 +115,8 @@ export class Waterfall {
   private heard: { row: number; text: string }[] = [];
   private slots: Slot[] = [];
   private look: Look | null = null;
+  // the canvas has room for more lines than are held: the rows are to be shown again
+  private grew = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -132,6 +134,11 @@ export class Waterfall {
     this.pace = PACE[speed];
     this.book = new Lines(this.pace.lineMs);
     [this.heard, this.slots, this.look] = [[], [], null];
+  }
+
+  /** How long the picture shown is, in ms: its lines at this speed; 0 while it has no room. */
+  reach(): number {
+    return this.look ? this.look.shown * this.pace.lineMs : 0;
   }
 
   /** The number of the line the moment `at` falls in, at this speed. */
@@ -153,7 +160,6 @@ export class Waterfall {
     const { x, y, w, h } = look.l.picture;
     const down = added * look.linePx;
     if (h > down) look.context.drawImage(this.canvas, x, y, w, h - down, x, y + down, w, h - down);
-    this.blankUnkept(look);
     for (let depth = Math.min(added, look.shown) - 1; depth >= 0; depth--) this.drawRow(look, depth);
     const top = this.book.top;
     for (const label of this.heard) if (label.row > top - added && label.row <= top) this.drawLabel(look, label);
@@ -183,11 +189,17 @@ export class Waterfall {
     this.show([], [], 0);
   }
 
-  /** Redraw everything from what is kept (new canvas size or new token colours). */
-  draw(): void {
+  /**
+   * Redraw everything from what is kept (new canvas size or new token colours). True when the
+   * canvas now has room for more lines than were kept: the caller shows its rows again.
+   */
+  draw(): boolean {
     this.look = null;
     const look = this.fit();
     if (look) this.paint(look);
+    const grew = this.grew;
+    this.grew = false;
+    return grew;
   }
 
   /** Drop the labels older than the lines kept. */
@@ -223,27 +235,9 @@ export class Waterfall {
     if (!context) return null;
     [this.canvas.width, this.canvas.height] = [l.width, l.height];
     this.look = lookOf(this.canvas, context, l, this.pace.tall);
+    if (this.look.shown > this.book.kept) this.grew = true;
+    this.book.keep(this.look.shown);
     return this.look;
-  }
-
-  /**
-   * Pixels of the picture, from its top, that the lines kept can fill; at Slow they may end above
-   * the bottom.
-   */
-  private keptPx(look: Look): number {
-    return Math.min(look.l.picture.h, this.book.kept * look.linePx);
-  }
-
-  /**
-   * Below the lines kept the picture is ground: what the copy down moved there is older than two
-   * minutes.
-   */
-  private blankUnkept(look: Look): void {
-    const { picture } = look.l;
-    const kept = this.keptPx(look);
-    if (kept >= picture.h) return;
-    look.context.fillStyle = look.ground;
-    look.context.fillRect(picture.x, picture.y + kept, picture.w, picture.h - kept);
   }
 
   /**
@@ -256,7 +250,7 @@ export class Waterfall {
     const [left, middle] = [x + 3 * l.unit, y + Math.round((l.plate + l.unit) / 2)];
     context.save();
     context.beginPath();
-    context.rect(l.picture.x, l.picture.y, l.picture.w, this.keptPx(look));
+    context.rect(l.picture.x, l.picture.y, l.picture.w, l.picture.h);
     context.clip();
     if (plate > 0) {
       const { x: plateX, y: plateY, w, h } = plateRect({ row: 0, x, w: plate }, middle, l);
