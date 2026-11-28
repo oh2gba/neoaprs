@@ -32,6 +32,7 @@ from .stationnotes import (
     note_igate,
     note_messaging,
     note_position,
+    note_on_air_place,
     note_radio_place,
     note_telemetry,
     seed_hour,
@@ -418,6 +419,7 @@ class StationBook:
     def _place(self, station: Station, position: Position, packet: Packet) -> None:
         when = packet.heard_at
         note_radio_place(station, packet, position)
+        note_on_air_place(station, packet, position)
         station.position_via = packet.via
         station.symbol_table, station.symbol_code = position.symbol_table, position.symbol_code
         station.lat, station.lon = position.lat, position.lon

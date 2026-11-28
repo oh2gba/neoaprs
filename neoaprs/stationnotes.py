@@ -5,6 +5,7 @@ its telemetry and definitions, and whether it is an iGate. Pure code, called by 
 """
 
 from collections.abc import Callable, Collection, Iterable, Mapping
+from dataclasses import replace
 from datetime import datetime
 
 from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_definition
@@ -254,26 +255,54 @@ def note_radio_place(station: Station, packet: Packet, position: Position, repla
         and (packet.via == IS or station.heard_is > 0)
     ):
         assert station.position_via is not None
-        place = station.radio = RadioPlace(
-            station.lat,
-            station.lon,
-            station.last_position_at,
-            station.position_via,
-            station.symbol_table,
-            station.symbol_code,
-            station.altitude_m,
-            station.course_deg,
-            station.speed_kmh,
-            station.last_comment,
-            list(station.track),
-            station.extensions,
-            station.storm,
-            station.sign,
-        )
+        place = station.radio = _place_now(station)
     if packet.via == IS or (place is None and station.heard_is == 0):
         return
+    station.radio = _moved(place, packet, position)
+
+
+def note_on_air_place(station: Station, packet: Packet, position: Position, replay: bool = False) -> None:
+    """Keep apart the place the packets heard on the air gave a station that a gateway put on the air too.
+
+    The place is copied to `Station.on_air` at the first gated position; later ones on the air move it.
+    """
+    place = station.on_air
+    if place is None and not replay and packet.via == RF_GATED:
+        if station.radio is not None and station.radio.via != RF_GATED:
+            place = station.on_air = replace(station.radio, track=list(station.radio.track))
+        elif station.position_via not in (None, IS, RF_GATED):
+            place = station.on_air = _place_now(station)
+    if packet.via in (IS, RF_GATED) or (place is None and station.heard_rf_gated == 0):
+        return
+    station.on_air = _moved(place, packet, position)
+
+
+def _place_now(station: Station) -> RadioPlace:
+    assert station.lat is not None and station.lon is not None and station.last_position_at is not None
+    assert station.position_via is not None
+    return RadioPlace(
+        station.lat,
+        station.lon,
+        station.last_position_at,
+        station.position_via,
+        station.symbol_table,
+        station.symbol_code,
+        station.altitude_m,
+        station.course_deg,
+        station.speed_kmh,
+        station.last_comment,
+        list(station.track),
+        station.extensions,
+        station.storm,
+        station.sign,
+    )
+
+
+def _moved(place: RadioPlace | None, packet: Packet, position: Position) -> RadioPlace:
+    """Return the place moved to the packet's position, its track going on."""
     track = [] if place is None else place.track
-    station.radio = RadioPlace(
+    add_track_point(track, packet.heard_at, position.lat, position.lon)
+    return RadioPlace(
         position.lat,
         position.lon,
         packet.heard_at,
@@ -289,11 +318,11 @@ def note_radio_place(station: Station, packet: Packet, position: Position, repla
         position.storm,
         position.sign,
     )
-    add_track_point(track, packet.heard_at, position.lat, position.lon)
 
 
 def seed_radio(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
-    """Replay stored non-internet position packets, oldest first, through `note_radio_place`."""
+    """Replay stored non-internet position packets, oldest first, through `note_radio_place` and
+    `note_on_air_place`."""
     for packet in packets:
         decoded = packet.decoded
         if isinstance(decoded, Position):
@@ -303,12 +332,9 @@ def seed_radio(stations: Mapping[str, Station], packets: Iterable[Packet]) -> No
         else:
             continue
         station = stations.get(name)
-        if (
-            packet.direction == "in"
-            and packet.via != IS
-            and station is not None
-            and not station.is_me
-            and not station.own
-            and station.heard_is > 0
-        ):
+        if packet.direction != "in" or packet.via == IS or station is None or station.is_me or station.own:
+            continue
+        if station.heard_is > 0:
             note_radio_place(station, packet, position, replay=True)
+        if station.heard_rf_gated > 0:
+            note_on_air_place(station, packet, position, replay=True)

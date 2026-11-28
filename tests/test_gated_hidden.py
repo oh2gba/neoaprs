@@ -260,6 +260,51 @@ def test_a_station_heard_only_as_an_igate_put_it_on_the_air_is_not_shown_and_one
     assert view is not None and (view.lat, view.position_via) == (61.0, "rf")
 
 
+def test_unticked_a_station_heard_on_the_air_stays_at_the_place_it_gave_on_the_air_and_ticked_at_the_latest() -> None:
+    """A direct position, then one an iGate put on the air: off, the map keeps the place, the track,
+    the comment and the symbol that came on the air; on, the latest."""
+    book = StationBook()
+    direct = Position(60.0, 24.0, "/", "-", comment="on the air")
+    book.take(packet_of(direct, T0, RF))
+    book.take(
+        packet_of(Position(60.5, 24.5, "/", ">", comment="from the internet"), T0 + timedelta(minutes=5), RF_GATED)
+    )
+    station = book.get("OH2AAA")
+    assert station is not None
+    off = Shown(gated=False).station(station)
+    assert off is not None
+    assert (off.lat, off.lon, off.position_via, off.symbol_code, off.last_comment, off.last_position_at) == (
+        60.0,
+        24.0,
+        RF,
+        "-",
+        "on the air",
+        T0,
+    )
+    assert [(lat, lon) for _, lat, lon in off.track] == [(60.0, 24.0)], "no point the gateway put there"
+    on = Shown().station(station)
+    assert on is not None and (on.lat, on.last_comment, on.position_via) == (60.5, "from the internet", RF_GATED)
+    book.take(packet_of(Position(60.2, 24.2, "/", "-", comment="back on the air"), T0 + timedelta(minutes=9), RF))
+    off = Shown(gated=False).station(book.get("OH2AAA"))  # type: ignore[arg-type]
+    assert off is not None and (off.lat, off.last_comment) == (60.2, "back on the air")
+    assert [(lat, lon) for _, lat, lon in off.track] == [(60.0, 24.0), (60.2, 24.2)], "the gated point stays out"
+
+
+def test_after_a_restart_the_place_heard_on_the_air_is_found_again_in_the_stored_packets() -> None:
+    """The book comes back with the gated position as the latest; the stored packets heard on the air
+    (`seed_radio`, oldest first) give the on-air place again."""
+    direct = packet_of(Position(60.0, 24.0, "/", "-", comment="on the air"), T0, RF)
+    gated_in = packet_of(Position(60.5, 24.5, "/", ">"), T0 + timedelta(minutes=5), RF_GATED)
+    book = StationBook()
+    book.take(gated_in)
+    station = book.get("OH2AAA")
+    assert station is not None and station.heard_rf_gated == 1
+    station.heard_rf = 1  # the counts as the stored book keeps them
+    book.seed_radio([direct, gated_in])
+    off = Shown(gated=False).station(station)
+    assert off is not None and (off.lat, off.last_comment) == (60.0, "on the air")
+
+
 def test_with_both_ticks_off_a_station_heard_from_aprs_is_and_through_an_igate_is_not_shown() -> None:
     book = StationBook()
     book.take(packet_of(place(60.0), T0, RF_GATED))

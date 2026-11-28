@@ -118,6 +118,9 @@ class Station:
     hour_gated: HourCount = field(default_factory=HourCount, repr=False, compare=False)
     # where the packets not from the internet put it, once heard from the internet too
     radio: RadioPlace | None = field(default=None, repr=False, compare=False)
+    # where the packets heard on the air put it (not the internet's, not a gateway's), once a gateway
+    # put it on the air too
+    on_air: RadioPlace | None = field(default=None, repr=False, compare=False)
     sent_message: bool = False
     # whether its latest position says it takes messages; None until a position is heard
     position_messaging: bool | None = None
@@ -251,25 +254,8 @@ class Station:
             hour=self.hour.without(self.hour_is),
             hour_is=HourCount(),
         )
-        place = self.radio
-        if place is not None:
-            return replace(
-                view,
-                lat=place.lat,
-                lon=place.lon,
-                last_position_at=place.at,
-                position_via=place.via,
-                symbol_table=place.symbol_table,
-                symbol_code=place.symbol_code,
-                altitude_m=place.altitude_m,
-                course_deg=place.course_deg,
-                speed_kmh=place.speed_kmh,
-                last_comment=place.comment,
-                track=place.track,
-                extensions=place.extensions,
-                storm=place.storm,
-                sign=place.sign,
-            )
+        if self.radio is not None:
+            return _at(view, self.radio)
         if self.position_via == IS or self.position_via is None:
             return _placeless(view)
         return view
@@ -277,7 +263,8 @@ class Station:
     def without_gated(self) -> "Station | None":
         """Return the station without the packets an iGate put on the air from the internet; None if only those.
 
-        A position that came so is left out with its track and symbol until another one comes.
+        It stands where the packets heard on the air put it, with their track, symbol and comment; with
+        none, a position that came so is left out with its track and symbol until another one comes.
         """
         if self.heard_rf_gated == 0:
             return self
@@ -293,7 +280,30 @@ class Station:
             hour=self.hour.without(self.hour_gated),
             hour_gated=HourCount(),
         )
+        if self.on_air is not None:
+            return _at(view, self.on_air)
         return _placeless(view) if self.position_via == RF_GATED else view
+
+
+def _at(station: Station, place: RadioPlace) -> Station:
+    """Return the station at the place, with what came with it."""
+    return replace(
+        station,
+        lat=place.lat,
+        lon=place.lon,
+        last_position_at=place.at,
+        position_via=place.via,
+        symbol_table=place.symbol_table,
+        symbol_code=place.symbol_code,
+        altitude_m=place.altitude_m,
+        course_deg=place.course_deg,
+        speed_kmh=place.speed_kmh,
+        last_comment=place.comment,
+        track=place.track,
+        extensions=place.extensions,
+        storm=place.storm,
+        sign=place.sign,
+    )
 
 
 def _placeless(station: Station) -> Station:
