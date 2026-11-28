@@ -257,6 +257,16 @@ async def test_no_chat_yet_is_an_empty_one_and_a_line_the_server_no_longer_has_g
     assert room.moved[-1] == [1] and [x.id for x in room.service.lines()] == [2]
 
 
+async def test_a_chat_file_cut_short_on_its_way_is_dropped_and_the_lines_are_kept() -> None:
+    server = await chat_server()
+    server.add("OH2XYZ", "kept")
+    room = Room(server)
+    await room.service.poll()
+    whole = json.dumps({"written": WRITTEN, "closed": False, "lines": [line(1, text="kept"), line(2, text="new")]})
+    assert room.service._parsed(whole.encode()[:-20]) is None
+    assert [x.text for x in room.service.lines()] == ["kept"]
+
+
 async def test_a_server_that_does_not_answer_is_said_once_in_the_log_and_asked_less_often(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
