@@ -333,3 +333,19 @@ def test_a_removed_list_of_the_chat_that_could_not_be_read_is_never_replaced(tmp
     done, args, _ = run_tool(tmp_path, "chat.sh", ["rm", "42"], code=6)
     assert done.returncode == 1 and "could not be read" in done.stderr
     assert "-T" not in args, "nothing was uploaded"
+
+
+def test_what_the_endpoints_share_goes_up_before_the_endpoints_that_need_it() -> None:
+    """A released station posting during the upload must never meet an endpoint whose shared file is not there yet."""
+    done = subprocess.run(
+        ["bash", str(SCRIPT), "--list"],
+        capture_output=True,
+        text=True,
+        env={"PATH": os.environ["PATH"], "HOME": os.environ.get("HOME", "")},
+        timeout=60,
+    )
+    assert done.returncode == 0, done.stderr
+    listed = [line.strip() for line in done.stdout.splitlines()]
+    shared = listed.index("/public_html/neo/private/endpoint.php")
+    for name in ("skeds.php", "chat.php"):
+        assert shared < listed.index(f"/public_html/neo/api/v1/{name}"), name

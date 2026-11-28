@@ -40,7 +40,9 @@ manifest() {
   for f in "${PAGE[@]}"; do printf '%s\t%s/%s\n' "$ROOT/$f" "$OLD" "$f"; printf '%s\t%s/%s\n' "$ROOT/$f" "$NEO" "$f"; done
   if [ "$with_site" = 1 ]; then
     tracked "$SITE" | while IFS= read -r f; do printf '%s\t%s/%s\n' "$SITE/$f" "$NEO" "$f"; done
-    tracked "$ROOT/neo" | while IFS= read -r f; do printf '%s\t%s/%s\n' "$ROOT/neo/$f" "$NEO" "$f"; done
+    # private/ first: the endpoints require what it holds, and a station may post while the upload runs
+    tracked "$ROOT/neo" | { grep '^private/' || true; } | while IFS= read -r f; do printf '%s\t%s/%s\n' "$ROOT/neo/$f" "$NEO" "$f"; done
+    tracked "$ROOT/neo" | { grep -v '^private/' || true; } | while IFS= read -r f; do printf '%s\t%s/%s\n' "$ROOT/neo/$f" "$NEO" "$f"; done
   fi
 }
 

@@ -871,3 +871,30 @@ def test_the_note_the_daemon_makes_is_the_note_the_server_makes(endpoint: Endpoi
     for case in vectors()["sked_notes"]:
         code, answer = alone(endpoint, note=case["input"])
         assert code == 200 and answer["board"]["skeds"][0]["note"] == case["note"], case
+
+
+@pytest.mark.parametrize("script", ["skeds.php", "chat.php"])
+def test_an_endpoint_whose_shared_file_is_not_there_yet_answers_unavailable_and_shows_no_path(
+    tmp_path: Path, script: str
+) -> None:
+    if PHP is None:
+        pytest.skip("needs php")
+    served = Endpoint(tmp_path / "server")
+    served.folder.mkdir()
+    try:
+        served.start()
+        (served.site / "private" / "endpoint.php").unlink()
+        shutil.copy(ROOT / "server" / "neo" / "api" / "v1" / script, served.site / "api" / "v1" / script)
+        request = urllib.request.Request(
+            served.url.replace("skeds.php", script),
+            data=json.dumps({"action": "refresh"}).encode(),
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            urllib.request.urlopen(request, timeout=30)
+        body = refused.value.read()
+        assert refused.value.code == 503 and json.loads(body) == {"ok": False, "reason": "storage"}
+        assert b"private" not in body and str(served.site).encode() not in body
+    finally:
+        served.stop()

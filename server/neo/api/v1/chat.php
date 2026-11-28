@@ -38,6 +38,13 @@
  * private/endpoint.php. */
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+if (!is_file(__DIR__ . '/../../private/endpoint.php')) {
+    http_response_code(503);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    exit('{"ok":false,"reason":"storage"}');
+}
 require __DIR__ . '/../../private/endpoint.php';
 neo_headers();
 
