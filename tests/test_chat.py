@@ -3,6 +3,7 @@ a line, hostile chats held to them, the conditional reading, what notifies, and 
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -268,6 +269,9 @@ async def test_the_daemon_asks_the_chat_at_its_pace_while_it_runs() -> None:
     await room.service.start()
     await until(lambda: room.service.asked >= 3)
     assert len(room.service.lines()) == 1 and room.moved == [[1]]
+    # (a read on its thread when the service stops is answered while the server still serves)
+    await room.service.stop()
+    await until(lambda: not [t for t in threading.enumerate() if t.name == "chat-fetch"])
 
 
 async def test_the_switch_and_an_address_of_another_computer_keep_it_from_asking_anyone() -> None:
