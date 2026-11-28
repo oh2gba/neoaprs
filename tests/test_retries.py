@@ -11,7 +11,7 @@ import pytest
 
 from neoaprs.config import RECEIVE_ONLY, Config
 from neoaprs.interlock import Interlock
-from neoaprs.message import MessageRecord
+from neoaprs.message import MessageRecord, is_internet_service
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.services.radioset import AirRadio
 from neoaprs.services.retries import Retries
@@ -229,3 +229,33 @@ async def test_a_failing_round_of_the_ticker_is_logged_by_its_name_and_the_ticke
     assert [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR] == [
         "the messaging ticker failed: RuntimeError: boom"
     ]
+
+
+class OpenWay(Host):
+    """A host whose Internet way is open: a message to an internet service goes there."""
+
+    def internet_open(self) -> bool:
+        return True
+
+    def by_internet(self, to: str) -> bool:
+        return is_internet_service(to)
+
+
+def test_with_every_radio_away_a_message_to_a_service_goes_over_an_open_internet_way_and_no_other(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    at = FixedClock()()
+    s = Station(record(1, "OTA", at), record(2, "OH2B", at), host=OpenWay)
+    s.away(FM_ID, HF_ID)
+    assert s.retries.radio_up(s.host.records[1]) is True, "the Internet way, not a radio"
+    with caplog.at_level(logging.WARNING, "neoaprs.messaging"):
+        assert s.retries.radio_up(s.host.records[2]) is False
+        assert s.retries.radio_up(replace(s.host.records[1], direction="in")) is False, "no message of ours"
+        assert s.retries.radio_up() is False
+    assert len(caplog.records) == 1, "told once, for the radio that is away"
+    closed = Station(record(1, "OTA", at))
+    closed.away(FM_ID, HF_ID)
+    assert closed.retries.radio_up(closed.host.records[1]) is False, "a closed way: the radio's state"
+    s.to(1)
+    s.retries.tick()
+    assert s.host.attempted == [1]

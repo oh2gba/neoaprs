@@ -33,6 +33,7 @@ from neoaprs.message import (
     same_call,
     schedule_sec,
     wait_after,
+    is_internet_service,
 )
 
 from neoaprs.radiotype import FM_ID, HF_ID
@@ -394,3 +395,8 @@ def test_a_retry_pause_is_the_same_for_the_same_attempt_and_spreads_over_the_jit
 def test_a_message_counted_as_sent_with_no_time_of_its_attempt_is_due_when_it_was_made() -> None:
     assert due_at(replace(sending(2, T0), last_attempt_at=None)) == T0
     assert due_at(replace(sending(0), last_attempt_at=T0 + timedelta(seconds=5))) == T0
+
+
+def test_the_internet_services_are_known_by_their_exact_calls_whatever_the_case_and_blanks() -> None:
+    assert [is_internet_service(c) for c in ("ANSRVR", " ota ", "EMAIL-2", "email-2")] == [True] * 4
+    assert [is_internet_service(c) for c in ("ANSRVR-1", "OTA1", "EMAIL", "OH2GBA", "")] == [False] * 5
