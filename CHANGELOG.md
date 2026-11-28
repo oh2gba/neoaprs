@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **New:** on Windows a paired Bluetooth radio is listed by its name and connected to directly.
+- **Changed:** a port that cannot be opened says why: the device does not answer, is not paired or refused, or another program holds it.
+- **Changed:** a KISS radio that receives text instead of KISS says so in its status line.
+- **Fixed:** Ask around shows its whole question in every language.
+- **Fixed:** on a phone the settings' lists and Feedback / send logs show their whole words, and choosing an aircraft source moves nothing below it.
+
 ## 0.26.1
 
 - **Changed:** Mercury 1.9.26, Rhizomatica's newest, is the HF modem NeoAPRS carries.
