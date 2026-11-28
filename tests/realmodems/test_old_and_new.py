@@ -12,7 +12,7 @@ import pytest
 import pytest_asyncio
 
 from neoaprs import mercury
-from tests.realmodems.stations import A, B, G, World, exchange, programs, read_machine, refusal
+from tests.realmodems.stations import PAIR_CALL, A, B, G, World, exchange, programs, read_machine, refusal
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
@@ -50,4 +50,6 @@ async def test_a_message_from_a_reaches_b_and_its_ack_comes_back_across_the_two_
 
 
 async def test_a_message_from_b_reaches_a_and_its_ack_comes_back_across_the_two_versions(world: World) -> None:
+    # B's own path to A by the pair's call: B has not heard A yet when this test runs first
+    await world[B.call].set_path(A.call, PAIR_CALL)
     await exchange(world, B.call, A.call, f"old and new B to A, {sorted(world.previous)[0]} old")
