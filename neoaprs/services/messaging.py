@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
-from neoaprs.aprsmessage import MAX_TEXT, MessageError, format_ack
+from neoaprs.aprsmessage import MAX_TEXT, MessageError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
@@ -26,7 +26,6 @@ from neoaprs.message import (
     addressed_to,
     attempts_for,
     check_text,
-    is_internet_service,
 )
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import IS, Message, Packet
@@ -39,7 +38,8 @@ from neoaprs.services.answers import as_pick
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
-from neoaprs.services.messageradio import InternetWay, MessageRadios, info, last_run, named
+from neoaprs.services.messageradio import MessageRadios, info, last_run, named
+from neoaprs.services.serviceroute import InternetWay, ServiceRoute
 from neoaprs.services.keys import Keys, NoKeys
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, reply_path_on
@@ -97,15 +97,16 @@ class Messaging:
         internet: InternetWay | None = None,
     ) -> None:
         self._given = radios  # read through `as_pick` at each call
-        self._internet = internet
         self.keyring: Keys = keyring or NoKeys()
         self._config = config
-        self._interlock = interlock = Interlock(config)
+        interlock = Interlock(config)
         self._log = messagelog
         # Digipeaters for attempt n of a message on a radio (PrefBook.path_for).
         self._paths = paths
         self.clock, self.tick_sec = clock, tick_sec
         self.pace = Pace(clock, spacing_sec)
+        self.services = ServiceRoute(internet, interlock, clock)
+        self.internet_open, self.by_internet = self.services.open, self.services.takes
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}  # by id
@@ -217,14 +218,6 @@ class Messaging:
         if addressed_to(to, ours):
             raise MessagingError(f"{to} is our own call", "message.own_call", call=to)
         return await self._send(ours, to, self.keyring.key_text(), False, "key", None)
-
-    def internet_open(self) -> bool:
-        """Whether the Internet connection carries messages to the internet services now."""
-        return self._internet is not None and self._internet.carries_messages()
-
-    def by_internet(self, to: str) -> bool:
-        """Whether a message to `to` goes over the Internet connection now, not on a radio."""
-        return is_internet_service(to) and self.internet_open()
 
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """Pick the radio, check the frame fits, keep the message and make the first attempt."""
@@ -504,26 +497,9 @@ class Messaging:
         return record
 
     def _attempt_internet(self, record: MessageRecord) -> MessageRecord:
-        """Put the message on APRS-IS once; return it as it is afterwards (unchanged if the link refused)."""
-        reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
-        text = record.text if record.wire is None else record.wire
-        if self._internet is None or not self._internet.send_ours(info(record.to_call, text, record.msg_id, reply)):
-            return record
-        at = self.clock()
-        record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
-        self.delivery.sent(record, (), at, internet=True)
-        if record.msg_id is None:
-            record = replace(record, state="unconfirmed")
-        log.info(
-            "message %d to %s sent over the Internet connection (attempt %d of %d): %s",
-            record.id,
-            record.to_call,
-            record.attempts,
-            record.attempts_max,
-            text,
-        )
-        self.put(record)
-        return record
+        if (sent := self.services.attempt(record, self.inbox.heard, self.delivery)) is not None:
+            self.put(sent)
+        return sent or record
 
     def put(self, record: MessageRecord) -> None:
         """Hold, schedule, store and announce a new or changed message (and the queue it is in)."""
@@ -570,7 +546,7 @@ class Messaging:
         The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack. It is RF
         only when the message was; one that came over the Internet connection is acked there."""
         if packet is not None and packet.via == IS:
-            self._ack_internet(to, msg_id, reply_ack)
+            self.services.ack(to, msg_id, reply_ack)
             return
         self.acks.send(
             to,
@@ -579,16 +555,3 @@ class Messaging:
             None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to),
             rf_only=packet is not None and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
         )
-
-    def _ack_internet(self, to: str, msg_id: str, reply_ack: str | None) -> None:
-        if self._interlock.refused("ack"):
-            return
-        try:
-            field = b":" + format_ack(to, msg_id, reply_ack)
-        except MessageError as e:
-            log.warning("no ack for message %s from %s: %s", msg_id, to, e)
-            return
-        if self._internet is None or not self._internet.send_ours(field):
-            log.warning(
-                "the ack of message %s from %s was not sent: the Internet connection would not take it", msg_id, to
-            )
