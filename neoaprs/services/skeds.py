@@ -21,7 +21,9 @@ from neoaprs.services.updatecheck import ENV_SWITCH, FIRST_SEC
 from neoaprs.signal import Signal
 from neoaprs.skeds import (
     EMPTY,
+    HIDDEN_ROW,
     MAX_LENGTH,
+    MAX_PAST_ROWS,
     MAX_ROWS,
     OURS_ROW,
     SKED_TOKEN,
@@ -106,6 +108,8 @@ class Skeds:
         # whether the last try reached and understood the server; None before the first
         self._reached: bool | None = None
         self._ours: list[str] = []
+        # past tests taken off this installation's list, newest first; never more than the server lists
+        self._hidden: list[str] = []
         # call refused as `closed` while the board then read said open: blocked until the next read
         self._shut = ""
         # kept in the row SKED_TOKEN; without a memory it lasts as long as this object
@@ -153,8 +157,24 @@ class Skeds:
         return [s for s in to_come(self._board.skeds, self._clock()) if s.id not in ended]
 
     def past(self) -> list[Sked]:
-        """Return the past tests, newest first (`past_tests`); none if off."""
-        return list(past_tests(self._board.skeds, self._past, self._clock())) if self.enabled else []
+        """Return the past tests, newest first (`past_tests`), less those taken off here; none if off."""
+        hidden = set(self._hidden)
+        return [s for s in self._all_past() if s.id not in hidden] if self.enabled else []
+
+    def _all_past(self) -> tuple[Sked, ...]:
+        return past_tests(self._board.skeds, self._past, self._clock())
+
+    async def hide(self, ids: list[str]) -> bool:
+        """Take past tests off this installation's list (the server keeps them); False, and nothing
+        taken off, unless every id is a past test shown now."""
+        shown = {s.id for s in self.past()}
+        if not ids or not shown.issuperset(ids):
+            return False
+        self._hidden = [*dict.fromkeys(ids), *(i for i in self._hidden if i not in ids)][:MAX_PAST_ROWS]
+        if self._memory is not None:
+            await self._memory.put_settings({HIDDEN_ROW: ids_text(self._hidden)})
+        self._tell()
+        return True
 
     async def start(self) -> None:
         if not self._tasks and self.enabled:
@@ -176,6 +196,7 @@ class Skeds:
         if found is not None:
             self._board, self.fetched_at = found
         self._ours = kept_ids(await self._memory.setting(OURS_ROW))
+        self._hidden = kept_ids(await self._memory.setting(HIDDEN_ROW))
         self._tell()
 
     def _tell(self) -> None:
@@ -221,21 +242,24 @@ class Skeds:
             log.debug("the HF test board at %s is not usable (status %s)", self.url, status)
             self._unreached()
             return
-        await self._read_past()
-        await self._take(board, prune=status == 200)
+        told = await self._read_past()
+        await self._take(board, prune=status == 200, past_told=told)
 
-    async def _read_past(self) -> None:
-        """Take the server's past tests; a 404 is none (a server without them), any other failure keeps the last."""
+    async def _read_past(self) -> bool:
+        """Take the server's past tests; a 404 is none (a server without them), any other failure keeps the last.
+
+        Return whether the server told them."""
         address = past_url(self.url)
         answer = await self._fetch(address, self.version, self.platform, MAX_BYTES)
         if answer is not None and answer[0] == 404:
             self._past = ()
-            return
+            return True
         found = self._parsed_past(answer[1]) if answer is not None and answer[0] == 200 else None
         if found is None:
             log.debug("the past HF tests at %s could not be read; the last ones stand", address)
-        else:
-            self._past = found
+            return False
+        self._past = found
+        return True
 
     def _parsed_past(self, body: bytes) -> tuple[Sked, ...] | None:
         try:
@@ -256,16 +280,21 @@ class Skeds:
             self._reached = False
             self._tell()
 
-    async def _take(self, board: Board, prune: bool = True) -> None:
-        """Keep and tell the server's board; drop our ids no longer on it (not on 404)."""
+    async def _take(self, board: Board, prune: bool = True, past_told: bool = False) -> None:
+        """Keep and tell the server's board; drop our ids no longer on it (not on 404), and the
+        hidden ids no longer among the past tests once the server told them."""
         self._board, self._reached, self.fetched_at, self._shut = board, True, self._clock(), ""
+        rows = {SKEDS_ROW: board_text(board, self.fetched_at)}
         if prune:
             on_board = {s.id for s in board.skeds}
             self._ours = [i for i in self._ours if i in on_board]
+        rows[OURS_ROW] = ids_text(self._ours)
+        listed = {s.id for s in self._all_past()}
+        if prune and past_told and any(i not in listed for i in self._hidden):
+            self._hidden = [i for i in self._hidden if i in listed]
+            rows[HIDDEN_ROW] = ids_text(self._hidden)
         if self._memory is not None:
-            await self._memory.put_settings(
-                {SKEDS_ROW: board_text(board, self.fetched_at), OURS_ROW: ids_text(self._ours)}
-            )
+            await self._memory.put_settings(rows)
         self._tell()
 
     # ---- posting
@@ -312,7 +341,7 @@ class Skeds:
         if past is not None:
             self._past = past
         self._last = self._monotonic()
-        await self._take(board)
+        await self._take(board, past_told=past is not None)
 
     async def _send(self, action: str, fields: dict[str, str], call: str) -> dict[str, Any] | None:
         """Return the endpoint's answer when it says ok; None for a refusal needing no message."""

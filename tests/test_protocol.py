@@ -1270,6 +1270,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
         "note": "Mercury, 10 W",
     },
     "sked_delete": {"cmd": "sked_delete", "id": "7f3a9c21d4e0"},
+    "sked_past_delete": {"cmd": "sked_past_delete", "ids": ["7f3a9c21d4e0", "0123456789ab"]},
     "chat_say": {"cmd": "chat_say", "text": "QRV on 7.0541 USB, anyone?"},
     "radio_add": {"cmd": "radio_add", "type": "kiss", "name": "Mobile"},
     "radio_remove": {"cmd": "radio_remove", "radio": 3},

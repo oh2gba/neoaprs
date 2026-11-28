@@ -24,6 +24,7 @@ from neoaprs.skeds import (
     SKED_TOKEN,
     SKEDS_ROW,
     SKEDS_URL,
+    HIDDEN_ROW,
     TIME,
     TOKEN,
     Board,
@@ -1240,3 +1241,62 @@ async def test_while_the_update_check_is_off_there_are_no_past_tests() -> None:
     s = Setup(net, environ={ENV_SWITCH: "0"})
     await s.service.ask()
     assert s.service.past() == [] and net.past_calls == []
+
+
+# ---- past tests taken off this installation's list -----------------------------------------------
+
+
+async def test_a_past_test_taken_off_is_left_out_and_stays_out_after_a_start_and_nothing_is_sent(
+    tmp_path: Path,
+) -> None:
+    store = await store_at(tmp_path / "neoaprs.sqlite")
+    gone = (row("bbbbbbbbbbbb", start=-5, end=-3), row("cccccccccccc", start=-5, end=-3, call="OH3ABC"))
+    net = Net(good(GOOD))
+    net.past_read = (200, past_board(*gone, row("dddddddddddd", start=-9, end=-8)))
+    s = Setup(net, memory=store)
+    await s.service.ask()
+    told = len(s.told)
+    assert await s.service.hide(["bbbbbbbbbbbb", "cccccccccccc"]) is True
+    assert [p.id for p in s.service.past()] == ["dddddddddddd"] and len(s.told) == told + 1
+    assert net.post_calls == [] and len(net.read_calls) == 1, "nothing goes to the server"
+    assert json.loads(await store.setting(HIDDEN_ROW) or "") == ["bbbbbbbbbbbb", "cccccccccccc"]
+    again_net = Net(good(GOOD))
+    again_net.past_read = net.past_read
+    again = Setup(again_net, memory=store)
+    await again.service.start()
+    await until(lambda: again.service.asked == 1 and again.service.fetched_at is not None and again.told)
+    await until(lambda: [p.id for p in again.service.past()] == ["dddddddddddd"])
+
+
+async def test_only_a_past_test_of_the_board_as_the_daemon_has_it_can_be_taken_off() -> None:
+    net = Net(good(GOOD, row("aaaaaaaaaaaa", start=-1, end=1)))
+    net.past_read = (200, past_board(row("bbbbbbbbbbbb", start=-5, end=-3)))
+    s = Setup(net)
+    await s.service.ask()
+    for ids in (["7f3a9c21d4e0"], ["aaaaaaaaaaaa"], ["eeeeeeeeeeee"], ["bbbbbbbbbbbb", "eeeeeeeeeeee"], []):
+        assert await s.service.hide(ids) is False, ids
+    assert [p.id for p in s.service.past()] == ["bbbbbbbbbbbb"], "a refusal takes nothing off"
+    assert [r.id for r in s.service.rows()] == ["aaaaaaaaaaaa", "7f3a9c21d4e0"], "the running and the coming test stay"
+
+
+async def test_what_the_server_no_longer_lists_is_forgotten_and_an_unread_past_list_forgets_nothing(
+    tmp_path: Path,
+) -> None:
+    store = await store_at(tmp_path / "neoaprs.sqlite")
+    net = Net(good(GOOD))
+    net.past_reads = [
+        (200, past_board(row("bbbbbbbbbbbb", start=-5, end=-3), row("cccccccccccc", start=-9, end=-8))),
+        (500, b""),
+        (200, past_board(row("cccccccccccc", start=-9, end=-8))),
+    ]
+    s = Setup(net, memory=store)
+    await s.service.ask()
+    assert await s.service.hide(["bbbbbbbbbbbb"]) and await s.service.hide(["cccccccccccc"])
+    s.mono.now += SKEDS_EVERY_SEC + 1
+    await s.service.ask()
+    assert json.loads(await store.setting(HIDDEN_ROW) or "") == ["cccccccccccc", "bbbbbbbbbbbb"], (
+        "the past list could not be read: nothing is forgotten"
+    )
+    s.mono.now += SKEDS_EVERY_SEC + 1
+    await s.service.ask()
+    assert s.service.past() == [] and json.loads(await store.setting(HIDDEN_ROW) or "") == ["cccccccccccc"]

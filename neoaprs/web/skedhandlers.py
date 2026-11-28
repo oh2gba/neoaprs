@@ -1,11 +1,11 @@
-"""Command handlers of the sked board: `skeds_wanted`, `sked_post` and `sked_delete`."""
+"""Command handlers of the sked board: `skeds_wanted`, `sked_post`, `sked_delete` and `sked_past_delete`."""
 
 from neoaprs.coded import CodedError, code_of
 from neoaprs.callsign import call_problem
 from neoaprs.skeds import clean_note, when
 
 from .dispatch import Ctx, UserError, command
-from .skedwire import SkedDelete, SkedPost, SkedsWanted
+from .skedwire import SkedDelete, SkedPastDelete, SkedPost, SkedsWanted
 
 
 @command(SkedsWanted)
@@ -35,3 +35,10 @@ async def sked_delete(ctx: Ctx, cmd: SkedDelete) -> None:
         await ctx.ctl.skeds.delete(cmd.id)
     except CodedError as e:
         raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
+
+
+@command(SkedPastDelete)
+async def sked_past_delete(ctx: Ctx, cmd: SkedPastDelete) -> None:
+    # A page that showed a past test the daemon has dropped since; the topic already says it is gone.
+    if not await ctx.ctl.skeds.hide(cmd.ids):
+        raise UserError(f"{cmd.cmd}: not all of {', '.join(cmd.ids)} are past tests now", "failed")

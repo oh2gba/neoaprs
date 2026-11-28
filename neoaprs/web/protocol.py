@@ -76,7 +76,7 @@ from .radiowire import (
 from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly, StationAlertMsg, StationPref
 from .chatwire import ChatFreshMsg, ChatLineRow, ChatSay, ChatState
-from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
+from .skedwire import SkedDelete, SkedPastDelete, SkedPost, SkedsState, SkedsWanted
 from .stationwire import CallRoute, ForgetAllStations, ForgetStation, StationRow, StationTrack, StationTrackMsg
 from .supportwire import PageError
 from .tncwire import Frequencies, RadioRow
@@ -139,6 +139,7 @@ AnyCommand = Union[
     SkedsWanted,
     SkedPost,
     SkedDelete,
+    SkedPastDelete,
     ChatSay,
     PageError,
     RadioAdd,

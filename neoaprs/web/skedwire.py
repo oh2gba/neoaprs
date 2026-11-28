@@ -1,10 +1,10 @@
-"""Wire models of the sked board: the topic `skeds` and the commands to read, post and delete skeds.
+"""Wire models of the sked board: the topic `skeds`, the commands to read, post and delete skeds, and to take a past test off.
 
 On the wire the times are `from` and `to`; the models call the first `from_` and alias it, since
 `from` is a keyword.
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
@@ -133,3 +133,10 @@ class SkedDelete(_Command):
 
     cmd: Literal["sked_delete"]
     id: str = Field(pattern=ID_PATTERN)
+
+
+class SkedPastDelete(_Command):
+    """Takes a past test off this installation's list, by the ids of its rows: `past` of the topic `skeds` no longer has them, for every page of this installation and after a restart. Nothing is sent to the server, and other stations still see the test; the ids are forgotten once the server no longer lists them. An `error` (`failed`), and nothing taken off, when an id is not one of `past` as the daemon has it now."""
+
+    cmd: Literal["sked_past_delete"]
+    ids: list[Annotated[str, Field(pattern=ID_PATTERN)]] = Field(min_length=1, max_length=MAX_PAST_ROWS)

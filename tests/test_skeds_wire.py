@@ -252,3 +252,32 @@ async def test_a_post_with_no_call_is_refused_and_a_command_that_is_not_right_is
         assert (await page.expect("error"))["code"] == "invalid", broken
     assert server.posts == []
     await e.stop()
+
+
+async def test_a_past_test_taken_off_goes_for_every_page_and_nothing_is_posted_and_a_coming_or_unknown_one_is_refused(
+    tmp_path: Path,
+) -> None:
+    server = await skeds_server()
+    server.rows = [
+        {"id": "7f3a9c21d4e0", "call": "OH2XYZ", "from": when(1), "to": when(3), "dial": "14.1070 MHz USB", "note": ""}
+    ]
+    gone = {"call": "OH2XYZ", "from": when(-30), "to": when(-29), "dial": "7.0541 MHz USB", "note": ""}
+    server.past = [
+        {**gone, "id": "0123456789ab"},
+        {**gone, "id": "0123456789ac", "call": "OH3ABC"},
+        {**gone, "id": "0123456789ad", "from": when(-50), "to": when(-49)},
+    ]
+    e = await started(tmp_path, server)
+    page, _ = await topic(e)
+    other, _ = await topic(e)
+    await page.send({"cmd": "skeds_wanted"})
+    await other.until(lambda: len(other.topics["skeds"]["past"]) == 3)
+    for ids in (["7f3a9c21d4e0"], ["fedcba987654"], ["0123456789ad", "fedcba987654"]):
+        await page.send({"cmd": "sked_past_delete", "ids": ids})
+        error = await page.expect("error")
+        assert (error["cmd"], error["code"]) == ("sked_past_delete", "failed"), ids
+    await page.send({"cmd": "sked_past_delete", "ids": ["0123456789ab", "0123456789ac"]})
+    await other.until(lambda: [p["id"] for p in other.topics["skeds"]["past"]] == ["0123456789ad"])
+    assert [r["id"] for r in other.topics["skeds"]["rows"]] == ["7f3a9c21d4e0"]
+    assert server.posts == [] and len(server.gets) == 1, "nothing is sent to the server"
+    await e.stop()
