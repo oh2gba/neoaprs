@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from neoaprs.mercury import VERSION as MERCURY_VERSION
 
 from tests.support.httpthread import serve
 from tests.test_scripts import load_script
@@ -187,6 +188,24 @@ def test_a_registry_that_does_not_answer_is_reported_and_passes(registries: Any)
     assert verdict(closed, pin("pypi", "ruff", "0.17.6")).note.startswith("the registry did not answer")
 
 
+def test_only_being_behind_fails_never_an_answer_it_cannot_read_or_a_release_without_a_date(registries: Any) -> None:
+    Registry.routes["/pypi/odd/json"] = ["not", "a", "project"]
+    Registry.routes["/pypi/limited/json"] = 429
+    Registry.routes["/repos/a/b/releases/latest"] = 403
+    Registry.routes["/undated"] = {"versions": {"1.0.0": {}, "1.1.0": {}}, "time": {"1.0.0": ago(400)}}
+    pins = [
+        pin("pypi", "odd", "1.0"),
+        pin("pypi", "limited", "1.0"),
+        pin("github", "a/b", "1.0"),
+        pin("npm", "undated", "1.0.0"),
+    ]
+    said: list[str] = []
+    assert levelcheck.run(pins, {}, registries, NOW, lambda: True, said.append) == 0
+    rows = {next(word for word in line.split() if ":" in word): line for line in said[1:-1]}
+    assert "not one this reads" in rows["pypi:odd"] and "answered 429" in rows["pypi:limited"]
+    assert "answered 403" in rows["github:a/b"] and rows["npm:undated"].endswith("the registry gave no date")
+
+
 def test_with_no_network_it_says_so_and_passes() -> None:
     said: list[str] = []
 
@@ -216,7 +235,7 @@ def test_it_collects_every_exact_pin_of_the_tree(tmp_path: Path) -> None:
     workflow = '      - uses: astral-sh/setup-uv@abc123 # v10.4.0\n        with:\n          version: "0.13.10"\n'
     (tmp_path / ".github" / "workflows" / "ci.yml").write_text(workflow * 2)
     (tmp_path / "neoaprs").mkdir()
-    (tmp_path / "neoaprs" / "mercury.py").write_text('VERSION = "1.9.26"\n')
+    (tmp_path / "neoaprs" / "mercury.py").write_text('VERSION = "1.9.26"\nPREVIOUS_VERSION = "1.9.25"\n')
     found = {(p.kind, p.name, p.version): p.where for p in levelcheck.collect(tmp_path)}
     assert found == {
         ("pypi", "hatchling", "1.33.0"): ("pyproject.toml",),
@@ -242,6 +261,8 @@ def test_the_trees_pins_include_every_kind_and_one_uv() -> None:
     } <= names
     assert {("github", "gitleaks/gitleaks"), ("github", "google/osv-scanner")} <= names
     assert len([p for p in pins if p.name == "astral-sh/uv"]) == 1, "every place pins the same uv"
+    mercury = [p.version for p in pins if p.name == "Rhizomatica/mercury"]
+    assert mercury == [MERCURY_VERSION], "the previous Mercury is built beside ours for the tests, not a pin to chase"
     cpython = [p for p in pins if p.name == "astral-sh/python-build-standalone"]
     assert len(cpython) == 1 and set(cpython[0].where) == {
         "scripts/build-appimage",

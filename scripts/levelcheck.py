@@ -11,6 +11,7 @@ network, or a registry that does not answer, it says so and passes."""
 import argparse
 import concurrent.futures
 import gzip
+import http.client
 import json
 import os
 import re
@@ -249,7 +250,7 @@ class Registries:
             return latest
         try:
             return _github_releases(self._get(f"{self.github}/repos/{repo}/releases?per_page={GITHUB_PAGE}", headers))
-        except (OSError, ValueError):
+        except (OSError, ValueError, http.client.HTTPException):
             if latest:
                 return latest
             raise
@@ -306,10 +307,11 @@ def judge(pin: Pin, releases: list[Release], allowance: Allowance | None, now: d
     newest = max(counted, key=lambda r: version_key(r.version))
     dated = [r.at for r in counted if r.at]
     since = min(dated) if dated else None
-    if since is None or now - since > LIMIT:
+    if since is not None and now - since > LIMIT:
         word, fails = "behind", True
     else:
         word, fails = "young", False
+        note = note or ("" if since else "the registry gave no date")
     return Verdict(pin, word, fails, newest.version, _days(newest.at, now), _days(since, now), note)
 
 
@@ -322,8 +324,10 @@ def ask(pin: Pin, registries: Registries, allow: dict[tuple[str, str], Allowance
         releases = registries.releases(pin)
     except urllib.error.HTTPError as e:
         return Verdict(pin, "not asked", False, note=f"the registry answered {e.code}")
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, http.client.HTTPException) as e:
         return Verdict(pin, "not asked", False, note=f"the registry did not answer ({e})")
+    except (AttributeError, KeyError, TypeError) as e:
+        return Verdict(pin, "not asked", False, note=f"the registry's answer is not one this reads ({e!r})")
     return judge(pin, releases, allow.get((pin.kind, pin.name.lower())), now)
 
 
