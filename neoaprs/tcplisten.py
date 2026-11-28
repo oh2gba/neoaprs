@@ -5,6 +5,7 @@ Windows calls take their library as an argument, so the logic is tested with a f
 """
 
 import ctypes
+import logging
 import os
 import socket
 import struct
@@ -13,6 +14,8 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger("neoaprs.mercury")
 
 PROC_TCP = ("/proc/net/tcp", "/proc/net/tcp6")
 LISTEN_HEX = "0A"
@@ -242,7 +245,13 @@ def not_ours(
     if pid is None:
         return seen
     if sys.platform == "win32" and any(listener.pid not in (pid, None) for listener in seen):
-        family = family_of(pid, (parents or windows_parents)())
+        lineage = (parents or windows_parents)()
+        family = family_of(pid, lineage)
+        # a listener whose parent cannot be read (no snapshot) may be our own run's child: unknown, not another's
+        unknown = {listener.pid for listener in seen if listener.pid not in lineage}
+        if unknown - family:
+            log.debug("the parent of process %s could not be read: taken as ours", sorted(unknown - family, key=str))
+        family |= unknown
     else:
         family = {pid}
     return [listener for listener in seen if listener.pid not in family]

@@ -149,3 +149,15 @@ def test_a_pair_with_a_listener_on_every_address_is_not_free_and_on_mercurys_own
             mercuryhelper.free_ports(port, 1)
         with pytest.raises(OSError, match="no free pair"):
             mercuryhelper.free_ports(port, 1, mercury=False)
+
+
+def test_on_windows_a_listener_whose_lineage_cannot_be_read_is_not_taken_for_another_program(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed snapshot must not end our own run, started through a launcher, again and again."""
+    found = [Listener(8100, "127.0.0.1", 12), Listener(8300, "127.0.0.1", 12)]
+    stranger = [Listener(8100, "0.0.0.0", 13)]
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert tcplisten.not_ours([8100, 8300], 10, lambda ports, pid: found, lambda: {}) == []
+    assert tcplisten.not_ours([8100, 8300], 10, lambda ports, pid: found, lambda: {13: 1, 10: 1}) == []
+    assert tcplisten.not_ours([8100], 10, lambda ports, pid: stranger, lambda: {13: 1, 10: 1, 12: 10}) == stranger
