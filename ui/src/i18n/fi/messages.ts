@@ -123,8 +123,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.auto_direct": "Automaattinen: suoraan, sitten {path}",
   "route.auto_via": "Automaattinen: {heard} kautta, sitten {path}",
   "route.own": "Oma polkusi: {path}",
-  "route.rf_only": "Vain RF",
-  "route.rf_only_title": "iGatet eivät vie näitä viestejä internetiin",
+  "route.rf_only": "Vain radio",
   "route.request_path_tip":
     "Kutsut tai aliakset pilkuilla erotettuina (OH2RDK-7,OH2RCH-2 tai WIDE1-1,WIDE2-1), DIRECT jos ei yhtään. Tyhjä on tavallinen polku.",
   "pathbuilder.open": "Rakenna polku",

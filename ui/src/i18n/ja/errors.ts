@@ -116,7 +116,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.no_free_call": "SSID 1から15まですべて使われています",
   "error.path.too_long": "デジピーター{count}個は、パスに入れられる最大{max}個を超えています",
   "error.path.too_long_rf_only":
-    "RFのみには長すぎるパスです: デジピーター{count}個とRFONLYで、パスに入れられる最大{max}個を超えます",
+    "無線のみには長すぎるパスです: デジピーター{count}個とRFONLYで、パスに入れられる最大{max}個を超えます",
   "error.query.not_capable": "{call} はメッセージを受け付けません。問い合わせる相手がいません",
   "error.transmit.call": "何も送信しません:{reason}",
   "error.transmit.off": "受信のみ:何も送信しません",
@@ -180,7 +180,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.status.off": "ステータスはオフです",
   "error.status.no_text": "ステータスのテキストがありません",
   "error.status.no_rig": "ステータスの元になる無線機がありません: Rigctldを設定してください",
-  "error.station.email_rf_only": "{call}は「RFのみ」にできません: メールゲートウェイはインターネット上にあります",
+  "error.station.email_rf_only": "{call}は「無線のみ」にできません: メールゲートウェイはインターネット上にあります",
   "error.radio.transmitting": "無線機が送信中です",
   "error.radio.text_lines": "ボードがテキスト行を送っています: KISSに設定してください",
   "error.radio.port_in_use": "別のプログラムがポートを使用しています: そのプログラムを閉じてください",

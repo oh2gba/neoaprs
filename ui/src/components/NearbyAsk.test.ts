@@ -145,7 +145,7 @@ describe("Ask around in the Nearby tab", () => {
     }
     await pathField(wrapper).setValue("A1,A2,A3,A4,A5,A6,A7,A8");
     expect(ask(wrapper).attributes("title")).toBe(
-      "path too long for RF only: 8 digipeaters and RFONLY make more than the 8 a path may have",
+      "path too long for Radio only: 8 digipeaters and RFONLY make more than the 8 a path may have",
     );
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     await pathField(wrapper).setValue("direct");

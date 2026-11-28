@@ -113,7 +113,7 @@ export const errors = {
   "error.pair.no_free_call": "every SSID from 1 to 15 is taken",
   "error.path.too_long": "{count} digipeaters is more than the {max} a path may have",
   "error.path.too_long_rf_only":
-    "path too long for RF only: {count} digipeaters and RFONLY make more than the {max} a path may have",
+    "path too long for Radio only: {count} digipeaters and RFONLY make more than the {max} a path may have",
   "error.query.not_capable": "{call} does not take messages: there is nobody to ask",
   "error.transmit.call": "nothing is sent: {reason}",
   "error.transmit.off": "RX only: nothing is sent",
@@ -176,7 +176,7 @@ export const errors = {
   "error.status.off": "the status is off",
   "error.status.no_text": "there is no status text",
   "error.status.no_rig": "the status has no radio to come from: set Rigctld",
-  "error.station.email_rf_only": "{call} cannot be RF only: the email gateway is on the internet",
+  "error.station.email_rf_only": "{call} cannot be Radio only: the email gateway is on the internet",
   "error.radio.transmitting": "the radio is transmitting",
   "error.radio.text_lines": "the board sends text lines: set it to KISS",
   "error.radio.port_in_use": "in use by another program (close it: a terminal, Direwolf, a rig program)",

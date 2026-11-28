@@ -121,8 +121,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "route.auto_direct": "Automática: directa, luego {path}",
   "route.auto_via": "Automática: vía {heard}, luego {path}",
   "route.own": "Tu ruta: {path}",
-  "route.rf_only": "Solo RF",
-  "route.rf_only_title": "Los iGates no pasan estos mensajes a internet",
+  "route.rf_only": "Solo radio",
   "route.request_path_tip":
     "Indicativos o alias separados por comas (OH2RDK-7,OH2RCH-2 o WIDE1-1,WIDE2-1), DIRECT para ninguno. Vacío es la ruta habitual.",
   "pathbuilder.open": "Construir la ruta",

@@ -121,8 +121,7 @@ export const messages = {
   "route.auto_direct": "Automatic: direct, then {path}",
   "route.auto_via": "Automatic: via {heard}, then {path}",
   "route.own": "Your path: {path}",
-  "route.rf_only": "RF only",
-  "route.rf_only_title": "iGates do not put these messages on the internet",
+  "route.rf_only": "Radio only",
   "route.request_path_tip":
     "Calls or aliases separated by commas (OH2RDK-7,OH2RCH-2 or WIDE1-1,WIDE2-1), DIRECT for none. Empty is the usual path.",
   "pathbuilder.open": "Build the path",

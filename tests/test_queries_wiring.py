@@ -80,7 +80,7 @@ async def test_the_answer_to_an_rf_only_asker_ends_with_rfonly_and_one_that_cann
     with caplog.at_level(logging.WARNING, "neoaprs.queries"):
         e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP", "8"), path="OH2RCH-2*"))
         await heard(e, 2)
-    assert await said(e, 1, 0.3) == [] and any("path too long for RF only" in r.getMessage() for r in caplog.records)
+    assert await said(e, 1, 0.3) == [] and any("path too long for Radio only" in r.getMessage() for r in caplog.records)
     await e.stop()
 
 

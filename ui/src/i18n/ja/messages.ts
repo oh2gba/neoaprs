@@ -118,8 +118,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.auto_direct": "自動: 直接、その後 {path}",
   "route.auto_via": "自動: {heard} 経由、その後 {path}",
   "route.own": "指定したパス: {path}",
-  "route.rf_only": "RFのみ",
-  "route.rf_only_title": "iGateはこれらのメッセージをインターネットに流しません",
+  "route.rf_only": "無線のみ",
   "route.request_path_tip":
     "コールサインまたはエイリアスをカンマ区切りで (OH2RDK-7,OH2RCH-2 や WIDE1-1,WIDE2-1)。なしはDIRECT。空欄は通常のパス。",
   "pathbuilder.open": "パスを組み立てる",

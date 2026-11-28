@@ -112,7 +112,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.no_free_call": "kaikki SSID:t 1–15 ovat käytössä",
   "error.path.too_long": "{count} digipeateria on enemmän kuin polulla saa olla ({max})",
   "error.path.too_long_rf_only":
-    "polku on liian pitkä vain RF:lle: {count} digipeateria ja RFONLY ylittävät polun enimmäismäärän {max}",
+    "polku on liian pitkä vain radiolle: {count} digipeateria ja RFONLY ylittävät polun enimmäismäärän {max}",
   "error.query.not_capable": "{call} ei ota vastaan viestejä: ei ole ketään, jolta kysyä",
   "error.transmit.call": "mitään ei lähetetä: {reason}",
   "error.transmit.off": "Vain RX: mitään ei lähetetä",
@@ -177,7 +177,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.status.off": "tilaviesti on pois päältä",
   "error.status.no_text": "tilaviestin tekstiä ei ole",
   "error.status.no_rig": "tilaviestillä ei ole radiota, josta se tulisi: aseta Rigctld",
-  "error.station.email_rf_only": "{call} ei voi olla vain RF: sähköpostiyhdyskäytävä on internetissä",
+  "error.station.email_rf_only": "{call} ei voi olla vain radio: sähköpostiyhdyskäytävä on internetissä",
   "error.radio.transmitting": "radio lähettää",
   "error.radio.text_lines": "kortti lähettää tekstirivejä: aseta se KISS-tilaan",
   "error.radio.port_in_use": "toinen ohjelma käyttää porttia: sulje se",

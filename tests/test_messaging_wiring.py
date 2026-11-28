@@ -372,7 +372,7 @@ async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is
     await e.ctl.messaging.send("OH2RDG", "waits")
     assert len(await said(e)) == 1
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
-    with pytest.raises(MessagingError, match="path too long for RF only"):
+    with pytest.raises(MessagingError, match="path too long for Radio only"):
         await e.ctl.messaging.send("OH2RDG", "refused")
     assert [r.text for r in e.ctl.messaging.records()] == ["waits"], "a refused message is not kept"
     e.now.advance(60)  # type: ignore[attr-defined]  # the second attempt of the first message is due
@@ -383,7 +383,7 @@ async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is
         and e.ctl.messaging.records()[0].attempts == 1
         and e.ctl.messaging.records()[0].state == "sending"
     )
-    assert len([r for r in caplog.records if "path too long for RF only" in r.getMessage()]) == 1, (
+    assert len([r for r in caplog.records if "path too long for Radio only" in r.getMessage()]) == 1, (
         "told once, not at every tick"
     )
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12")))

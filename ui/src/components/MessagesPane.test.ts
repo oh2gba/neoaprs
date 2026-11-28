@@ -238,7 +238,7 @@ describe("MessagesPane, the route in the header", () => {
     expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2RDG", path: "WIDE2-1" }]);
     await wrapper.find(".route-box .use-default").trigger("click");
     expect(sent("clear_station_path")).toEqual([{ cmd: "clear_station_path", call: "OH2RDG" }]);
-    expect(wrapper.findAll(".route-box label").map((l) => l.text())).toEqual(["Path", "RF only"]);
+    expect(wrapper.findAll(".route-box label").map((l) => l.text())).toEqual(["Path", "Radio only"]);
     const plain = await pane();
     await plain.find(".route-button").trigger("click");
     expect(plain.find(".route-box .path-line").text()).toBe("Automatic: WIDE1-1,WIDE2-1");

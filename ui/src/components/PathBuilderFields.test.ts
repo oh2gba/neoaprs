@@ -109,7 +109,7 @@ describe("the path builder of each path field", () => {
     await flush();
     await pick("Add");
     expect(button("Use")?.disabled).toBe(true);
-    expect(button("Use")?.title).toContain("RF only");
+    expect(button("Use")?.title).toContain("Radio only");
     await pick("Direct", "1", "Use");
     expect(wrapper.emitted("update:path")).toEqual([["WIDE1-1"]]);
   });

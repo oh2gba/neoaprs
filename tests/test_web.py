@@ -1318,7 +1318,7 @@ async def test_set_station_rf_only_for_the_email_gateway_is_an_error_that_says_w
     await page.until(lambda: len(page.of("error")) == 1)
     assert (
         page.of("error")[0]["text"]
-        == "set_station_rf_only: EMAIL-2 cannot be RF only: the email gateway is on the internet"
+        == "set_station_rf_only: EMAIL-2 cannot be Radio only: the email gateway is on the internet"
     )
     await page.send({"cmd": "set_station_rf_only", "call": "email-2", "on": False})
     await page.send({"cmd": "ping"})

@@ -116,7 +116,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.pair.no_free_call": "todos los SSID del 1 al 15 están ocupados",
   "error.path.too_long": "{count} digipeaters son más de los {max} que puede tener una ruta",
   "error.path.too_long_rf_only":
-    "ruta demasiado larga para solo RF: {count} digipeaters y RFONLY son más de los {max} que puede tener una ruta",
+    "ruta demasiado larga para solo radio: {count} digipeaters y RFONLY son más de los {max} que puede tener una ruta",
   "error.query.not_capable": "{call} no recibe mensajes: no hay a quién preguntar",
   "error.transmit.call": "no se envía nada: {reason}",
   "error.transmit.off": "Solo RX: no se envía nada",
@@ -181,7 +181,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.status.off": "el estado está desactivado",
   "error.status.no_text": "no hay texto de estado",
   "error.status.no_rig": "el estado no tiene ninguna radio de la que venir: indica Rigctld",
-  "error.station.email_rf_only": "{call} no puede ser solo RF: la pasarela de correo está en internet",
+  "error.station.email_rf_only": "{call} no puede ser solo radio: la pasarela de correo está en internet",
   "error.radio.transmitting": "la radio está transmitiendo",
   "error.radio.text_lines": "la placa envía líneas de texto: ponla en KISS",
   "error.radio.port_in_use": "otro programa tiene el puerto: ciérralo",

@@ -112,7 +112,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.no_free_call": "todos os SSID de 1 a 15 estão em uso",
   "error.path.too_long": "{count} digipeaters são mais que os {max} que um caminho pode ter",
   "error.path.too_long_rf_only":
-    "caminho longo demais para só RF: {count} digipeaters e RFONLY são mais que os {max} que um caminho pode ter",
+    "caminho longo demais para só rádio: {count} digipeaters e RFONLY são mais que os {max} que um caminho pode ter",
   "error.query.not_capable": "{call} não recebe mensagens: não há ninguém para consultar",
   "error.transmit.call": "nada é enviado: {reason}",
   "error.transmit.off": "Só RX: nada é enviado",
@@ -177,7 +177,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.status.off": "o status está desligado",
   "error.status.no_text": "não há texto de status",
   "error.status.no_rig": "o status não tem um rádio de onde vir: defina o Rigctld",
-  "error.station.email_rf_only": "{call} não pode ser só RF: o gateway de e-mail está na internet",
+  "error.station.email_rf_only": "{call} não pode ser só rádio: o gateway de e-mail está na internet",
   "error.radio.transmitting": "o rádio está transmitindo",
   "error.radio.text_lines": "a placa envia linhas de texto: configure-a para KISS",
   "error.radio.port_in_use": "outro programa está usando a porta: feche-o",

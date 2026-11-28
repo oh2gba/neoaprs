@@ -68,7 +68,7 @@ class ClearStationPath(_Command):
 
 class SetStationRfOnly(_Command):
     """Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE`
-    already gets no second one). A path that would be more than 8 elements with it is refused when a message is sent ("path too long for RF only"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`
+    already gets no second one). A path that would be more than 8 elements with it is refused when a message is sent ("path too long for Radio only"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`
     of the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason."""
 
     cmd: Literal["set_station_rf_only"]

@@ -123,8 +123,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.auto_direct": "Automatisch: direct, dan {path}",
   "route.auto_via": "Automatisch: via {heard}, dan {path}",
   "route.own": "Eigen pad: {path}",
-  "route.rf_only": "Alleen RF",
-  "route.rf_only_title": "iGates zetten deze berichten niet op internet",
+  "route.rf_only": "Alleen radio",
   "route.request_path_tip":
     "Roepnamen of aliassen gescheiden door komma's (OH2RDK-7,OH2RCH-2 of WIDE1-1,WIDE2-1), DIRECT voor geen. Leeg laten geeft het gewone pad.",
   "pathbuilder.open": "Pad samenstellen",

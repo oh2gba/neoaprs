@@ -344,7 +344,7 @@ def test_a_path_of_eight_with_rf_only_is_refused_with_its_count() -> None:
         request_path(",".join(["WIDE2-2"] * 8), (), True)
     assert (refused.value.code, refused.value.params) == ("path.too_long_rf_only", {"count": 8, "max": 8})
     assert str(refused.value) == (
-        "path too long for RF only: 8 digipeaters and RFONLY make more than the 8 a path may have"
+        "path too long for Radio only: 8 digipeaters and RFONLY make more than the 8 a path may have"
     )
 
 

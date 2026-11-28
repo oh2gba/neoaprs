@@ -98,18 +98,18 @@ describe("Route in a conversation", () => {
 
   it("holds, with one radio on, the path and RF only as today, and no radio to choose", async () => {
     const box = await opened(conversation(FM, "OH2FM"));
-    expect(box.findAll("label").map((l) => l.text())).toEqual(["Path", "RF only"]);
+    expect(box.findAll("label").map((l) => l.text())).toEqual(["Path", "Radio only"]);
     expect(box.find("select").exists()).toBe(false);
   });
 
   it("is there for a station messaged on Mercury while the Packet radio is on too: its radio first, then the path greyed with the reason as its title, RF only live, and the line saying what the messages go by (plan section 6)", async () => {
     const box = await opened(conversation(BOTH, "OH2HF"));
-    expect(box.findAll("label").map((l) => l.text())).toEqual(["Radio", "Path", "RF only"]);
+    expect(box.findAll("label").map((l) => l.text())).toEqual(["Radio", "Path", "Radio only"]);
     expect(options(box)).toEqual(["Automatic: Mercury", "Packet", "Mercury"]);
     const path = box.find<HTMLInputElement>(".pathbox input[type='text']");
     expect([path.element.disabled, path.attributes("title")]).toEqual([true, "Mercury: no path"]);
     expect(box.find<HTMLInputElement>(".rfonly input").element.disabled).toBe(false);
-    expect(box.find(".rfonly").attributes("title")).toBe("iGates do not put these messages on the internet");
+    expect(box.find(".rfonly").attributes("title")).toBeUndefined();
     expect(box.find(".path-line").text()).toBe("Automatic: direct");
     expect(box.find<HTMLButtonElement>(".pathbox button").element.disabled).toBe(true);
   });
@@ -120,10 +120,7 @@ describe("Route in a conversation", () => {
     expect(box.find(".path-line").text()).toBe("Automatic: via OH2GBA-12,WIDE2-1");
     expect(box.find<HTMLInputElement>(".pathbox input[type='text']").element.disabled).toBe(true);
     const rfOnly = box.find<HTMLInputElement>(".rfonly input");
-    expect([rfOnly.element.disabled, box.find(".rfonly").attributes("title")]).toEqual([
-      false,
-      "iGates do not put these messages on the internet",
-    ]);
+    expect([rfOnly.element.disabled, box.find(".rfonly").attributes("title")]).toEqual([false, undefined]);
     await rfOnly.setValue(true);
     expect(sent("set_station_rf_only")).toEqual([{ cmd: "set_station_rf_only", call: "OH2HF", on: true }]);
     await tell(daemon, { stations: stations(hfHeard) });
@@ -213,7 +210,7 @@ describe("Route in a conversation", () => {
       false,
       ["pathbox", "route-radio"],
       ["Automatic: Packet", "Packet", "Mercury"],
-      ["Radio", "Path", "RF only"],
+      ["Radio", "Path", "Radio only"],
     ]);
     const before = box.findAll(".prefs > *").map((row) => row.classes()[0]);
     await tell(daemon, { stations: stations(fmHeard, station("OH2NEW", { heard: heardBy([1, 1]), radio_now: 1 })) });

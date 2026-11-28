@@ -21,7 +21,7 @@ describe("App: messages", () => {
       ?.trigger("click");
     await wrapper.find("#pane-messages .convo-head .route-button").trigger("click");
     const header = wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input");
-    expect(wrapper.findAll("#pane-messages .route-box label").map((l) => l.text())).toEqual(["Path", "RF only"]);
+    expect(wrapper.findAll("#pane-messages .route-box label").map((l) => l.text())).toEqual(["Path", "Radio only"]);
     await header.setValue(true);
     expect(socket.sent).toContainEqual({ cmd: "set_station_rf_only", call: "OH2PU-9", on: true });
     socket.say({

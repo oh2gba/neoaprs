@@ -240,7 +240,7 @@ class Answers:
                 # no path, but what is RF only keeps the way back through a gateway before RFONLY
                 calls = rf_only_path(calls) if rf_only else ()
             if len(calls) > ax25.MAX_PATH:
-                raise MessagingError(f"path too long for RF only: {len(calls)} digipeaters")
+                raise MessagingError(f"path too long for Radio only: {len(calls)} digipeaters")
             path = tuple(ax25.Address.parse(call) for call in calls)
         except MessagingError as e:
             log.warning("a query of %s is not answered: %s", asker, e)

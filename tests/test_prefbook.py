@@ -283,7 +283,7 @@ async def test_rf_only_sits_beside_the_path_and_the_entry_goes_when_the_last_of_
 
 
 async def test_the_email_gateway_can_never_be_rf_only_and_the_reason_is_told(rig: Rig) -> None:
-    with pytest.raises(MessagingError, match="EMAIL-2 cannot be RF only: the email gateway is on the internet"):
+    with pytest.raises(MessagingError, match="EMAIL-2 cannot be Radio only: the email gateway is on the internet"):
         await rig.book.set_rf_only("email-2", True)
     assert rig.book.all() == {} and rig.told == [] and await rig.log.prefs() == {}
     await rig.book.set_rf_only("EMAIL-2", False)  # (off is no error)
@@ -302,7 +302,7 @@ async def test_a_path_that_rfonly_would_make_longer_than_eight_is_refused_with_t
     await rig.book.set_path("OH2RDG", eight)
     assert rig.book.path_for("OH2RDG") == tuple(eight.split(","))
     await rig.book.set_rf_only("OH2RDG", True)
-    with pytest.raises(MessagingError, match="path too long for RF only"):
+    with pytest.raises(MessagingError, match="path too long for Radio only"):
         rig.book.path_for("OH2RDG")
     await rig.book.set_path("OH2RDG", ",".join(eight.split(",")[:7]))
     assert len(rig.book.path_for("OH2RDG")) == 8 and rig.book.path_for("OH2RDG")[-1] == "RFONLY"
@@ -472,7 +472,7 @@ async def test_rf_only_is_the_stations_on_every_radio(rig: Rig) -> None:
         "RFONLY",
     )
     await r.book.set_path("OH2RDG", ",".join(f"OH2D{n}" for n in range(8)), SECOND_FM)
-    with pytest.raises(MessagingError, match="path too long for RF only"):
+    with pytest.raises(MessagingError, match="path too long for Radio only"):
         r.book.path_for("OH2RDG", None, SECOND_FM)
     assert r.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1", "RFONLY"), "on radio 1 it still fits"
 

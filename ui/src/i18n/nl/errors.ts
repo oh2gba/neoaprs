@@ -114,7 +114,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.pair.no_free_call": "alle SSID's van 1 tot 15 zijn in gebruik",
   "error.path.too_long": "{count} digipeaters zijn meer dan de {max} die een pad mag hebben",
   "error.path.too_long_rf_only":
-    "pad te lang voor alleen RF: {count} digipeaters en RFONLY zijn samen meer dan de {max} die een pad mag hebben",
+    "pad te lang voor alleen radio: {count} digipeaters en RFONLY zijn samen meer dan de {max} die een pad mag hebben",
   "error.query.not_capable": "{call} neemt geen berichten aan: er valt niemand te vragen",
   "error.transmit.call": "er wordt niets verzonden: {reason}",
   "error.transmit.off": "Alleen RX: er wordt niets verzonden",
@@ -180,7 +180,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.status.off": "de status staat uit",
   "error.status.no_text": "er is geen statustekst",
   "error.status.no_rig": "de status heeft geen radio om van te komen: stel Rigctld in",
-  "error.station.email_rf_only": "{call} kan niet alleen RF zijn: de e-mailgateway zit op internet",
+  "error.station.email_rf_only": "{call} kan niet alleen radio zijn: de e-mailgateway zit op internet",
   "error.radio.transmitting": "de radio zendt",
   "error.radio.text_lines": "het board stuurt tekstregels: zet het op KISS",
   "error.radio.port_in_use": "een ander programma heeft de poort: sluit het",

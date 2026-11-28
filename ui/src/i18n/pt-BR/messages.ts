@@ -122,8 +122,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.auto_direct": "Automático: direto, depois {path}",
   "route.auto_via": "Automático: via {heard}, depois {path}",
   "route.own": "Seu caminho: {path}",
-  "route.rf_only": "Só RF",
-  "route.rf_only_title": "Os iGates não colocam estas mensagens na internet",
+  "route.rf_only": "Só rádio",
   "route.request_path_tip":
     "Indicativos ou aliases separados por vírgulas (OH2RDK-7,OH2RCH-2 ou WIDE1-1,WIDE2-1), DIRECT para nenhum. Vazio é o caminho usual.",
   "pathbuilder.open": "Montar o caminho",

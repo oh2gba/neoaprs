@@ -127,7 +127,7 @@ class PrefBook:
         added = rf_only_path(path)
         if len(added) > MAX_PATH:
             raise MessagingError(
-                f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have",
+                f"path too long for Radio only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have",
                 "path.too_long_rf_only",
                 count=len(path),
                 max=MAX_PATH,
@@ -212,7 +212,7 @@ class PrefBook:
             raise MessagingError.of(e) from None
         if on and key == EMAIL_GATEWAY:
             raise MessagingError(
-                f"{EMAIL_GATEWAY} cannot be RF only: the email gateway is on the internet",
+                f"{EMAIL_GATEWAY} cannot be Radio only: the email gateway is on the internet",
                 "station.email_rf_only",
                 call=EMAIL_GATEWAY,
             )
