@@ -217,6 +217,7 @@ extend-include = [
     "scripts/doc-arch",
     "scripts/doc-settings",
     "scripts/flaky",
+    "scripts/mutants",
     "scripts/mercury-bench",
     "scripts/mercury-measure",
     "scripts/mercury-sim",

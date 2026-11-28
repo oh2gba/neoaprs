@@ -1,0 +1,84 @@
+# The critical modules whose planted-fault score is watched: scripts/mutants runs mutmut on a module
+# against its short list of tests, and .github/workflows/mutants.yml runs one group a night and fails
+# when a module's score is below its floor. The floor is the score last recorded here; raise it when
+# tests are added, never lower it without a reason in the commit. Score: the mutants caught (killed
+# or timed out) in 100 of those mutmut made. neoaprs/migrations.py is not here: mutmut makes 651
+# mutants of it and its tests take minutes a run, many hours a night; it needs a short list first.
+
+[modules.kiss]
+path = "neoaprs/kiss.py"
+group = 1
+tests = ["tests/test_kiss.py", "tests/test_properties_kiss.py", "tests/test_tnc2text.py"]
+floor = 0.0
+
+[modules.ax25]
+path = "neoaprs/ax25.py"
+group = 1
+tests = ["tests/test_ax25.py", "tests/test_properties_ax25.py"]
+floor = 0.0
+
+[modules.aprsposition]
+path = "neoaprs/aprsposition.py"
+group = 1
+tests = ["tests/test_aprsposition.py", "tests/test_aprsposition_compressed.py", "tests/test_properties_aprs.py"]
+floor = 0.0
+
+[modules.aprsmice]
+path = "neoaprs/aprsmice.py"
+group = 1
+tests = ["tests/test_aprsmice.py", "tests/test_aprsmiceout.py"]
+floor = 0.0
+
+[modules.digipeater]
+path = "neoaprs/services/digipeater.py"
+group = 2
+tests = ["tests/test_digipeater.py", "tests/test_digi_rows.py"]
+floor = 0.0
+
+[modules.crossrule]
+path = "neoaprs/crossrule.py"
+group = 2
+tests = ["tests/test_crossrule.py"]
+floor = 0.0
+
+[modules.retries]
+path = "neoaprs/services/retries.py"
+group = 2
+tests = ["tests/test_radio_of_frame.py"]
+floor = 0.0
+
+[modules.smartbeacon]
+path = "neoaprs/smartbeacon.py"
+group = 2
+tests = ["tests/test_smartbeacon.py"]
+floor = 0.0
+
+[modules.tncmode]
+path = "neoaprs/tncmode.py"
+group = 3
+tests = ["tests/test_tncmode.py"]
+floor = 0.0
+
+[modules.configvalues]
+path = "neoaprs/configvalues.py"
+group = 3
+tests = ["tests/test_configvalues.py"]
+floor = 0.0
+
+[modules.dispatch]
+path = "neoaprs/web/dispatch.py"
+group = 3
+tests = ["tests/test_web_dispatch.py"]
+floor = 0.0
+
+[modules.message]
+path = "neoaprs/message.py"
+group = 4
+tests = ["tests/test_message.py"]
+floor = 0.0
+
+[modules.updateasset]
+path = "neoaprs/updateasset.py"
+group = 4
+tests = ["tests/test_updateasset.py"]
+floor = 0.0

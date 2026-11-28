@@ -217,6 +217,29 @@ The rules are `[tool.coverage]` in `pyproject.toml`: branches count, and the dae
 the tests after the `--`; `scripts/coverage --ui` is the page's vitest coverage (`src/lib`, `composables`, `components`, `help`, `protocol`, `App.vue`, `AccessGate.vue`, `main.ts`). It is slower than the tests
 alone, so it is not a stage of `scripts/check`; nothing is excluded, and there is no floor yet.
 
+### Planted faults
+
+Coverage says a line ran, not that a test would notice it wrong. `scripts/mutants kiss` has mutmut plant every small fault it
+can in `neoaprs/kiss.py` (a flipped comparison, a constant changed, a call left out), one at a time, in a copy of the tree under
+`build/mutants/`, and runs the module's short list of tests from `scripts/mutants.toml` against each: the score is the share of
+faults the tests caught, and the survivors are listed by name. `--show` prints the change of each survivor. A run on one module
+takes seconds to minutes; the whole table about an hour on four cores, so it is no stage of the gate. The workflow `mutants.yml`
+runs one group of the table each night (and any group or all by hand) and fails when a module's score falls below its floor.
+The floor is the score recorded in the table (`--record` writes the scores of a run); it is raised when tests are added and never
+lowered without a reason in the commit. A survivor gets a test of the behaviour it would break, or is named as one that changes
+nothing a user or another module can see.
+
+### Flakes, order and time
+
+A red run is never just run again: the test that failed is mended, or quarantined with a reason and a date, and the flake gets its
+row in [`docs/flakes.md`](flakes.md), which also has the forms that make a test flaky and the right ones; `tests/test_flake_rules.py`
+refuses those it can tell from the source. The stage `pytest` runs the suite in an order of its own each time (pytest-randomly): the
+seed is printed at the start and at the end, and `NEOAPRS_TEST_SEED=N scripts/check --stage pytest` (or `pytest -p randomly
+--randomly-seed=N`) runs that order again. It prints the 30 slowest tests and fails when the tests took longer in sum than
+`NEOAPRS_TEST_BUDGET_SEC` (the budget measured on the project's machine, in the script; not on CI), or when a test over 5 s carries
+neither `@pytest.mark.slow("why")` nor `@pytest.mark.nightly("why")`: a test over 2 s says why it is slow, or goes to the nightly
+set, which the gate and CI leave out and `nightly.yml` runs each night on both systems (`tests/README.md`, "Time").
+
 ### The smoke test
 
 `scripts/smoke.py` is the check an installer or a package must pass. The stage `smoke` of `scripts/check` and the CI job `smoke` run it against the wheel, installed into a fresh environment.
@@ -385,6 +408,8 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/site-check` | compares the live project page with what is committed (every file the last commit has under `site/`, fetched over https, by SHA-256: not what is edited on the disk) and asks the private places (the stored support files and logs, PHP's settings, the version page's logs, each tracked `.htaccess` and PHP helper of `server/neo/`) whether they answer 403: `scripts/site-check https://neo.oh2gba.eu`, after `server/deploy.sh --site` and now and then; not a stage of the gate; exit 1 for a finding, 2 when it could not ask; a new endpoint under `server/neo/` goes in `PUBLIC_PHP` in the script |
 | `server/deploy.sh` | uploads the version page, and with `--site` the project page, to the shared host: only regular files that git tracks, the others of the folders are named and skipped, and a tracked link, submodule or name with a control character stops `--site` and `--list` with exit code 2; `--list` shows the upload without the network |
 | `scripts/coverage` | the Python suite under coverage.py with the table of every module and the total (`-- ARGS` for pytest); `--ui` is the page's vitest coverage ([Coverage](#coverage)) |
+| `scripts/mutants` | planted faults (mutmut) for the critical modules of `scripts/mutants.toml`, each against its short list of tests: the score of each against its floor, the survivors by name (`--show` their changes); `MODULE...`, `--group N`, `--all`, `--check`, `--record`; needs `uv sync --frozen --group mutants`; not a stage of the gate ([Planted faults](#planted-faults)) |
+| `scripts/mutants.toml` | the table of `scripts/mutants`: each critical module's path, its group of the nightly run, its tests and its floor |
 | `scripts/worktree-setup` | makes a fresh git worktree ready for `scripts/check`: `uv sync --frozen --all-extras` and a real `ui/node_modules` (`npm ci`, from the cache when it can), no symlinks |
 | `scripts/install.sh` | a clone's wrapper of `neoaprs service install --data ./data --linger` (`--remove` is `service remove`): installs the daemon as a user service that starts at boot; the code is `neoaprs/cli/servicesystemd.py` |
 | `scripts/doc-arch` | prints, writes (`--write`) or checks (`--check`) the tables of `docs/ARCHITECTURE.md` that are the data of the architecture test |
