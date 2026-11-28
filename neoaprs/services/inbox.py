@@ -14,7 +14,16 @@ from typing import Literal, Protocol
 from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.bulletin import board_slot
 from neoaprs.callsign import CallsignError, normal_name
-from neoaprs.message import ACK_SETTLES, MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
+from neoaprs.message import (
+    ACK_SETTLES,
+    INTERNET_ROUTE,
+    MessageRecord,
+    addressed_to,
+    is_internet_service,
+    is_query,
+    is_telemetry_definition,
+    same_call,
+)
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
@@ -52,6 +61,7 @@ class Host(Protocol):
     def put(self, record: MessageRecord) -> None: ...
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None: ...
     def echoed(self, packet: Packet, message: Message) -> None: ...
+    def internet_open(self) -> bool: ...
 
 
 class Inbox:
@@ -81,9 +91,11 @@ class Inbox:
     def on_packet(self, packet: Packet) -> None:
         """Keep and ack a message to us; an ack or rej to us settles the message it quotes."""
         message = packet.decoded
-        if packet.direction != "in" or not packet.on_air or not isinstance(message, Message):
+        if packet.direction != "in" or not isinstance(message, Message):
             return
         ours = self._config().station_call
+        if not packet.on_air and not self._from_service(packet, message, ours):
+            return
         if is_telemetry_definition(message.text):
             return
         if same_call(packet.sender, ours):
@@ -99,6 +111,12 @@ class Inbox:
                 return
             message = Message(message.addressee, _plain_text(packet, message))  # ordinary text
         self._received(packet, message)
+
+    def _from_service(self, packet: Packet, message: Message, ours: str) -> bool:
+        """Whether a packet from the internet is a listed service's message or ack to us, taken while it carries ours."""
+        return (
+            is_internet_service(packet.sender) and addressed_to(message.addressee, ours) and self._host.internet_open()
+        )
 
     def _received(self, packet: Packet, message: Message) -> None:
         if self._qru_answer is not None and message.msg_id is None and self._qru_answer(packet, message):
@@ -125,7 +143,7 @@ class Inbox:
             text,
             message.msg_id,
             "received",
-            route=received_text(packet.path, packet.gate),
+            route=received_text(packet.path, packet.gate) if packet.on_air else INTERNET_ROUTE,
             seal=seal,
             wire=wire,
             radio_id=packet.radio_id,

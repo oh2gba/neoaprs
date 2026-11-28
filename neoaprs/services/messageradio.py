@@ -22,6 +22,13 @@ from neoaprs.station import Station
 log = logging.getLogger("neoaprs.messaging")
 
 
+class InternetWay(Protocol):
+    """The Internet connection as a way for our messages to the internet services (Igate)."""
+
+    def carries_messages(self) -> bool: ...
+    def send_ours(self, info: bytes) -> bool: ...
+
+
 @runtime_checkable
 class Chooses(Protocol):
     def choice(self, call: str) -> RadioId | None: ...

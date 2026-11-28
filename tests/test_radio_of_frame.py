@@ -67,6 +67,12 @@ class Host:
     def radio_of(self, record: MessageRecord) -> AirRadio | None:
         return self.radios.for_station(record.to_call)
 
+    def internet_open(self) -> bool:
+        return False
+
+    def by_internet(self, to: str) -> bool:
+        return False
+
 
 def record(number: int, to: str, at: datetime, attempts: int = 1) -> MessageRecord:
     return MessageRecord(

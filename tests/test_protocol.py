@@ -370,6 +370,7 @@ MESSAGE_ROW: dict[str, Any] = {
             "internet": None,
             "acked": False,
             "radio_id": 1,
+            "by_internet": False,
         }
     ],
 }

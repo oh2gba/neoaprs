@@ -44,7 +44,10 @@ class AttemptRow(_Model):
         description="the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers"
     )
     radio_id: int | None = Field(
-        description="the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was"
+        description="the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was, and for one over the Internet connection"
+    )
+    by_internet: bool = Field(
+        description="the attempt went over the Internet connection (APRS-IS), not on a radio: a message to one of the internet services (`lists.message.services`) while `igate/gate` (Send what I hear) is on and the login is verified"
     )
 
 
@@ -109,7 +112,7 @@ class MessageRow(_Model):
         description="the received strength of that packet, dBm; null as `snr` is, and for the Mercury modem, which gives none"
     )
     route: str = Field(
-        description="how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept"
+        description="how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air, `internet` for an internet service's message that came over the Internet connection (the only messages taken from there); empty for one of ours and for one heard before this was kept"
     )
     seal: Literal["", "key", "key_other", "open", "shut"] = Field(
         description="what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); "
@@ -119,7 +122,7 @@ class MessageRow(_Model):
 
 class SendMessage(_Command):
     """Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at
-    once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.
+    once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`. To an internet service (`lists.message.services`) it goes over the Internet connection while that carries messages (`igate/gate` on, the login verified), else on the radio.
     When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused."""
 
     cmd: Literal["send_message"]

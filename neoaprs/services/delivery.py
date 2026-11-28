@@ -7,7 +7,7 @@ persisted and go with the message.
 from collections.abc import Iterable
 from datetime import datetime
 
-from neoaprs.chain import AT_GATE, Attempt, HopSeen, attempt_before, hops_used, internet_hops
+from neoaprs.chain import AT_GATE, INTERNET_PATH, Attempt, HopSeen, attempt_before, hops_used, internet_hops
 from neoaprs.message import MessageRecord, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
@@ -28,9 +28,17 @@ class Delivery:
     def attempts_of(self, number: int) -> tuple[Attempt, ...]:
         return tuple(self._chains.get(number, ()))
 
-    def sent(self, record: MessageRecord, path: tuple[str, ...], at: datetime, radio: RadioId | None = None) -> None:
-        """Record an attempt of `record` by `path` on `radio`; RFONLY, NOGATE etc. are not hops."""
-        attempt = Attempt(record.attempts, at, digipeaters(path), radio_id=radio)
+    def sent(
+        self,
+        record: MessageRecord,
+        path: tuple[str, ...],
+        at: datetime,
+        radio: RadioId | None = None,
+        internet: bool = False,
+    ) -> None:
+        """Record an attempt of `record` by `path` on `radio`, or over the Internet connection; RFONLY, NOGATE etc.
+        are not hops."""
+        attempt = Attempt(record.attempts, at, INTERNET_PATH if internet else digipeaters(path), radio_id=radio)
         self._chains.setdefault(record.id, []).append(attempt)
         self._log.add_attempt(record.id, attempt)
 

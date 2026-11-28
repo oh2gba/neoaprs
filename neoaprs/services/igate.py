@@ -322,6 +322,21 @@ class Igate:
                 self.line_sent.emit(sent)
                 return
 
+    def carries_messages(self) -> bool:
+        """Whether a message to an internet service goes over the connection: Send what I hear on, verified."""
+        return self._config().igate_gate and self._link.verified
+
+    def send_ours(self, info: bytes) -> bool:
+        """Put our own packet with `info` on APRS-IS (`OURCALL>APZNEO,TCPIP*:`); False if the link did not take it."""
+        if not self.carries_messages():
+            return False
+        line = f"{self._link.call}>{TOCALL},TCPIP*:".encode("ascii") + info
+        if not self._link.send_line(line):
+            return False
+        self._record(self.clock(), None, line)
+        log.debug("igate: sent %s", line.decode("latin-1"))
+        return True
+
     def _wanted_to_gate(self) -> bool:
         """Whether it gates at all: Send what I hear on, with a passcode the server has not refused."""
         return self._config().igate_gate and not self._link.unverified

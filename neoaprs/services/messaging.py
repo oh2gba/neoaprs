@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from neoaprs import ax25
 from neoaprs.bulletin import board_slot
-from neoaprs.aprsmessage import MAX_TEXT, MessageError
+from neoaprs.aprsmessage import MAX_TEXT, MessageError, format_ack
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
@@ -26,9 +26,10 @@ from neoaprs.message import (
     addressed_to,
     attempts_for,
     check_text,
+    is_internet_service,
 )
 from neoaprs.messagelog import MessageLog
-from neoaprs.packet import Message, Packet
+from neoaprs.packet import IS, Message, Packet
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
 from neoaprs.services.acks import Acks
 from neoaprs.radiospec import told
@@ -38,7 +39,7 @@ from neoaprs.services.answers import as_pick
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
-from neoaprs.services.messageradio import MessageRadios, info, last_run, named
+from neoaprs.services.messageradio import InternetWay, MessageRadios, info, last_run, named
 from neoaprs.services.keys import Keys, NoKeys
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, reply_path_on
@@ -93,11 +94,13 @@ class Messaging:
         qru: Callable[[Packet, Message], bool] | None = None,
         qru_answer: Callable[[Packet, Message], bool] | None = None,
         keyring: Keys | None = None,
+        internet: InternetWay | None = None,
     ) -> None:
         self._given = radios  # read through `as_pick` at each call
+        self._internet = internet
         self.keyring: Keys = keyring or NoKeys()
         self._config = config
-        interlock = Interlock(config)
+        self._interlock = interlock = Interlock(config)
         self._log = messagelog
         # Digipeaters for attempt n of a message on a radio (PrefBook.path_for).
         self._paths = paths
@@ -215,17 +218,25 @@ class Messaging:
             raise MessagingError(f"{to} is our own call", "message.own_call", call=to)
         return await self._send(ours, to, self.keyring.key_text(), False, "key", None)
 
+    def internet_open(self) -> bool:
+        """Whether the Internet connection carries messages to the internet services now."""
+        return self._internet is not None and self._internet.carries_messages()
+
+    def by_internet(self, to: str) -> bool:
+        """Whether a message to `to` goes over the Internet connection now, not on a radio."""
+        return is_internet_service(to) and self.internet_open()
+
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """Pick the radio, check the frame fits, keep the message and make the first attempt."""
-        radio = self.message_radios.station(to)
-        if radio.state is Source.State.SILENT:
-            raise MessagingError.of(radio.why_unusable())
-        self._frame(
-            info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""),
-            to,
-            room=0 if once else REPLY_ACK_ROOM,
-            radio=radio,
-        )
+        field = info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else "")
+        if self.by_internet(to):
+            way = "the Internet connection"
+        else:
+            radio = self.message_radios.station(to)
+            if radio.state is Source.State.SILENT:
+                raise MessagingError.of(radio.why_unusable())
+            self._frame(field, to, room=0 if once else REPLY_ACK_ROOM, radio=radio)
+            way = told(radio.name, radio.id)
         ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(
             MessageRecord(
@@ -251,7 +262,7 @@ class Messaging:
             to,
             len(text),
             record.attempts_max,
-            told(radio.name, radio.id),
+            way,
         )
         return self.attempt(record)
 
@@ -396,6 +407,8 @@ class Messaging:
         """Return the bytes of text a message to the station holds on its radio now, where fewer than MAX_TEXT fit.
 
         None where the whole text fits, the radio has no frame limit, or no frame can be made."""
+        if self.by_internet(to):
+            return None
         try:
             radio = self.message_radios.station(to)
             limit = radio.max_frame
@@ -443,6 +456,8 @@ class Messaging:
         """Transmit the message once if the radio is up, its pause is over and it is not `queued`.
 
         Return the message as it is afterwards."""
+        if record.direction == "out" and self.by_internet(record.to_call):
+            return record if self.queued(record) else self._attempt_internet(record)
         if (
             self.queued(record)
             or not self.retries.radio_up(record)
@@ -488,6 +503,28 @@ class Messaging:
         self.put(record)
         return record
 
+    def _attempt_internet(self, record: MessageRecord) -> MessageRecord:
+        """Put the message on APRS-IS once; return it as it is afterwards (unchanged if the link refused)."""
+        reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
+        text = record.text if record.wire is None else record.wire
+        if self._internet is None or not self._internet.send_ours(info(record.to_call, text, record.msg_id, reply)):
+            return record
+        at = self.clock()
+        record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
+        self.delivery.sent(record, (), at, internet=True)
+        if record.msg_id is None:
+            record = replace(record, state="unconfirmed")
+        log.info(
+            "message %d to %s sent over the Internet connection (attempt %d of %d): %s",
+            record.id,
+            record.to_call,
+            record.attempts,
+            record.attempts_max,
+            text,
+        )
+        self.put(record)
+        return record
+
     def put(self, record: MessageRecord) -> None:
         """Hold, schedule, store and announce a new or changed message (and the queue it is in)."""
         before = self._records.get(record.id)
@@ -516,6 +553,11 @@ class Messaging:
         """Pass a heard or sent packet to the inbox."""
         self.inbox.on_packet(packet)
 
+    def from_internet(self, packet: Packet) -> None:
+        """Take a packet from APRS-IS: only a listed service's message or ack to us is used (Inbox)."""
+        if packet.via == IS:
+            self.inbox.on_packet(packet)
+
     def echoed(self, packet: Packet, message: Message) -> None:
         """Link a heard copy of our message to its attempt; announce it if it showed a new hop."""
         found = self.delivery.heard(self._records.values(), packet, message)
@@ -526,7 +568,10 @@ class Messaging:
         """Acknowledge message `msg_id` of station `to` on the radio the message (`packet`) came on.
 
         The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack. It is RF
-        only when the message was."""
+        only when the message was; one that came over the Internet connection is acked there."""
+        if packet is not None and packet.via == IS:
+            self._ack_internet(to, msg_id, reply_ack)
+            return
         self.acks.send(
             to,
             msg_id,
@@ -534,3 +579,16 @@ class Messaging:
             None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to),
             rf_only=packet is not None and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
         )
+
+    def _ack_internet(self, to: str, msg_id: str, reply_ack: str | None) -> None:
+        if self._interlock.refused("ack"):
+            return
+        try:
+            field = b":" + format_ack(to, msg_id, reply_ack)
+        except MessageError as e:
+            log.warning("no ack for message %s from %s: %s", msg_id, to, e)
+            return
+        if self._internet is None or not self._internet.send_ours(field):
+            log.warning(
+                "the ack of message %s from %s was not sent: the Internet connection would not take it", msg_id, to
+            )

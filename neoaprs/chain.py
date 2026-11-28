@@ -11,6 +11,8 @@ from neoaprs.radiotype import RadioId
 from neoaprs.route import digipeaters, is_alias, is_marker, used_path
 
 AT_GATE = 0  # position of a copy that came back via an iGate
+# The path kept for an attempt that went over the Internet connection (our line on APRS-IS has TCPIP*).
+INTERNET_PATH = ("TCPIP",)
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +33,11 @@ class Attempt:
     path: tuple[str, ...]  # the digipeaters as sent (WIDE1-1 stays)
     seen: tuple[HopSeen, ...] = ()
     radio_id: RadioId | None = None  # the radio it went out on; None if not recorded
+
+    @property
+    def by_internet(self) -> bool:
+        """Whether it went over the Internet connection: its path is INTERNET_PATH and it had no radio."""
+        return self.path == INTERNET_PATH and self.radio_id is None
 
     def with_seen(self, found: HopSeen) -> "Attempt":
         return replace(self, seen=(*self.seen, found))
