@@ -24,6 +24,7 @@ export const TOPIC_NAMES = [
   "chat",
   "chat_lines",
   "general",
+  "call_routes",
 ] as const;
 
 /** Every message the daemon sends (the `type` of the Message union). */

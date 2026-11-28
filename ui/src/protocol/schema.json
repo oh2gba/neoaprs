@@ -487,6 +487,48 @@
       "title": "BulletinUnpostCommand",
       "type": "object"
     },
+    "CallRoute": {
+      "additionalProperties": false,
+      "description": "How messages go to a call the station book does not hold (a conversation opened by its call): the entries of the topic `call_routes`, as the station's row says them once it is heard.",
+      "properties": {
+        "radio_choice": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio the operator chose for messages to the call (`station_radio`), its id, while that radio is enabled; null for the daemon's choice"
+        },
+        "radio_now": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio a message to the call goes out on now, its id: the choice while it is in force, else the first radio that can send (`unheard_radio` of `status`); null while there is none"
+        },
+        "paths": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the path the operator set for the call on each radio, by the radio's id as text, as `paths` of a station's row",
+          "type": "object"
+        }
+      },
+      "required": [
+        "radio_choice",
+        "radio_now",
+        "paths"
+      ],
+      "title": "CallRoute",
+      "type": "object"
+    },
     "CardLevelsRow": {
       "additionalProperties": false,
       "description": "The radio's sound card's own levels (the radio's `tx_card` and `rx_card` set them): a slider is drawn only where the card has the control, at the card's level.",
@@ -8504,6 +8546,18 @@
           "description": "the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too)",
           "type": "object"
         },
+        "text_max": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the bytes of text a message to the station holds on the radio of `radio_now`, where its frame leaves room for fewer than a message may have (Mercury's 123 bytes with a reply path and RFONLY); null where the whole text fits, and for a station that takes no message"
+        },
         "track": {
           "description": "the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed",
           "items": {
@@ -8593,6 +8647,7 @@
         "radio_now",
         "replies",
         "paths",
+        "text_max",
         "track"
       ],
       "title": "StationRow",
@@ -9434,6 +9489,13 @@
         "general": {
           "$ref": "#/$defs/GeneralState",
           "description": "asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes"
+        },
+        "call_routes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CallRoute"
+          },
+          "description": "how messages go to each call the station book does not hold that has a radio chosen (`station_radio`) or a path set on a radio (`set_station_path`), by call in its normal form: `station_radio` and `set_station_path` for such a call give a `set` of its entry, and a `del` once nothing is left or the station is heard (its row says it then)",
+          "type": "object"
         }
       },
       "required": [
@@ -9455,7 +9517,8 @@
         "skeds",
         "chat",
         "chat_lines",
-        "general"
+        "general",
+        "call_routes"
       ],
       "title": "TopicValues",
       "type": "object"
