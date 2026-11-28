@@ -2,9 +2,9 @@
 // change of tab: the lines oldest first, the state, the text being written and Send, and the count of
 // lines of others not seen yet. A line is seen while the tab is on show; the newest id seen is kept in
 // the browser, and in a browser with none the first lines count as seen. Send keeps the text until
-// the daemon's answer is the line itself (`ours`); a refusal or a closed socket leaves it as it was.
-// New lines of others (`chat_fresh`, which the daemon sends only while its notification is on) go to
-// the browser's alert.
+// the daemon's answer is the line itself (a newer line of ours); a refusal or a closed socket leaves
+// it as it was. New lines of others (`chat_fresh`, which the daemon sends only while its notification
+// is on) go to the browser's alert unless the tab is in front.
 import { computed, onScopeDispose, getCurrentScope, ref, watch, type Ref } from "vue";
 import { useViewing, type Panel } from "@/composables/usePanel";
 import type { Toast } from "@/composables/useDaemon";
@@ -38,13 +38,17 @@ export function useChat(parts: ChatParts, panel: Panel, announce: (fresh: ChatFr
   const draft = ref("");
   const busy = ref(false);
   let pending: string | null = null;
+  // the newest id of ours when the line was sent: the line said is a newer one
+  let oursBefore = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const seen = ref<number | null>(storedSeen());
   function see(): void {
     const top = newestId(lines.value);
     const kept = storedSeen();
-    const mark = Math.max(top ?? 0, kept ?? 0, seen.value ?? 0);
+    const high = Math.max(kept ?? 0, seen.value ?? 0);
+    // the server's ids started again (its file was made anew): the old mark would hide every new line
+    const mark = top !== null && top < high ? top : Math.max(top ?? 0, high);
     if (mark > 0 && mark !== seen.value) {
       seen.value = mark;
       writeStored(KEY, String(mark));
@@ -54,7 +58,8 @@ export function useChat(parts: ChatParts, panel: Panel, announce: (fresh: ChatFr
     [viewing, lines],
     ([showing, now]) => {
       if (parts.chatLines.value === null) return;
-      if (showing || (seen.value === null && now.length > 0)) see();
+      const top = newestId(now);
+      if (showing || (seen.value === null && now.length > 0) || (top !== null && top < (seen.value ?? 0))) see();
     },
     { immediate: true },
   );
@@ -71,6 +76,7 @@ export function useChat(parts: ChatParts, panel: Panel, announce: (fresh: ChatFr
     const text = chatText(draft.value);
     if (text === "" || busy.value || !parts.send({ cmd: "chat_say", text: draft.value })) return false;
     pending = text;
+    oursBefore = Math.max(0, ...lines.value.filter((row) => row.ours).map((row) => row.id));
     busy.value = true;
     clearTimeout(timer);
     timer = setTimeout(land, SAY_WAIT_MS);
@@ -80,14 +86,14 @@ export function useChat(parts: ChatParts, panel: Panel, announce: (fresh: ChatFr
   watch(lines, (now) => {
     if (pending === null) return;
     const said = pending;
-    if (now.some((row) => row.ours && row.text === said)) {
+    if (now.some((row) => row.ours && row.id > oursBefore)) {
       if (chatText(draft.value) === said) draft.value = "";
       land();
     }
   });
   watch(parts.lastError, (toast) => toast?.cmd === "chat_say" && land());
   watch(parts.connection, (now) => now !== "open" && land());
-  watch(parts.chatFresh, (message) => message && announce(message));
+  watch(parts.chatFresh, (message) => message && !viewing.value && announce(message));
   if (getCurrentScope()) onScopeDispose(() => clearTimeout(timer));
 
   return { lines, state, draft, busy, unread, say };
