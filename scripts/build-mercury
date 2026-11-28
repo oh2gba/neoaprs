@@ -26,10 +26,18 @@ def pins() -> dict[str, str]:
     """Read the pins out of neoaprs/mercury.py as text; the build's Python 3.10 cannot import it."""
     found: dict[str, str] = {}
     for line in (ROOT / "neoaprs" / "mercury.py").read_text(encoding="utf-8").splitlines():
-        m = re.match(r'^(VERSION|SOURCE_COMMIT|SOURCE_URL|SOURCE_SHA256) = (f?"[^"]*")', line)
+        m = re.match(r'^(VERSION|SOURCE_COMMIT|SOURCE_URL|SOURCE_SHA256|PREVIOUS_\w+) = (f?"[^"]*")', line)
         if m:
             found[m.group(1)] = eval(m.group(2), {}, dict(found))  # noqa: S307  (a string literal of this file)
-    missing = {"VERSION", "SOURCE_COMMIT", "SOURCE_URL", "SOURCE_SHA256"} - found.keys()
+    missing = {
+        "VERSION",
+        "SOURCE_COMMIT",
+        "SOURCE_URL",
+        "SOURCE_SHA256",
+        "PREVIOUS_VERSION",
+        "PREVIOUS_COMMIT",
+        "PREVIOUS_SHA256",
+    } - found.keys()
     if missing:
         raise SystemExit(f"build-mercury: neoaprs/mercury.py has no pin {', '.join(sorted(missing))}")
     return found
@@ -50,6 +58,12 @@ DSOUND_PATCH = ROOT / "packaging" / "mercury" / "dsound.patch"
 FLUSH_PATCH = ROOT / "packaging" / "mercury" / "flush.patch"
 FFCPU_PATCH = ROOT / "packaging" / "mercury" / "ffcpu.patch"
 SIGBREAK_PATCH = ROOT / "packaging" / "mercury" / "sigbreak.patch"
+# --previous builds the Mercury pinned before (scripts/build-mercury --previous --install): the
+# real-modem job's stations on the old version. A patch that no longer applies to the old source
+# keeps its old form under packaging/mercury/previous/.
+PREVIOUS_PATCHES = SIGBREAK_PATCH.parent / "previous"
+PREVIOUS_TOOL = "mercury-previous"
+_previous = False
 # The dsound patch makes this backend load dsound.dll on first use.
 DSOUND_FILE = "audioio/ffaudio/ffaudio/dsound.c"
 # The key the lead-in patch adds.
@@ -145,8 +159,27 @@ def run(command: list[str]) -> str:
     return buildtool.run(command)
 
 
+def use_previous() -> None:
+    """Build the Mercury pinned before from here on: its version, commit and archive."""
+    global VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256, WORK, DEFAULT_OUT, _previous
+    VERSION, SOURCE_COMMIT, SOURCE_SHA256 = (
+        _PINS["PREVIOUS_VERSION"],
+        _PINS["PREVIOUS_COMMIT"],
+        _PINS["PREVIOUS_SHA256"],
+    )
+    SOURCE_URL = _PINS["SOURCE_URL"].replace(_PINS["SOURCE_COMMIT"], SOURCE_COMMIT)
+    WORK, DEFAULT_OUT = ROOT / "build" / "mercury" / "work-previous", ROOT / "build" / "mercury" / "dist-previous"
+    _previous = True
+
+
+def patch_file(patch: Path) -> Path:
+    """The patch to apply: its old form for the previous Mercury, where there is one."""
+    old = PREVIOUS_PATCHES / patch.name
+    return old if _previous and old.is_file() else patch
+
+
 def apply_patch(tree: Path, patch: Path) -> None:
-    buildtool.apply_patch(tree, patch)
+    buildtool.apply_patch(tree, patch_file(patch))
 
 
 def apply_patches(tree: Path, windows: bool = False) -> None:
@@ -371,6 +404,8 @@ def install(folder: Path) -> Path:
             "--install needs the virtual environment's Python: .venv/bin/python scripts/build-mercury --install"
         )
     target = Path(sys.prefix) / "tools" / "mercury"
+    if _previous:
+        target = target.with_name(PREVIOUS_TOOL)
     shutil.rmtree(target, ignore_errors=True)
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(folder, target, symlinks=True)
@@ -511,8 +546,20 @@ def main(argv: list[str] | None = None) -> int:
         help="copy the folder to <sys.prefix>/tools/mercury of the virtual environment (the default when neither --out nor --tar is given)",
     )
     parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
+    parser.add_argument(
+        "--previous",
+        action="store_true",
+        help=f"build the Mercury pinned before ({_PINS['PREVIOUS_VERSION']}) for this system, installed as <sys.prefix>/tools/{PREVIOUS_TOOL}",
+    )
     args = parser.parse_args(argv)
     windows = args.windows
+    if args.previous and (windows or args.tar):
+        print(
+            "build-mercury: --previous is for the stations of the tests: not with --windows or --tar", file=sys.stderr
+        )
+        return 1
+    if args.previous:
+        use_previous()
     if sys.platform not in ("linux", "darwin") or (windows and sys.platform != "linux"):
         print("build-mercury: this builds for Linux and macOS, and for Windows on Linux only", file=sys.stderr)
         return 1

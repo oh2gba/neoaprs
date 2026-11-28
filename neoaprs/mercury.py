@@ -28,6 +28,10 @@ VERSION = "1.9.26"
 SOURCE_COMMIT = "834d91bbd9380d93fdac29039cb1591a2d5d7859"  # v1.9.26
 SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"
 SOURCE_SHA256 = "6c01276d36b33d7c1f94e7695ef5007d49f44bb66a5e9a7699d2e83c206adac3"
+# the Mercury pinned before, built beside it for the real-modem job's old-against-new stations
+PREVIOUS_VERSION = "1.9.25"
+PREVIOUS_COMMIT = "33efac4e3089f64f493fde1232b8e96305d15185"  # v1.9.25
+PREVIOUS_SHA256 = "d2d88357bbbc9586ed11b25a7ddfb3362126b8dcd203a72e567d8093e734d266"
 
 MODE = "DATAC3"
 MODE_INDEX = 1

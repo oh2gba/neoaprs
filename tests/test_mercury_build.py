@@ -123,3 +123,60 @@ def test_the_link_check_refuses_what_the_bundle_does_not_carry(
     monkeypatch.setattr(build, "run", lambda command: ldd.format(lib="/usr/lib/libasound.so.2"))
     with pytest.raises(build.BuildError):
         build.check_links(folder / "mercury", folder)
+
+
+def fresh() -> ModuleType:
+    loader = importlib.machinery.SourceFileLoader("build_mercury_previous", str(SCRIPT))
+    spec = importlib.util.spec_from_loader("build_mercury_previous", loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def test_the_previous_pin_is_another_version_and_previous_builds_it_from_its_own_archive() -> None:
+    assert mercury.PREVIOUS_VERSION != mercury.VERSION and mercury.PREVIOUS_COMMIT != mercury.SOURCE_COMMIT
+    assert re.fullmatch(r"[0-9a-f]{40}", mercury.PREVIOUS_COMMIT) and re.fullmatch(
+        r"[0-9a-f]{64}", mercury.PREVIOUS_SHA256
+    )
+    build = fresh()
+    build.use_previous()
+    assert (build.VERSION, build.SOURCE_COMMIT, build.SOURCE_SHA256) == (
+        mercury.PREVIOUS_VERSION,
+        mercury.PREVIOUS_COMMIT,
+        mercury.PREVIOUS_SHA256,
+    )
+    assert build.SOURCE_URL == mercury.SOURCE_URL.replace(mercury.SOURCE_COMMIT, mercury.PREVIOUS_COMMIT)
+    assert build.WORK != fresh().WORK, "the two builds do not share a work folder"
+
+
+def test_the_previous_build_takes_a_patch_in_its_old_form_where_one_is_kept(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    build = fresh()
+    patch = build.LOOPBACK_PATCH
+    assert build.patch_file(patch) == patch
+    monkeypatch.setattr(build, "PREVIOUS_PATCHES", tmp_path)
+    (tmp_path / patch.name).write_text("old form", encoding="utf-8")
+    assert build.patch_file(patch) == patch, "the current build never takes the old form"
+    build.use_previous()
+    assert build.patch_file(patch) == tmp_path / patch.name
+    assert build.patch_file(build.SIGBREAK_PATCH) == build.SIGBREAK_PATCH
+
+
+def test_the_previous_build_installs_beside_the_current_one_and_is_refused_for_windows_and_a_tarball(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    build = fresh()
+    build.use_previous()
+    folder = tmp_path / "built"
+    folder.mkdir()
+    (folder / "mercury").write_text("", encoding="utf-8")
+    monkeypatch.setattr(build.sys, "prefix", str(tmp_path / "venv"))
+    monkeypatch.setattr(build.sys, "base_prefix", "/usr")
+    assert build.install(folder) == tmp_path / "venv" / "tools" / "mercury-previous"
+    for extra in ("--windows", "--tar"):
+        done = subprocess.run(
+            [sys.executable, str(SCRIPT), "--previous", extra], check=False, capture_output=True, text=True, timeout=60
+        )
+        assert done.returncode == 1 and "--previous is for the stations of the tests" in done.stderr
