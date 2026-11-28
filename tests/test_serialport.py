@@ -662,6 +662,8 @@ async def test_an_earlier_close_that_hangs_is_waited_for_after_a_later_one_of_th
     made = iter([hung, quick, SlowSer(0.0)])
     monkeypatch.setattr(serialport, "_build", lambda path, baud: next(made))
     monkeypatch.setattr(serialport, "CLOSE_WAIT_SEC", 1.0)
+    # (the wait itself: Windows' refusal of a port this process still holds is tests/test_port_gate.py's)
+    monkeypatch.setattr(serialport, "_on_windows", lambda: False)
     first, second, third = SerialPort("COM9"), SerialPort("COM9"), SerialPort("COM9")
     try:
         await first.open()

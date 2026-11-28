@@ -12,7 +12,7 @@ from tests.support.patience import PATIENCE_SEC
 
 # A refused connection in the system's words.
 REFUSED = (
-    "No connection could be made because the target machine actively refused it"
+    "No connection could be made because the target machine actively refused it (Windows error 10061)"
     if sys.platform == "win32"
     else "Connection refused"
 )

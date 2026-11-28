@@ -4,13 +4,15 @@ made.
 """
 
 import asyncio
+import errno
+import os
 import socket
 import struct
 from typing import Any
 
 import pytest
 
-from neoaprs import btserial, btsdp
+from neoaprs import btserial, btsdp, winbluetooth
 from tests.support.patience import PATIENCE_SEC
 
 ADDRESS = "00:11:22:33:44:55"
@@ -107,6 +109,16 @@ class FakeBluetooth:
         monkeypatch.setattr(btserial, "available", lambda: True)
         monkeypatch.setattr(btserial, "new_rfcomm_socket", self._new_rfcomm)
         monkeypatch.setattr(btsdp, "new_l2cap_socket", self._new_l2cap)
+        monkeypatch.setattr(winbluetooth, "ws2_32", lambda: None)
+        monkeypatch.setattr(winbluetooth, "serial_channels", self._windows_directory)
+
+    def _windows_directory(self, address: str, _library: object) -> list[int]:
+        """Windows' lookup of the device's serial service, answered as the device's directory answers."""
+        if self.sdp_error is not None:
+            raise self.sdp_error
+        if self.garbage:
+            return []
+        return self.listed if self.listed is not None else [self.channel] if self.channel is not None else []
 
     # ---- the sockets of the code under test
     def _new_rfcomm(self) -> socket.socket:
@@ -124,7 +136,7 @@ class FakeBluetooth:
         theirs = self._pending.pop(0)
         if self.error is not None or address[1] != self.channel:
             theirs.close()
-            raise self.error or OSError(111, "Connection refused")
+            raise self.error or OSError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))
         theirs.setblocking(False)
         self.peer = theirs
 

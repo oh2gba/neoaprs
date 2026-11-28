@@ -61,6 +61,7 @@ def test_a_port_that_cannot_be_resolved_is_listed_as_it_is(monkeypatch: pytest.M
         return "/dev/null" if "radio" in str(path) or path == "/dev/null" else real(path, **kwargs)
 
     monkeypatch.setattr(os.path, "realpath", resolve)
+    monkeypatch.setattr(serialprobe, "_on_windows", lambda: False)  # (the links of a system that has them)
     null = PortInfo("/dev/null", "", "", None, None)
     assert [p.device for p in serialprobe.with_links([COM7, null], dirs=(str(tmp_path),))] == [
         "COM7",
