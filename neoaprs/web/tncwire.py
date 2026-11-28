@@ -107,7 +107,7 @@ class ModemState(_Model):
         description="the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on"
     )
     busy: bool = Field(
-        description="another station's signal is on the channel: our frames wait. The daemon judges it from the modem's spectrum (a signal as wide as a frame; a step in the noise or a carrier is none) while it reads that, else it is the modem's own fixed-threshold detector"
+        description="another station's signal is on the channel and our frames wait: for 20 s at most (`BUSY_HOLD_MAX_SEC`), after which it is false while the channel stays busy, since nothing waits any more. The daemon judges it from the modem's spectrum (a signal as wide as a frame; a step in the noise or a carrier is none) while it reads that, else it is the modem's own fixed-threshold detector"
     )
     test: Literal["", "tune", "key"] = Field(
         description="`tune` while the tune tone is on (`radio_tune`), `key` during the keying test (`radio_key_test`); empty otherwise. Our frames wait while either is on"

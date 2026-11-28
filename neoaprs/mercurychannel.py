@@ -17,6 +17,7 @@ log = logging.getLogger("neoaprs.mercury")
 TRANSMITTING = Reason("the radio is transmitting", "radio.transmitting")
 CHANNEL_BUSY = Reason("the channel is busy", "radio.channel_busy")
 AUTO_STALE_SEC = 1.0
+LEARNT = ": a lasting change of the noise, now taken as the quiet channel"
 # A `PTT ON` without `PTT OFF` for this long is not believed (a choice, not a measurement).
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0
 
@@ -83,15 +84,25 @@ class Channel:
         """Return True if the automatic control has a spectrum younger than AUTO_STALE_SEC."""
         return now - self._auto_at < AUTO_STALE_SEC
 
-    def auto_busy(self, on: bool, now: float) -> None:
-        """Record the automatic control's verdict; it rules while it is fed."""
+    def auto_busy(self, on: bool, now: float, learnt: bool = False) -> None:
+        """Record the automatic control's verdict; it rules while it is fed.
+
+        `learnt`: a clear that came because what stayed on the channel was taken as its noise."""
         was = self.auto_live(now)
         self._auto_at = now
         if not was:
             log.info("Mercury: the channel is judged by the spectrum, not by the modem's fixed threshold")
         if on != self.busy:
-            self._set_busy(on, now, " (by the spectrum)")
+            self._set_busy(on, now, " (by the spectrum)", learnt)
             self.changed.emit()
+        elif on and "busy" not in self._told_long and now - self._busy_at >= BUSY_HOLD_MAX_SEC:
+            self._tell_long()  # the page no longer says the frames wait
+            self.changed.emit()
+
+    @property
+    def busy_holds(self) -> bool:
+        """Whether the channel is busy and still holds our frames (BUSY_HOLD_MAX_SEC)."""
+        return self.busy and time.monotonic() - self._busy_at < BUSY_HOLD_MAX_SEC
 
     def auto_lost(self, now: float) -> None:
         """Fall back to Mercury's own detector when the spectrum is lost."""
@@ -102,7 +113,7 @@ class Channel:
                 self._set_busy(self._mercury_busy, now, "")
                 self.changed.emit()
 
-    def _set_busy(self, on: bool, now: float, how: str) -> None:
+    def _set_busy(self, on: bool, now: float, how: str, learnt: bool = False) -> None:
         """Record busy or clear; on clear log how long the channel was busy."""
         if on and not self.busy:
             self._busy_since = now
@@ -110,10 +121,11 @@ class Channel:
         elif not on and self.busy:
             held = now - self._busy_since
             log.info(
-                "Mercury: the channel was busy for %.1f s%s%s",
+                "Mercury: the channel was busy for %.1f s%s%s%s",
                 held,
                 how,
                 f" (our frames were held for the first {BUSY_HOLD_MAX_SEC:g} s)" if held > BUSY_HOLD_MAX_SEC else "",
+                LEARNT if learnt else "",
             )
         self.busy, self._busy_at = on, now
 

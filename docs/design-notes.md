@@ -68,7 +68,9 @@ three or four. The quiet reference is the lower quartile of the flattened bands,
 over the whole passband moves the reference with it and is no signal. Bands are averaged in power
 over 0.25 s because noise bands wander by a dB or two. Each band's own slow floor is subtracted
 (flattening) so that the slopes of the receiver filter are not read as a lift; the floors do not
-rise while BUSY so that a frame does not lift its own floor. The release delay of 0.8 s plus 0.6 s
+rise while BUSY so that a frame does not lift its own floor, until the BUSY has outlasted the
+hold of frames: then they rise slowly again, so that a step in the noise that stays is learnt and a
+BUSY cannot last for ever. The release delay of 0.8 s plus 0.6 s
 of smoothing after a frame matches the roughly 1.5 s that Mercury's own detector takes.
 
 ## neoaprs/childprogram.py

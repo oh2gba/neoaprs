@@ -104,6 +104,10 @@ class OccupancySettings:
     floor_rise_sec: float = 17.0
     floor_fall_sec: float = 2.0
     timing: Timing = Timing(0.3, 0.8)
+    # A BUSY longer than the hold of frames (mercury.BUSY_HOLD_MAX_SEC) lets the floors rise again,
+    # more slowly than on a clear channel: what stays is learnt as the channel's noise.
+    learn_after_sec: float = 20.0
+    learn_rise_sec: float = 30.0
 
 
 class OccupancyBusy:
@@ -116,6 +120,8 @@ class OccupancyBusy:
         self._floor: list[float] | None = None
         self._floor_at: float | None = None
         self._state = Debounce(settings.timing)
+        self._busy_since: float | None = None
+        self.learnt = False  # the latest BUSY ended because what stayed was learnt as the noise
 
     @property
     def busy(self) -> bool:
@@ -125,6 +131,7 @@ class OccupancyBusy:
         """Reset the state and averaging while the radio transmits; the slow floors are kept."""
         self._power = self._last = None
         self._state = Debounce(self.settings.timing)
+        self._busy_since = None
 
     def update(self, now: float, bands: Sequence[float]) -> bool:
         s = self.settings
@@ -136,7 +143,17 @@ class OccupancyBusy:
         reference = sorted(smooth)[min(len(smooth) - 1, int(len(smooth) * s.quantile))]
         asserted = self._run([b - reference >= s.lift_db for b in smooth]) >= s.run
         kept = self._run([b - reference >= s.keep_db for b in smooth]) >= s.run
-        return self._state.update(now, asserted, not kept)
+        learning = self._learning(now)
+        busy = self._state.update(now, asserted, not kept)
+        if busy and self._busy_since is None:
+            self._busy_since, self.learnt = now, False
+        elif not busy and self._busy_since is not None:
+            self._busy_since, self.learnt = None, learning
+        return busy
+
+    def _learning(self, now: float) -> bool:
+        """Whether the BUSY has lasted longer than any frame is held for: its floors rise again."""
+        return self._busy_since is not None and now - self._busy_since >= self.settings.learn_after_sec
 
     def _smoothed(self, now: float, bands: Sequence[float]) -> list[float]:
         power = [10 ** (b / 10) for b in bands]
@@ -155,7 +172,8 @@ class OccupancyBusy:
     def _flattened(self, smooth: list[float], now: float) -> list[float]:
         """Return the bands minus their slow floors.
 
-        A floor does not rise while BUSY, so that a frame does not lift its own floor.
+        A floor does not rise while BUSY, so that a frame does not lift its own floor, until the BUSY
+        has outlasted the hold of frames; then it rises at `learn_rise_sec`, and a step that stays is learnt.
         """
         s = self.settings
         if self._floor is None or self._floor_at is None or len(self._floor) != len(smooth):
@@ -163,7 +181,8 @@ class OccupancyBusy:
         else:
             dt = max(0.0, now - self._floor_at)
             fall = 1 - math.exp(-dt / s.floor_fall_sec) if s.floor_fall_sec > 0 else 1.0
-            rise = 0.0 if self._state.busy else 1 - math.exp(-dt / s.floor_rise_sec)
+            rise_sec = s.learn_rise_sec if self._learning(now) else 0.0 if self._state.busy else s.floor_rise_sec
+            rise = 1 - math.exp(-dt / rise_sec) if rise_sec > 0 else 0.0
             self._floor = [
                 low + (fall if band < low else rise) * (band - low)
                 for band, low in zip(smooth, self._floor, strict=True)

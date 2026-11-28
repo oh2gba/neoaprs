@@ -404,3 +404,34 @@ async def test_what_a_stopped_program_said_of_the_channel_holds_nothing_after_a_
     # Were anything kept: the restart took over a second, the new link not yet up
     m._auto_at -= 2.0
     assert m.hold() == "" and not m.busy, "the old program's BUSY does not hold the frames of the new one"
+
+
+def test_a_busy_that_no_longer_holds_frames_is_not_shown_as_waiting_and_a_learnt_end_is_said(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A noisy band kept the radio on "Channel busy, waiting" for twelve minutes while frames went out."""
+    from neoaprs.mercury import BUSY_HOLD_MAX_SEC
+    from neoaprs.tnc import Tnc
+    from neoaprs.tncprofile import MERCURY
+    from neoaprs.web.views import modem_state
+
+    m = Mercury(Path("."))
+    tnc = Tnc(profile=MERCURY)
+    tnc.modem = m
+    told: list[bool] = []
+    m.changed.connect(lambda: told.append(m.busy_holds))
+    now = time.monotonic()
+    m.auto_busy(True, now)
+    assert m.busy_holds and (modem_state(tnc) or {})["busy"], "the frames wait: busy, waiting"
+    m._busy_at = now - BUSY_HOLD_MAX_SEC - 1.0
+    with caplog.at_level("INFO", "neoaprs.mercury"):
+        m.auto_busy(True, now)
+        assert m.busy and not m.busy_holds and not (modem_state(tnc) or {})["busy"], "frames go: not waiting"
+        assert told[-1] is False, "the page is told when the hold ends"
+        m.auto_busy(False, now, learnt=True)
+    lines = [r.getMessage() for r in caplog.records]
+    assert any("no longer holds our frames" in line for line in lines)
+    assert any(
+        line.startswith("Mercury: the channel was busy for ") and line.endswith("now taken as the quiet channel")
+        for line in lines
+    )
