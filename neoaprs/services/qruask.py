@@ -131,6 +131,7 @@ class QruAsk:
                 radio,
                 config,
                 request_path(path, () if path and path.strip() else self._paths(ADDRESSEE, None, radio.id), rf_only),
+                rf_only=rf_only,
             )
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None

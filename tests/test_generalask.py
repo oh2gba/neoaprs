@@ -173,7 +173,9 @@ def test_a_query_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_
     rig.radios.on = {HF_ID}
     asked = rig.general.ask("aprs")
     assert (
-        hf.lines() == ["OH2GBA>APZNEO:?APRS?"] and rig.tnc.sent == [] and (asked.path, asked.radios) == ((), (HF_ID,))
+        hf.lines() == ["OH2GBA>APZNEO,RFONLY:?APRS?"]
+        and rig.tnc.sent == []
+        and (asked.path, asked.radios) == ((), (HF_ID,))
     )
     rig.set(fm_enabled=True)
     # (both on, no tick stored: ticked nowhere, nothing goes)

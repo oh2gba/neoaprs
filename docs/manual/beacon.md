@@ -275,7 +275,7 @@ The status line at the top of the group shows the status last sent and, with the
 
 ## Answers to queries
 
-A message to your call whose text is one of these queries is answered by NeoAPRS. The text is read without regard to case or blanks. The answers are packets of their own, not messages: none is kept as a message, retried or waited for. They go back on the radio the query came in on, by the path of the station that asked on that radio (its own path, else the beacon's; for a packet an iGate wrapped, the sender inside). On a Mercury radio that is no path.
+A message to your call whose text is one of these queries is answered by NeoAPRS. The text is read without regard to case or blanks. The answers are packets of their own, not messages: none is kept as a message, retried or waited for. They go back on the radio the query came in on, by the path of the station that asked on that radio (its own path, else the beacon's; for a packet an iGate wrapped, the sender inside). On a Mercury radio that is no path, or `RFONLY` alone where the answer is RF only.
 
 | query | the answer |
 |---|---|
@@ -357,7 +357,7 @@ A radio that is not connected, not enabled or ticked RX only takes nothing. A pa
 
 **Messages and acks.** An ack of a message that went across comes back across once by itself, when it is heard on the radio the message went out on within 10 minutes. It goes back with the hops it has already been through and the pair's call marked as used; its unused hops are dropped (a Kenwood's `WIDE1-1,WIDE2-1` ack heard direct goes back as `OH2GBA-12*`).
 
-A radio that carries no path, HF, sends a message or an ack of ours to a station it heard through a gateway with the reply path of that station's latest packet there: the gateway's call, and `WIDE2-1` after it when the station reached the gateway through a digipeater of another call. A station heard direct gets none. Beacons, objects, answers and the status on HF stay without a path.
+A radio that carries no path, HF, sends a message or an ack of ours to a station it heard through a gateway with the reply path of that station's latest packet there: the gateway's call, and `WIDE2-1` after it when the station reached the gateway through a digipeater of another call. A station heard direct gets none. Beacons, objects and the status on HF stay without a path. What is RF only (a station marked RF only, an answer to a query, Ask around, Local info) gets `RFONLY`, after the gateway's call where there is one and alone where there is none.
 
 **Counts.** The radio status of the Settings tab, in each pair's box, says how many frames were passed and how long ago the latest went, and behind the arrow how many went each way, how many were held back by a limit and how many were too long. A passed frame is in the Packets tab as a packet of the radio it went out on, direction `out`, with the pair's call marked as used in its path, and a line of the log (`passed OH2XYZ>APRS from <radio> to <radio>: the path OH2GBA-12,WIDE1-1 is sent as OH2GBA-12*,WIDE1-1`).
 

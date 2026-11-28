@@ -33,6 +33,7 @@ from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call,
 from neoaprs.services.acks import Acks
 from neoaprs.radiospec import told
 from neoaprs.radiotype import RadioId
+from neoaprs.route import NO_GATE_MARKERS
 from neoaprs.services.answers import as_pick
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
@@ -509,7 +510,12 @@ class Messaging:
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None:
         """Acknowledge message `msg_id` of station `to` on the radio the message (`packet`) came on.
 
-        The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack."""
+        The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack. It is RF
+        only when the message was."""
         self.acks.send(
-            to, msg_id, reply_ack, None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to)
+            to,
+            msg_id,
+            reply_ack,
+            None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to),
+            rf_only=packet is not None and any(hop.rstrip("*") in NO_GATE_MARKERS for hop in packet.path),
         )

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // How messages to one station are sent (Route of a conversation and of the station panel): the
 // radio (when more than one is on; "Automatic" names the radio it gives now), then the path and
-// RF only. Path and RF only are greyed, value kept, while the radio in force carries no path
-// (`pathless`); RF only stays live when messages go through a gateway (`reply`). For an unknown
+// RF only. The path is greyed, value kept, while the radio in force carries no path (`pathless`);
+// RF only stays live there, as RFONLY alone or after the gateway (`reply`). For an unknown
 // call the radio row is shown greyed (`fixed`) so nothing moves when the station is heard.
 // `heard` is the path last heard to reach the station (null: none).
 import { useId } from "vue";
@@ -92,7 +92,6 @@ function picked(event: Event, call: string, choice: RadioId | null): void {
       <StationRfOnly
         :call="call"
         :rf-only="rfOnly"
-        :pathless="reply === '' ? pathless : undefined"
         @set="(c, on) => emit('setRfOnly', c, on)"
       />
     </StationPath>

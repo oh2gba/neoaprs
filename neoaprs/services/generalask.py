@@ -160,7 +160,7 @@ class GeneralAsk:
         """Build the query frame: the given path, else the radio's own, with RFONLY if asked."""
         config = self._config()
         try:
-            calls = path_on(radio, config, request_path(path, path_on(radio, config, None), rf_only))
+            calls = path_on(radio, config, request_path(path, path_on(radio, config, None), rf_only), rf_only=rf_only)
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:

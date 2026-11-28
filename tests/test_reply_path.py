@@ -132,10 +132,29 @@ async def test_an_rf_only_station_gets_rfonly_after_a_reply_path_and_nothing_aft
     assert await sent_path(rig) == "OH2GBA-12,RFONLY"
 
 
-async def test_an_rf_only_station_heard_direct_on_hf_gets_no_rfonly_either(rig: GatewayRig) -> None:
+async def test_an_rf_only_station_heard_direct_on_hf_gets_rfonly_as_the_only_entry(rig: GatewayRig) -> None:
     await rig.prefs.set_rf_only(STATION, True)
     rig.hear("")
-    assert await sent_path(rig) == ""
+    assert await sent_path(rig) == "RFONLY"
+    assert rig.prefs.path_for(STATION, None, HF_ID) == ("RFONLY",)
+
+
+async def test_an_rf_only_station_never_heard_on_hf_gets_rfonly_there_too(rig: GatewayRig) -> None:
+    await rig.prefs.set_rf_only(STATION, True)
+    assert rig.book.get(STATION) is None
+    assert await sent_path(rig) == "RFONLY"
+
+
+async def test_the_ack_of_a_message_that_came_rf_only_goes_rf_only_and_of_one_that_did_not_without(
+    rig: GatewayRig,
+) -> None:
+    rig.hear("")
+    rig.m.on_packet(replace(rig.heard(STATION, "OH3XYZ", "Moi!", "12"), path=("RFONLY",), radio_id=HF_ID))
+    rig.m.on_packet(replace(rig.heard(STATION, "OH3XYZ", "Toinen", "13"), path=(), radio_id=HF_ID))
+    assert [(f.path_text, f.info) for f in rig.hf.sent] == [
+        ("RFONLY", f":{STATION:<9}:ack12".encode()),
+        ("", f":{STATION:<9}:ack13".encode()),
+    ]
 
 
 async def test_the_ack_of_a_message_heard_on_hf_goes_back_by_the_gateway(rig: GatewayRig) -> None:
@@ -192,6 +211,9 @@ async def test_a_beacon_an_object_or_an_answer_on_hf_stays_without_a_path(rig: G
         "the answers, the queries and QRU go through path_on, which gives none on HF whatever the book says"
     )
     assert rig.prefs.path_for(STATION, None, HF_ID) == ("OH2GBA-12",), "what the book gives for HF is the reply path"
+    assert path_on(air, rig.config, ("OH2GBA-12", "RFONLY"), rf_only=True) == ("RFONLY",), (
+        "RF only keeps RFONLY as the frame's only path entry"
+    )
 
 
 async def test_an_answer_on_hf_to_a_station_heard_by_a_gateway_goes_without_a_path(rig: GatewayRig) -> None:
