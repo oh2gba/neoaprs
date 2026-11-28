@@ -39,6 +39,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.update.not_running": "er wordt geen update gedownload",
   "error.sked.rate": "vanaf hier zijn de laatste tijd te veel tests geplaatst; probeer het later opnieuw",
   "error.sked.full": "het bord heeft nu geen ruimte voor nog een test",
+  "error.sked.call_full": "je roepnaam heeft al {max} geplande tests op het bord",
   "error.sked.past": "die test is al afgelopen",
   "error.sked.far": "die test begint over meer dan 30 dagen",
   "error.sked.unreachable": "het bord met HF-tests was zojuist niet bereikbaar; probeer het later opnieuw",

@@ -38,6 +38,7 @@ export const errors = {
   "error.update.not_running": "no download of an update is running",
   "error.sked.rate": "too many tests were posted from here lately; try again later",
   "error.sked.full": "the board has no room for another test now",
+  "error.sked.call_full": "your call has {max} tests planned on the board already",
   "error.sked.past": "that test has ended already",
   "error.sked.far": "that test begins more than 30 days ahead",
   "error.sked.unreachable": "the HF test board could not be reached just now; try again later",

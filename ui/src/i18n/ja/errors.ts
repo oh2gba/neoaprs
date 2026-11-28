@@ -38,6 +38,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.update.not_running": "実行中の更新のダウンロードはありません",
   "error.sked.rate": "最近ここからのテストの投稿が多すぎます。しばらくしてからもう一度お試しください",
   "error.sked.full": "掲示板に、いま新しいテストを追加する余地がありません",
+  "error.sked.call_full": "あなたのコールサインは、掲示板にすでに{max}件のテストを予定しています",
   "error.sked.past": "そのテストはすでに終了しています",
   "error.sked.far": "そのテストの開始は30日より先です",
   "error.sked.unreachable": "HFテスト掲示板にいま接続できません。しばらくしてからもう一度お試しください",
