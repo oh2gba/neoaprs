@@ -33,7 +33,7 @@ from tests.support import fakemercury
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until_started
 from tests.support.fakemercury import Air, of_radio
-from tests.support.modemports import own_ports
+from tests.support.modemports import base_of_this_test, own_ports
 from tests.test_mercury_modem import HF, _alive, stopped
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -169,15 +169,16 @@ class Foreign:
         await self.air.aclose()
 
 
-def every_address_pair() -> tuple[socket.socket, socket.socket]:
-    """Two sockets listening on every address, a KISS port and the control port 200 above it: an
-    upstream Mercury, which binds INADDR_ANY."""
-    for _ in range(50):
-        kiss = socket.socket()
-        kiss.bind(("0.0.0.0", 0))
-        control = socket.socket()
+def listening_pair(address: str) -> tuple[socket.socket, socket.socket]:
+    """Two sockets listening on `address`, a KISS port and the control port 200 above it, in this
+    test's own range of ports (the system's ephemeral range is no place for a modem's pairs): on every
+    address an upstream Mercury, which binds INADDR_ANY; on the loopback another NeoAPRS's."""
+    base = base_of_this_test()
+    for port in range(base, base + 50):
+        kiss, control = socket.socket(), socket.socket()
         try:
-            control.bind(("0.0.0.0", kiss.getsockname()[1] + CONTROL_OFFSET))
+            kiss.bind((address, port))
+            control.bind((address, port + CONTROL_OFFSET))
         except OSError:
             kiss.close()
             control.close()
@@ -200,7 +201,7 @@ def connected_to(listener: socket.socket) -> bool:
 async def test_another_mercury_on_mercurys_own_ports_on_every_address_is_never_started_over_nor_connected_to(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    kiss, control = every_address_pair()
+    kiss, control = listening_pair("0.0.0.0")
     port = kiss.getsockname()[1]
     monkeypatch.setattr(mercuryhelper, "OWN_PAIR", port)
     monkeypatch.setattr(mercurymodem, "free_ports", lambda first=0, tries=50: mercuryhelper.free_ports(port, tries))
@@ -226,17 +227,17 @@ async def test_another_neoaprss_mercury_on_the_loopback_is_passed_over_as_before
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Two NeoAPRS on one computer each start their own Mercury, the second on the next pair."""
-    async with Foreign() as other:
-        monkeypatch.setattr(mercuryhelper, "OWN_PAIR", other.port)
-        monkeypatch.setattr(
-            mercurymodem, "free_ports", lambda first=0, tries=50: mercuryhelper.free_ports(other.port, tries)
-        )
-        m = modem(tmp_path)
+    kiss, control = listening_pair("127.0.0.1")
+    port = kiss.getsockname()[1]
+    monkeypatch.setattr(mercuryhelper, "OWN_PAIR", port)
+    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=0, tries=50: mercuryhelper.free_ports(port, tries))
+    m = modem(tmp_path)
+    with kiss, control:
         await m.start(HF)
         try:
             await until_started(lambda: m.state == "running")
-            assert m.broadcast_port != other.port and m.reason == ""
-            assert other.station.connections == other.station.control_connections == 0
+            assert m.broadcast_port != port and m.reason == ""
+            assert not connected_to(kiss) and not connected_to(control)
         finally:
             await stopped(m)
 
