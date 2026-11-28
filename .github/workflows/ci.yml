@@ -1,6 +1,7 @@
 # What a push or pull request must pass: the Python half (lock, ruff, mypy, tests) on Linux and
 # Windows, the smoke test of the built wheel on both, and the page's half (type check, lint, tests,
-# neoaprs/page/ is what ui/ builds, two duplication ratchets). On Linux every step is a stage of
+# neoaprs/page/ is what ui/ builds, two duplication ratchets), and the built page in a real browser
+# (Chromium, tests/browser). On Linux every step is a stage of
 # scripts/check, so CI cannot differ from a local run or from the container of
 # scripts/check-in-container; Windows runs the commands itself. No secrets, nothing is published.
 # Runners are named, not `-latest`, so a result does not depend on the day GitHub moves a label:
@@ -163,6 +164,42 @@ jobs:
           scripts/build-page
           git add --intent-to-add neoaprs/page
           git diff --exit-code -- neoaprs/page
+
+  # The browser suite (tests/browser; docs/development.md, "The browser suite"): Chromium on the built page
+  # of scripts/demo-daemon with Dummy radios, every tab at a phone's and a desktop's width in every
+  # language. The same as `scripts/check --stage browser`. Chromium comes from Playwright's own installer,
+  # kept under a key of the Playwright version of uv.lock; its system libraries are installed each time.
+  browser:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen --group browser
+      - name: The version of Playwright, for the key of the cache
+        id: playwright
+        run: echo "version=$(.venv/bin/python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+      - name: The Chromium installed before
+        id: chromium
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+      - name: Chromium
+        if: steps.chromium.outputs.cache-hit != 'true'
+        run: .venv/bin/playwright install chromium
+      # Noto Sans, of the page's list of fonts, is the font the suite holds the page to (tests/browser/rules.py)
+      - name: The system libraries of Chromium, and Noto Sans
+        run: |
+          sudo .venv/bin/playwright install-deps chromium
+          sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-cjk
+      - run: scripts/check --stage browser
 
   # The HF net simulation with real Mercury instances (scripts/mercury-sim; docs/development.md,
   # "The simulators"): the pinned Mercury built as the release's `mercury` job builds it, five

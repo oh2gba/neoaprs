@@ -196,6 +196,7 @@ def test_the_lists_of_the_script_are_what_these_tests_think_they_are() -> None:
         "sim",
         "audit",
         "flaky",
+        "browser",
     ]
     assert len(set(STAGES + EXTRA)) == len(STAGES + EXTRA) and all(len(name) <= 12 for name in STAGES + EXTRA), (
         "a name is written once and fits the column of the result lines"
@@ -345,7 +346,7 @@ def test_serial_stops_at_the_first_failure(gate: Gate, how: str) -> None:
     )
 
 
-@pytest.mark.parametrize("name", ["ui-lint", "smoke", "sim", "audit", "flaky"])
+@pytest.mark.parametrize("name", ["ui-lint", "smoke", "sim", "audit", "flaky", "browser"])
 def test_stage_runs_the_one_stage_that_is_named(gate: Gate, name: str) -> None:
     each_is_told_it_runs_alone(gate)
     done = gate.run("--stage", name)

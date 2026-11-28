@@ -4,6 +4,8 @@
 
 ## What is here
 
+* `browser/`: the browser suite, Chromium on the built page of `scripts/demo-daemon`, collected only with `NEOAPRS_BROWSER=1` (`scripts/check --stage browser`; `docs/development.md`, "The browser suite"): every tab at 390 and 1280 px in every language element by element, nothing moving when a control changes, typed text kept, axe-core, the map.
+
 * `test_architecture.py`, `test_size_ratchet.py`: the layers and the size limits (`docs/ARCHITECTURE.md`), and the list of the modules that start a program, run a shell line, open a URL or hand a string to pyserial (`REACHES_OUT`); each rule is shown failing on a made-up tree, and no radio or kind named by fm or hf outside the descriptions of the types (`RADIO_WORDS`, which only shrinks).
 * `test_docs.py`, `test_hygiene.py`: the documents (the index, the names they put in backticks, the manual's short paragraphs, no code names and no version number in it, the
   generated tables of the architecture and of the settings), the scripts and units tables (the unit is `neoaprs/cli/neoaprs.service`), `.gitignore`; without git the module is collected and only what needs git is skipped.

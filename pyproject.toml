@@ -88,6 +88,13 @@ pyinstaller = [
 mutants = [
     "mutmut==3.8.1",
 ]
+# The browser suite (tests/browser, `scripts/check --stage browser`): Playwright drives Chromium on
+# the built page, and axe-playwright-python carries axe-core's rules. Its own group, installed by
+# that stage, so neither the program nor the other tools carry it.
+browser = [
+    "playwright==1.63.0",
+    "axe-playwright-python==0.1.9",
+]
 
 # The wheel is the package neoaprs/ with everything in it that is not Python: the built page
 # (neoaprs/page/, committed, so building needs no node), the placeholder page, the unit template.
@@ -195,6 +202,11 @@ implicit_reexport = true
 # sgp4 ships no types: its few calls are typed where neoaprs/satellites.py makes them.
 [[tool.mypy.overrides]]
 module = ["sgp4", "sgp4.*"]
+ignore_missing_imports = true
+
+# The browser suite's packages (the group `browser`) ship no types, and are not installed by a plain sync.
+[[tool.mypy.overrides]]
+module = ["playwright", "playwright.*", "axe_playwright_python", "axe_playwright_python.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

@@ -11,9 +11,11 @@
 #                                 --audit) and runner images against packaging/ci/runner.json; needs the network
 #   scripts/check --stage flaky   hunt for flaky tests (scripts/flaky): 20 container runs, an hour or more,
 #                                 Linux and docker only
+#   scripts/check --stage browser the browser suite (tests/browser): Chromium on the built page, some minutes;
+#                                 with no Chromium installed it says so and passes
 #   scripts/check --list          the stage names
 #
-# sim, audit and flaky are not in the default list. One line per stage with its time; the output of a
+# sim, audit, flaky and browser are not in the default list. One line per stage with its time; the output of a
 # failing stage is printed under its line; the last line is "all green in Ns", or the exit code is 1.
 # Runs from any directory. Python: NEOAPRS_PYTHON, else the uv venv (.venv); needs `uv sync --frozen` once
 # and, for the stage security, `scripts/security-tools` once. Do not run it in a sandbox that keeps uv
@@ -54,7 +56,7 @@ fi
 # need node 22.22.2 or newer, from the PATH or ~/.nvm), the duplication check, the security checks,
 # the outside links, the newest releases of the pins, smoke.
 STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security links level smoke)
-EXTRA_STAGES=(sim audit flaky)  # run only by name: sim is minutes long, audit needs the network, flaky is an hour
+EXTRA_STAGES=(sim audit flaky browser)  # run only by name: sim and browser are minutes long, audit needs the network, flaky is an hour
 ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
 ALONE_FIRST=(lock)  # step 1 of the default run
 ALONE_LAST=(smoke)                     # step 3
@@ -66,7 +68,7 @@ while [ $# -gt 0 ]; do
         --serial) serial=1 ;;
         --stage) shift; only="${1:-}"; [ -n "$only" ] || { echo "check: --stage needs a name (${ALL_STAGES[*]})" >&2; exit 2; } ;;
         --list) printf '%s\n' "${ALL_STAGES[@]}"; exit 0 ;;
-        -h|--help) sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,21p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "check: unknown argument $1" >&2; exit 2 ;;
     esac
     shift
@@ -257,6 +259,14 @@ stage_audit() { local status=0; "$python" scripts/security-check --audit || stat
 # The hunt for flaky tests: scripts/flaky starts the containers of scripts/check-in-container; the
 # stage is its exit code and table.
 stage_flaky() { "$python" scripts/flaky; }
+# The browser suite (docs/development.md, "The browser suite"): Chromium on the page of scripts/demo-daemon.
+# The group `browser` of pyproject.toml is added to the venv first; the suite skips with its reason when
+# no Chromium is installed, and never downloads one.
+stage_browser() {
+    command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
+    uv_from_cache sync --frozen --inexact --group browser || return 1
+    NEOAPRS_BROWSER=1 "$python" -m pytest -q -rs -p no:cacheprovider --durations=10 tests/browser
+}
 # The wheel as a user gets it, as the CI job `smoke` does: built, installed into a fresh environment
 # and run against a fake TNC by scripts/smoke.py, with NEOAPRS_NO_DEVICES and NEOAPRS_UPDATE_CHECK
 # set.

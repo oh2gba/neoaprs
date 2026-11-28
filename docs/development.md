@@ -115,6 +115,7 @@ anything runs, whatever was asked: one left in a shell cannot turn the gate, or 
 | `sim` | only by name (`scripts/check --stage sim`, not in the default run): `scripts/mercury-sim`, the HF net with real Mercury instances ([The simulators](#the-simulators)); about six minutes, Linux only, the Mercury of the venv built first when it is not there (`scripts/build-mercury --install`, which needs gcc, make and libasound2-dev); the report is left in `build/mercury-sim.json` |
 | `audit` | only by name (`scripts/check --stage audit`, not in the default run): `scripts/security-check --audit`, osv-scanner asks the advisory lists about every package of `uv.lock` and `ui/package-lock.json`; and `scripts/runner-facts --published --announcements`, GitHub's readme of the runner's image and its open announcements against `packaging/ci/runner.json`; it needs the network, and `osv-scanner.toml` lists the advisories set aside, each with its reason; `.github/workflows/audit.yml` runs it every Monday |
 | `flaky` | only by name (`scripts/check --stage flaky`, not in the default run): `scripts/flaky`, 20 runs of the CI's command for the tests in the container of `scripts/check-in-container`, half in file order and half shuffled (`tests/support/shuffle.py`, the seed is the number of the run), half the runner's size and half starved, four containers side by side on cores of their own, each run under a time limit; it prints a table of every test that failed with its count, the settings it failed in and its first failing line, and a run that hung or did not reach the tests with its evidence; the logs and `report.txt` are in `build/flaky/`; an hour or more, Linux and docker only |
+| `browser` | only by name (`scripts/check --stage browser`, not in the default run): the browser suite ([The browser suite](#the-browser-suite)), Chromium on the built page of `scripts/demo-daemon`; the group `browser` of `pyproject.toml` is added to the venv first (`uv sync --inexact --group browser`); with no Chromium installed every test skips with the line that says so, and nothing is downloaded; some minutes |
 
 The stages from `ui-types` to `dup-py` need node 22.22.2 or newer (on the `PATH`, else the newest in `~/.nvm`) and `ui/node_modules`.
 
@@ -195,8 +196,9 @@ scripts/check-installs --pin 0.18.2         # after a release, with the network
 | `smoke` | Linux and Windows | `uv build --wheel`, the wheel installed into a fresh venv, then `scripts/smoke.py --command <venv>/bin/neoaprs` (`Scripts\neoaprs.exe`) |
 | `page` | Linux | type check, lint, prettier, knip and the page's tests, the two duplication stages (`scripts/check --stage dup` and `dup-py`), the page's own test (`scripts/check --stage page`), the outside links and the newest releases of the pins (`links`, `level`), and the committed `neoaprs/page/` is what `ui/` builds |
 | `sim` | Linux | the pinned Mercury built from source into the venv (`scripts/build-mercury --install`, as the release's `mercury` job builds it, on the runner's own system), (kept between runs under a key of what the build reads: the script, `neoaprs/mercury.py`, `packaging/mercury/` and the runner's image), then `scripts/mercury-sim` to the end ([The simulators](#the-simulators)); about six minutes, of which the build is one; the report and the log are the artifact `mercury-sim`, and the folders of the run (the daemons' logs, Mercury's output) are `mercury-sim-folders` when it failed |
+| `browser` | Linux | the group `browser`, Chromium from Playwright's own installer (kept between runs under a key of the Playwright of `uv.lock`) with its system libraries, then `scripts/check --stage browser` |
 
-What only `scripts/check` runs: the `css-unused` check of `ui-lint`, the stage `security` and the stages that run only by name (`sim` is also the job `sim`; `audit` is the weekly workflow `audit.yml`). What only CI runs: the Windows halves of `python` and `smoke`. The workflow can also be started by hand
+What only `scripts/check` runs: the `css-unused` check of `ui-lint`, the stage `security` and the stages that run only by name (`sim` and `browser` are also jobs of their name; `audit` is the weekly workflow `audit.yml`). What only CI runs: the Windows halves of `python` and `smoke`. The workflow can also be started by hand
 on any branch (Actions, ci, *Run workflow*, or `gh workflow run ci.yml --ref BRANCH`).
 
 What only makes sense on a POSIX system is marked `posix_only` (`tests/support/ptyline.py`) and skipped on Windows: pseudo-terminals and device files, `/proc`,
@@ -239,6 +241,66 @@ seed is printed at the start and at the end, and `NEOAPRS_TEST_SEED=N scripts/ch
 `NEOAPRS_TEST_BUDGET_SEC` (the budget measured on the project's machine, in the script; not on CI), or when a test over 5 s carries
 neither `@pytest.mark.slow("why")` nor `@pytest.mark.nightly("why")`: a test over 2 s says why it is slow, or goes to the nightly
 set, which the gate and CI leave out and `nightly.yml` runs each night on both systems (`tests/README.md`, "Time").
+
+### The browser suite
+
+The page's own tests run in happy-dom, which lays nothing out. `tests/browser/` drives Chromium (Playwright, the
+group `browser` of `pyproject.toml`) on the built page `neoaprs/page/` of a daemon started by `scripts/demo-daemon`
+(`--any-port --traffic --satellites`) on a folder of its own: a call, a place, the three Dummy radios, the made-up
+aircraft, ships and satellites. Nothing opens a device or reaches a server but this computer's.
+
+```
+scripts/check --stage browser                                   # the whole suite, as CI's job `browser`
+NEOAPRS_BROWSER=1 .venv/bin/pytest tests/browser -k "de and 390"  # a part (after uv sync --inexact --group browser)
+```
+
+It is collected only with `NEOAPRS_BROWSER=1`. Chromium is the build the pinned Playwright wants, else the newest
+one installed under Playwright's folder of browsers (`~/.cache/ms-playwright`, or `PLAYWRIGHT_BROWSERS_PATH`); with
+none every test skips and says so. The suite never downloads a browser: `uv run playwright install chromium` does,
+asked for.
+
+What it holds the page to:
+
+- `test_every_screen.py`: every tab at 390 and 1280 px in all nine languages, light, then with every (i) that opens
+  in place and every disclosure open; the map in both themes and the settings in the dark. Element by element
+  (`tests/browser/page.js`, `NeoChecks`): no box past the screen or past the box that clips it; no text cut (wider
+  than its box where the box hides the rest, or drawn outside its box); no select narrower than an entry it offers;
+  no two siblings in the flow over each other; no text at the very side of the box that shows its edge; every (i)
+  named by `aria-label` and without a `title`; no two elements with one id; no daemon code, catalogue id, address,
+  port or path shown; in a language other than English no English word of the catalogue that the language's
+  catalogue lacks. Every test fails for a console error, an uncaught error or a failed request of the page.
+- `test_nothing_moves.py`: every tick and every choice of Settings, My station, Objects, Nearby and Bulletins, each
+  way and back, in English and the two languages whose catalogues have the most letters (`drive.LONGEST`), at both widths: no box
+  that was there moves or changes its size, but the groups round the control as rows come or go. A control that
+  shows or hides the rest of its group by design (`rules.REVEALS`) may lay out its own group anew and move
+  what is under the group up or down, never sideways; those controls are tried last in their tab, so that what they
+  start (a radio that starts again) is not taken for the next control's doing.
+- `test_typed_text.py`: words typed in every field of the forms stay in their field through another tab and back,
+  the page hidden and shown, and the connection lost and found again; a conversation's words stay its own through
+  another conversation and Write.
+- `test_axe.py`: axe-core's serious and critical findings on every tab at both widths, the map and the dark
+  settings too.
+- `test_map.py`: each layer of the Layers box ticks on and off (this browser keeps the tick, the map draws it) with
+  nothing in the box moving; an aircraft glides (it moves at four steps of its motion in five, not only at its reports); an open aircraft's
+  card and its trail outlive a hidden tab; two satellite cards stay inside the map and hold together.
+
+A hidden tab is simulated (the page is told so, as the browser would tell it; a headless browser has no window to
+hide, so its timers are not slowed), and a lost connection is the page's socket closed under it: the suite says so
+where it does either.
+
+To add a screen: a tab joins `drive.TABS` and is then walked by every check; a state that needs a setting gets it
+from `Demo(settings=...)` before the daemon starts; something to open (a card, a dialog) is opened in a test of its
+own that then runs `findings` of `test_every_screen.py` on the page, as the satellite cards' test does. Wait for the
+thing itself (`page.wait_for_function`, `drive.settle`), never for a time.
+
+The lists of what is accepted are in `tests/browser/rules.py`, each entry with its reason, and they stay short:
+`ELLIPSIS` (text cut with an ellipsis by design: words of a station or of the operator of any length), `SELECTS`
+(selects that may be narrower than an entry they do not show, never than the one they show), `SELECTS_CUT` and
+`CUT` (known faults: a select or words cut), `REVEALS`, `RESHAPES`, `KNOWN_MOVES`, `NOT_TRIED`, `QUIET` (the demo's own 404 of
+the base map), `NAMES` and `MAY_SHOW` (words that look like a code or an address but are a name the operator knows,
+or a field where they type one), and `AXE`. An entry
+is added only for what is meant so, or for a fault that is known and waits for a decision, which the entry names;
+a fault found is otherwise mended, and the entry goes when it is.
 
 ### The smoke test
 
@@ -426,9 +488,10 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/pskreporter-probe` | one datagram of PSK Reporter's upload protocol made by `neoaprs/pskreport.py` and sent to `HOST:PORT`, its bytes printed: `scripts/pskreporter-probe pskreporter.info:14739 --call OH2GBA --locator KP20le --dial "28.1800 MHz USB" --heard OH2ABC/KP20le/-7` (the test listener, whose analysis page shows how the server reads it); `--dry-run` prints and sends nothing, `--source 129` marks the records a test. A developer's tool for the proofs of [`docs/pskreporter.md`](pskreporter.md); no test sends with it |
 | `scripts/mercury-bench` | the bench of APRS over the Mercury modem with no radio (Linux): two real Mercury instances cross-wired through named pipes and two daemons with the Mercury radio type attached to them, driven through their sockets: a beacon heard, a message acked with the time it took, the longest message acked; `--keep` keeps the folders of the run. Mercury has to be installed ([`docs/RADIOS.md`](RADIOS.md#mercury-modem)) |
 | `scripts/mercury-sim` | the simulation of an HF net with no radio (Linux): N real Mercury instances (5 by default) joined by one simulated channel (`tests/support/hfchannel.py`: every station hears the sum of the others with noise at the chosen SNR and, when asked, through a fading channel, a keyed station hears nothing, two keyed at once collide), a daemon on each, and a scenario checked against what the net must do: every beacon heard by every other station, the longest message around the ring acked, two stations keyed at the same moment losing both frames and a message between them going through after it, an ack lost on its way back (the retry acked, the message kept once), a station whose Mercury dies and comes back, a daemon stopped and started again with a message on its way, a weak link, a poor fading channel at 0 dB (some beacons lost, a message through on its retries, the busy detector's hold on a step in the noise), the first stations with the FM radio too on a KISS hub that is their FM air (`--fm N`: a message to a station heard on FM goes on FM, one to a station heard on HF alone over HF), the first station gating to a fake APRS-IS; `--daemon /usr/bin/neoaprs` runs it against an installed NeoAPRS, `--mercury PATH` against any Mercury, `--fading poor --snr 6` the whole scenario on a fading channel, `--first-port N` beside another run, `--report FILE` writes the counts as JSON, `--keep` keeps the folders. Exit 0 when every expectation held; about six minutes. The CI job `sim` and `scripts/check --stage sim` run it. The radios are read through the readers of `scripts/smoke.py` and `tests/support/realmercury.py`, on either wire |
-| `scripts/demo-daemon` | the daemon of this checkout for a look at the page (the browser pane): `scripts/demo-daemon --data DIR [--web-port PORT] [--traffic]` (7390 by default) runs `python -m neoaprs` under `NEOAPRS_NO_DEVICES=1`, with the update check off and a search for the radio that finds no port, so that choosing a Mercury or Sound card type there opens no sound card and starts no modem of the machine; it refuses the system's data folder of NeoAPRS and a folder `data` of a checkout |
-| `scripts/demotraffic.py` | the made-up traffic of the map's layers that `demo-daemon --traffic` starts in a process of its own: an HTTP server on `127.0.0.1:7391` with an own aircraft receiver's `/tar1090/data/aircraft.json`, a Radarcape's list (with the airports of three aircraft) and the paths of the aircraft services, a dozen aircraft round Espoo moving each second (one on the ground, one squawking 7700, one without a track, one with a registration only), Fintraffic's two paths with eight ships off Helsinki, and an own AIS receiver on `127.0.0.1:7392` sending six of them; the daemon asks it in the services' place (`NEOAPRS_LAYERS_URL`), and its line on standard error says what to type for My own receiver (aircraft and ships) |
+| `scripts/demo-daemon` | the daemon of this checkout for a look at the page (the browser pane, the browser suite): `scripts/demo-daemon --data DIR [--web-port PORT] [--traffic] [--satellites] [--any-port]` (7390 by default) runs `python -m neoaprs` under `NEOAPRS_NO_DEVICES=1`, with the update check off and a search for the radio that finds no port, so that choosing a Mercury or Sound card type there opens no sound card and starts no modem of the machine; `--satellites` writes made-up satellites into the folder (`scripts/demosatellites.py`), `--any-port` puts the page and the made-up traffic on ports the system hands out (the page's address is in the log, `web page at`); a TERM is passed on to the daemon; it refuses the system's data folder of NeoAPRS and a folder `data` of a checkout |
+| `scripts/demotraffic.py` | the made-up traffic of the map's layers that `demo-daemon --traffic` starts in a process of its own (on ports the system hands out with `--any-port`): an HTTP server on `127.0.0.1:7391` with an own aircraft receiver's `/tar1090/data/aircraft.json`, a Radarcape's list (with the airports of three aircraft) and the paths of the aircraft services, a dozen aircraft round Espoo moving each second (one on the ground, one squawking 7700, one without a track, one with a registration only), Fintraffic's two paths with eight ships off Helsinki, and an own AIS receiver on `127.0.0.1:7392` sending six of them; the daemon asks it in the services' place (`NEOAPRS_LAYERS_URL`), and its line on standard error says what to type for My own receiver (aircraft and ships) |
 | `scripts/demoships.py` | the ships of `demotraffic.py`: Fintraffic's answers and the made-up AIS receiver's sentences (a module of that script, not run on its own) |
+| `scripts/demosatellites.py` | the satellites of `demo-daemon --satellites`: the project's list merged with the elements of `tests/fixtures/satellites/`, as the server merges them, every epoch moved to an hour ago so that the daemon draws them on any day (a module of that script, not run on its own) |
 | `scripts/sim-radios` | a station of six made-up radios on the real program: two Dummy packet radios, three Dummy Mercury radios and one Dummy LoRa radio made over the page's WebSocket on a daemon of a data folder of its own (`work/sim-radios/` by default; `NEOAPRS_NO_DEVICES`, a free port of the loopback); every radio connected, hearing its own made-up world, Beacon now out on each by its own rules, a message to each Packet and LoRa world's home station out on its radio and acked; a line per radio and a clean stop. `--keep` leaves the daemon up for the page until Ctrl+C; `--command` another neoaprs. The same station over a simulated day is `tests/test_six_radios.py` |
 | `scripts/mercury-measure` | the measurements behind the numbers NeoAPRS fixes for Mercury ([`docs/mercury.md`](mercury.md)), on the same channel: `autobusy [--batch N] [--record F \| --replay F,F]` (the automatic channel-busy control against Mercury's fixed 14 dB, on the same recorded spectra: `--replay` judges recordings again with no Mercury), `frame` (one frame's levels and times: the RMS and the peak Mercury plays, PTT ON to PTT OFF, the delivery, the busy detector's lag and hang), `decode --snr 0,3,6 [--fading poor]` (frames delivered of 50 at each SNR), `acks` (two daemons: the time to each ack of N messages against the retry schedule), `vox --attack-ms 0,100 --snr 10,3 [--leadin-ms 150]` (frames delivered of 20 when a VOX radio loses the first milliseconds of every transmission, with Mercury's own frame or with the lead-in tone), `beacons` (no Mercury: the random pause against the beacons lost to overlaps over thousands of simulated hours); `--report FILE` writes JSON, `--first-port N` lets runs share the machine |
 | `scripts/migration-size` | how long the migrations of the radio round (31 to 33) take on a big database and how much room they need: `scripts/migration-size FOLDER` builds a database of version 30 of a gigabyte there (`--mb N` for another size; never a folder on a RAM disk), copies it, runs the three steps on the copy as the runner does, and prints the time of each, the most the file and its write-ahead log held beyond the file, and whether every packet, message, station, path and object says what it said; it removes both files (`--keep` leaves them) |
@@ -819,7 +882,8 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 - `ui/`: the Vue 3 source of the page; `ui/src/protocol/` is generated.
 - `tests/`: the suite (`tests/README.md`). `tests/support/` is what the tests are built from, `tests/safety/` the tests of the database actor, `tests/fixtures/`
   the captured frames and streams of the radio and the parser's cases. `tests/realmodems/` runs five daemons with the real modems on virtual cables, in
-  `.github/workflows/realmodems.yml` only (`docs/realmodems.md`).
+  `.github/workflows/realmodems.yml` only (`docs/realmodems.md`). `tests/browser/` is the browser suite, collected only by
+  `scripts/check --stage browser` ([The browser suite](#the-browser-suite)).
 - `scripts/`: the tools (the table above).
 - `docs/`: the documents (`docs/README.md` is the index): `docs/manual/` the manual for the person who runs NeoAPRS, `docs/RADIOS.md` the radio guide, this
   file, `docs/daemon.md`, `docs/ARCHITECTURE.md`, `docs/MAINTAINING.md`, `docs/mercury.md` (where every number NeoAPRS fixes for the Mercury modem comes from), and `docs/screenshots/` the pictures of the front page.
