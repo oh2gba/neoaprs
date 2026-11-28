@@ -5,7 +5,7 @@ The patched build (packaging/direwolf/) adds `-Q`, `-G` and `-R`; docs/direwolf.
 """
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from .mercury import _RADIO_CARD, PAIR, Keying, SerialPort, SoundCard, choose_sound_card, radio_serial_ports
@@ -96,6 +96,22 @@ def ptt_line(keying: Keying) -> str:
             f"Direwolf cannot key by the device {keying.device!r}: it has a space or a character that is not printable"
         )
     return f"PTT {keying.device} {keying.kind.upper()}\n"
+
+
+# Direwolf keeps the first 29 characters of a device name (audio.c, audio_in_name[30]).
+NAME_MAX = 29
+_CARD_NAME = re.compile(r"(plughw|hw):CARD=([^,]+),DEV=(\d+)")
+
+
+def short_devices(sound_card: str, card_names: Mapping[int, str]) -> str:
+    """Return the setting with each ALSA card Direwolf would cut named by its number instead."""
+
+    def short(name: str) -> str:
+        found = _CARD_NAME.fullmatch(name) if len(name) > NAME_MAX else None
+        number = next((n for n, i in card_names.items() if found is not None and i == found[2]), None)
+        return f"{found[1]}:{number},{found[3]}" if found is not None and number is not None else name
+
+    return PAIR.join(short(half) for half in sound_card.split(PAIR))
 
 
 def adevice(sound_card: str, numbers: tuple[int, int] | None = None) -> str:

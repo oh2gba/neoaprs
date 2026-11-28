@@ -37,12 +37,13 @@ from .direwolf import (
     ptt_of,
     ready_port,
     several_cm108,
+    short_devices,
     wrong_device,
 )
 from .direwolftune import Tuning, clamp
 from .mercury import CONTROL_OFFSET, Keying, SerialPort, SoundCard, keying_of, propose_sound_card
 from .mercuryclaims import MODEM_KINDS, HeldPorts, card_claims, held_card, keying_claim
-from .mercuryhelper import Command, foreign_listeners, free_ports, list_sound_cards, next_modem_ports
+from .mercuryhelper import Command, alsa_card_names, foreign_listeners, free_ports, list_sound_cards, next_modem_ports
 from .mercuryhelper import find as mercury_program
 from .mercurychoice import system_serial_ports
 from .radiotype import RadioId
@@ -258,7 +259,7 @@ class DirewolfModem(Tuning, ModemLife, SoundServing):
             return self._failed("no free port for Direwolf; the log says which were tried", "no_port")
         conf = self.home / CONF_FILE
         try:
-            devices = self._alsa()
+            devices = self._alsa() if self.windows else short_devices(self._alsa(), alsa_card_names())
         except DeviceGone:
             log.warning("Direwolf is not started: %s (%s)", DEVICE_GONE, self.sound_card)
             return self._failed(DEVICE_GONE, "sound_card")

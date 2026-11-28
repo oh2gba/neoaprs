@@ -985,3 +985,25 @@ async def test_a_line_lost_while_direwolf_is_swapped_for_a_test_or_a_new_level_s
         assert not m.starting(), "a program that listens is no longer starting"
     finally:
         await tnc.stop()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="ALSA names")
+async def test_a_card_whose_name_direwolf_would_cut_is_opened_by_its_number(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Direwolf keeps the first 29 characters of a device name (audio.c, audio_in_name[30]): a card id
+    of 12 to 15 characters makes `plughw:CARD=...,DEV=0` longer, and the cut name is no device."""
+    alsa = tmp_path / "asound"
+    (alsa / "card1").mkdir(parents=True)
+    (alsa / "card1" / "id").write_text("USBAudioCODEC\n", encoding="utf-8")
+    monkeypatch.setenv("NEOAPRS_ALSA_ROOT", str(alsa))
+    m = modem(tmp_path)
+    await m.start("plughw:CARD=USBAudioCODEC,DEV=0", "vox", 0)
+    await running(m)
+    assert "ADEVICE plughw:1,0\n" in (radio_folder(tmp_path, 3) / CONF_FILE).read_text(encoding="utf-8")
+    await m.stop()
+    m = modem(tmp_path)
+    await m.start("plughw:CARD=CODEC,DEV=0", "vox", 0)
+    await running(m)
+    assert "ADEVICE plughw:CARD=CODEC,DEV=0\n" in (radio_folder(tmp_path, 3) / CONF_FILE).read_text(encoding="utf-8")
+    await m.stop()
