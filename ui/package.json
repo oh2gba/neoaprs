@@ -43,7 +43,7 @@
     "vite": "6.4.6",
     "vitest": "5.1.2",
     "vue-eslint-parser": "10.4.2",
-    "vue-tsc": "2.2.12"
+    "vue-tsc": "3.3.14"
   },
   "overrides": {
     "minimatch@>=7.0.0 <11.0.1": "11.0.9"
