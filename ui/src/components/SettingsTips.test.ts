@@ -41,7 +41,7 @@ describe("the (i) of the Settings tab", () => {
     ],
     ["set-radio-1-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],
-    ["set-update-now", "About the update check", /Once a day NeoAPRS asks/],
+    ["set-update-now", "About the update check", /Every six hours NeoAPRS asks/],
   ];
 
   it.each(cases)("%s has an (i) called %s that opens to the text and closes on Escape", async (id, label, text) => {
