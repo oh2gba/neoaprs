@@ -58,7 +58,7 @@ jobs:
             || { echo "::error::CHANGELOG.md still has notes under '## Unreleased' (above): move them into the section of this version"; exit 1; }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: ui/package-lock.json
       - name: "The committed page is what ui/ builds (it has no version in it: a release that changed nothing in ui/ leaves it as it is)"
@@ -92,9 +92,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false  # no later step uses git with the job's token
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: "0.11.26"
+          version: "0.13.10"
           python-version: "3.13"
           enable-cache: false  # a release is built from what the lock names, never from a cache
       - name: Build the wheel and the sdist (the wheel is built from the sdist)
@@ -130,9 +130,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false  # no later step uses git with the job's token
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: "0.11.26"
+          version: "0.13.10"
           python-version: "3.13"
           enable-cache: false  # a release is built from what the lock names, never from a cache
       - name: The version
@@ -566,9 +566,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false  # no later step uses git with the job's token
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: "0.11.26"
+          version: "0.13.10"
           python-version: "3.13"
           enable-cache: false  # a release is built from what the lock names, never from a cache
       # the tools the build scripts fetch (CPython, appimagetool and its runtime), kept for as long
@@ -624,9 +624,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false  # no later step uses git with the job's token
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: "0.11.26"
+          version: "0.13.10"
           python-version: "3.13"
           enable-cache: false  # a release is built from what the lock names, never from a cache
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -688,9 +688,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false  # no later step uses git with the job's token
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: "0.11.26"
+          version: "0.13.10"
           python-version: "3.13"
           enable-cache: false  # a release is built from what the lock names, never from a cache
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -746,9 +746,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false  # no later step uses git with the job's token
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          version: "0.11.26"
+          version: "0.13.10"
           python-version: "3.13"
           enable-cache: false  # a release is built from what the lock names, never from a cache
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

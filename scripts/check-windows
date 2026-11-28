@@ -115,9 +115,9 @@ class Pin(NamedTuple):
 
 # uv for Windows, taken only when its SHA-256 is this one (the pin is the trust, not the server).
 UV = Pin(
-    "0.11.26",
-    "https://github.com/astral-sh/uv/releases/download/0.11.26/uv-x86_64-pc-windows-msvc.zip",
-    "4e1278ede866be6c0bf32d2f466cc6de7a9fb399ecf20c9ce2d186e52424be47",
+    "0.13.10",
+    "https://github.com/astral-sh/uv/releases/download/0.13.10/uv-x86_64-pc-windows-msvc.zip",
+    "297b3881fe1adfb922becc2c1613202abb41dc83ea5ff43d472aa087ca1f8683",
     "uv-x86_64-pc-windows-msvc.zip",
 )
 

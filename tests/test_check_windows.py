@@ -525,15 +525,15 @@ def test_a_console_session_output_is_cleaned_of_escapes_carriage_returns_and_ove
 
 def test_uv_is_pinned_by_version_address_and_digest_and_recognised_by_what_it_says(script: ModuleType) -> None:
     assert (
-        script.UV.version == "0.11.26"
-        and script.UV.sha256 == "4e1278ede866be6c0bf32d2f466cc6de7a9fb399ecf20c9ce2d186e52424be47"
+        script.UV.version == "0.13.10"
+        and script.UV.sha256 == "297b3881fe1adfb922becc2c1613202abb41dc83ea5ff43d472aa087ca1f8683"
     )
     assert (
-        script.UV.url == f"https://github.com/astral-sh/uv/releases/download/0.11.26/{script.UV.file}"
+        script.UV.url == f"https://github.com/astral-sh/uv/releases/download/0.13.10/{script.UV.file}"
         and script.UV.file == "uv-x86_64-pc-windows-msvc.zip"
     )
     assert (
-        script.uv_version_ok("uv 0.11.26 (abc 2026-01-01)\r\n")
+        script.uv_version_ok("uv 0.13.10 (abc 2026-01-01)\r\n")
         and not script.uv_version_ok("uv 0.11.25 (abc)")
         and not script.uv_version_ok("")
         and not script.uv_version_ok("uv: not recognised")
@@ -628,7 +628,7 @@ if script == "exit 0":
     sys.exit(0)
 if "--version" in script:
     if flag("uv-installed") or flag("uv-present"):
-        print("uv 0.11.26 (made up)")
+        print("uv 0.13.10 (made up)")
     sys.exit(0)
 if "-xf" in script and "uv-x86_64" in script:
     open(folder + "/uv-installed", "w").close()

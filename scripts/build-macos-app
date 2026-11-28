@@ -33,8 +33,8 @@ case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-PYTHON_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-aarch64-apple-darwin-install_only_stripped.tar.gz"
-PYTHON_SHA256="8dc60610a82f1e73be7faf964383e02520f95f6e39592a5c37c3809f5a7b798e"
+PYTHON_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20261124/cpython-3.13.18%2B20261124-aarch64-apple-darwin-install_only_stripped.tar.gz"
+PYTHON_SHA256="296f0903cccda15a5c9d3d8393cd2204718aeffd9b095a00f812d75c7b1c0967"
 MIN_OS="14.0"
 
 wheel=""

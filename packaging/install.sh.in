@@ -13,7 +13,7 @@ set -eu
 
 VERSION="@VERSION@"
 WHEEL_URL="${NEOAPRS_WHEEL_URL:-@WHEEL_URL@}"
-UV_INSTALLER="https://astral.sh/uv/0.11.26/install.sh"
+UV_INSTALLER="https://astral.sh/uv/0.13.10/install.sh"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
