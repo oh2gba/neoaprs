@@ -518,9 +518,12 @@ async def test_tune_stops_the_radios_direwolf_runs_the_alternating_tones_holds_t
         m.kiss_port == port
         and again == [port, port]
         and m.hold() == ""
-        and len(fakedirewolf.runs(home)) == 3
+        and [run[-4:] for run in fakedirewolf.runs(home) if "-x" in run] == [["-G", "50", "-x", "a"]]
         and "-x" not in fakedirewolf.runs(home)[-1]
     ), "the radio's Direwolf again, on the same port, and the line told at once (as at the first start)"
+    # (one more start than the three is a start that found its port taken for a moment by another
+    # program, such as another run of the suite on this machine, and was made again on it)
+    assert 3 <= len(fakedirewolf.runs(home)) <= 4
     await m.stop()
 
 
