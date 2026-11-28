@@ -795,7 +795,7 @@ def test_the_suite_runs_in_an_order_of_its_own_each_time_and_says_which_and_the_
     assert len(set(seeds)) > 1, "another order each run"
     budget = 'echo "python budget=$NEOAPRS_TEST_BUDGET_SEC" >> "$EVENTS"\n'
     gate.programs(python=FAKE_PYTHON + budget)
-    gate.run("--stage", "pytest", **env, NEOAPRS_TEST_BUDGET_SEC="300")
+    gate.run("--stage", "pytest", **env, NEOAPRS_TEST_BUDGET_SEC="300", CI="")
     assert gate.calls()[-1] == "python budget=300"
     gate.run("--stage", "pytest", **env, NEOAPRS_TEST_BUDGET_SEC="300", CI="true")
     assert gate.calls()[-1] == "python budget=0", "the budget is this machine's: CI's runner is not held to it"
