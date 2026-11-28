@@ -32,6 +32,7 @@ from neoaprs.desktop.shell import Launch, ShellContext
 from neoaprs.desktop.single import SingleApp
 from tests.test_desktop_logic import FakeAutoStart, FakeDaemon
 from tests.support.httpthread import serve
+from tests.support.patience import PATIENCE_SEC
 
 # (one worker: one process holds the Qt application, which a second one in the same run would
 # disturb)
@@ -131,11 +132,15 @@ def rig(tmp_path_factory: pytest.TempPathFactory, page_url: str, qapp: QApplicat
 def test_the_window_has_its_title_the_default_size_and_shows_the_page(rig: Rig) -> None:
     assert rig.window.windowTitle() == "NeoAPRS" and (rig.window.width(), rig.window.height()) == appstate.DEFAULT_SIZE
     assert evaluate(rig.window, "document.title") == "fake page"
-    image = rig.window.view.grab().toImage()
-    assert (
-        image.width() > 0
-        and len({image.pixel(x, y) for x in range(0, image.width(), 40) for y in range(0, image.height(), 40)}) > 1
-    ), "something is drawn"
+
+    def drawn() -> bool:  # (the page is painted a moment after it is loaded)
+        image = rig.window.view.grab().toImage()
+        return (
+            image.width() > 0
+            and len({image.pixel(x, y) for x in range(0, image.width(), 40) for y in range(0, image.height(), 40)}) > 1
+        )
+
+    spin(drawn, PATIENCE_SEC)
 
 
 def test_the_page_keeps_what_it_stores_in_a_folder_of_the_data_folder(rig: Rig) -> None:

@@ -219,6 +219,7 @@ async def test_a_device_that_serves_nothing_anywhere_says_connection_refused_aft
     device.close()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows' EHOSTDOWN is 10064, the device's refusal")
 async def test_a_device_that_is_out_of_range_is_not_tried_on_every_channel(device: FakeBluetooth) -> None:
     device.fail(OSError(errno.EHOSTDOWN, "Host is down"))
     with pytest.raises(SerialError, match="Host is down"):
