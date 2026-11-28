@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.32.4"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -20,10 +20,10 @@ requires-python = ">=3.13"
 # satellites layer (neoaprs/satellites.py).
 dependencies = [
     "tornado==6.6.1",
-    "pydantic==2.14.0",
+    "pydantic==2.14.4",
     "pyserial==3.5",
     "cryptography==50.0.2",
-    "certifi==2026.10.23",
+    "certifi==2026.11.20",
     "sgp4==2.27",
 ]
 
@@ -46,7 +46,7 @@ app = [
 # which talks to BlueZ on Linux, CoreBluetooth on macOS and WinRT on Windows. An extra, because only
 # a BLE radio needs it.
 ble = [
-    "bleak==3.0.2",
+    "bleak==3.1.0",
 ]
 
 [project.urls]
@@ -68,19 +68,19 @@ neoaprs-app = "neoaprs.desktop.cmd:gui_main"
 
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
-    "mypy==2.4.0",
-    "ruff==0.17.0",
-    "hypothesis==6.168.5",
-    "coverage==7.16.2",
+    "pytest==9.2.0",
+    "pytest-asyncio==1.5.0",
+    "mypy==2.4.1",
+    "ruff==0.17.6",
+    "hypothesis==6.170.22",
+    "coverage==7.17.5",
     "pytest-xdist==3.8.0",
 ]
 # The Windows app is frozen with PyInstaller, built from its source (the bootloader compiled on the
 # runner); the lock holds the hash of the source and of every package it needs.
 pyinstaller = [
     "pyinstaller==6.22.3",
-    "pyinstaller-hooks-contrib==2026.8",
+    "pyinstaller-hooks-contrib==2026.10",
 ]
 
 # The wheel is the package neoaprs/ with everything in it that is not Python: the built page
