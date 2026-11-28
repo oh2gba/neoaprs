@@ -5,12 +5,12 @@ An HTTP server on 127.0.0.1:7391 answers an own receiver's aircraft file, a Rada
 two aircraft services' paths and Fintraffic's two ship paths, with sixteen aircraft flying circles
 round the demo's Espoo and eight ships (scripts/demoships.py); an own AIS receiver listens on
 127.0.0.1:7392. The aircraft cover every kind of mark: ground, emergency, no track, no flight,
-climbing and descending, and each emitter category.
+climbing and descending, and each emitter category. A port 0 is one the system hands out.
 
   scripts/demotraffic.py [--port PORT] [--ais-port PORT]
 
-Once it listens it writes one line on standard output (what demo-daemon waits for) and one on
-standard error saying what to type in Settings, Map. A port in use is a refusal (exit 2)."""
+Once it listens it writes one line on standard output with both ports (what demo-daemon waits for)
+and one on standard error saying what to type in Settings, Map. A port in use is a refusal (exit 2)."""
 
 import argparse
 import json
@@ -368,9 +368,10 @@ def main(argv: list[str] | None = None) -> int:
     if receiver is None:
         server.server_close()
         return 2
-    print(f"listening on {HOST}:{args.port}", flush=True)
+    port, ais_port = server.server_address[1], receiver.server_address[1]
+    print(f"listening on {HOST}:{port}, ships on {HOST}:{ais_port}", flush=True)
     print(
-        f"demotraffic: in Settings, Map, Aircraft, Radarcape or My own receiver: {HOST}:{args.port}; Ships, My own receiver: {HOST}:{args.ais_port}",
+        f"demotraffic: in Settings, Map, Aircraft, Radarcape or My own receiver: {HOST}:{port}; Ships, My own receiver: {HOST}:{ais_port}",
         file=sys.stderr,
         flush=True,
     )

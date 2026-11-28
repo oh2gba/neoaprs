@@ -197,6 +197,34 @@ def test_demo_daemon_with_traffic_starts_it_points_the_daemons_services_at_it_an
     ), "without --traffic: nothing of it"
 
 
+def test_demo_daemon_on_any_port_puts_the_page_and_the_traffic_on_ports_of_the_system_and_its_satellites_are_drawn_today(
+    tmp_path: Path,
+) -> None:
+    from datetime import UTC, datetime
+
+    from neoaprs.satellitelist import read_file, usable
+
+    demo = load_script("demo-daemon")
+    ran: list[tuple[list[str], dict[str, str]]] = []
+    made: list[list[str]] = []
+
+    def start(command: list[str], **options: Any) -> Started:
+        made.append(command)
+        return Started("listening on 127.0.0.1:40001, ships on 127.0.0.1:40002\n")
+
+    def run(command: list[str], cwd: Path, env: dict[str, str]) -> int:
+        ran.append((command, env))
+        return 0
+
+    folder = tmp_path / "demo"
+    assert demo.main(["--data", str(folder), "--any-port", "--traffic", "--satellites"], run, start) == 0
+    [(command, env)] = ran
+    assert command[-2:] == ["--web-port", "0"] and made[0][-4:] == ["--port", "0", "--ais-port", "0"]
+    assert env["NEOAPRS_LAYERS_URL"] == "http://127.0.0.1:40001", "the port the traffic said, not its default"
+    found = read_file((folder / "satellites.json").read_bytes())
+    assert found is not None and usable(found, datetime.now(UTC)) >= 5, "made-up satellites the daemon draws now"
+
+
 def test_demo_daemon_refuses_when_the_traffic_could_not_start_and_runs_no_daemon(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

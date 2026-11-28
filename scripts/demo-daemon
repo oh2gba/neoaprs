@@ -4,14 +4,18 @@
 It opens no serial port, Bluetooth device or sound card and connects to nothing but this computer
 (neoaprs/nodevices.py); the Dummy radios, loopback and page stay.
 
-  scripts/demo-daemon --data DIR [--web-port PORT] [--traffic]
---traffic runs scripts/demotraffic.py as the layers' services. Ctrl+C stops both."""
+  scripts/demo-daemon --data DIR [--web-port PORT] [--traffic] [--satellites] [--any-port]
+--traffic runs scripts/demotraffic.py as the layers' services, --satellites writes made-up satellites
+into the folder, --any-port takes ports the system hands out. Ctrl+C or a TERM stops both."""
 
 import argparse
 import os
+import re
+import signal
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from typing import Any
 from pathlib import Path
 
@@ -20,12 +24,15 @@ sys.path.insert(0, str(ROOT))
 
 from neoaprs.paths import default_data_dir  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "scripts"))
+import demosatellites  # noqa: E402
+
 WEB_PORT = 7390
 # Makes the radio search find no serial device.
 NO_PORT = "/nonexistent/neoaprs-demo-no-such-port*"
 TRAFFIC = ROOT / "scripts" / "demotraffic.py"
-# Where demotraffic.py listens.
-TRAFFIC_URL = "http://127.0.0.1:7391"
+# Where demotraffic.py says it listens.
+LISTENING = re.compile(r"listening on (127\.0\.0\.1:\d+)")
 
 
 def environment(base: Mapping[str, str]) -> dict[str, str]:
@@ -65,18 +72,33 @@ def own_data_folder() -> Path:
             os.environ["NEOAPRS_DATA_DIR"] = saved
 
 
-def start_traffic(start: Callable[..., Any]) -> Any:
-    """Start demotraffic.py and wait for its first line; None if it ended."""
-    process = start([python(), str(TRAFFIC)], cwd=ROOT, stdout=subprocess.PIPE, text=True)
-    if process.stdout is None or not process.stdout.readline():
+def start_traffic(start: Callable[..., Any], any_port: bool = False) -> tuple[Any, str]:
+    """Start demotraffic.py and wait for its first line; return it and its address, (None, "") if it ended."""
+    ports = ["--port", "0", "--ais-port", "0"] if any_port else []
+    process = start([python(), str(TRAFFIC), *ports], cwd=ROOT, stdout=subprocess.PIPE, text=True)
+    found = LISTENING.search(process.stdout.readline()) if process.stdout is not None else None
+    if found is None:
         process.wait()
-        return None
-    return process
+        return None, ""
+    return process, f"http://{found.group(1)}"
+
+
+def run_daemon(command: list[str], cwd: Path, env: dict[str, str]) -> int:
+    """Run the daemon to its end; a TERM to this script is passed on to it, so that it stops as it should."""
+    process = subprocess.Popen(command, cwd=cwd, env=env)
+    previous = signal.signal(signal.SIGTERM, lambda *_: process.terminate())
+    try:
+        return process.wait()
+    except KeyboardInterrupt:
+        process.wait()  # (Ctrl+C reached the daemon too)
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 
 def main(
     argv: list[str] | None = None,
-    run: Callable[..., int] = subprocess.call,
+    run: Callable[..., int] = run_daemon,
     start: Callable[..., Any] = subprocess.Popen,
 ) -> int:
     parser = argparse.ArgumentParser(
@@ -86,6 +108,12 @@ def main(
     parser.add_argument("--web-port", type=int, default=WEB_PORT, help=f"the page's port (default {WEB_PORT})")
     parser.add_argument(
         "--traffic", action="store_true", help="made-up aircraft for the map's layers (scripts/demotraffic.py)"
+    )
+    parser.add_argument(
+        "--satellites", action="store_true", help="made-up satellites for the map (scripts/demosatellites.py)"
+    )
+    parser.add_argument(
+        "--any-port", action="store_true", help="the page and the traffic on ports the system hands out"
     )
     args = parser.parse_args(argv)
     why = operators_folder(args.data, own_data_folder())
@@ -99,19 +127,22 @@ def main(
         "--data",
         str(args.data.expanduser().resolve()),
         "--web-port",
-        str(args.web_port),
+        str(0 if args.any_port else args.web_port),
     ]
     env = environment(os.environ)
     traffic = None
     if args.traffic:
-        traffic = start_traffic(start)
+        traffic, address = start_traffic(start, args.any_port)
         if traffic is None:
             print(
                 "demo-daemon: refused: the made-up traffic could not be started (its line above says why)",
                 file=sys.stderr,
             )
             return 2
-        env["NEOAPRS_LAYERS_URL"] = TRAFFIC_URL
+        env["NEOAPRS_LAYERS_URL"] = address
+    if args.satellites:
+        args.data.mkdir(parents=True, exist_ok=True)
+        demosatellites.put(args.data.expanduser(), datetime.now(UTC))
     print("demo-daemon: " + " ".join(command), file=sys.stderr)
     try:
         return run(command, cwd=ROOT, env=env)
