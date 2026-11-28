@@ -86,6 +86,7 @@ async def test_the_reply_message_goes_back_through_the_gateway_the_same_way_and_
     crossed = [f for f in messages(sent(gateway.radio)) if f.source.call == "OH2H"]
     assert len(crossed) == 1 and crossed[0].path[0].repeated, "one FM frame carried the reply across"
     assert len(acks(hf_frames(w, "OH2GBA"))) == 1, "the ack of the reply crossed to HF in one frame"
+    await w.until(lambda: [m for m in fm.ctl.messaging.records() if m.direction == "in"])
     got = [m for m in fm.ctl.messaging.records() if m.direction == "in"]
     assert len(got) == 1 and got[0].text == "Moi FM"
 

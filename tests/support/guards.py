@@ -1099,6 +1099,7 @@ THREAD_END_SEC = 2.0
 THREADS_LEFT_ALLOWED = {
     "serial-close ": "a port's close is made off the loop and may still run a moment after its port was closed",
     "neoaprs-app-single": "the desktop app's single-instance listener, blocked on a socket of the test's folder",
+    "neoaprs-test-loop-nudge": "the Windows test loops' one nudger of the process (tests/support/winloop.py)",
 }
 
 
