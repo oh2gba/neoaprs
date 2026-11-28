@@ -9,6 +9,7 @@ import { RELEASES_URL } from "@/lib/links";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 
 const RELEASES = RELEASES_URL;
+export const IMAGE = "ghcr.io/oh2gba/neoaprs";
 
 export interface Step {
   text: string;
@@ -92,6 +93,15 @@ function macSteps(install: InstallInfo, version: string): Step[] {
   ];
 }
 
+/** An image is replaced, never changed in place: the data volume keeps everything. */
+function containerSteps(): Step[] {
+  return [
+    { text: t("help.update.container.new_image") },
+    { text: t("help.update.container.compose"), command: "docker compose pull && docker compose up -d" },
+    { text: t("help.update.container.run"), command: `docker pull ${IMAGE}:latest` },
+  ];
+}
+
 /**
  * The steps to version `version` for a copy installed as `install`; null while the install is
  * unknown (only the release page then).
@@ -106,6 +116,8 @@ export function updateHelp(install: InstallInfo | null, version: string): Step[]
       return macSteps(install, version);
     case "deb":
       return debSteps(install, version);
+    case "container":
+      return containerSteps();
     case "source":
       return [
         { text: t("help.update.source.pull"), command: "git pull" },

@@ -147,6 +147,19 @@ describe("updateHelp", () => {
     }
   });
 
+  it("replaces a container's image, with compose or with docker run, and names no package or apt", () => {
+    const steps = updateHelp(install("container"), "0.28.0");
+    expect(steps.map((s) => s.text)[0]).toBe(
+      "A container is updated by a new image: your settings and messages stay in its data volume",
+    );
+    expect(commands(steps)).toEqual([
+      "docker compose pull && docker compose up -d",
+      "docker pull ghcr.io/oh2gba/neoaprs:latest",
+    ]);
+    expect(steps.some((s) => s.link)).toBe(false);
+    expect(commands(steps).join(" ")).not.toMatch(/\b(apt|dpkg|deb|systemctl)\b/);
+  });
+
   it("has only the release page while the daemon has not said how it was installed", () => {
     const steps = updateHelp(null, "0.4.0");
     expect(steps).toHaveLength(1);

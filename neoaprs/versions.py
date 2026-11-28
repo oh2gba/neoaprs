@@ -83,7 +83,9 @@ def parse_update(body: bytes | str) -> Update | None:
     )
 
 
-def platform_name(system: str, machine: str, appimage: bool) -> str:
+def platform_name(system: str, machine: str, appimage: bool, container: bool = False) -> str:
+    if container:
+        return "linux-container"
     if system.startswith("win"):
         return "windows"
     if system == "darwin":
@@ -101,7 +103,7 @@ def mac_architecture(machine: str) -> str:
     return _MAC_ARCHITECTURES.get(machine.lower(), "")
 
 
-InstallKind = Literal["windows-installer", "appimage", "macos-app", "deb", "uv-tool", "pip", "source"]
+InstallKind = Literal["windows-installer", "appimage", "macos-app", "deb", "uv-tool", "pip", "source", "container"]
 
 
 @dataclass(frozen=True)
@@ -115,8 +117,17 @@ class InstallInfo:
 
 
 def install_kind(
-    frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool, app_bundle: bool = False
+    frozen: bool,
+    appimage: str | None,
+    deb: bool,
+    checkout: bool,
+    uv_tool: bool,
+    app_bundle: bool = False,
+    container: bool = False,
 ) -> InstallKind:
+    # the image holds the .deb, but it is replaced as a whole, never updated in place
+    if container:
+        return "container"
     if frozen:
         return "windows-installer"
     if appimage:

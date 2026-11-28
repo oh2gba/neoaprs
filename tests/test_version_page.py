@@ -266,3 +266,11 @@ async def test_a_redirect_of_github_is_followed(tmp_path: Path) -> None:
         served.stop()
         server.shutdown()
         server.server_close()
+
+
+async def test_a_container_is_logged_and_handed_on_as_the_platform_linux_container(page: Page) -> None:
+    await page.ask(f"v=0.28.0&os=linux-container&id={ID}")
+    assert [row[1:] for row in page.log()] == [["0.28.0", "linux-container", ID]]
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [
+        f"neoaprs|0.28.0|linux-container|{ID}"
+    ]

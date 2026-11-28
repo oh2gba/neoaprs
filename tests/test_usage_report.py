@@ -155,3 +155,14 @@ def test_no_logs_at_all_is_said_and_nothing_is_reported(server: Path) -> None:
         log.unlink()
     result = report(server)
     assert result.returncode == 1 and result.stdout == "" and "no start logs in" in result.stderr
+
+
+def test_a_container_is_an_installation_of_its_own_platform_however_often_it_asks(server: Path) -> None:
+    (server / "logs" / "starts-2026-12.log").write_text(
+        f"2026-12-01T10:00Z\t0.28.0\tlinux-container\t{B}\n2026-12-02T10:00Z\t0.28.0\tlinux-container\t{B}\n"
+        f"2026-12-02T11:00Z\t0.28.0\tlinux\t{A}\n",
+        encoding="utf-8",
+    )
+    out = lines(report(server))
+    platforms = out[out.index("Installations in 2026-12, per platform:") + 1 :]
+    assert [row.split() for row in platforms[:2]] == [["linux", "1"], ["linux-container", "1"]]

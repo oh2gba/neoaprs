@@ -159,6 +159,11 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.download_here": "Lataa tietokoneellesi sopiva paketti julkaisusivulta",
   "help.update.deb.install": "Asenna se kansiosta, johon lataasit sen (se kysyy salasanaasi)",
   "help.update.deb.service": "Palvelu käynnistyy itse uudelleen. Jos se silti näyttää vanhan version:",
+  "help.update.container.new_image":
+    "Kontti päivitetään uudella levykuvalla: asetuksesi ja viestisi säilyvät sen datataltiossa",
+  "help.update.container.compose": "Käynnistetty compose-tiedostolla: sen kansiossa",
+  "help.update.container.run":
+    "Käynnistetty docker runilla: hae levykuva, poista sitten kontti ja aja sama rivi uudelleen",
   "help.update.macos.download": "Lataa uusi sovellus",
   "help.update.macos.replace": "Sulje NeoAPRS, avaa lataus ja vedä NeoAPRS Ohjelmat-kansioon vanhan tilalle",
   "help.update.macos.start": "Käynnistä NeoAPRS uudelleen Ohjelmat-kansiosta",

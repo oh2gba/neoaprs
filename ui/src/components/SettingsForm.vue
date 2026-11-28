@@ -92,6 +92,7 @@ const {
   keys,
   local,
   connection,
+  install,
 } = useDaemonContext();
 // New key asks twice: stations holding the old key must be sent the new one.
 const newMessageKey = useSure<string>();
@@ -110,6 +111,7 @@ const alertTest = useAlertTest(
 const updateCheck = useUpdateCheck(updateResult, lastError, send, connection);
 const newKey = useNewKey();
 const RADIUS_KEY = "map/radius_km";
+const NETWORK_KEY = "web/network";
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const GPS_DEVICE = "gps/device";
@@ -127,7 +129,7 @@ const greyed = (key: string): boolean =>
  * changed).
  */
 const network = computed(
-  () => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "",
+  () => config.value?.values[NETWORK_KEY] === "true" && (config.value.values[KEY_KEY] ?? "") !== "",
 );
 /**
  * What the phone code holds: the page's first address for other devices (the one on the network,
@@ -151,6 +153,8 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       (key !== ALERT_KEY || local.value) &&
+      // a container's page is reached only through the network, so it has no switch to close it
+      !(key === NETWORK_KEY && install.value?.kind === "container") &&
       shownFor(key, network.value) &&
       shownByRadios(key, radios.all.value) &&
       shownByValues(key, draft),

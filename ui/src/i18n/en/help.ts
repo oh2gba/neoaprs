@@ -156,6 +156,11 @@ export const help = {
   "help.update.deb.download_here": "Download the package for your computer from the release page",
   "help.update.deb.install": "Install it from the folder you downloaded it to (it asks for your password)",
   "help.update.deb.service": "The service restarts by itself. If it still shows the old version:",
+  "help.update.container.new_image":
+    "A container is updated by a new image: your settings and messages stay in its data volume",
+  "help.update.container.compose": "Started with a compose file: in its folder",
+  "help.update.container.run":
+    "Started with docker run: fetch the image, then remove the container and run the same line again",
   "help.update.macos.download": "Download the new app",
   "help.update.macos.replace":
     "Quit NeoAPRS, open the download and drag NeoAPRS to Applications in the place of the old one",

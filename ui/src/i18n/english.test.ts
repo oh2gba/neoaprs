@@ -42,6 +42,7 @@ const OWN_WORDS: Record<string, string> = {
 const ALLOWED: Record<string, Record<string, string>> = {
   "*": {
     "error.setting.status_source": "off, text and rig are the setting's own values, written so in the settings file",
+    "help.update.container.run": "docker run is the name of the command the operator typed",
   },
   de: {
     "symbol.primary.53": "German calls the craft by its English name, Space Shuttle",
@@ -49,6 +50,9 @@ const ALLOWED: Record<string, Record<string, string>> = {
   },
   nl: {
     "settings.about.license_link": "the name of the licence, GNU General Public License, which is not translated",
+  },
+  it: {
+    "help.update.container.compose": "Italian says file, and compose is the name of Docker's tool",
   },
   ja: {
     "settings.comment.tip2":

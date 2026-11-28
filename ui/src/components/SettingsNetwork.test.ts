@@ -10,13 +10,14 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
 import { qrMatrix, qrPath } from "@/lib/qr";
 import { shallowRef } from "vue";
+import type { InstallInfo } from "@/protocol/protocol";
 
 const ON = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
 
-function make(extra: Record<string, string> = {}, urls: string[] = []) {
+function make(extra: Record<string, string> = {}, urls: string[] = [], kind: InstallInfo["kind"] = "deb") {
   const config = configValues(extra);
   config.urls = urls;
-  const daemon = fakeDaemon({ config });
+  const daemon = fakeDaemon({ config, install: shallowRef({ kind, appimage: "", service: false, arch: "" }) });
   return { wrapper: mount(SettingsForm, { global: withDaemon(daemon) }), send: daemon.send, say: daemon.say };
 }
 
@@ -37,6 +38,12 @@ describe("the network access", () => {
     expect(switch_.element.checked).toBe(false);
     await switch_.setValue(true);
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } });
+  });
+
+  it("has no switch in a container, where the page is always on the network, and shows the key", () => {
+    const { wrapper } = make(ON, ["http://172.17.0.2:7303/"], "container");
+    expect(wrapper.find("#set-web-network").exists()).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#set-web-key").element.value).toBe("k7m2-x9pq-4hrt");
   });
 
   it("shows neither the key nor the code while the network is off, or before the daemon has made a key", () => {
