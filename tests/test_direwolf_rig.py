@@ -75,7 +75,7 @@ async def test_a_direwolf_that_dies_keyed_lets_the_rig_go(tmp_path: Path, fake_k
 
 
 @FAKES
-@pytest.mark.expects_errors  # the key-up of the frame keyed meanwhile is not confirmed: an ERROR by design
+@pytest.mark.expects_errors  # (on Windows a closed port gives no answer in time: the key-down may have keyed)
 async def test_a_rig_program_that_stops_answering_holds_the_frames_of_a_packet_radio(
     tmp_path: Path, fake_kind: type
 ) -> None:

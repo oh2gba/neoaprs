@@ -44,7 +44,8 @@ async def _exchange(host: str, port: int, what: str, talk: Any, timeout_sec: flo
     except TimeoutError:
         raise RigRefused(f"{what} at {host}:{port} gave no answer in {timeout_sec:g} s") from None
     except ConnectionRefusedError:
-        raise RigRefused(f"{what} at {host}:{port} refused the connection: is it running?") from None
+        # nothing listens there, so nothing was keyed through it
+        raise RigRefused(f"{what} at {host}:{port} refused the connection: is it running?", answered=True) from None
     except (asyncio.IncompleteReadError, asyncio.LimitOverrunError, ConnectionError):
         raise RigRefused(f"{what} at {host}:{port} hung up") from None
     except OSError as e:
