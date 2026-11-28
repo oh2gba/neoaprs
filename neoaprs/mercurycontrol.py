@@ -29,9 +29,11 @@ class ControlLine:
         on_event: Callable[[ControlEvent], None],
         on_state: Callable[[bool, str], None],
         backoff: Backoff | None = None,
+        refuses: Callable[[], bool] = lambda: False,
     ) -> None:
         self.host, self.port = host, port
         self._on_event, self._on_state = on_event, on_state
+        self._refuses = refuses  # asked before each connect: True keeps the line from the port
         self.backoff = backoff or Backoff([1.0, 2.0, 5.0])
         self._tasks = TaskSet(log, "mercury control")
         self.connected = False
@@ -61,6 +63,9 @@ class ControlLine:
     async def _run(self) -> None:
         empty = 0
         while True:
+            if self._refuses():
+                await asyncio.sleep(self.backoff.next_delay_sec())
+                continue
             try:
                 nodevices.check_host(self.host, "the control port of a Mercury")
                 reader, writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), CONNECT_SEC)

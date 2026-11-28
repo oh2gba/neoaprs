@@ -126,6 +126,16 @@ On a Mac there are no *Sound card* types under Packet: run Direwolf yourself ([`
 
 **When it works:** the status line says *Listening*, then the signal-to-noise ratio of each frame heard: "DATAC3 · Listening · SNR 3 dB · Last packet 2 min ago". The details are below ([The Mercury radio's box](#the-mercury-radios-box)).
 
+### Your own Mercury
+
+**For:** a Mercury you start yourself, such as Rhizomatica's Mercury for Windows, which keys the radio and has the sound card itself.
+
+**Choose:** *Your own program* under Mercury (DATAC3), then **Address** (the computer it runs on, `127.0.0.1` for this one) and **Port**, its KISS port: 8100 unless you started it on another. Its control port must be the one 200 above, 8300 for 8100, as Mercury has them unless told otherwise. The box has no sound card, keying, tune or level: those are your Mercury's.
+
+NeoAPRS starts no Mercury of its own for this radio. It is a Mercury radio in every other way: the slow pace of the beacon, the frame of 123 bytes, no frame while your Mercury transmits or hears another station, PSK Reporter. Your Mercury must run DATAC3, the mode of every station NeoAPRS talks to; NeoAPRS does not ask its version.
+
+**When it works:** the status line says *Listening* as soon as your Mercury answers on its control port, and *Not connected* while it does not.
+
 ### A LoRa APRS board
 
 **For:** an ESP32 board with a LoRa chip (a LilyGO LoRa32 or T-Beam, a Heltec WiFi LoRa 32) running the CA2RXU iGate or Tracker, DL9SAU's tracker or esp32_loraprs. A LoRa radio hears only LoRa APRS stations, on 433.775 MHz in Europe.
@@ -258,6 +268,12 @@ The box of a Mercury radio has, behind the arrow of its status line, no port, sp
 The status line says what you can act on: the mode, *Listening*, *Transmitting…*, *Channel busy, waiting* while another station's signal is on the channel, *Tuning…* or *Keyed*, the SNR of the latest frame and the last packet. When the modem cannot open the sound card, it says *Sound card could not be opened: choose another*, and the modem is tried again after a while with the card chosen then.
 
 When Mercury hears nothing because its receive side has stalled (it records sound it does not take), NeoAPRS starts it again, never while it transmits and at most every 10 minutes; after three restarts in an hour the line says *Mercury hears nothing, even after restarts: switch the radio off and on again*.
+
+A radio whose Mercury is not running sends nothing and is not shown connected: what was due waits, as for any radio that is not connected. Three more lines tell what is in the way:
+
+- *Keying port in use by another program*: the serial port the radio is keyed by is open in another program, often a Mercury, a rig program or a CAT program you started. Close it; NeoAPRS tries again by itself every half minute while the radio is on.
+- *Keying port not found*: that serial port is not there (unplugged, or another number since). Plug the interface in or choose the port again in **Keying**.
+- *Another program is already using the modem's ports*: a program listens on the network where NeoAPRS starts its Mercury, most likely a Mercury you started yourself (the one NeoAPRS starts listens on this computer only, so a second NeoAPRS is no such program). NeoAPRS does not start a second one beside it, nor send a frame to it. Close that program, or choose [*Your own program*](#your-own-mercury) as the radio's type to work through it.
 
 - A Mercury radio sends its frames direct: no digipeater repeats them, so no path is sent, except that a message or an ack to a station heard through a gateway goes with the gateway's call ([how](beacon.md#passing-a-packet-between-two-radios)). Where a path is chosen beside a Mercury radio (Route, Ask around, Local info, an object), it is greyed, its value kept.
 - The beacon of a Mercury radio goes every 30 minutes at the most often, each timed send with a random pause of up to five minutes, and is a timed one: SmartBeaconing is for the radios that allow it, and a moving station's Mercury beacon says where it is now.

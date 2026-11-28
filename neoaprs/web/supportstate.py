@@ -172,7 +172,7 @@ async def sound_cards(modem: Mercury | DirewolfModem, listed: dict[int, list[dic
 
 
 def mercury_state(modem: Mercury, line: Tnc) -> dict[str, Any]:
-    """Return what tells a deaf modem: frames heard, its stalls and restarts, its device lines."""
+    """Return what tells a deaf modem: frames heard, its stalls and restarts, its device lines, its last starts."""
     stall = modem.stall
     crashed_at, crash_lines = modem.crash()
     return {
@@ -186,6 +186,7 @@ def mercury_state(modem: Mercury, line: Tnc) -> dict[str, Any]:
         "device_lines": modem.device_lines,
         "crashed_at": iso(crashed_at),
         "crash_lines": crash_lines,
+        "starts": [{"at": iso(start.at), "ended": start.words()} for start in modem.start_log],
     }
 
 

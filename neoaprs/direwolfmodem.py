@@ -299,7 +299,7 @@ class DirewolfModem(Tuning, ModemLife):
     def _free_port(self) -> tuple[int, int]:
         """Return a free KISS port from FIRST_PORT up, not held by another radio's modem."""
         port = (
-            free_ports(FIRST_PORT, PORT_TRIES)[0]
+            free_ports(FIRST_PORT, PORT_TRIES, mercury=False)[0]
             if self.claims is None
             else next_modem_ports(self.claims, self.holder, first=FIRST_PORT, tries=PORT_TRIES)
         )

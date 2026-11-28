@@ -113,8 +113,9 @@ async def test_the_radios_start_all_the_same_when_the_modem_cannot_be_started(
     await w.air.start()
     with caplog.at_level(logging.ERROR, logger="neoaprs.controller"):
         await e.start(connected=False)
-        await until(lambda: e.tnc.usable and e.hf.state is Source.State.CONNECTED)
-    assert "the Mercury modem could not be started" in caplog.text
+        # the other radio starts; the HF radio, its modem not running, opens no line and takes no frame
+        await until(lambda: e.tnc.usable and e.hf.state is Source.State.WAITING)
+    assert "the Mercury modem could not be started" in caplog.text and not e.hf.usable
 
 
 async def test_the_daemon_starts_without_our_key_when_the_key_file_cannot_be_made(

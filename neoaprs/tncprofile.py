@@ -150,6 +150,20 @@ MERCURY = Profile(
     readings=("snr",),
 )
 
+# A Mercury the operator runs himself: reached on its KISS port, listened to on its control port 200 above.
+MERCURY_OWN = Profile(
+    "mercury-own",
+    "your own program",
+    "modem",
+    None,
+    (),
+    None,
+    False,
+    False,
+    "NeoAPRS starts no modem: both ends of a contact must run Mercury on the same mode, DATAC3.",
+    readings=("snr",),
+)
+
 DUMMY = Profile(
     "dummy",
     "Dummy packet radio",
@@ -257,7 +271,9 @@ TNC_TEXT = Profile(
 )
 
 PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, TNC_TEXT, DUMMY)
-HF_PROFILES: tuple[Profile, ...] = (MERCURY, DUMMY_HF)
+HF_PROFILES: tuple[Profile, ...] = (MERCURY, MERCURY_OWN, DUMMY_HF)
+# the types whose radio is a Mercury on the air (not the Dummy)
+MERCURY_TYPES = frozenset({MERCURY.key, MERCURY_OWN.key})
 BY_KEY = {p.key: p for p in PROFILES}
 HF_BY_KEY = {p.key: p for p in HF_PROFILES}
 LORA_PROFILES: tuple[Profile, ...] = (LORA_TCP, LORA_SERIAL, LORA_CONSOLE, DUMMY_LORA)

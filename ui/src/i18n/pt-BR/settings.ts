@@ -503,6 +503,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.not_started": "Não foi possível iniciar o modem",
   "settings.tnc.hf.sound_card": "Não foi possível abrir a placa de som: escolha outra",
   "settings.tnc.hf.keying": "Não foi possível abrir o dispositivo de chaveamento: escolha outro modo de chavear",
+  "settings.tnc.hf.keying_in_use": "A porta de chaveamento está em uso por outro programa",
+  "settings.tnc.hf.keying_missing": "A porta de chaveamento não foi encontrada",
+  "settings.tnc.hf.ports_taken": "Outro programa já está usando as portas do modem",
   "settings.tnc.counts": {
     one: "{n} pacote recebido, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",
     other: "{n} pacotes recebidos, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",

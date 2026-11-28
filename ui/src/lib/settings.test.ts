@@ -665,6 +665,7 @@ describe("the radios' own settings in the form", () => {
     );
     expect(FIELDS["hf/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.value))).toEqual([
       "mercury",
+      "mercury-own",
       "dummy-hf",
     ]);
     expect(typeChoices().map((c) => c.value)).toEqual(RADIO_TYPES.map((type) => type.key));

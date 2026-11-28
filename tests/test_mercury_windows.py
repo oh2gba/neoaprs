@@ -211,6 +211,26 @@ def test_the_sigbreak_patch_gives_ctrl_break_the_handler_of_ctrl_c_and_the_build
     assert (build.SIGBREAK_FILE, build.SIGBREAK_HANDLER) == ("main.c", "signal(SIGBREAK, handle_termination_signal);")
 
 
+def test_the_initfail_patch_stops_the_engine_when_its_keying_fails_and_the_build_checks_for_it(
+    build: types.ModuleType,
+) -> None:
+    """Without the stop a Mercury whose keying port cannot be opened waits for ever on its audio threads."""
+    text = (ROOT / "packaging" / "mercury" / "initfail.patch").read_text(encoding="utf-8")
+    added = [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+    assert "--- a/common/mercury_engine.c" in text and added == ["+        mercury_stop = true;"], (
+        "one line, nothing taken away"
+    )
+    assert 'HLOGE("engine", "Radio init failed: the engine is exiting");\n+        mercury_stop = true;' in text, (
+        "in the branch of the failed radio init, before the audio threads are joined"
+    )
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert script.index("apply_patch(tree, SIGBREAK_PATCH)") < script.index("apply_patch(tree, INITFAIL_PATCH)")
+    assert "INITFAIL_STOP not in" in script and "initfail.patch of NeoAPRS" in script, (
+        "the build looks for the stop after it and SOURCE.txt says so"
+    )
+    assert build.INITFAIL_FILE == "common/mercury_engine.c" and build.INITFAIL_STOP.endswith("mercury_stop = true;")
+
+
 def test_the_flush_patch_flushes_each_log_line_and_the_build_checks_for_it(build: types.ModuleType) -> None:
     """On Windows Mercury's stderr lines come only when the program ends (the C runtime buffers a
     pipe)."""
@@ -248,6 +268,7 @@ def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive
     assert entry.count('fprintf(stderr, "%s %s [%s] [%s] %s\\n"') == 1 and entry.count("fflush(stderr);") == 1, (
         "each line on stderr is flushed: Windows buffers a pipe"
     )
+    assert build.INITFAIL_STOP in (tree / build.INITFAIL_FILE).read_text(encoding="utf-8")
     assert "pulse_stub" not in (tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c").read_text(encoding="utf-8"), (
         "the stub over PulseAudio is for Linux only"
     )

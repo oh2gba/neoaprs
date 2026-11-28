@@ -507,6 +507,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.hf.not_started": "No se pudo iniciar el módem",
   "settings.tnc.hf.sound_card": "No se pudo abrir la tarjeta de sonido: elija otra",
   "settings.tnc.hf.keying": "No se pudo abrir el dispositivo de conmutación: elige otra forma de conmutar",
+  "settings.tnc.hf.keying_in_use": "Otro programa está usando el puerto de conmutación",
+  "settings.tnc.hf.keying_missing": "El puerto de conmutación no existe",
+  "settings.tnc.hf.ports_taken": "Otro programa ya está usando los puertos del módem",
   "settings.tnc.counts": {
     one: "{n} paquete escuchado, {bytes_in} rx, {bytes_out} tx, {digipeated} repetidos",
     other: "{n} paquetes escuchados, {bytes_in} rx, {bytes_out} tx, {digipeated} repetidos",

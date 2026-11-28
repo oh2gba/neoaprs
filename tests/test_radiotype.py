@@ -107,7 +107,7 @@ NAMES = {
         "Yaesu FTM, TNC in monitor mode (RX only)",
         "Dummy packet radio",
     ],
-    "hf": ["sound card", "Dummy Mercury radio"],
+    "hf": ["sound card", "your own program", "Dummy Mercury radio"],
     "lora": [
         "tracker or iGate on Wi-Fi",
         "tracker or iGate on USB or Bluetooth",
@@ -203,6 +203,7 @@ def test_what_each_type_can_do() -> None:
         "tnc-text": Can(False, True, False, False, False, False, False, transmit=False),
         "dummy": DUMMY_CAN,
         "mercury": Can(False, True, True, True, True, True, True),
+        "mercury-own": Can(False, True, False, False, False, False, True),
         "dummy-hf": Can(False, True, False, False, False, False, True),
         "dummy-lora": DUMMY_CAN,
         "lora-tcp": tcp,
@@ -326,6 +327,8 @@ def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_sam
         "rx_card",
         "psk_report",
         "psk_dial",
+        "tcp_host",
+        "tcp_port",
         "beacon",
         "status",
         "ask",
@@ -356,6 +359,7 @@ def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_sam
 def test_each_field_is_todays_setting_its_default_range_parser_and_claim() -> None:
     # today's flat settings are the FM radio's and the HF radio's: the transmit gain is Mercury's
     fields = {f.key: f for kind in ("lora", "fm", "hf") for f in kind_fields(kind)}
+    fields["tcp_port"] = next(f for f in kind_fields("fm") if f.key == "tcp_port")  # today's flat tcp/port
     defaults = DEFAULTS.to_data()
     differ = {
         (kind, f.key)
@@ -363,8 +367,8 @@ def test_each_field_is_todays_setting_its_default_range_parser_and_claim() -> No
         for f in kind_fields(kind)
         if replace(f, claims=None) != replace(fields[f.key], claims=None)
     }
-    assert differ == {("lora", "tcp_host"), ("fm", "tx_gain_db")}, (
-        "a key is one field in every kind but the LoRa board's address, which is never this computer's, and the transmit gain, in each modem's own range"
+    assert differ == {("lora", "tcp_host"), ("fm", "tx_gain_db"), ("hf", "tcp_port")}, (
+        "a key is one field in every kind but the LoRa board's address, which is never this computer's, the transmit gain, in each modem's own range, and the port, whose default on HF is Mercury's KISS port"
     )
     for key, old in OLD_KEY.items():
         f = fields[key]

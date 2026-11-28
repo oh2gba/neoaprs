@@ -688,6 +688,7 @@ describe("Add radio", () => {
       "Direwolf",
       "Yaesu FTM, TNC in monitor mode (RX only)",
       "Sound card",
+      "Your own program",
       "Tracker or iGate on Wi-Fi",
       "Tracker or iGate on USB or Bluetooth",
       "iGate on USB (RX only)",

@@ -1,0 +1,19 @@
+A failed radio init ends the program. When Mercury cannot set up its keying (a serial port another program holds, one that is not there, a CM108 that does not answer), mercury_engine_init
+writes "Radio init failed: the engine is exiting" and calls audioio_deinit, which joins the audio threads; but this branch, unlike the ARQ and TCP failures after it, never sets mercury_stop, so the
+threads are never told to stop and the join waits for ever. The process hangs, its capture thread filling a ring nobody reads ("Buffer full in capture buffer!" 384 s later), and never listens on its
+ports: seen on a Windows station whose keying port another program held (Cannot open COM10, Windows error 5). This sets the flag first, as the other failure branches do: the threads end, the join
+returns and main() ends with "Mercury engine init failed." and exit code 1.
+
+scripts/build-mercury applies this file after sigbreak.patch (`patch -p1`) on every system and checks that the source holds the flag; made from the source of the pinned commit (neoaprs/mercury.py:
+SOURCE_COMMIT), so a new pin that moves these lines fails the build loudly, which is right.
+
+--- a/common/mercury_engine.c
++++ b/common/mercury_engine.c
+@@ -296,6 +296,7 @@
+     {
+         fprintf(stderr, "mercury_engine: radio init failed\n");
+         HLOGE("engine", "Radio init failed: the engine is exiting");
++        mercury_stop = true;
+         if (!audioio_rings_external(g_audio_system))
+             audioio_deinit(&g_radio_capture, &g_radio_playback);
+         engine_log_shutdown();

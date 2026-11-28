@@ -287,6 +287,7 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
         max_frame=MAX_PAYLOAD,
         frequencies=[{"band": f.band, "dial": f.dial} for f in modem.frequencies],
         keying=modem.keying.text,
+        busy=modem.busy_holds,
         rx_level=None,
     )
 

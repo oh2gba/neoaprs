@@ -123,6 +123,8 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
     if modem is not None and first_time(modem):
         if isinstance(modem, Mercury):
             modem.frequencies = parts.suggested_frequencies
+            # the line is open only while the modem on its port runs and is the radio's own
+            modem.changed.connect(line.modem_changed)
         # A modem restarted on other ports: the radio's line follows it.
         modem.ports_changed.connect(lambda: parts.repoint(id))
         modem.changed.connect(lambda: parts.radio_changed.emit(id))

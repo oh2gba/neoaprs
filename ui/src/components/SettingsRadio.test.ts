@@ -483,7 +483,7 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
         .findAll("select, input")
         .map((e) => e.attributes("id"))[0],
     ).toBe("set-radio-2-type");
-    expect([...type.element.options].map((o) => o.value)).toEqual(["mercury", "dummy-hf"]);
+    expect([...type.element.options].map((o) => o.value)).toEqual(["mercury", "mercury-own", "dummy-hf"]);
     expect(type.element.value).toBe("mercury");
     const field = type.element.closest(".field");
     expect(field?.querySelector("label")?.textContent).toBe("Radio type");

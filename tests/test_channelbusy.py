@@ -9,6 +9,7 @@ from collections.abc import Callable, Sequence
 import pytest
 
 from neoaprs.channelbusy import SILENCE_DB, Debounce, MercuryBusy, OccupancyBusy, OccupancySettings, Timing
+from neoaprs.mercury import BUSY_HOLD_MAX_SEC
 
 BANDS = 17
 STEP_SEC = 0.05
@@ -246,3 +247,39 @@ def test_a_detector_that_has_just_begun_does_not_make_a_signal_of_the_first_read
 ) -> None:
     d = make()
     assert not d.update(0.0, [-30.0] * BANDS) and not d.busy
+
+
+# ---- a step in the noise that stays (a noisy band: busy for 188 s, 739 s, then without end)
+
+
+def test_a_step_of_5_db_in_four_bands_that_never_ends_is_learnt_within_forty_seconds_of_the_hold_and_stays_clear() -> (
+    None
+):
+    air, d = Air(seed=21), OccupancyBusy()
+    air.run(d, 30.0)
+    states = air.run(d, 600.0, frame(5.0))
+    began = first(states)
+    assert began is not None and began < 1.0, "a step looks like a signal at first"
+    ended = first(states[int(began / STEP_SEC) :], False)
+    assert ended is not None and ended < BUSY_HOLD_MAX_SEC + 40.0, f"learnt {ended:.1f} s after it began"
+    assert d.learnt, "the end of that busy is said to be learnt"
+    assert not any(states[int((began + ended + 5.0) / STEP_SEC) :]), "and clear from then on"
+
+
+def test_a_frame_is_never_learnt_and_a_train_of_frames_for_ten_minutes_is_busy_in_each_and_clear_between() -> None:
+    air, d = Air(seed=22), OccupancyBusy()
+    air.run(d, 30.0)
+    for n in range(100):  # 4 s frames, 2 s gaps: ten minutes
+        on = air.run(d, 4.0, frame(6.0))
+        off = air.run(d, 2.0)
+        assert on[-1] and not off[-1] and not d.learnt, f"frame {n}"
+
+
+def test_white_noise_rising_10_db_over_every_band_at_once_is_never_busy() -> None:
+    air, d = Air(seed=23), OccupancyBusy()
+    air.run(d, 30.0)
+    assert not any(air.run(d, 120.0, noise=lambda t: 10.0))
+
+
+def test_the_detector_starts_to_learn_where_the_frames_are_no_longer_held() -> None:
+    assert OccupancySettings().learn_after_sec == BUSY_HOLD_MAX_SEC

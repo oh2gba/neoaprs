@@ -10,7 +10,7 @@ NeoAPRS is a Python package with one command, `neoaprs`. `neoaprsw` is the same 
 |---|---|
 | `--data DIR` | the data folder |
 | `--port PATH` | the port of radio 1 (its number in `neoaprs db radios`) for this run only. Its setting is not changed or stored; a replay's address, for instance. The kinds of port are in [radio.md](radio.md#the-port) |
-| `--hf-port URL` | the modem of the station's first Mercury radio for this run only: a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-modem) for the Mercury radio |
+| `--hf-port URL` | the modem of the station's first Mercury radio for this run only: a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; a Mercury you run for good is the radio type *Your own program* ([radio.md](radio.md#your-own-mercury)); see [radio.md](radio.md#the-mercury-modem) for the Mercury radio |
 | `--web-port N` | the page's port for this run only; 0 takes a free one |
 | `--debug` | logs more |
 | `--encryption` | for exceptional circumstances only: allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key. It has an effect only in a build made with `NEOAPRS_ENCRYPTION=1`; the downloads do not include the feature and ignore the flag |

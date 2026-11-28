@@ -628,7 +628,7 @@ async def test_every_radios_packets_go_through_the_one_signal_and_a_change_of_a_
     e.ctl.radios.wire(radio)
     assert (
         len(e.hf.packet._handlers) == 1
-        and len(e.mercury.changed._handlers) == 1
+        and len(e.mercury.changed._handlers) == 2  # the page's topics and the line that follows its modem
         and len(e.beacon_2.sent._handlers) == 1
     ), "a radio that is wired again (another driver on the same line) is connected once"
     # The iGate takes every radio's beacon: nothing to assert but that it is connected

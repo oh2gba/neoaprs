@@ -13,7 +13,7 @@ import pytest_asyncio
 
 from neoaprs import mercury, mercuryhelper
 from neoaprs.childprogram import environment
-from neoaprs.mercury import Keying, audio_open_error, command, ini_text, unstamped
+from neoaprs.mercury import Keying, audio_open_error, command, ini_text, keying_failure, unstamped
 from neoaprs.mercuryhelper import free_ports, pair_ports
 from tests.realmodems.probe import Modem
 from tests.realmodems.stations import programs, read_machine, refusal
@@ -25,6 +25,7 @@ PROGRAM = str(programs()[0])
 PAYLOAD = b"OH2GW>APZNEO:>the lines of the real Mercury"
 FRAME_SEC = 60.0  # a frame keyed, played, heard and handed over
 ALIVE_SEC = 30.0  # the daemon writes keepalive_s = 10
+KEYING_END_SEC = 20.0  # a patched Mercury ends in a second; an unpatched one never
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -113,6 +114,37 @@ async def test_a_sound_card_that_is_not_there_is_said_in_the_line_the_daemon_rea
             lambda: any(audio_open_error(line) for line in modem.said().splitlines()),
             60.0,
         )
+    finally:
+        await modem.close()
+
+
+async def test_a_keying_port_that_cannot_be_opened_ends_the_program_in_seconds_with_the_lines_the_daemon_reads(
+    tmp_path: Path,
+) -> None:
+    """packaging/mercury/initfail.patch: an unpatched Mercury says it and then waits for ever."""
+    keying = Keying("rts", "/dev/neoaprs-no-such-port")
+    ports = free_ports(18700)
+    folder = tmp_path / "keying"
+    folder.mkdir()
+    ini = folder / "m.ini"
+    ini.write_text(ini_text(keying), encoding="utf-8")
+    argv = command(
+        [PROGRAM],
+        str(ini),
+        "",
+        keying,
+        *ports,
+        audio=mercury.speaker_audio(fifo(folder, "capture"), fifo(folder, "playback")),
+    )
+    modem = Modem("keying", argv, folder, environment([PROGRAM]))
+    try:
+        await modem.until("the program's end", lambda: modem.process.poll() is not None, KEYING_END_SEC)
+        lines = modem.said().splitlines()
+        assert modem.process.returncode != 0
+        assert [keying_failure(line) for line in lines if keying_failure(line)][:1] == ["keying_missing"], (
+            "the line of the port that is not there is the one the daemon reads"
+        )
+        assert any(mercury.RADIO_INIT_FAILED in line for line in lines)
     finally:
         await modem.close()
 

@@ -52,7 +52,9 @@ def test_a_radio_just_unticked_or_removed_whose_line_has_not_stopped_yet_is_show
 
 def test_a_radio_whose_type_has_another_driver_shows_neither_the_old_line_nor_its_modem_before_its_restart() -> None:
     line = connected(MERCURY)
-    line.modem = SimpleNamespace(state="running", reason="", test="", deaf=False, hold=lambda: "")  # type: ignore[assignment]
+    line.modem = SimpleNamespace(
+        state="running", reason="", test="", deaf=False, hold=lambda: "", frame_hold=lambda: ""
+    )  # type: ignore[assignment]
     now_fm = replace(HF, kind="fm", type="kiss")
     row = radio_row(now_fm, (now_fm,), at_work(line, driver_key="mercury"), Claims())
     assert row is not None and (row["state"], row["problem"], row["modem"], row["lines"]) == ("stopped", None, None, [])
@@ -60,11 +62,15 @@ def test_a_radio_whose_type_has_another_driver_shows_neither_the_old_line_nor_it
 
 def test_a_connected_line_whose_modem_waits_with_a_reason_shows_the_modems_problem() -> None:
     line = connected(MERCURY)
-    line.modem = SimpleNamespace(state="waiting", reason="receive_stalled", test="", deaf=False, hold=lambda: "")  # type: ignore[assignment]
+    line.modem = SimpleNamespace(
+        state="waiting", reason="receive_stalled", test="", deaf=False, hold=lambda: "", frame_hold=lambda: ""
+    )  # type: ignore[assignment]
     assert radio_health(HF, (HF,), at_work(line, "mercury"), Claims()) == RadioHealth(
         Source.State.CONNECTED, "modem.receive_stalled"
     )
-    line.modem = SimpleNamespace(state="running", reason="", test="", deaf=False, hold=lambda: "")  # type: ignore[assignment]
+    line.modem = SimpleNamespace(
+        state="running", reason="", test="", deaf=False, hold=lambda: "", frame_hold=lambda: ""
+    )  # type: ignore[assignment]
     assert radio_health(HF, (HF,), at_work(line, "mercury"), Claims()) == RadioHealth(Source.State.CONNECTED)
 
 
@@ -124,7 +130,7 @@ def test_a_test_tone_hides_the_modems_problem_and_a_deaf_modem_shows_only_while_
 
 def test_the_wire_row_of_a_connected_line_with_a_deaf_modem_carries_the_problem_the_page_reads() -> None:
     line = connected(MERCURY)
-    line.modem = SimpleNamespace(state="running", reason="", test="", deaf=True, hold=lambda: "")  # type: ignore[assignment]
+    line.modem = SimpleNamespace(state="running", reason="", test="", deaf=True, hold=lambda: "", frame_hold=lambda: "")  # type: ignore[assignment]
     row = radio_row(HF, (HF,), at_work(line, "mercury"), Claims())
     assert row is not None
     assert (row["state"], row["problem"]) == ("connected", {"code": "modem.receive_deaf", "params": {}})

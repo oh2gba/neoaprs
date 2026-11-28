@@ -20,7 +20,7 @@ from .radiodriver import RunOverrides
 from .radiospec import RadioSpec
 from .soundmixer import Mixer
 from .tnc import Tnc
-from .tncprofile import HF_BY_KEY, LINE_SPEED, MERCURY, Profile, tcp_url
+from .tncprofile import HF_BY_KEY, LINE_SPEED, MERCURY, MERCURY_OWN, Profile, tcp_url
 
 log = logging.getLogger("neoaprs.controller")  # radio starts are logged by the controller
 
@@ -35,7 +35,9 @@ class ModemSettings(NamedTuple):
 
 
 def _attached(spec: RadioSpec, run: RunOverrides) -> str:
-    """Return the external Mercury given for this run, for the radio it belongs to."""
+    """Return the Mercury something else runs: the operator's own for its type, else the one given for this run."""
+    if spec.rtype.key == MERCURY_OWN.key:
+        return tcp_url(str(spec.value("tcp_host")).strip() or HOST, int(spec.value("tcp_port")))
     return run.hf_port if spec.id == run.attach_to else ""
 
 

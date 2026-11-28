@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import winchild
+from . import tcplisten, winchild
 from .childenv import child_environment, windows_program
 from .clock import Clock, utcnow
 from .source import os_error_text
@@ -63,6 +63,7 @@ def environment(command: Command) -> dict[str, str]:
 
 # 127.0.0.1 and ::1 as /proc/net/tcp and tcp6 write them (hex, kernel byte order).
 LOOPBACK_HEX = ("0100007F", "00000000000000000000000001000000")
+LOOPBACK_TEXT = ("127.0.0.1", "::1")
 PROC_TCP = ("/proc/net/tcp", "/proc/net/tcp6")
 
 
@@ -82,18 +83,28 @@ def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str
 
 
 def foreign_listeners(ports: Iterable[int]) -> list[str]:
-    """Return the listeners on `ports` outside the loopback, as `address:port` in kernel hex."""
-    return [
-        f"{address}:{port}"
-        for port, addresses in sorted(_listeners(_tables(), ports).items())
-        for address in sorted(addresses)
-        if address not in LOOPBACK_HEX
-    ]
+    """Return the listeners on `ports` outside the loopback, as `address:port` (kernel hex on Linux)."""
+    if sys.platform == "win32":
+        return [
+            f"{found.address}:{found.port}"
+            for found in sorted(tcplisten.listeners(ports), key=lambda f: (f.port, f.address))
+            if found.address not in LOOPBACK_TEXT
+        ]
+    else:
+        return [
+            f"{address}:{port}"
+            for port, addresses in sorted(_listeners(_tables(), ports).items())
+            for address in sorted(addresses)
+            if address not in LOOPBACK_HEX
+        ]
 
 
 def listened(ports: Iterable[int]) -> set[int]:
     """Return the ports among `ports` with a listener on any address; empty without the table."""
-    return set(_listeners(_tables(), ports))
+    if sys.platform == "win32":
+        return {found.port for found in tcplisten.listeners(ports)}
+    else:
+        return set(_listeners(_tables(), ports))
 
 
 def _tables() -> list[str]:

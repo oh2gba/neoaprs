@@ -304,6 +304,40 @@ def capture_full(line: str) -> bool:
     return CAPTURE_FULL in line
 
 
+# What Mercury writes when it cannot open its keying port (radio_io/serial_ptt.c, on Windows and
+# elsewhere) and then for any keying it cannot set up (common/mercury_engine.c). An unpatched
+# Mercury then waits for ever on its audio threads (packaging/mercury/initfail.patch).
+KEYING_OPEN_WINDOWS = "[ERR] [serial-ptt] Cannot open {port} (Windows error {error})"
+KEYING_OPEN_POSIX = "[ERR] [serial-ptt] Cannot open {port}: {error}"
+RADIO_INIT_FAILED = "[ERR] [engine] Radio init failed: the engine is exiting"
+# ERROR_ACCESS_DENIED and ERROR_SHARING_VIOLATION; ERROR_FILE_NOT_FOUND and ERROR_PATH_NOT_FOUND
+WINDOWS_IN_USE, WINDOWS_MISSING = frozenset({5, 32}), frozenset({2, 3})
+# strerror of EBUSY; of ENOENT, ENODEV and ENXIO
+POSIX_IN_USE = frozenset({"Device or resource busy"})
+POSIX_MISSING = frozenset({"No such file or directory", "No such device", "No such device or address"})
+_KEYING_OPEN_WINDOWS = re.compile(
+    re.escape(KEYING_OPEN_WINDOWS).replace(r"\{port\}", r"(\S+)").replace(r"\{error\}", r"(\d+)")
+)
+_KEYING_OPEN_POSIX = re.compile(
+    re.escape(KEYING_OPEN_POSIX).replace(r"\{port\}", r"(\S+?)").replace(r"\{error\}", r"(.+?)") + "$"
+)
+
+
+def keying_failure(line: str) -> str:
+    """Return the modem's reason when the line says the keying could not be set up, else "".
+
+    `keying_in_use` for a port another program has, `keying_missing` for one that is not there,
+    `keying` for any other failure.
+    """
+    if windows := _KEYING_OPEN_WINDOWS.search(line):
+        code = int(windows.group(2))
+        return "keying_in_use" if code in WINDOWS_IN_USE else "keying_missing" if code in WINDOWS_MISSING else "keying"
+    if posix := _KEYING_OPEN_POSIX.search(line.rstrip()):
+        error = posix.group(2)
+        return "keying_in_use" if error in POSIX_IN_USE else "keying_missing" if error in POSIX_MISSING else "keying"
+    return "keying" if RADIO_INIT_FAILED in line else ""
+
+
 _STAMP = re.compile(r"^(?:\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}\.\d{3}Z? \[\+\d+\.\d{3}s\] ")
 
 

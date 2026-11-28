@@ -1448,6 +1448,7 @@ export const de: Catalogue = {
   "radio.type.kiss_tcp": "Direwolf",
   "radio.type.tnc_text": "Yaesu FTM, TNC im Monitor-Modus (nur RX)",
   "radio.type.mercury": "Soundkarte",
+  "radio.type.mercury_own": "eigenes Programm",
   "radio.type.lora_tcp": "Tracker oder iGate im WLAN",
   "radio.type.lora_serial": "Tracker oder iGate an USB oder Bluetooth",
   "radio.type.lora_console": "iGate an USB (nur RX)",
@@ -1965,6 +1966,9 @@ export const de: Catalogue = {
   "settings.tnc.hf.not_started": "Das Modem konnte nicht gestartet werden",
   "settings.tnc.hf.sound_card": "Soundkarte lässt sich nicht öffnen: eine andere wählen",
   "settings.tnc.hf.keying": "Das Tastungsgerät lässt sich nicht öffnen: eine andere Tastung wählen",
+  "settings.tnc.hf.keying_in_use": "Der Tastungsport wird von einem anderen Programm benutzt",
+  "settings.tnc.hf.keying_missing": "Der Tastungsport ist nicht vorhanden",
+  "settings.tnc.hf.ports_taken": "Ein anderes Programm benutzt bereits die Ports des Modems",
   "settings.tnc.counts": {
     one: "{n} Paket gehört, {bytes_in} ein, {bytes_out} aus, {digipeated} weitergeleitet",
     other: "{n} Pakete gehört, {bytes_in} ein, {bytes_out} aus, {digipeated} weitergeleitet",

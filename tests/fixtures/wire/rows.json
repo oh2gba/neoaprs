@@ -106,6 +106,8 @@
     "radio/2/rx_card": "",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
+    "radio/2/tcp_host": "127.0.0.1",
+    "radio/2/tcp_port": "8100",
     "radio/2/tx_card": "",
     "radio/2/tx_gain_db": "0"
    },
@@ -138,6 +140,8 @@
     "radio/2/rx_card": "",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
+    "radio/2/tcp_host": "127.0.0.1",
+    "radio/2/tcp_port": "8100",
     "radio/2/tx_card": "",
     "radio/2/tx_gain_db": "0"
    },
@@ -275,6 +279,8 @@
     "radio/2/rx_card": "",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
+    "radio/2/tcp_host": "127.0.0.1",
+    "radio/2/tcp_port": "8100",
     "radio/2/tx_card": "",
     "radio/2/tx_gain_db": "0"
    },
@@ -307,6 +313,8 @@
     "radio/2/rx_card": "",
     "radio/2/sound_card": "",
     "radio/2/status": "false",
+    "radio/2/tcp_host": "127.0.0.1",
+    "radio/2/tcp_port": "8100",
     "radio/2/tx_card": "",
     "radio/2/tx_gain_db": "0"
    },

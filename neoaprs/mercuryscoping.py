@@ -44,7 +44,7 @@ class Scoping:
     async def _retune(self) -> None:
         raise NotImplementedError
 
-    def auto_busy(self, on: bool, now: float) -> None:
+    def auto_busy(self, on: bool, now: float, learnt: bool = False) -> None:
         raise NotImplementedError
 
     def auto_lost(self, now: float) -> None:
@@ -124,7 +124,8 @@ class Scoping:
             self._auto.pause()
             self.auto_busy(False, now)
         else:
-            self.auto_busy(self._auto.update(now, bands_db(spectrum)), now)
+            busy = self._auto.update(now, bands_db(spectrum))
+            self.auto_busy(busy, now, self._auto.learnt)
         row = self._rows.feed(spectrum, self.keyed)
         if row is not None:
             self.scope_row.emit(self.scope_history.add(row, scope_clock()))

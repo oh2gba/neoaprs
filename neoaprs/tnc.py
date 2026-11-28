@@ -23,7 +23,7 @@ from .reading import NO_READING, Reading
 from .policy import TNC_CHECK_SEC
 from .serialport import HeldError, NotChosenError, SerialError, is_socket
 from .signal import Signal
-from .source import Backoff, Source, minutes_between
+from .source import MODEM_NOT_RUNNING, Backoff, Source, minutes_between
 from .tncentry import KissEntry
 from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
@@ -234,6 +234,8 @@ class Tnc(TimedSource):
         )
         if generation != self._generation:
             return None
+        if named and (modem := self._modem()) is not None and (why := modem.refuses_line()):
+            raise SerialError(why)
         if named and not self.is_dummy and await asyncio.to_thread(serialprobe.incoming_bluetooth, path):
             raise NotChosenError(serialprobe.incoming_port_reason(path))
         if named and not self.is_dummy:
@@ -280,7 +282,8 @@ class Tnc(TimedSource):
         self.watchdog.probes = 0
         expected = False
         if (modem := self._modem()) is not None:
-            expected = modem.starting()
+            # the modem says why it does not run; the line's wait follows from it
+            expected = modem.starting() or modem.state == "waiting"
             problem = modem.problem or f"waiting for {modem.describe()}"
         self._waiting(
             problem, self.backoff.next_delay_sec(), self._connect, expected=expected
@@ -294,10 +297,23 @@ class Tnc(TimedSource):
         """The modem program behind the line, for a type that has one."""
         return self._modem()
 
+    def modem_changed(self) -> None:
+        """Follow the modem: the line is closed while the modem does not run, and opened once it does."""
+        if (modem := self._modem()) is None or self.state is Source.State.STOPPED:
+            return
+        if modem.state != "running" and (port := self._port) is not None:
+            self._port = None
+            self._drop_tasks()
+            port.close()
+            self._wait(MODEM_NOT_RUNNING)
+        elif modem.state == "running" and self.state is Source.State.WAITING and self._port is None:
+            self._generation += 1  # the retry already due is void: this one connects now
+            self._spawn(self._connect())
+
     def _held(self) -> str:
-        """Return why the modem wants no frame now (transmitting, channel busy), else ""."""
+        """Return why the modem wants no frame now (not running, transmitting, channel busy), else ""."""
         modem = self._modem()
-        return modem.hold() if modem is not None else ""
+        return modem.frame_hold() if modem is not None else ""
 
     @property
     def label(self) -> str:

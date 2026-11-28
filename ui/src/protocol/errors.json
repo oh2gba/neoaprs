@@ -89,7 +89,7 @@
  "radio.no_scope": {"params": ["name", "radio"], "text": ["radio {name} has no scope"]},
  "radio.no_setting": {"params": ["name", "radio"], "text": ["radio {name} has no such setting"]},
  "radio.none": {"params": [], "text": ["there is no radio", "there is no radio: add one, or turn one on"]},
- "radio.not_connected": {"params": ["name", "radio"], "text": ["radio {name} is not connected", "the TNC is not connected"]},
+ "radio.not_connected": {"params": ["name", "radio"], "text": ["radio {name} is not connected", "the TNC is not connected", "the modem is not running"]},
  "radio.not_found": {"params": [], "text": ["no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)"]},
  "radio.not_paired": {"params": [], "text": ["the device is not paired with this computer"]},
  "radio.not_running": {"params": [], "text": ["no search for the radio is running"]},
