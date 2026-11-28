@@ -80,6 +80,8 @@ GitHub's runners and the container of `scripts/check-in-container` follow `packa
 
 Dated: after 1 December 2026 GitHub's `windows-2025` label moves to Visual Studio 2027 (announcement 15373, marked read until 2026-12-15 in `runner.json`). Dispatch `release.yml` on a branch and read the `windows` job (the compile of PyInstaller's bootloader finds the compiler) before that announcement is marked read for good.
 
+The container image's base moves with the releases: `FROM debian:<stable>-slim@sha256:...` of `packaging/container/Dockerfile` takes the digest of `docker buildx imagetools inspect debian:<stable>-slim` in the commit of a release's level check; nothing rebuilds an image between releases. After a release, the run of `container.yml` must be green and `docker pull ghcr.io/oh2gba/neoaprs:<version>` answer.
+
 uv moves the same way, in one commit: `UV_VERSION` and `UV_SHA256` of the Dockerfile, `UV` of `scripts/check-windows` and the `version:` of every setup-uv step (the tests hold them together).
 
 ## A release
@@ -117,7 +119,8 @@ Each step says in one line what it does, and every one is skipped when it is don
    published release is never signed after the fact. Run it outside a sandbox: bws needs the network ([Update now](development.md#update-now) has what is signed).
 10. **verify**: the release is published, not a draft, has its 15 files (the Windows installer, the AppImage, the macOS app, the two packages, the five again under the names `NeoAPRS-Setup.exe`, `NeoAPRS-x86_64.AppImage`, `NeoAPRS-arm64.dmg`, `neoaprs_amd64.deb` and `neoaprs_arm64.deb`, the source tarball, the wheel and `install.sh` for the copies installed with the install line before 0.16, `SHA256SUMS` and `SHA256SUMS.sig`), the signature holds with the program's public key and every download link answers.
     `scripts/release <version> --verify` does this step alone, for a release published earlier, and changes nothing.
-11. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
+11. **image**: starts `.github/workflows/container.yml` on the tag (`gh workflow run container.yml --ref v<version> -f tag=v<version>`), once; it pushes `ghcr.io/oh2gba/neoaprs` for both architectures when its checks pass. A failed run touches nothing of the release: read it, mend the cause, and start it again by the same line ([The container image](development.md#the-container-image)).
+12. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
     ten minutes (`curl 'https://neo.oh2gba.eu/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
 
 `--dry-run` prints the steps and what is done already, names what a real run would refuse, and changes nothing (it asks GitHub only for the switches of the repository, read only). `scripts/release` has tests with a fake `gh` and a fake origin

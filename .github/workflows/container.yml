@@ -1,0 +1,162 @@
+# The container image of a published release, ghcr.io/oh2gba/neoaprs, for amd64 and arm64 on the
+# free native runners (no emulation): the release's own signed .deb, checked as Update now checks
+# it, installed by packaging/container/Dockerfile, proven by scripts/check-container, pushed by
+# digest, then one multi-architecture tag set (X.Y.Z, X.Y and, for the newest stable release,
+# latest) with a build-provenance attestation. scripts/release starts it once the release is
+# published (gh workflow run container.yml --ref vX.Y.Z -f tag=vX.Y.Z); a release made by the job
+# token does not start a workflow by its own event. Run on anything but the tag it names, or for a
+# release that is a draft, it builds and checks the image and publishes nothing: the steps that log
+# in and push are gated on that, so no test run can write a release's tag. A failed image never
+# touches the release. docs/MAINTAINING.md, "After a release", says what to look at.
+name: container
+run-name: "image ${{ inputs.tag }} (${{ github.ref_name }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "the release tag, such as v0.28.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/oh2gba/neoaprs
+  NEOAPRS_UPDATE_CHECK: "0"
+  TAG: ${{ inputs.tag }}
+
+concurrency:
+  group: container-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-26.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: "0.13.10"
+          python-version: "3.13"
+          enable-cache: false  # what checks a release file is installed from the lock, never from a cache
+      - name: The release, and whether this run publishes it (only on its own tag, once published)
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$TAG" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "::error::$TAG is not a release tag"; exit 1 ;; esac
+          version="${TAG#v}"
+          # a draft is not shown to the job's read-only token: it counts as not published
+          draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2> /dev/null)" || draft=unknown
+          publish=false
+          if [ "$GITHUB_REF" = "refs/tags/$TAG" ] && [ "$draft" = false ]; then
+            publish=true
+            [ "$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" = "$version" ] || { echo "::error::the tag's tree is not version $version"; exit 1; }
+          else
+            echo "a check only, nothing is published: the run is on $GITHUB_REF, the release draft=$draft"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+      - name: The release's package of this architecture, checked against its signed SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          mkdir context
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir context --pattern "neoaprs_${VERSION}_${{ matrix.arch }}.deb" --pattern SHA256SUMS --pattern SHA256SUMS.sig
+          uv run --frozen --no-dev python scripts/verify-download.py "context/neoaprs_${VERSION}_${{ matrix.arch }}.deb"
+          rm context/SHA256SUMS context/SHA256SUMS.sig
+          ls -l context
+      - name: Build the image and prove it (scripts/check-container)
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          docker buildx create --name neoaprs --driver docker-container --use
+          docker buildx build --platform "linux/${{ matrix.arch }}" --build-arg VERSION="$VERSION" -f packaging/container/Dockerfile --load -t neoaprs-check context
+          python3 scripts/check-container neoaprs-check "$VERSION"
+      - name: Push it by digest (a published release on its own tag only)
+        if: steps.release.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx build --platform "linux/${{ matrix.arch }}" --build-arg VERSION="$VERSION" -f packaging/container/Dockerfile \
+            --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" --metadata-file meta.json context
+          digest="$(python3 -c 'import json; print(json.load(open("meta.json"))["containerimage.digest"])')"
+          case "$digest" in sha256:*) ;; *) echo "::error::no digest: $digest"; exit 1 ;; esac
+          mkdir digests
+          echo "$digest" > "digests/${{ matrix.arch }}"
+      - if: steps.release.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/${{ matrix.arch }}
+          if-no-files-found: error
+          overwrite: true
+
+  publish:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - name: One tag set for both architectures (latest for the newest stable release only)
+        id: tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          tags=(-t "$IMAGE:$VERSION")
+          case "$VERSION" in
+            *-*) ;;  # a pre-release has its own tag only
+            *)
+              tags+=(-t "$IMAGE:${VERSION%.*}")
+              newest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
+              [ "$newest" = "$TAG" ] && tags+=(-t "$IMAGE:latest")
+              ;;
+          esac
+          docker buildx imagetools create "${tags[@]}" "$IMAGE@$(cat digests/amd64)" "$IMAGE@$(cat digests/arm64)"
+          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | python3 -c 'import json, sys; print(json.load(sys.stdin)["digest"])')"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "pushed ${tags[*]} as $digest"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.tags.outputs.digest }}
+          push-to-registry: true
+      - name: The attestation holds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: gh attestation verify "oci://$IMAGE:$VERSION" --repo "$GITHUB_REPOSITORY"
