@@ -1626,6 +1626,10 @@ export const de: Catalogue = {
   "settings.board_port.label": "Port",
   "settings.sound_card.label": "Soundkarte",
   "settings.sound_card.tip_label": "Über die Soundkarte",
+  "settings.sound_card.capture": "Ton vom Funkgerät",
+  "settings.sound_card.playback": "Ton zum Funkgerät",
+  "settings.sound_card.channel": "{name}, Kanal {channel}",
+  "settings.sound_card.repeated": "{name} ({count})",
   "settings.sound_card.tip1":
     "Die Soundkarte, über die der Ton des Funkgeräts läuft: ein USB-Codec, ein Digirig oder der USB-Ton des Funkgeräts selbst.",
   "settings.sound_card.tip2":

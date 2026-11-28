@@ -64,6 +64,7 @@ from .radiotypes import kind_field
 from .serialprobe import PortInfo, claim_value, holder_words, named_ports, offered_ports
 from .modemstate import ModemLife
 from .signal import Signal
+from .soundwatch import SoundServing
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
 from .versions import Frequency
@@ -147,7 +148,7 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
+class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs, SoundServing):
     PROGRAM, LOG = "Mercury", log
     _program: Program
 
@@ -275,6 +276,8 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
         audio = await self._speaker_audio() if self.speaker else []
         if audio is None:
             return
+        if not self.speaker and not await self._server_ready(own_choice(config, self.holder)[0]):
+            return
         if not self.speaker and (problem := await self._choose_setup(program, config)):
             log.warning("Mercury cannot be started: %s", problem)
             return self._failed(problem, "not_started")
@@ -351,7 +354,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
             return self._failed(
                 f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started"
             )
-        argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
+        argv = command(program, str(ini), self._alsa(), keying, self.broadcast_port, self.control_port, audio)
         if sys.platform == "win32":
             # without -L it logs into the install folder, which an install for all users cannot write
             argv += ["-L", str(self.home / ENGINE_LOG)]
@@ -364,6 +367,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
             return self._failed(f"Mercury could not be started: {os_error_text(e)}", "not_started")
         self.starts += 1
         self._start_made()
+        self._watch_server(self._audio_error)
         if self.state == "waiting":
             self.changed.emit()
         else:
@@ -575,7 +579,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife, Runs):
     def sound_cards(self) -> list[SoundCard]:
         """Return the sound cards Mercury lists; none without a Mercury. For a thread."""
         program = self._program_to_run()
-        return [] if program is None else list_sound_cards(program)
+        return [] if program is None else list_sound_cards(program) + self._server_cards()
 
     def _program_to_run(self) -> Command | None:
         """Return the Mercury program of this installation; None under the no-devices switch."""

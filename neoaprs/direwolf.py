@@ -8,7 +8,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .mercury import _RADIO_CARD, Keying, SerialPort, SoundCard, choose_sound_card, radio_serial_ports
+from .mercury import _RADIO_CARD, PAIR, Keying, SerialPort, SoundCard, choose_sound_card, radio_serial_ports
 from .tncprofile import Profile
 
 VERSION = "1.8.1"
@@ -102,9 +102,9 @@ def adevice(sound_card: str, numbers: tuple[int, int] | None = None) -> str:
     """Return the ADEVICE value; raise ValueError without a card (the default could be speakers)."""
     if numbers is not None:
         return f"{numbers[0]} {numbers[1]}"
-    if not sound_card:
+    if not sound_card or sound_card.startswith(PAIR) or sound_card.endswith(PAIR):
         raise ValueError("Direwolf is given no sound card: the system's default device is never written")
-    return sound_card
+    return sound_card.replace(PAIR, " ")  # a record and a play device: ADEVICE takes the input first
 
 
 def conf_text(device: str, keying: Keying, kiss_port: int, baud: int = 1200) -> str:

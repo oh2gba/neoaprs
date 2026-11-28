@@ -42,6 +42,56 @@ export const soundCardPick = (ports: PortsMessage | null): string => ports?.soun
  * the one it plays to (neoaprs/mercury.py, PAIR).
  */
 const PAIR = "|";
+/** How the id of a sound server's sink or source begins (neoaprs/soundserver.py). */
+const SERVER = "pulse:DEVICE=";
+const CHANNEL = ",CHANNEL=";
+
+/** The two halves of the sound: the device recorded from, the one played to. */
+export type SoundHalf = "capture" | "playback";
+
+/**
+ * Whether the radio's sound is chosen as two devices: the daemon lists a sound server's sinks and
+ * sources, any of which may be either half.
+ */
+export const soundCardSplit = (ports: PortsMessage | null): boolean =>
+  (ports?.sound_cards ?? []).some((c) => c.id.startsWith(SERVER));
+
+/** The device a setting records from and the one it plays to (neoaprs/mercurycards.py endpoints). */
+export function soundCardHalves(value: string): [string, string] {
+  const at = value.indexOf(PAIR);
+  return at < 0 ? [value, value] : [value.slice(0, at), value.slice(at + 1)];
+}
+
+/** The setting of a device recorded from and one played to: one id where they are one card. */
+export const soundCardJoin = (capture: string, playback: string): string =>
+  capture === playback && !capture.startsWith(SERVER) ? capture : `${capture}${PAIR}${playback}`;
+
+/** The words of a device the list no longer has: a sound server's by the name it had there. */
+export const soundCardGone = (id: string): string =>
+  id.startsWith(SERVER) ? (id.slice(SERVER.length).split(CHANNEL)[0] ?? id) : id;
+
+/**
+ * The devices of one half as the choice of its field: what the operator named each, a source's
+ * one channel with its number, and a name repeated with a count; a device another radio holds is
+ * greyed (lib/portchoice.ts) unless it is the one in force.
+ */
+export function soundCardHalfChoices(
+  ports: PortsMessage | null,
+  half: SoundHalf,
+  holder: HolderOf = () => null,
+  current = "",
+): Choice[] {
+  const cards = (ports?.sound_cards ?? []).filter((c) => c[half]);
+  const names = cards.map((c) =>
+    c.channel ? t("settings.sound_card.channel", { name: c.name, channel: c.channel }) : c.name,
+  );
+  return cards.map((c, i) => {
+    const name = names[i] ?? c.name;
+    const count = names.slice(0, i + 1).filter((n) => n === name).length;
+    const label = count > 1 ? t("settings.sound_card.repeated", { name, count }) : name;
+    return heldChoice({ value: c.id, label }, c.held_by, holder, current);
+  });
+}
 
 /**
  * The listed card that an older setting names otherwise: one of the two devices of a Windows

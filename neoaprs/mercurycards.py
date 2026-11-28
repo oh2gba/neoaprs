@@ -13,12 +13,17 @@ class SoundCard:
     capture: bool = False
     default: bool = False
     numbered: str = ""
+    alsa: str = ""  # a sound server's device: the ALSA card behind it, "" for one a user made
+    channel: int = 0  # a sound server's source read one channel alone: the channel, from 1
 
 
 _DEVICE = re.compile(
     r"^device(?: #\d+)?: (?:name: '(?P<name>.*?)'\s+id: '(?P<id>.*?)'|(?P<name2>.*?)\s+id=(?P<id2>\S+))(?P<default>\s+\(system (?:default|route)\))?\s*$"
 )
 
+
+# A sound server's device (neoaprs/soundserver.py) is named so in a setting.
+SERVER = "pulse:DEVICE="
 
 # Windows lists each card twice, as a recording ({0.0.1.) and a playing ({0.0.0.) device; opening
 # one the wrong way fails. The two are one choice with the id "capture PAIR playback".

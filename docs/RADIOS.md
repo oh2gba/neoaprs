@@ -151,6 +151,7 @@ For a radio on a sound-card interface (Digirig, AIOC, SignaLink, a USB dongle, a
 3. Tune sends alternating tones for ten seconds, to set the deviation; Test keys the radio for a second. The Receive level shows the audio as it arrives, ten times a second while you look at it: a packet should reach the green.
 
 - One sound card is one radio's: a card that another radio uses, a Mercury radio or another Sound card radio, is refused.
+- On Linux with PipeWire or PulseAudio (`pactl` installed) the sound is two choices, from and to the radio, among the sound cards and the sound server's devices, also ones you made (a remap or null sink). A source of more than two channels is offered one channel at a time too. Such a device needs the server's ALSA plug-in (`libasound2-plugins` on Debian and Ubuntu, `pipewire-alsa` or `alsa-plugins-pulseaudio` on Fedora, `pipewire-alsa` or `alsa-plugins-pulse` on openSUSE, `alsa-plugins` or `pipewire-alsa` on Arch). The Mercury radio has the same two choices.
 - **Never choose the Digirig's serial port as a serial TNC.** Opening it keys the transmitter through RTS. Its keying is the Sound card radio's.
 - On Linux, keying by a CM108 pin (an AIOC, a dongle) needs your user to be allowed to write the chip's `/dev/hidraw` device, which a udev rule gives; without it the radio waits and says its keying could not be opened.
 - A Mac has no Sound card types under Packet yet: run your own Direwolf there, as below.

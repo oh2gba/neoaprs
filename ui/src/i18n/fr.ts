@@ -1561,6 +1561,10 @@ export const fr: Catalogue = {
   "settings.board_port.label": "Port",
   "settings.sound_card.label": "Carte son",
   "settings.sound_card.tip_label": "À propos de la carte son",
+  "settings.sound_card.capture": "Son venant de la radio",
+  "settings.sound_card.playback": "Son vers la radio",
+  "settings.sound_card.channel": "{name}, canal {channel}",
+  "settings.sound_card.repeated": "{name} ({count})",
   "settings.sound_card.tip1":
     "La carte son par laquelle passe l'audio de la radio : un codec USB, un Digirig ou l'audio USB de la radio elle-même.",
   "settings.sound_card.tip2":

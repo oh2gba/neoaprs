@@ -172,7 +172,7 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     # Runs the modem program; only for a sound-card modem.
     cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []
     # sysfs: which sit on one radio's USB hub; the page orders the keying by it.
-    on_card, on_port = await asyncio.to_thread(together, [c.id for c in cards], [p.device for p in ports])
+    on_card, on_port = await asyncio.to_thread(together, [c.alsa or c.id for c in cards], [p.device for p in ports])
     if isinstance(modem, DirewolfModem) and radio is not None:
         holder = radio.id
         # sysfs: which ports belong to the card.
@@ -208,9 +208,12 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
                     "name": c.name,
                     "numbered": c.numbered,
                     "default": c.default,
+                    "capture": c.capture,
+                    "playback": c.playback,
+                    "channel": c.channel or None,
                     "pick": c.id == pick,
-                    "held_by": _holder(claims, "sound_card", c.id),
-                    "usb_group": on_card.get(c.id),
+                    "held_by": _holder(claims, "sound_card", c.alsa or c.id),
+                    "usb_group": on_card.get(c.alsa or c.id),
                 }
                 for c in cards
             ],

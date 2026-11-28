@@ -2,6 +2,8 @@
 // The fields of one radio, each worked as in the form: a typed field is sent when left or on Enter,
 // a choice at once. Packet radios have TNC type, port, speed or TCP host and port; HF radios have type,
 // sound card and keying with a Test button (useHfTests).
+// Where the daemon lists a sound server's devices, the sound card is two choices, the device recorded
+// from and the one played to, stored as one setting (lib/mercury.ts soundCardJoin).
 // The daemon's proposal for the sound card and keying (`pick`, `keying`) is preselected and stored
 // while the setting is empty. Keys are the radio's own (`radio/3/port`). Sound cards and proposals
 // are read from the answer for this radio only (`portsByRadio`). A proposal the daemon refused is
@@ -15,7 +17,18 @@ import { useHfTests } from "@/composables/useHfTests";
 import { useRadios } from "@/composables/useRadios";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
+import {
+  keyingChoices,
+  soundCardChoices,
+  soundCardGone,
+  soundCardHalfChoices,
+  soundCardHalves,
+  soundCardJoin,
+  soundCardPick,
+  soundCardSplit,
+  soundCardWith,
+  type SoundHalf,
+} from "@/lib/mercury";
 import { holderOf } from "@/lib/portchoice";
 import { typeOf, type PageRadio } from "@/lib/radios";
 import { fieldFor, type FieldInfo } from "@/lib/settings";
@@ -66,6 +79,28 @@ const cardInfo = computed<FieldInfo>(() => ({
   kind: "choice",
   choices: soundCardChoices(own.value, holder.value, props.settings.expected(cardKey.value ?? "")),
 }));
+/** Whether the sound is chosen as two devices (a sound server's are listed). */
+const split = computed(() => soundCardSplit(own.value));
+const HALVES: readonly SoundHalf[] = ["capture", "playback"];
+const halfOf = (key: string, half: SoundHalf): string => soundCardHalves(valueOf(key))[half === "capture" ? 0 : 1];
+/** The field of one half: its own label and devices; the (i) is the first field's alone. */
+function halfInfo(half: SoundHalf): FieldInfo {
+  const { tip, tipLabel, picture, ...plain } = fieldFor(cardKey.value ?? "");
+  const current = soundCardHalves(props.settings.expected(cardKey.value ?? ""))[half === "capture" ? 0 : 1];
+  return {
+    ...(half === "capture"
+      ? { ...plain, ...(tip ? { tip } : {}), ...(tipLabel ? { tipLabel } : {}), ...(picture ? { picture } : {}) }
+      : plain),
+    label: t(`settings.sound_card.${half}`),
+    kind: "choice",
+    choices: soundCardHalfChoices(own.value, half, holder.value, current),
+    other: soundCardGone,
+  };
+}
+function chooseHalf(key: string, half: SoundHalf, value: string): void {
+  const [capture, playback] = soundCardHalves(valueOf(key));
+  props.form.choose({ [key]: half === "capture" ? soundCardJoin(value, playback) : soundCardJoin(capture, value) });
+}
 /**
  * The USB group of the radio's sound card (`usb_group`), which orders the keying ports; null if
  * unknown.
@@ -73,7 +108,8 @@ const cardInfo = computed<FieldInfo>(() => ({
 const cardGroup = computed<string | null>(() => {
   const now = valueOf(cardKey.value ?? "");
   const id = soundCardWith(own.value, now) || now;
-  return own.value?.sound_cards.find((c) => c.id === id)?.usb_group ?? null;
+  const [capture] = soundCardHalves(id);
+  return own.value?.sound_cards.find((c) => c.id === id || c.id === capture)?.usb_group ?? null;
 });
 const keyingInfo = computed<FieldInfo>(() => ({
   ...fieldFor(keyingKey.value ?? ""),
@@ -155,6 +191,26 @@ function refresh(key: string): void {
       @cancel="settings.cancel(key)"
       @refresh="refresh(key)"
     />
+    <template v-else-if="isCard(key) && split">
+      <SettingsField
+        v-for="half in HALVES"
+        :id="ids(`${inputId(key)}-${half}`)"
+        :key="half"
+        :info="halfInfo(half)"
+        :model-value="halfOf(key, half)"
+        fallback=""
+        :error="half === 'playback' ? (settings.errors[key] ?? '') : ''"
+        :changed="form.changed(key)"
+        :apply="true"
+        @choose="chooseHalf(key, half, $event)"
+        @commit="finish(key, $event)"
+        @cancel="settings.cancel(key)"
+      >
+        <template v-if="half === 'capture'" #after>
+          <button class="btn" type="button" @click="refresh(key)">{{ t("settings.port.refresh") }}</button>
+        </template>
+      </SettingsField>
+    </template>
     <SettingsField
       v-else
       :id="ids(inputId(key))"

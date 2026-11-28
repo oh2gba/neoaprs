@@ -23,7 +23,7 @@ from dataclasses import replace
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
-from neoaprs import bundled, childprogram, mercuryhelper, mercurymodem, modemstate
+from neoaprs import bundled, childprogram, mercuryhelper, mercurymodem, modemstate, soundserver
 from neoaprs.mercuryhelper import environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.mercurystale import end_stale
 from neoaprs.claims import Claim, Claims
@@ -1415,3 +1415,26 @@ async def test_on_windows_mercurys_own_log_goes_into_the_radios_folder_not_the_i
         assert started[0][-2:] == ["-L", str(m.home / mercurymodem.ENGINE_LOG)]
     finally:
         await stopped(m)
+
+
+def test_a_program_on_a_sound_servers_device_runs_on_the_systems_alsa_library(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The system's plug-in of the sound server is built for the system's libasound (Fedora's needs
+    ALSA_1.2.15, newer than the shipped one, measured): such a run takes the system's library and its
+    configuration, the shipped one stays for a card."""
+    program = tmp_path / "mercury" / "mercury"
+    (tmp_path / "mercury" / "share" / "alsa").mkdir(parents=True)
+    program.write_text("")
+    (tmp_path / "mercury" / "share" / "alsa" / "alsa.conf").write_text("")
+    system = soundserver.SystemAlsa(tmp_path / "lib64", tmp_path / "share" / "alsa.conf")
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: system)
+    env = environment([str(program)], system_sound=True)
+    # (one file: openSUSE's ALSA reads no list of them; ours includes the system's alsa.conf first)
+    assert env["LD_LIBRARY_PATH"] == str(system.lib) and env["ALSA_CONFIG_PATH"] == str(soundserver.CONF)
+    card = environment([str(program)])
+    assert "LD_LIBRARY_PATH" not in card and card["ALSA_CONFIG_PATH"] == str(
+        tmp_path / "mercury" / "share" / "alsa" / "alsa.conf"
+    )
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: None)
+    assert "LD_LIBRARY_PATH" not in environment([str(program)], system_sound=True), "none found: the shipped one"

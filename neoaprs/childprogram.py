@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import tcplisten, winchild
+from . import soundserver, tcplisten, winchild
 from .childenv import child_environment, windows_program
 from .clock import Clock, utcnow
 from .source import os_error_text
@@ -50,11 +50,17 @@ def runs_shipped(command: Command, program: Path) -> bool:
     return len(command) == 1 and Path(command[0]).resolve() == program.resolve()
 
 
-def environment(command: Command) -> dict[str, str]:
-    """Return the reduced environment, plus ALSA_CONFIG_PATH if an alsa.conf is shipped."""
+def environment(command: Command, system_sound: bool = False) -> dict[str, str]:
+    """Return the reduced environment, plus the ALSA configuration: the shipped one if there is one.
+
+    With `system_sound` (a sound server's devices) the system's ALSA library instead, whose version the
+    server's plug-in is built for, and soundserver.conf, which takes in the system's configuration."""
     env = child_environment()
     conf = Path(command[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
-    if len(command) == 1 and conf.is_file():
+    if system_sound and (system := soundserver.system_alsa()) is not None:
+        env["LD_LIBRARY_PATH"] = str(system.lib)  # searched before the shipped program's RUNPATH
+        env["ALSA_CONFIG_PATH"] = str(soundserver.CONF)
+    elif len(command) == 1 and conf.is_file():
         env["ALSA_CONFIG_PATH"] = str(conf)
     return env
 
@@ -325,6 +331,7 @@ class Program:
         self._on_ended = on_ended
         self._log, self._program_log = owner_log, program_log
         self._stdin_pipe = stdin_pipe  # the program ends when its stdin closes (Direwolf -Q)
+        self.system_sound = False  # the next run opens a sound server's devices (environment)
         self._process: subprocess.Popen[str] | None = None
         self._stopping: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
@@ -379,7 +386,7 @@ class Program:
             text=True,
             encoding="utf-8",
             errors="replace",
-            env=environment(argv),
+            env=environment(argv, self.system_sound),
             # its own group: Ctrl-Break to the group asks it alone to end (winchild.ask_to_end)
             creationflags=HIDDEN_WINDOW | (OWN_GROUP if self.asked_by_break else 0),
         )

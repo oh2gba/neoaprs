@@ -41,7 +41,7 @@ from .direwolf import (
 )
 from .direwolftune import Tuning, clamp
 from .mercury import CONTROL_OFFSET, Keying, SerialPort, SoundCard, keying_of, propose_sound_card
-from .mercuryclaims import MODEM_KINDS, HeldPorts, card_claim, held_card, keying_claim
+from .mercuryclaims import MODEM_KINDS, HeldPorts, card_claims, held_card, keying_claim
 from .mercuryhelper import Command, foreign_listeners, free_ports, list_sound_cards, next_modem_ports
 from .mercuryhelper import find as mercury_program
 from .mercurymodem import system_serial_ports
@@ -50,6 +50,8 @@ from .reading import NO_READING, Reading
 from .serialprobe import PortInfo, claim_value, holder_words
 from .modemstate import ModemLife
 from .signal import Signal
+from .soundserver import Node
+from .soundwatch import SoundServing
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
 
@@ -73,7 +75,7 @@ STATES = ("stopped", "starting", "running", "waiting")
 REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying")
 
 
-class DirewolfModem(Tuning, ModemLife):
+class DirewolfModem(Tuning, ModemLife, SoundServing):
     PROGRAM, LOG, STARTING = "Direwolf", log, ("starting", "running")
 
     def __init__(
@@ -171,6 +173,8 @@ class DirewolfModem(Tuning, ModemLife):
                 f"Direwolf's folder could not be made in the data folder: {os_error_text(e)}", "not_started"
             )
         await asyncio.to_thread(direwolfprogram.end_stale, self.home / PID_FILE)
+        if not await self._server_ready(self._settings[0]):
+            return
         problem, reason, names = await self._choose_setup()
         if problem:
             log.warning("Direwolf cannot be started: %s", problem)
@@ -215,7 +219,7 @@ class DirewolfModem(Tuning, ModemLife):
                 if (key := claim_value(p.device)) not in leave and (not serial or key not in serial)
             ]
             tied = (
-                None if keying_set else await asyncio.to_thread(self.beside, self.sound_card, [p.device for p in ports])
+                None if keying_set else await asyncio.to_thread(self.beside, self._behind(), [p.device for p in ports])
             )
             self.keying = (
                 keying_of(keying_set) if keying_set else choose_keying(names.get(self.sound_card, ""), ports, tied)
@@ -226,7 +230,7 @@ class DirewolfModem(Tuning, ModemLife):
                 self.keying.text,
                 "" if keying_set else " (chosen by NeoAPRS)",
             )
-            other = hold_setup(self.claims, self.holder, self.sound_card, self.keying, self.windows)
+            other = hold_setup(self.claims, self.holder, self.sound_card, self.keying, self.windows, self.nodes)
             if other is None:
                 return "", "", names
             if card_set if other.kind == "sound_card" else keying_set:
@@ -245,6 +249,8 @@ class DirewolfModem(Tuning, ModemLife):
 
     async def _run(self, program: Command, test: str = "") -> None:
         """Choose the KISS port, write the configuration and start the program (or a `test` run)."""
+        if test and not await self._server_ready(self.sound_card):
+            return
         try:
             self._choose_port()
         except OSError as e:
@@ -253,7 +259,7 @@ class DirewolfModem(Tuning, ModemLife):
         conf = self.home / CONF_FILE
         try:
             conf.write_text(
-                conf_text(adevice(self.sound_card, self._numbers), self.keying, self.kiss_port, self.baud),
+                conf_text(adevice(self._alsa(), self._numbers), self.keying, self.kiss_port, self.baud),
                 encoding="utf-8",
             )
         except OSError as e:
@@ -272,6 +278,7 @@ class DirewolfModem(Tuning, ModemLife):
             )
         except OSError as e:
             return self._failed(f"Direwolf could not be started: {os_error_text(e)}", "not_started")
+        self._watch_server(lambda why: self._end_run(SOUND_CARD_FAILED, "sound_card", why))
         if test or self._after_test:
             return
         self.starts += 1
@@ -443,7 +450,9 @@ class DirewolfModem(Tuning, ModemLife):
 
     def sound_cards(self) -> list[SoundCard]:
         """Return the HF modem's sound cards; none with no devices or no program. For a thread."""
-        return [] if nodevices.refused("the sound cards are not listed for Direwolf", logging.INFO) else self._cards()
+        if nodevices.refused("the sound cards are not listed for Direwolf", logging.INFO):
+            return []
+        return self._cards() + self._server_cards()
 
     def _program_to_run(self) -> Command | None:
         """Return the Direwolf of this installation; none under the no-devices switch."""
@@ -461,7 +470,7 @@ def port_chosen(modem: DirewolfModem) -> bool:
 
 def levels_card(modem: DirewolfModem) -> str:
     """Return the sound card whose levels are the radio's: the one its modem runs on."""
-    return held_card(modem.claims, modem.holder, modem.sound_card)
+    return held_card(modem.claims, modem.holder, modem._behind())
 
 
 def _numbers_of(card_name: str) -> tuple[int, int] | None:
@@ -503,14 +512,16 @@ def proposal(
     ).text if cards else ""
 
 
-def hold_setup(claims: Claims | None, holder: RadioId, sound_card: str, keying: Keying, windows: bool) -> Claim | None:
+def hold_setup(
+    claims: Claims | None, holder: RadioId, sound_card: str, keying: Keying, windows: bool, nodes: Sequence[Node] = ()
+) -> Claim | None:
     """Hold the sound card and keying for the radio; return the claim that blocks it, if any."""
     if claims is None:
         return None
     claims.release(holder, "sound_card")
     claims.release(holder, "keying")
     line = keying_claim(keying, claim_value(keying.device) if keying.device else None, windows)
-    for claim in (card_claim(sound_card, holder), *([Claim("keying", line, holder)] if line else [])):
+    for claim in (*card_claims(sound_card, holder, nodes), *([Claim("keying", line, holder)] if line else [])):
         if (other := claims.hold(claim)) is not None:
             claims.release(holder, "sound_card")
             return other

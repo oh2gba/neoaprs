@@ -289,3 +289,29 @@ jobs:
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           docker build --build-arg VERSION="$version" -f packaging/container/Dockerfile -t neoaprs-check context
           python3 scripts/check-container neoaprs-check "$version" --no-modems
+
+  # A sound server's sinks and sources on a PipeWire of the job's own (tests/test_soundrig.py,
+  # tests/support/soundrig.py): pipewire, WirePlumber without its device monitors and pipewire-pulse
+  # under the test's own folders, virtual devices only (the runner has no sound card). The ALSA
+  # names of neoaprs/soundserver.conf are opened by aplay and arecord, the streams checked by the
+  # daemon's own check, and the channels of a 4-channel source read.
+  soundrig:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: "0.13.10"
+          python-version: "3.13"
+          enable-cache: true
+      - name: PipeWire, its Pulse server, pactl and the ALSA plug-ins
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pipewire pipewire-bin pipewire-pulse pipewire-alsa wireplumber pulseaudio-utils libasound2-plugins alsa-utils dbus-daemon
+      - run: uv sync --frozen
+      - run: uv run pytest -p no:randomly tests/test_soundrig.py tests/test_soundserver.py tests/test_soundserver_modems.py
+        env:
+          NEOAPRS_SOUND_RIG: "1"

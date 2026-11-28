@@ -222,6 +222,8 @@ LAYERS: dict[str, list[str]] = {
         "soundmixer",
         "winmixer",
         "cardlevels",
+        "soundserver",
+        "soundwatch",
         "direwolfprogram",
         "modemstate",
         "direwolfmodem",
@@ -357,6 +359,15 @@ ADAPTER_SIBLINGS: set[tuple[str, str]] = {
     ("neoaprs.mercurymodem", "neoaprs.mercuryspeaker"),
     ("neoaprs.mercuryhelper", "neoaprs.childprogram"),
     ("neoaprs.childprogram", "neoaprs.childenv"),
+    # a sound server's devices: the modems look them up and watch their streams, the child's ALSA is told of them
+    ("neoaprs.childprogram", "neoaprs.soundserver"),
+    ("neoaprs.soundserver", "neoaprs.childenv"),
+    ("neoaprs.soundwatch", "neoaprs.soundserver"),
+    ("neoaprs.soundwatch", "neoaprs.mercuryhelper"),
+    ("neoaprs.mercuryclaims", "neoaprs.soundserver"),
+    ("neoaprs.mercurymodem", "neoaprs.soundwatch"),
+    ("neoaprs.direwolfmodem", "neoaprs.soundserver"),
+    ("neoaprs.direwolfmodem", "neoaprs.soundwatch"),
     ("neoaprs.childprogram", "neoaprs.winchild"),
     ("neoaprs.winask", "neoaprs.winchild"),
     ("neoaprs.mercuryhelper", "neoaprs.winchild"),
@@ -690,6 +701,10 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
     "neoaprs/mercurystale.py": (
         "program",
         "on a system without /proc (macOS) asks /bin/ps for the command line of the process a pid file names, from a list of arguments written in the module and the id as a number",
+    ),
+    "neoaprs/soundserver.py": (
+        "program",
+        "asks pactl, the sound server's own tool, for its sinks, sources and streams, with arguments written in the module",
     ),
     "neoaprs/mercuryspeaker.py": (
         "program",
