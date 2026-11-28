@@ -559,6 +559,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "web/https": "false",
     "web/port": "7303",
     "web/allowed_hosts": "",
+    "web/proxy": "false",
     "beacon/interval_min": "30",
     "messages/chat_alert": "true",
     "messages/alert": "true",

@@ -817,7 +817,7 @@ async def test_the_security_headers_are_on_every_answer(tmp_path: Path) -> None:
 
 
 async def test_a_foreign_host_name_is_refused_with_403_and_a_name_in_the_settings_is_not(tmp_path: Path) -> None:
-    e = Env(tmp_path, web=True)
+    e = Env(tmp_path, web=True, settings={"web/proxy": "true"})
     await e.start()
     for host in ("evil.example", "evil.example:7303", "127.0.0.1.evil.example", ""):
         answer = await e.fetch("/", headers={"Host": host})
@@ -842,6 +842,7 @@ async def test_names_in_web_allowed_hosts_and_the_name_of_the_machine_are_ours(t
     assert e.ctl.web is not None
     assert (await e.fetch("/", headers={"Host": "aprs.example"})).code == 403
     await e.ctl.store.put_setting("web/allowed_hosts", "aprs.example, pi")
+    await e.ctl.store.put_setting("web/proxy", "true")
     second = Env(tmp_path, web=True)
     await e.stop()
     await second.start()

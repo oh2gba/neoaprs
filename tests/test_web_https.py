@@ -302,9 +302,25 @@ async def test_the_loopback_keeps_its_plain_port_with_no_redirect_and_a_socket(t
     assert (await e.fetch("/")).code == 200 and (await e.fetch("/access")).code == 204
     page = await e.ws()
     await page.expect("hello")
-    assert (await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9"})).code == 307, (
-        "a request through a proxy on this computer is not this computer"
+    assert (await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9"})).code == 403, (
+        "a request through a proxy on this computer is refused while web/proxy is off"
     )
+
+
+async def test_with_web_proxy_on_a_proxied_visitor_is_sent_to_the_secure_port_unless_the_proxy_says_https(
+    tmp_path: Path,
+) -> None:
+    e = await served(tmp_path, {**HTTPS, "web/proxy": "true"})
+    assert (await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9"})).code == 307
+    answer = await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9", "X-Forwarded-Proto": "https"})
+    assert answer.code == 200, "(the proxy has the secure connection with the visitor)"
+    login = await e.fetch(
+        "/access",
+        method="POST",
+        body=json.dumps({"key": KEY}),
+        headers={"X-Forwarded-For": "203.0.113.9", "X-Forwarded-Proto": "https"},
+    )
+    assert login.code == 204 and "Secure" in login.headers["Set-Cookie"]
 
 
 # ---- the authority's certificate -----------------------------------------------------------------

@@ -69,6 +69,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "web/https": "false",
         "web/port": "7303",
         "web/allowed_hosts": "",
+        "web/proxy": "false",
         "beacon/interval_min": "0",
         "beacon/path": "",
         "messages/alert": "true",
