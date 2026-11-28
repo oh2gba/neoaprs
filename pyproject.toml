@@ -223,6 +223,7 @@ extend-include = [
     "scripts/build-gi",
     "scripts/build-mercury",
     "scripts/check-in-container",
+    "scripts/check-container",
     "scripts/check-windows",
     "scripts/check-installs",
     "scripts/demo-daemon",

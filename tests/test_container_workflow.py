@@ -63,7 +63,7 @@ def test_the_image_is_the_releases_signed_package_proven_before_it_is_pushed() -
 def test_latest_is_the_newest_stable_release_and_a_pre_release_has_its_own_tag_only() -> None:
     tags = step("publish", "id: tags")
     assert re.search(r"\*-\*\) ;;", tags) and 'tags+=(-t "$IMAGE:${VERSION%.*}")' in tags
-    assert '[ "$newest" = "$TAG" ] && tags+=(-t "$IMAGE:latest")' in tags
+    assert 'if [ "$newest" = "$TAG" ]; then tags+=(-t "$IMAGE:latest"); fi' in tags
     assert "push-to-registry: true" in step("publish", "attest-build-provenance")
     assert "gh attestation verify" in step("publish", "The attestation holds")
 

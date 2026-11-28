@@ -66,6 +66,12 @@ NOT_FOLLOWED = (
         "a digest and a date, not a release; scripts/runner-facts (the stage audit) compares them with GitHub's runner",
     ),
     (
+        "the Debian base of the container image",
+        "packaging/container/Dockerfile",
+        "FROM debian:trixie-slim@sha256:",
+        "a digest of a tag that is rebuilt, not a release; it moves with each release (docs/MAINTAINING.md)",
+    ),
+    (
         "the Ubuntu image of the install check",
         "scripts/check-installs",
         "ubuntu:24.04@sha256:",

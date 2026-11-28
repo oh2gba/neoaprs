@@ -9,7 +9,7 @@ import { RELEASES_URL } from "@/lib/links";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 
 const RELEASES = RELEASES_URL;
-export const IMAGE = "ghcr.io/oh2gba/neoaprs";
+const IMAGE = "ghcr.io/oh2gba/neoaprs";
 
 export interface Step {
   text: string;

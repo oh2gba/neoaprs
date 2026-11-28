@@ -143,7 +143,7 @@ jobs:
             *)
               tags+=(-t "$IMAGE:${VERSION%.*}")
               newest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
-              [ "$newest" = "$TAG" ] && tags+=(-t "$IMAGE:latest")
+              if [ "$newest" = "$TAG" ]; then tags+=(-t "$IMAGE:latest"); fi
               ;;
           esac
           docker buildx imagetools create "${tags[@]}" "$IMAGE@$(cat digests/amd64)" "$IMAGE@$(cat digests/arm64)"
