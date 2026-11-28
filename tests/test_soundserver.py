@@ -105,6 +105,16 @@ def test_no_server_means_no_list() -> None:
     assert soundserver.server_cards({}, lambda args: None) == []
 
 
+def test_the_devices_are_listed_only_where_the_alsa_plugin_of_the_server_is_there(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(soundserver.sys, "platform", "linux")
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: None)
+    assert soundserver.server_cards({}, pactl_of("virtual")) == [], "the modem could not open them"
+    monkeypatch.setattr(soundserver, "system_alsa", lambda: soundserver.SystemAlsa(tmp_path, tmp_path / "alsa.conf"))
+    assert soundserver.server_cards({}, pactl_of("virtual"))
+
+
 def test_pactl_missing_gives_none(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(soundserver.shutil, "which", lambda name: None)
     assert soundserver.pactl(["list", "sinks"]) is None
