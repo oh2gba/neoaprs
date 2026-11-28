@@ -2,7 +2,7 @@
 // (components/IgateStatus.vue), in the words and colours of the radio's status row
 // (components/StatusFold.vue): the state as a word (connected, connecting, waiting), one quiet line
 // ("rotate.aprs2.net · 42 stations within 50 km", "rotate.aprs2.net · 812 packets sent",
-// "Connecting to rotate.aprs2.net:14580…") and the lines behind the arrow (the server, the filter
+// "Connecting to rotate.aprs2.net…") and the lines behind the arrow (the server, the filter
 // while the stations are shown, what was sent while what the radios hear is sent). The state as a
 // mark is the top bar's (lib/pills.ts). Show Internet stations alone never speaks of sending.
 import { t } from "@/i18n";
@@ -32,7 +32,9 @@ export function internetStations(rows: Iterable<StationRow>): number {
   return n;
 }
 
-const hostOf = (server: string): string => server.split(":")[0] ?? server;
+/** A server's name without its port (the port is the log's): `rotate.aprs2.net`, `2001:db8::1`. */
+const hostOf = (server: string): string =>
+  /^\[([^\]]*)\]/.exec(server)?.[1] ?? (server.split(":").length === 2 ? (server.split(":")[0] ?? server) : server);
 
 /** Why the login is not up, as the line says it: the words for each reason the daemon gives;
  * "Not connected" for one the page has no words for. */
@@ -49,10 +51,11 @@ const reasonLine = (reason: IgateState["reason"]): string => t(REASON_LINES[reas
 /** Behind the arrow: the server (by the name it gave, with the setting), the filter while the
  * stations are shown, and what was sent while what the radios hear is sent. */
 function behindOf(igate: IgateState, setting: string, km: string): Pick<IgateLook, "server" | "filter" | "sent"> {
+  const named = hostOf(igate.server);
   const server =
-    igate.server && igate.server !== hostOf(setting)
-      ? t("settings.igate.fold.named", { name: igate.server, server: setting })
-      : setting || igate.server;
+    named && named !== hostOf(setting)
+      ? t("settings.igate.fold.named", { name: named, server: hostOf(setting) })
+      : hostOf(setting) || named;
   return {
     server: t("settings.igate.fold.server", { server }),
     filter: igate.enabled ? t("settings.igate.fold.filter", { km }) : "",
@@ -69,7 +72,7 @@ function notUp(igate: IgateState, setting: string): Pick<IgateLook, "state" | "t
   return {
     state: t("settings.tnc.state.connecting"),
     tone: "tnc-connecting",
-    line: t("settings.igate.line.connecting", { server: igate.server || setting }),
+    line: t("settings.igate.line.connecting", { server: hostOf(igate.server || setting) }),
   };
 }
 

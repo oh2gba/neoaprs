@@ -75,7 +75,7 @@ describe("igateLook", () => {
       line: "Connecting to T2FINLAND…",
     });
     expect(igateLook(igateState({ state: "connecting", server: "" }), values, 0).line).toBe(
-      "Connecting to rotate.aprs2.net:14580…",
+      "Connecting to rotate.aprs2.net…",
     );
     expect(igateLook(igateState({ state: "connecting", reason: "unreachable" }), values, 0)).toMatchObject({
       state: "waiting",
@@ -98,10 +98,16 @@ describe("igateLook", () => {
   it("has the server and the filter behind the arrow", () => {
     const look = igateLook(igateState({ server: "T2FINLAND" }), values, 3);
     expect([look.server, look.filter]).toEqual([
-      "Server: T2FINLAND (rotate.aprs2.net:14580)",
+      "Server: T2FINLAND (rotate.aprs2.net)",
       "Filter: stations within 50 km of your position",
     ]);
-    expect(igateLook(igateState({ server: "" }), values, 3).server).toBe("Server: rotate.aprs2.net:14580");
+    expect(igateLook(igateState({ server: "" }), values, 3).server).toBe("Server: rotate.aprs2.net");
+    expect(igateLook(igateState({ server: "finland.aprs2.net:14580" }), values, 3).server).toBe(
+      "Server: finland.aprs2.net (rotate.aprs2.net)",
+    );
+    expect(igateLook(igateState({ server: "" }), { ...values, "igate/server": "[2001:db8::1]:14580" }, 3).server).toBe(
+      "Server: 2001:db8::1",
+    );
   });
 
   it("never says gated, a passcode or an iGate while only the stations are shown, and never a passcode at all, in any language", () => {

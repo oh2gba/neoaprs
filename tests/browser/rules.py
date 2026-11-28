@@ -98,6 +98,9 @@ MAY_SHOW: dict[str, str] = {
 
 # A daemon's code (`radio.silent`, `port_busy`) or a catalogue id (`settings.map.title`) shown as text.
 CODE = re.compile(r"(?<![\w./-])[a-z][a-z0-9]*(?:[._][a-z0-9]+)+(?![\w/-])")
+# A server's name on the Internet (rotate.aprs2.net): the operator's setting, by the name he knows. A code
+# or a catalogue id never ends in a top-level domain.
+HOST = re.compile(r"[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:net|org|com|eu|fi|se|no|de|nl|fr|it|es|jp|br|uk|us|lol)")
 # An address of this computer or of a network, a port, a path of the computer.
 INTERNAL = re.compile(
     r"(?<![\w.])(?:localhost|\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?(?![\w.])"
@@ -151,7 +154,7 @@ def internals(texts: list[tuple[str, str]]) -> list[str]:
     for where, text in texts:
         for pattern, what in ((CODE, "a code"), (INTERNAL, "an internal")):
             for hit in pattern.finditer(text):
-                if hit.group().strip() not in NAMES:
+                if hit.group().strip() not in NAMES and not (pattern is CODE and HOST.fullmatch(hit.group().strip())):
                     found.append(f'{where} shows {what}: "{hit.group().strip()}" in "{text[:80]}"')
     return found
 

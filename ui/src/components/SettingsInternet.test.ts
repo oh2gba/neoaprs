@@ -77,7 +77,7 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
     expect(fold?.find("summary .statetext").text()).toBe("connected");
     expect(fold?.find(".tncstatus").text()).toBe("rotate.aprs2.net · 1 station within 150 km");
     expect(fold?.findAll(".igatefold").map((p) => p.text())).toEqual([
-      "Server: T2FINLAND (rotate.aprs2.net:14580)",
+      "Server: T2FINLAND (rotate.aprs2.net)",
       "Filter: stations within 150 km of your position",
       "Sent: 3 packets since NeoAPRS started",
     ]);
@@ -90,7 +90,7 @@ describe("the Internet (APRS-IS) group of the Settings tab", () => {
       group()
         ?.findAll(".igatefold")
         .map((p) => p.text()),
-    ).toEqual(["Server: T2FINLAND (rotate.aprs2.net:14580)", "Sent: 1 packet since NeoAPRS started"]);
+    ).toEqual(["Server: T2FINLAND (rotate.aprs2.net)", "Sent: 1 packet since NeoAPRS started"]);
   });
 
   it("says in the (i) of Show Internet stations, in one line, what it shows", async () => {
