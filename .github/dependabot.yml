@@ -23,6 +23,11 @@ updates:
       page:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    # TypeScript 7 is set aside until 2027-01-31, as in scripts/level-allowed.txt (vue-tsc and
+    # typescript-eslint do not run on it yet); its pull request 5 was closed unmerged
+    ignore:
+      - dependency-name: "typescript"
+        versions: ["7.x"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
