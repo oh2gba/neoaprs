@@ -810,6 +810,8 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
         fallback_probe=False,
     )
     tnc.modem = m
+    radio_seen: list[tuple[object, str, bool]] = []
+    tnc.changed.connect(lambda: radio_seen.append((tnc.state, tnc.problem, tnc.usable)))
     await tnc.start()
     try:
         first = m.pid
@@ -824,9 +826,9 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
         # checked while it lasts
         if m.state == "waiting":
             assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}"
-        # The line went with the program: the radio is not connected, and says why
-        await until_started(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED)
-        assert not tnc.usable
+        # The line went with the program: the radio is not connected, and says why (seen as it changed:
+        # the quick back-off may have the radio trying the next start by now)
+        await until_started(lambda: (Source.State.WAITING, SOUND_CARD_FAILED, False) in radio_seen)
         # Tried again after the back-off: a card chosen anew is taken then
         await until_started(lambda: m.starts >= 2)
         await until_started(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2)
