@@ -151,7 +151,7 @@ On a Mac there are no *Sound card* types under Packet: run Direwolf yourself ([`
 
 **Choose:** *Yaesu FTM, TNC in monitor mode (RX only)* under Packet, then **Port** and **Speed** (9600 for an FTM). On the FTM set Setup → DATA → COM PORT SETTING to OUTPUT PACKET at 9600. What to set on each TNC is in [`docs/RADIOS.md`](../RADIOS.md).
 
-**When it works:** what the radio hears is on the map, and with Send what I hear on the station is a receive-only iGate. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the switch at the top right of the page reads **RX only**.
+**When it works:** what the radio hears is on the map, and with Send what I hear on the station gates what it hears to APRS-IS. NeoAPRS writes nothing to the line, not even a carriage return. The radio is never a message's, the beacon's, an object's or a bulletin's: it has no Path row in the My station tab and no Enable in the Digipeater group, and it is left out of every choice of radio ([above](#what-each-radio-does-and-what-the-station-does-once)). While it is the only radio on, nothing is sent and the switch at the top right of the page reads **RX only**.
 
 ### The Dummy radios
 
