@@ -1,5 +1,5 @@
 """Windows ports known only by their name in the registry map HKLM\\HARDWARE\\DEVICEMAP\\SERIALCOMM, such as
-a virtual port another program shares (neoaprs/serialcomm.py, serialprobe.py): offered wherever the operator
+a virtual port another program shares (neoaprs/serialprobe.py): offered wherever the operator
 chooses a port, never chosen, searched or tried by NeoAPRS itself. The registry and pyserial's list are fakes,
 from a station's support file (two com0com ports with the Ports class, a CP2105, and two virtual ports
 without it)."""
@@ -14,7 +14,7 @@ import pytest
 import serial  # type: ignore[import-untyped]
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
-from neoaprs import serialcomm, serialport, serialprobe
+from neoaprs import serialport, serialprobe
 from neoaprs.claims import Claims
 from neoaprs.coded import code_of
 from neoaprs.config import Config
@@ -99,7 +99,7 @@ def station(monkeypatch: pytest.MonkeyPatch) -> FakeRegistry:
     registry = FakeRegistry(dict(SERIALCOMM))
     monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: list(DEVICES))
-    monkeypatch.setattr(serialcomm, "_registry", lambda: registry)
+    monkeypatch.setattr(serialprobe, "_registry", lambda: registry)
     return registry
 
 
@@ -120,7 +120,7 @@ def test_the_ports_only_in_the_registry_map_are_listed_by_name_in_natural_order(
 def test_a_name_in_the_map_in_another_case_is_the_listed_device(
     station: FakeRegistry, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(serialcomm, "_registry", lambda: FakeRegistry({"a": "com3", "b": " COM6\0", "c": "Com6"}))
+    monkeypatch.setattr(serialprobe, "_registry", lambda: FakeRegistry({"a": "com3", "b": " COM6\0", "c": "Com6"}))
     assert [(p.device, p.name_only) for p in serialprobe.available_ports()] == [
         ("COM3", False),
         ("COM4", False),
@@ -134,26 +134,26 @@ def test_a_name_in_the_map_in_another_case_is_the_listed_device(
 def test_an_empty_or_missing_map_lists_the_devices_alone(
     station: FakeRegistry, monkeypatch: pytest.MonkeyPatch, values: dict[str, Any] | None
 ) -> None:
-    monkeypatch.setattr(serialcomm, "_registry", lambda: FakeRegistry(values))
+    monkeypatch.setattr(serialprobe, "_registry", lambda: FakeRegistry(values))
     assert [p.device for p in serialprobe.available_ports()] == ["COM3", "COM4", "COM11", "COM12"]
 
 
 def test_a_value_that_is_not_text_is_passed_over(station: FakeRegistry, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        serialcomm, "_registry", lambda: FakeRegistry({"a": b"COM7\0", "b": 7, "c": "", "d": ["COM9"], "e": "COM6"})
+        serialprobe, "_registry", lambda: FakeRegistry({"a": b"COM7\0", "b": 7, "c": "", "d": ["COM9"], "e": "COM6"})
     )
-    assert serialcomm.names() == ["COM6"]
+    assert serialprobe.serialcomm_names() == ["COM6"]
 
 
 def test_a_registry_that_cannot_be_read_is_no_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def missing() -> Any:
         raise ImportError("No module named 'winreg'")
 
-    monkeypatch.setattr(serialcomm, "_registry", missing)
-    assert serialcomm.names() == []
+    monkeypatch.setattr(serialprobe, "_registry", missing)
+    assert serialprobe.serialcomm_names() == []
     denied = FakeRegistry({})
     denied.OpenKey = lambda root, path: (_ for _ in ()).throw(PermissionError(13, "Access is denied"))  # type: ignore[method-assign]
-    assert serialcomm.names(denied) == []
+    assert serialprobe.serialcomm_names(denied) == []
 
 
 def test_off_windows_the_registry_is_never_read(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -161,7 +161,7 @@ def test_off_windows_the_registry_is_never_read(monkeypatch: pytest.MonkeyPatch)
         raise AssertionError("the registry was read")
 
     really = sys.platform
-    monkeypatch.setattr(serialcomm, "_registry", never)
+    monkeypatch.setattr(serialprobe, "_registry", never)
     monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [listed("/dev/ttyUSB0", "CP2102", "USB", 1, 2)])
     for platform in ("linux", "darwin"):
         monkeypatch.setattr(sys, "platform", platform)
@@ -298,5 +298,5 @@ def test_the_real_registry_map_reads_without_error_as_com_names() -> None:
     import importlib
     import re
 
-    names = serialcomm.names(importlib.import_module("winreg"))
+    names = serialprobe.serialcomm_names(importlib.import_module("winreg"))
     assert all(re.fullmatch(r"COM\d+", name, re.IGNORECASE) for name in names), names

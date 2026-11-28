@@ -6,18 +6,19 @@ once (Linux), and the ports Find my radio tries one after another (Linux, Window
 
 import asyncio
 import glob
+import importlib
 import logging
 import os
 import re
 import sys
 from collections.abc import Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
-from typing import TypedDict, Unpack
+from typing import Any, TypedDict, Unpack
 
 import serial.tools.list_ports  # type: ignore[import-untyped]
 from serial.tools.list_ports_common import numsplit  # type: ignore[import-untyped]
 
-from . import bthenum, nodevices, serialcomm
+from . import bthenum, nodevices
 from .coded import Reason
 from .btpaired import PairedDevice, paired_devices
 from .claims import PORT_KINDS, Claim
@@ -44,6 +45,36 @@ RELIST_SEC = 10.0
 NOT_LISTED = "the serial ports and the paired Bluetooth devices are not listed or searched"
 # ports opened by searches and Find my radio, by port_key; a closed one may linger
 LISTENING: dict[str, SerialPort] = {}
+
+
+# Windows' map of serial ports: every port driver writes its name there, also a virtual port filed under
+# a device class other than "Ports" (com0com without its Ports class, hub4com, VSPE), which pyserial leaves out
+SERIALCOMM_KEY = r"HARDWARE\DEVICEMAP\SERIALCOMM"
+
+
+def _registry() -> Any:
+    return importlib.import_module("winreg")
+
+
+def serialcomm_names(registry: Any = None) -> list[str]:
+    """Return the port names in Windows' registry map, each once whatever its case; none if it cannot be read."""
+    try:
+        winreg = registry if registry is not None else _registry()
+        found: dict[str, str] = {}
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, SERIALCOMM_KEY) as key:
+            index = 0
+            while True:
+                try:
+                    _device, data, _kind = winreg.EnumValue(key, index)
+                except OSError:  # no more values
+                    break
+                index += 1
+                if isinstance(data, str) and (name := data.strip().rstrip("\0").strip()):
+                    found.setdefault(name.upper(), name)
+    except (ImportError, OSError) as e:
+        log.debug("the registry map of serial ports was not read: %s", e)
+        return []
+    return list(found.values())
 
 
 @dataclass(frozen=True)
@@ -83,7 +114,7 @@ def available_ports() -> list[PortInfo]:
         found = []
     if _on_windows():
         listed = {p.device.upper() for p in found}
-        found += [name_only_port(name) for name in serialcomm.names() if name.upper() not in listed]
+        found += [name_only_port(name) for name in serialcomm_names() if name.upper() not in listed]
     return sorted(found, key=lambda p: numsplit(p.device))
 
 

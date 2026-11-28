@@ -37,7 +37,7 @@ from neoaprs import (
     direwolfprogram,
     mercuryhelper,
     nodevices,
-    serialcomm,
+    serialprobe,
     soundmixer,
     winbluetooth,
     winmixer,
@@ -1057,7 +1057,7 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         # gives its own list
         monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [])
         # Nor Windows' registry map of serial ports: a test gives its own reader
-        monkeypatch.setattr(serialcomm, "_registry", no_registry)
+        monkeypatch.setattr(serialprobe, "_registry", no_registry)
         # No sound card's own levels are read or set (the machine's radios hang on its cards): as on
         # a system without ALSA; a test that needs a mixer gives its own
         monkeypatch.setattr(soundmixer, "load_alsa", lambda: None)
