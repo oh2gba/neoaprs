@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import mercury, mercurychannel, mercurymodem, rigkeyer
+from neoaprs import direwolf, mercury, mercurychannel, mercurymodem, rigkeyer
 from neoaprs.claims import Claims
 from neoaprs.mercuryclaims import keying_claim
 from neoaprs.rigkeyer import RIG_SILENT
@@ -47,6 +47,15 @@ def test_the_rig_kinds_are_read_with_or_without_an_address_and_claim_no_serial_p
             mercury.keying_of(wrong)
     assert keying_claim(remote, "192.168.1.5:4533") is None and keying_claim(mercury.Keying("flrig"), None) is None
     assert keying_claim(mercury.Keying("rts", "COM3"), "COM3") == "COM3"
+
+
+def test_the_daemons_own_choice_never_keys_through_a_rig_program() -> None:
+    usb = [mercury.SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60)]
+    two = [*usb, mercury.SerialPort("/dev/ttyUSB1", 0x0403, 0x6001)]
+    for card in ("USB Audio CODEC", "All-In-One-Cable", "HDA Intel PCH", ""):
+        for ports in ([], usb, two):
+            assert not mercury.choose_keying(card, ports).rig
+            assert not direwolf.choose_keying(card, ports).rig and not direwolf.choose_keying(card, ports, []).rig
 
 
 def test_mercury_keyed_by_a_rig_program_keys_nothing_itself_and_waits_for_the_rig_before_its_audio() -> None:
