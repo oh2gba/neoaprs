@@ -198,8 +198,7 @@ def needs_vite[F: Callable[..., object]](test: F) -> F:
     no_modules = pytest.mark.skipif(
         not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt"
     )
-    # vite refuses a second build of the same project while one runs: one worker has them all
-    return pytest.mark.xdist_group("vite-build")(no_node(no_modules(test)))
+    return no_node(no_modules(test))
 
 
 def build(out: Path, encryption: bool = False) -> None:
@@ -208,7 +207,13 @@ def build(out: Path, encryption: bool = False) -> None:
     if encryption:
         env["NEOAPRS_ENCRYPTION"] = "1"
     r = subprocess.run(
-        [str(VITE), "build", "--logLevel", "error"], cwd=UI, env=env, capture_output=True, text=True, timeout=300
+        # (each test builds into a folder of its own, so vite's one-build-at-a-time lock is not needed)
+        [str(VITE), "build", "--bypass-lock", "--logLevel", "error"],
+        cwd=UI,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
     )
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
 
