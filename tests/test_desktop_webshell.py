@@ -1196,6 +1196,9 @@ def test_on_wayland_or_off_every_screen_the_window_opens_in_the_middle(
     quit_through_the_menu(rig, thread)
 
 
+@pytest.mark.nightly(
+    "quarantined 2026-11-28: the window was not destroyed within 60 s of Quit once on GitHub's Linux runner (docs/flakes.md)"
+)
 def test_the_close_button_hides_the_window_while_the_desktop_has_a_tray_and_quits_when_it_has_none(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
