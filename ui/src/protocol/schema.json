@@ -284,7 +284,11 @@
               "type": "null"
             }
           ],
-          "description": "the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was"
+          "description": "the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was, and for one over the Internet connection"
+        },
+        "by_internet": {
+          "description": "the attempt went over the Internet connection (APRS-IS), not on a radio: a message to one of the internet services (`lists.message.services`) while `igate/gate` (Send what I hear) is on and the login is verified",
+          "type": "boolean"
         }
       },
       "required": [
@@ -292,7 +296,8 @@
         "hops",
         "internet",
         "acked",
-        "radio_id"
+        "radio_id",
+        "by_internet"
       ],
       "title": "AttemptRow",
       "type": "object"
@@ -2523,7 +2528,7 @@
               "type": "null"
             }
           ],
-          "description": "the radio that heard the packet; null for our own position"
+          "description": "the radio that heard the packet; null for our own position and our messages and acks to the internet services"
         },
         "line": {
           "description": "the line as it went to the server, after the gating rules (the TNC2 text): other stations' data, shown as text only",
@@ -3774,7 +3779,7 @@
           "description": "the received strength of that packet, dBm; null as `snr` is, and for the Mercury modem, which gives none"
         },
         "route": {
-          "description": "how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept",
+          "description": "how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air, `internet` for an internet service's message that came over the Internet connection (the only messages taken from there); empty for one of ours and for one heard before this was kept",
           "type": "string"
         },
         "seal": {
@@ -7158,7 +7163,7 @@
     },
     "SendMessage": {
       "additionalProperties": false,
-      "description": "Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at\nonce with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.\nWhen the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.",
+      "description": "Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at\nonce with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`. To an internet service (`lists.message.services`) it goes over the Internet connection while that carries messages (`igate/gate` on, the login verified), else on the radio.\nWhen the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.",
       "properties": {
         "cmd": {
           "const": "send_message",
