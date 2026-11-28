@@ -9,13 +9,13 @@
 path = "neoaprs/kiss.py"
 group = 1
 tests = ["tests/test_kiss.py", "tests/test_properties_kiss.py", "tests/test_tnc2text.py"]
-floor = 88.6
+floor = 95.6
 
 [modules.ax25]
 path = "neoaprs/ax25.py"
 group = 1
 tests = ["tests/test_ax25.py", "tests/test_properties_ax25.py"]
-floor = 85.6
+floor = 94.1
 
 [modules.aprsposition]
 path = "neoaprs/aprsposition.py"
@@ -26,19 +26,19 @@ tests = [
     "tests/test_properties_aprs.py",
     "tests/test_aprsparse.py",
 ]
-floor = 79.7
+floor = 97.7
 
 [modules.aprsmice]
 path = "neoaprs/aprsmice.py"
 group = 1
 tests = ["tests/test_aprsmice.py", "tests/test_aprsmiceout.py", "tests/test_properties_mice.py"]
-floor = 77.2
+floor = 98.1
 
 [modules.digipeater]
 path = "neoaprs/services/digipeater.py"
 group = 2
 tests = ["tests/test_digipeater.py", "tests/test_digi_rows.py", "tests/test_pass_rows.py", "tests/test_pass_slow.py"]
-floor = 79.1
+floor = 100.0
 
 [modules.crossrule]
 path = "neoaprs/crossrule.py"
@@ -50,7 +50,7 @@ floor = 96.7
 path = "neoaprs/services/retries.py"
 group = 2
 tests = ["tests/test_radio_of_frame.py", "tests/test_retries.py"]
-floor = 63.6
+floor = 99.5
 
 [modules.smartbeacon]
 path = "neoaprs/smartbeacon.py"
@@ -62,28 +62,28 @@ floor = 93.2
 path = "neoaprs/tncmode.py"
 group = 3
 tests = ["tests/test_tncmode.py", "tests/test_properties_tncmode.py", "tests/test_properties_textwatch.py"]
-floor = 93.8
+floor = 98.8
 
 [modules.configvalues]
 path = "neoaprs/configvalues.py"
 group = 3
 tests = ["tests/test_configvalues.py"]
-floor = 83.8
+floor = 100.0
 
 [modules.dispatch]
 path = "neoaprs/web/dispatch.py"
 group = 3
 tests = ["tests/test_web_dispatch.py"]
-floor = 94.8
+floor = 97.1
 
 [modules.message]
 path = "neoaprs/message.py"
 group = 4
 tests = ["tests/test_message.py"]
-floor = 42.5
+floor = 99.0
 
 [modules.updateasset]
 path = "neoaprs/updateasset.py"
 group = 4
 tests = ["tests/test_updateasset.py", "tests/test_updatesign.py", "tests/test_properties_releases.py"]
-floor = 37.8
+floor = 96.2
