@@ -23,6 +23,8 @@ const ports: PortsMessage = {
       name: "All-In-One-Cable",
       numbered: "plughw:2,0",
       default: false,
+      capture: true,
+      playback: true,
       pick: true,
       held_by: null,
     },
@@ -372,5 +374,97 @@ describe("a Sound card radio's box", () => {
     } finally {
       setLocale("en");
     }
+  });
+});
+
+describe("a Sound card radio's sound on a computer with a sound server", () => {
+  const AIOC = "plughw:CARD=AIOC,DEV=0";
+  const server: PortsMessage = {
+    ...ports,
+    sound_cards: [
+      ...ports.sound_cards,
+      soundCard("pulse:DEVICE=Radio_remap", "Radio", { capture: false }),
+      soundCard("pulse:DEVICE=quad_in", "Rubix44", { playback: false }),
+      soundCard("pulse:DEVICE=quad_in,CHANNEL=front-left", "Rubix44", { playback: false, channel: 1 }),
+      soundCard("pulse:DEVICE=codec_in", "Rubix44", { playback: false }),
+    ],
+  };
+
+  function mounted3(values: Record<string, string>) {
+    const config = configValues({});
+    const daemon = fakeDaemon({
+      config: {
+        ...config,
+        radio_values: { ...config.radio_values, ...OWN, ...values },
+        radio_defaults: { ...config.radio_defaults, ...OWN },
+      },
+      radios: radios(),
+      ports: server,
+      portsByRadio: new Map([[3, server]]),
+      status: status({ unheard_radio: 1 }),
+    });
+    const wrapper = mount(SettingsForm, {
+      props: { scope: "settings" },
+      global: withDaemon(daemon),
+      attachTo: document.body,
+    });
+    const sets = () =>
+      daemon.send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
+    return { wrapper, sets };
+  }
+  const options = (wrapper: ReturnType<typeof mount>, id: string) =>
+    [...wrapper.find<HTMLSelectElement>(id).element.options].map((o) => [o.value, o.text]);
+
+  it("chooses what it records from and what it plays to apart, each device by the name the operator gave it", async () => {
+    const { wrapper } = mounted3({});
+    mounted = wrapper;
+    await flushPromises();
+    expect(wrapper.find("#set-radio-3-sound_card").exists()).toBe(false);
+    expect(options(wrapper, "#set-radio-3-sound_card-capture")).toEqual([
+      [AIOC, "All-In-One-Cable"],
+      ["pulse:DEVICE=quad_in", "Rubix44"],
+      ["pulse:DEVICE=quad_in,CHANNEL=front-left", "Rubix44, channel 1"],
+      ["pulse:DEVICE=codec_in", "Rubix44 (2)"],
+    ]);
+    expect(options(wrapper, "#set-radio-3-sound_card-playback")).toEqual([
+      [AIOC, "All-In-One-Cable"],
+      ["pulse:DEVICE=Radio_remap", "Radio"],
+    ]);
+    const labels = wrapper.findAll("label").map((l) => l.text());
+    expect(labels).toContain(t("settings.sound_card.capture"));
+    expect(labels).toContain(t("settings.sound_card.playback"));
+    expect(wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card-capture").element.value).toBe(AIOC);
+    expect(wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card-playback").element.value).toBe(AIOC);
+    // the row's (i) and Refresh once, not twice
+    expect(
+      wrapper
+        .findAll(".field")
+        .filter((f) => f.find("#set-radio-3-sound_card-playback").exists())[0]
+        ?.find(".infotip")
+        .exists(),
+    ).toBe(false);
+  });
+
+  it("stores the two as one setting, the device recorded from first", async () => {
+    const { wrapper, sets } = mounted3({});
+    mounted = wrapper;
+    await flushPromises();
+    await wrapper.find("#set-radio-3-sound_card-playback").setValue("pulse:DEVICE=Radio_remap");
+    await flushPromises();
+    expect(sets()).toContainEqual({ "radio/3/sound_card": `${AIOC}|pulse:DEVICE=Radio_remap` });
+  });
+
+  it("shows a stored pair in its two fields and a device that is gone by the name the server knew", async () => {
+    const { wrapper } = mounted3({
+      "radio/3/sound_card": "pulse:DEVICE=quad_in,CHANNEL=front-left|pulse:DEVICE=Radio_gone",
+    });
+    mounted = wrapper;
+    await flushPromises();
+    expect(wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card-capture").element.value).toBe(
+      "pulse:DEVICE=quad_in,CHANNEL=front-left",
+    );
+    const playback = wrapper.find<HTMLSelectElement>("#set-radio-3-sound_card-playback").element;
+    expect(playback.value).toBe("pulse:DEVICE=Radio_gone");
+    expect(playback.options[playback.selectedIndex]?.text).toBe("Radio_gone");
   });
 });

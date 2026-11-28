@@ -144,6 +144,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "ポート",
   "settings.sound_card.label": "サウンドカード",
   "settings.sound_card.tip_label": "サウンドカードについて",
+  "settings.sound_card.capture": "無線機からの音声",
+  "settings.sound_card.playback": "無線機への音声",
+  "settings.sound_card.channel": "{name}、チャンネル{channel}",
+  "settings.sound_card.repeated": "{name} ({count})",
   "settings.sound_card.tip1":
     "無線機の音声が通るサウンドカード：USBコーデック、Digirig、または無線機自身のUSBオーディオ。",
   "settings.sound_card.tip2":

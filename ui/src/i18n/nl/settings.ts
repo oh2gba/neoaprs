@@ -157,6 +157,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "Poort",
   "settings.sound_card.label": "Geluidskaart",
   "settings.sound_card.tip_label": "Over de geluidskaart",
+  "settings.sound_card.capture": "Geluid van de radio",
+  "settings.sound_card.playback": "Geluid naar de radio",
+  "settings.sound_card.channel": "{name}, kanaal {channel}",
+  "settings.sound_card.repeated": "{name} ({count})",
   "settings.sound_card.tip1":
     "De geluidskaart waar het geluid van de radio doorheen gaat: een USB-codec, een Digirig of zijn eigen USB-audio.",
   "settings.sound_card.tip2":

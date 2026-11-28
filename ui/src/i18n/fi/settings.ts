@@ -150,6 +150,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "Portti",
   "settings.sound_card.label": "Äänikortti",
   "settings.sound_card.tip_label": "Tietoa äänikortista",
+  "settings.sound_card.capture": "Ääni radiosta",
+  "settings.sound_card.playback": "Ääni radioon",
+  "settings.sound_card.channel": "{name}, kanava {channel}",
+  "settings.sound_card.repeated": "{name} ({count})",
   "settings.sound_card.tip1":
     "Äänikortti, jonka kautta radion ääni kulkee: USB-koodekki, Digirig tai radion oma USB-ääni.",
   "settings.sound_card.tip2":

@@ -696,7 +696,7 @@ export function portRow(device: string, description: string, extra: Partial<Port
 }
 
 export function soundCard(id: string, name: string, extra: Partial<SoundCardRow> = {}): SoundCardRow {
-  return { id, name, default: false, pick: false, held_by: null, ...extra };
+  return { id, name, default: false, capture: true, playback: true, pick: false, held_by: null, ...extra };
 }
 
 /** A step of Find my radio: trying the first of 14 ports at 9600, for radio 1. */

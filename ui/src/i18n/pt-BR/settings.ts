@@ -151,6 +151,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.board_port.label": "Porta",
   "settings.sound_card.label": "Placa de som",
   "settings.sound_card.tip_label": "Sobre a placa de som",
+  "settings.sound_card.capture": "Som do rádio",
+  "settings.sound_card.playback": "Som para o rádio",
+  "settings.sound_card.channel": "{name}, canal {channel}",
+  "settings.sound_card.repeated": "{name} ({count})",
   "settings.sound_card.tip1":
     "A placa de som por onde passa o áudio do rádio: um codec USB, um Digirig ou o áudio USB do próprio rádio.",
   "settings.sound_card.tip2":
