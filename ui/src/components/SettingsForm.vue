@@ -152,7 +152,7 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       (key !== ALERT_KEY || local.value) &&
-      !(key === "web/network" && install.value?.kind === "container") &&
+      !((key === "web/network" || key === "web/https") && install.value?.kind === "container") &&
       shownFor(key, network.value) &&
       shownByRadios(key, radios.all.value) &&
       shownByValues(key, draft),

@@ -46,6 +46,11 @@ describe("the network access", () => {
     expect(wrapper.find<HTMLInputElement>("#set-web-key").element.value).toBe("k7m2-x9pq-4hrt");
   });
 
+  it("has no secure connection in a container, whose secure port is not published", () => {
+    expect(make(ON, ["http://192.168.1.20:7303/"]).wrapper.find("#set-web-https").exists()).toBe(true);
+    expect(make(ON, ["http://172.17.0.2:7303/"], "container").wrapper.find("#set-web-https").exists()).toBe(false);
+  });
+
   it("shows neither the key nor the code while the network is off, or before the daemon has made a key", () => {
     expect(make().wrapper.find("#set-web-key").exists()).toBe(false);
     expect(make({ "web/network": "true" }).wrapper.find("#set-web-key").exists()).toBe(false);

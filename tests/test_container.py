@@ -145,3 +145,14 @@ async def test_in_a_container_a_request_from_the_loopback_is_no_proof_of_this_co
         assert e.server.this_computer_target(request) is None
     finally:
         await e.stop()
+
+
+async def test_in_a_container_the_secure_connection_stays_off_as_its_port_is_not_published(tmp_path: Path) -> None:
+    e = Env(tmp_path, web=True, install=CONTAINER)
+    await e.start()
+    try:
+        assert await e.ctl.change_config(lambda c: replace(c, web_https=True))
+        assert e.ctl.config.web_https is False
+        assert await e.ctl.store.setting("web/https") in (None, "false")
+    finally:
+        await e.stop()

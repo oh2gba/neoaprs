@@ -320,8 +320,9 @@ class Controller(Services):
             return await self._save(change(self.config))
 
     def _fixed(self, config: Config) -> Config:
-        """In a container the page is reached only through the network, so its switch stays on."""
-        return replace(config, web_network=True) if self.install.kind == "container" else config
+        """In a container the page is reached only through the network, so its switch stays on; the
+        secure connection stays off, as its port is not published."""
+        return replace(config, web_network=True, web_https=False) if self.install.kind == "container" else config
 
     async def _save(self, config: Config) -> bool:
         """Store the changed rows in one transaction, then put the settings in force."""
