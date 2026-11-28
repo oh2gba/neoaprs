@@ -11,6 +11,7 @@ import pytest
 from neoaprs.cli import servicecmd
 from neoaprs.cli.installkind import DEB_PREFIX, container_environment, detect, simulated
 from neoaprs.controller import Controller
+from neoaprs.mercuryhelper import alsa_card_names
 from neoaprs.services.selfinstall import installer_for
 from neoaprs.updateasset import asset_name
 from neoaprs.versions import InstallInfo, install_kind, platform_name
@@ -106,3 +107,20 @@ async def test_the_names_of_neoaprs_allowed_hosts_open_the_page_in_a_container_a
     native = Env(tmp_path / "out", web=True, settings={"web/network": "true", "web/key": "k7m2-x9pq-4hrt"})
     await native.start()
     assert (await native.fetch("/", headers={"Host": "mynas.local"})).code == 403
+
+
+def test_a_container_hides_proc_asound_and_the_names_of_the_cards_are_read_from_sysfs_then(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    masked, sys_root = tmp_path / "asound", tmp_path / "sys"
+    masked.mkdir()  # what Docker mounts there: an empty read-only folder
+    for number, name in ((0, "PCH"), (2, "CODEC")):
+        (sys_root / "class" / "sound" / f"card{number}").mkdir(parents=True)
+        (sys_root / "class" / "sound" / f"card{number}" / "id").write_text(name + "\n", encoding="utf-8")
+    (sys_root / "class" / "sound" / "controlC0").mkdir()
+    monkeypatch.setenv("NEOAPRS_ALSA_ROOT", str(masked))
+    monkeypatch.setenv("NEOAPRS_SYS_ROOT", str(sys_root))
+    assert alsa_card_names() == {0: "PCH", 2: "CODEC"}
+    (masked / "card1").mkdir()
+    (masked / "card1" / "id").write_text("Device\n", encoding="utf-8")
+    assert alsa_card_names() == {1: "Device"}, "what ALSA's own folder has wins"

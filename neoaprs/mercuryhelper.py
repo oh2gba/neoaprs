@@ -260,8 +260,14 @@ def choose_setup(
 
 
 def alsa_card_names(root: Path | None = None) -> dict[int, str]:
-    """Return ALSA's name of each sound card by number; empty without ALSA."""
-    root = root or Path(os.environ.get("NEOAPRS_ALSA_ROOT") or "/proc/asound")
+    """Return ALSA's name of each sound card by number; empty without ALSA.
+
+    A container hides /proc/asound, so an empty one is read from sysfs, which has the same `cardN/id`."""
+    if root is None:
+        alsa = Path(os.environ.get("NEOAPRS_ALSA_ROOT") or "/proc/asound")
+        return alsa_card_names(alsa) or alsa_card_names(
+            Path(os.environ.get("NEOAPRS_SYS_ROOT") or "/sys") / "class" / "sound"
+        )
     names: dict[int, str] = {}
     try:
         for folder in root.glob("card[0-9]*"):
