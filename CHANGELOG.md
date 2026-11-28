@@ -3,9 +3,18 @@
 ## Unreleased
 
 - **New:** on Windows a paired Bluetooth radio is listed by its name and connected to directly.
+- **New:** the HF tests tab has a chat: a line to everyone using the tab, over the Internet, never on the air.
+- **New:** a new line in the chat tells you as a message does; Notifications has HF tests chat to switch it off.
+- **New:** the Internet box lists the packets that Send what I hear put on APRS-IS.
+- **New:** a radio type under Mercury, Your own program, for a Mercury you run yourself.
+- **Changed:** a Mercury radio sends nothing through a Mercury it did not start and says another program is using the modem's ports.
+- **Changed:** a Mercury radio whose modem is not running sends nothing and no longer shows connected.
+- **Changed:** a Mercury radio whose keying port another program holds, or that is not there, says so at once and tries again.
+- **Changed:** the support file counts every time Mercury heard nothing and lists how its last ten starts ended.
 - **Changed:** a port that cannot be opened says why: the device does not answer, is not paired or refused, or another program holds it.
 - **Changed:** a KISS radio that receives text instead of KISS says so in its status line.
 - **Fixed:** Ask around shows its whole question in every language.
+- **Fixed:** a Mercury radio no longer stays busy for ever on a noisy band.
 - **Fixed:** on a phone the settings' lists and Feedback / send logs show their whole words, and choosing an aircraft source moves nothing below it.
 
 ## 0.26.1
