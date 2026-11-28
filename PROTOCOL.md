@@ -2383,10 +2383,13 @@ A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card
 
 | field | type | | description |
 |---|---|---|---|
-| `id` | string |  | the name to give as `mercury/sound_card`: `plughw:CARD=CODEC,DEV=0` on Linux (by the card's name, which a reboot does not change); on Windows the card's recording device and its playing device, joined by `\|` (one of them alone for a device with no partner) |
+| `id` | string |  | the name to give as `mercury/sound_card`: `plughw:CARD=CODEC,DEV=0` on Linux (by the card's name, which a reboot does not change); on Windows the card's recording device and its playing device, joined by `\|` (one of them alone for a device with no partner); a sound server's sink or source on Linux as `pulse:DEVICE=<its name>`, a source's one channel with `,CHANNEL=<position>` after it, the setting then being the device recorded from and the one played to, joined by `\|` |
 | `name` | string |  | what the system calls it, such as `USB Audio CODEC` |
 | `numbered` | string | optional | the same card by its number (`plughw:3,0`), as a setting made before named it; empty where the id is not by name (default `""`) |
 | `default` | boolean |  | whether it is the system's default device, which the empty setting means |
+| `capture` | boolean |  | whether it records (the sound from the radio); a sound server's source does, its sink does not |
+| `playback` | boolean |  | whether it plays (the sound to the radio); a sound server's sink does |
+| `channel` | integer \| null | optional | for a sound server's source of more than two channels: the one channel this row reads alone, from 1 in the source's own order; null for a whole device (default `null`) |
 | `pick` | boolean |  | whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it |
 | `held_by` | integer \| null |  | the radio of the station whose modem holds the card now (its id); null while none does. A card another radio holds is never the `pick` |
 | `usb_group` | string \| null | optional | which USB device the card sits on together with the serial ports of one radio: the `usb_group` of those ports (an opaque token); null where it is not known (Windows, macOS, a card that is not USB) (default `null`) |
