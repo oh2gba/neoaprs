@@ -19,6 +19,7 @@ export const skeds = {
   "skeds.past_delete_label": "Delete the past test, {when}",
 
   "skeds.post_label": "Plan a test",
+  "skeds.cancel": "Cancel",
   "skeds.day": "Day",
   "skeds.time": "Time (UTC)",
   "skeds.from": "From",

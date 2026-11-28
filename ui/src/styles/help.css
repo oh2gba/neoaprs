@@ -54,6 +54,7 @@
 .updatedialog-backdrop,
 .pathbuild-backdrop,
 .logsdialog-backdrop,
+.skeddialog-backdrop,
 .explaindialog-backdrop {
   position: fixed;
   inset: 0;
@@ -67,6 +68,7 @@
 .updatedialog,
 .pathbuild,
 .logsdialog,
+.skeddialog,
 .explaindialog {
   width: min(540px, 100%);
   max-height: min(88vh, 100%);
@@ -81,6 +83,7 @@
 .updatedialog:focus,
 .pathbuild:focus,
 .logsdialog:focus,
+.skeddialog:focus,
 .explaindialog:focus {
   outline: none;
 }
@@ -97,6 +100,24 @@
   flex-direction: column;
   gap: 8px;
   width: min(460px, 100%);
+}
+/* Plan a test (SkedCompose): the frame of Send logs', its fields the rows of a form */
+.skeddialog {
+  width: min(460px, 100%);
+}
+.skeddialog .sked-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.skeddialog .field {
+  margin: 0;
+}
+.skeddialog .logsdialog-foot {
+  margin-top: 4px;
+}
+.skeddialog .logsdialog-foot .compose-left {
+  margin-right: auto;
 }
 /* a dialog that explains one thing (ExplainDialog): the frame of Send logs', its pictures as wide
    as the dialog and scaled down with it, its lines short */
@@ -244,6 +265,9 @@
   padding-left: 22px;
 }
 .updatesteps li {
+  margin: 8px 0;
+}
+.updatesteps-lead {
   margin: 8px 0;
 }
 .updatedialog a.updatesteps-file {

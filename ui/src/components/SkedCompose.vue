@@ -1,74 +1,65 @@
 <script setup lang="ts">
-// The form to post a sked at the bottom of the Skeds tab: Day (next 30 UTC days), time From and To
-// in half hours (UTC; a To not after From is the next day), Frequency (DialChoice: a suggested dial,
-// or Other and the number alone) and a one-line Note with a counter. Post is on
-// when there is a call, the board can be reached and the form is valid (lib/skeds.ts); RX only does
-// not matter. A sked that has ended marks the To. The note clears when the daemon has the sked; a
-// refused post stays. The dials are the project's list: when the Frequency row comes on show (at
-// most once a minute) the daemon is asked to refresh it (`frequencies`); a row shown before the
-// socket opened asks when it opens.
-import { computed, reactive, ref, watch } from "vue";
-import ComposeBar from "@/components/ComposeBar.vue";
+// Plan a test, the dialog of the Skeds tab (opened by its button or a row's Join) over the dimmed
+// page, with useDialogFocus keys: Day (next 30 UTC days), time From and To in half hours (UTC; a To
+// not after From is the next day), Frequency (DialChoice: a suggested dial, or Other and the number
+// alone) and a one-line Note with a counter. The values are the pane's (`form`, useSkedForm), so a
+// dialog closed without posting opens again as it was. Post is on when there is a call, the board
+// can be reached and the form is valid (lib/skeds.ts); RX only does not matter. A sked that has
+// ended marks the To. When the daemon has the sked the note clears and the dialog closes; a refused
+// post leaves it open. Opening it asks for a fresh list of dials (useSkedForm `refresh`). The
+// cross, Cancel, Esc and a press beside it close it.
+import { computed, ref, useId, watch } from "vue";
 import DialChoice from "@/components/DialChoice.vue";
+import IconButton from "@/components/IconButton.vue";
+import LeftCounter from "@/components/LeftCounter.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useDialogFocus } from "@/composables/useDialogFocus";
 import { useCommandInFlight } from "@/composables/useInFlight";
-import { useWhenShown } from "@/composables/useWhenShown";
+import { useSkedForm, type SkedForm } from "@/composables/useSkedForm";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
-import {
-  TIMES,
-  NOTE_MAX,
-  OTHER_DIAL,
-  dayChoices,
-  draftOk,
-  ended,
-  mayPostAs,
-  postCommand,
-  startDraft,
-  utcDay,
-} from "@/lib/skeds";
+import { openTip } from "@/lib/infotip";
+import { TIMES, NOTE_MAX, draftOk, ended, mayPostAs, postCommand } from "@/lib/skeds";
 import { leftOf, type TextLimit, trimmedCharacters, typedInto } from "@/lib/textlimit";
 
-const { skeds, call, now, send, connection } = useDaemonContext();
-const frequencies = computed(() => skeds.value?.frequencies ?? []);
-const draft = reactive(startDraft(now.value, frequencies.value));
-const days = computed(() => dayChoices(now.value));
+const props = withDefaults(
+  defineProps<{
+    /** what the pane holds for the form; a dialog of its own without one */
+    form?: SkedForm | null;
+    /** the button that opened the dialog, which gets the focus back */
+    opener?: HTMLElement | null;
+  }>(),
+  { form: null, opener: null },
+);
+const emit = defineEmits<{ close: [] }>();
+
+const { skeds, call, now, send } = useDaemonContext();
+const { draft, days, frequencies, choose, refresh } = props.form ?? useSkedForm();
 /** The characters of the note; the field takes no more (lib/textlimit.ts). */
 const limit: TextLimit = { max: NOTE_MAX, measure: trimmedCharacters, kind: "characters" };
 const left = computed(() => leftOf(draft.note, limit));
 const over = computed(() => ended(draft, now.value));
 const ready = computed(() => skeds.value?.state === "ok" && mayPostAs(call.value) && draftOk(draft, now.value));
-const dialChoice = ref<InstanceType<typeof DialChoice> | null>(null);
-const frequencyRow = computed(() => dialChoice.value?.row ?? null);
-// the row came on show before the socket was open: ask when it opens
-let missed = false;
-const ask = (): void => void (connection.value === "open" ? send({ cmd: "frequencies" }) : (missed = true));
-useWhenShown(frequencyRow, ask);
-watch(connection, (now) => {
-  if (now !== "open" || !missed) return;
-  missed = false;
-  ask();
-});
+refresh();
 
-/** The day stays one of the choices as the UTC day turns. */
-watch(days, (list) => {
-  if (!list.some((d) => d.value === draft.day)) draft.day = utcDay(now.value);
+const titleId = useId();
+const dialog = ref<HTMLElement | null>(null);
+const keys = useDialogFocus(dialog, () => emit("close"), {
+  first: () => dialog.value?.querySelector<HTMLElement>("#sked-day") ?? null,
+  back: () => props.opener,
 });
-/**
- * The first suggested dial stands in until one is chosen (the list arrives after the form is made
- * and after each board change).
- */
-let chosen = false;
-watch(frequencies, (list) => {
-  if (chosen || list[0] === undefined) return;
-  draft.typed = false;
-  draft.dial = list[0].dial;
-});
+openTip.value = null;
 
-function choose(value: string): void {
-  chosen = true;
-  draft.typed = value === OTHER_DIAL;
-  draft.dial = value === OTHER_DIAL ? "" : value;
+/** A press on the dimmed page beside the dialog closes it; no press inside goes further. */
+function press(event: PointerEvent): void {
+  event.stopPropagation();
+  if (event.target === event.currentTarget) emit("close");
+}
+
+/** Wait for the on-screen keyboard, then scroll the focused field into view (as ComposeBar does). */
+function seen(event: FocusEvent): void {
+  const field = event.target;
+  if (field instanceof HTMLElement) window.setTimeout(() => field.scrollIntoView?.({ block: "nearest" }), 300);
 }
 
 // what was posted, until the daemon has it
@@ -86,6 +77,7 @@ watch(
     if (sent === null || row === undefined) return;
     asked.value = null;
     if (draft.note.trim() === sent.note) draft.note = "";
+    emit("close");
   },
 );
 
@@ -100,66 +92,70 @@ function submit(): void {
 </script>
 
 <template>
-  <ComposeBar
-    class="sked-compose"
-    :label="t('skeds.post_label')"
-    :left="left"
-    :left-max="NOTE_MAX"
-    :left-title="leftTitle(left, 'characters', NOTE_MAX)"
-    @submit="submit"
-  >
-    <div class="field">
-      <label for="sked-day">{{ t("skeds.day") }}</label>
-      <div class="field-control">
-        <select id="sked-day" v-model="draft.day" class="input">
-          <option v-for="d in days" :key="d.value" :value="d.value">{{ d.label }}</option>
-        </select>
-      </div>
-    </div>
-    <div class="field">
-      <label for="sked-from">{{ t("skeds.time") }}</label>
-      <div class="field-control">
-        <select id="sked-from" v-model="draft.from" class="input mono" :aria-label="t('skeds.from')">
-          <option v-for="time in TIMES" :key="time" :value="time">{{ time }}</option>
-        </select>
-        <span class="muted">{{ t("skeds.until") }}</span>
-        <select
-          id="sked-to"
-          v-model="draft.to"
-          class="input mono"
-          :class="{ invalid: over }"
-          :aria-label="t('skeds.to')"
-        >
-          <option v-for="time in TIMES" :key="time" :value="time">{{ time }}</option>
-        </select>
-      </div>
-    </div>
-    <DialChoice
-      id="sked-frequency"
-      ref="dialChoice"
-      dial-id="sked-dial"
-      :frequencies="frequencies"
-      :typed="draft.typed"
-      :dial="draft.dial"
-      @choose="choose"
-      @update:dial="draft.dial = $event"
-    />
-    <div class="field">
-      <label for="sked-note">{{ t("skeds.note") }}</label>
-      <div class="field-control">
-        <input
-          id="sked-note"
-          :value="draft.note"
-          class="input"
-          type="text"
-          autocomplete="off"
-          @input="draft.note = typedInto($event, draft.note, limit)"
-          @compositionend="draft.note = typedInto($event, draft.note, limit)"
+  <div class="skeddialog-backdrop" title="" @pointerdown="press" @focusin.stop @keydown="keys.onKey">
+    <section ref="dialog" class="skeddialog" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1">
+      <header class="updatedialog-head">
+        <h2 :id="titleId" class="logsdialog-title">{{ t("skeds.post_label") }}</h2>
+        <IconButton kind="close" :label="t('skeds.cancel')" @click="emit('close')" />
+      </header>
+      <form class="sked-compose" :aria-labelledby="titleId" @submit.prevent="submit" @focusin="seen">
+        <div class="field">
+          <label for="sked-day">{{ t("skeds.day") }}</label>
+          <div class="field-control">
+            <select id="sked-day" v-model="draft.day" class="input">
+              <option v-for="d in days" :key="d.value" :value="d.value">{{ d.label }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="sked-from">{{ t("skeds.time") }}</label>
+          <div class="field-control">
+            <select id="sked-from" v-model="draft.from" class="input mono" :aria-label="t('skeds.from')">
+              <option v-for="time in TIMES" :key="time" :value="time">{{ time }}</option>
+            </select>
+            <span class="muted">{{ t("skeds.until") }}</span>
+            <select
+              id="sked-to"
+              v-model="draft.to"
+              class="input mono"
+              :class="{ invalid: over }"
+              :aria-label="t('skeds.to')"
+            >
+              <option v-for="time in TIMES" :key="time" :value="time">{{ time }}</option>
+            </select>
+          </div>
+        </div>
+        <DialChoice
+          id="sked-frequency"
+          dial-id="sked-dial"
+          :frequencies="frequencies"
+          :typed="draft.typed"
+          :dial="draft.dial"
+          @choose="choose"
+          @update:dial="draft.dial = $event"
         />
-      </div>
-    </div>
-    <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || posting.busy.value">{{ t("skeds.post") }}</button>
-    </template>
-  </ComposeBar>
+        <div class="field">
+          <label for="sked-note">{{ t("skeds.note") }}</label>
+          <div class="field-control">
+            <input
+              id="sked-note"
+              :value="draft.note"
+              class="input"
+              type="text"
+              autocomplete="off"
+              @input="draft.note = typedInto($event, draft.note, limit)"
+              @compositionend="draft.note = typedInto($event, draft.note, limit)"
+            />
+          </div>
+        </div>
+        <footer class="logsdialog-foot">
+          <LeftCounter :left="left" :max="NOTE_MAX" :title="leftTitle(left, 'characters', NOTE_MAX)" />
+          <button type="submit" class="btn primary" :disabled="!ready || posting.busy.value">
+            {{ t("skeds.post") }}
+          </button>
+          <button type="button" class="btn" @click="emit('close')">{{ t("skeds.cancel") }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
 </template>

@@ -22,6 +22,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.past_delete_label": "Eliminar la prueba anterior, {when}",
 
   "skeds.post_label": "Programar una prueba",
+  "skeds.cancel": "Cancelar",
   "skeds.day": "Día",
   "skeds.time": "Hora (UTC)",
   "skeds.from": "Desde",

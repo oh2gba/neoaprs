@@ -1,12 +1,32 @@
-import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import SkedsPane from "@/components/SkedsPane.vue";
 import type { SkedPast, SkedRow, SkedsState } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { NOW, sked, skedsState } from "@/test/fixtures";
+import { NOW, sked, skedsState, toastOf } from "@/test/fixtures";
 
 let daemon: FakeDaemon;
 beforeEach(() => (daemon = fakeDaemon({ skeds: skedsState() })));
+afterEach(() => document.body.replaceChildren());
+/** The dialog of Plan a test, which is put at the end of the page. */
+const dialog = () => document.querySelector<HTMLElement>(".skeddialog");
+const field = <T extends HTMLInputElement | HTMLSelectElement = HTMLSelectElement>(id: string) =>
+  dialog()?.querySelector<T>(`#${id}`) ?? null;
+async function setField(id: string, value: string): Promise<void> {
+  const element = field<HTMLInputElement | HTMLSelectElement>(id);
+  if (element === null) throw new Error(`no #${id}`);
+  element.value = value;
+  element.dispatchEvent(new Event(element.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
+  await flushPromises();
+}
+async function post(): Promise<void> {
+  dialog()
+    ?.querySelector("form")
+    ?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await flushPromises();
+}
+const plan = (wrapper: { find: (selector: string) => ReturnType<ReturnType<typeof mount>["find"]> }) =>
+  wrapper.find("button.sked-plan");
 const sent = (cmd: string) =>
   daemon.send.mock.calls.map(([command]) => command).filter((command) => command.cmd === cmd);
 const at = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString().slice(0, 19) + "Z";
@@ -120,14 +140,32 @@ describe("SkedsPane", () => {
       expect(sent("sked_delete")).toEqual([{ cmd: "sked_delete", id: "mine" }]);
     });
 
-    it("has Join on a row of others, which posts a sked of ours with the same times and dial and no note", async () => {
-      const wrapper = pane([sked("a", { call: "OH2XYZ", note: "Mercury", dial: "14.1070 MHz USB" })]);
+    it("has Join on a row of others, which opens Plan a test filled with that test's day, times and frequency, and posts nothing", async () => {
+      const wrapper = pane([
+        sked("a", { call: "OH2XYZ", note: "Mercury", dial: "14.1070 MHz USB", from: at(26), to: at(28) }),
+      ]);
       const join = wrapper.find(".sked-actions .btn");
       expect(join.text()).toBe("Join");
       expect(join.attributes("aria-label")).toContain("OH2XYZ");
       await join.trigger("click");
+      expect(sent("sked_post")).toEqual([]);
+      expect(dialog()?.querySelector("h2")?.textContent).toBe("Plan a test");
+      expect(
+        ["sked-day", "sked-from", "sked-to", "sked-frequency"].map((id) => field<HTMLSelectElement>(id)?.value),
+      ).toEqual(["2026-10-22", "14:00", "16:00", "14.1070 MHz USB"]);
+      expect(field<HTMLInputElement>("sked-note")?.value).toBe("");
+      await post();
       expect(sent("sked_post")).toEqual([
-        { cmd: "sked_post", from: at(2), to: at(4), dial: "14.1070 MHz USB", note: "" },
+        { cmd: "sked_post", from: at(26), to: at(28), dial: "14.1070 MHz USB", note: "" },
+      ]);
+    });
+
+    it("fills a dial the project does not suggest as Other with its number", async () => {
+      const wrapper = pane([sked("a", { dial: "10.1470 MHz USB" })]);
+      await wrapper.find(".sked-actions .btn").trigger("click");
+      expect([field<HTMLSelectElement>("sked-frequency")?.value, field<HTMLInputElement>("sked-dial")?.value]).toEqual([
+        "other",
+        "10.1470",
       ]);
     });
 
@@ -285,34 +323,113 @@ describe("SkedsPane", () => {
       expect(wrapper.text()).not.toMatch(/error|offline|unreachable|cannot/i);
     });
 
-    it("shows the board without the form for a closed board, and with the form otherwise", () => {
+    it("shows the board without Plan a test for a closed board, and with it otherwise", () => {
       const closed = pane([sked("a")], { state: "closed" });
-      expect(closed.find("form.sked-compose").exists()).toBe(false);
+      expect(plan(closed).exists()).toBe(false);
       expect(closed.findAll(".sked")).toHaveLength(1);
-      for (const state of ["ok", "offline", "off"] as const)
-        expect(pane([], { state }).find("form.sked-compose").exists()).toBe(true);
+      for (const state of ["ok", "offline", "off"] as const) expect(plan(pane([], { state })).exists()).toBe(true);
     });
 
-    it("shows the form again when the board opens", async () => {
+    it("shows Plan a test again when the board opens", async () => {
       const wrapper = pane([], { state: "closed" });
-      expect(wrapper.find("form.sked-compose").exists()).toBe(false);
+      expect(plan(wrapper).exists()).toBe(false);
       await tell(daemon, { skeds: skedsState([]) });
-      expect(wrapper.find("form.sked-compose").exists()).toBe(true);
+      expect(plan(wrapper).exists()).toBe(true);
     });
   });
 });
 
-describe("a Join in flight", () => {
-  it("posts once for two presses before the board is told, and again once it is", async () => {
-    const row = sked("a", { call: "OH2XYZ" });
-    const wrapper = pane([row]);
-    const join = () => wrapper.find(".sked-actions .btn");
-    await join().trigger("click");
-    expect(join().attributes("disabled")).toBeDefined();
-    await join().trigger("click");
-    expect(sent("sked_post")).toHaveLength(1);
-    await tell(daemon, { skeds: skedsState([row, sked("b", { call: "OH2ABC" })]) });
-    await join().trigger("click");
-    expect(sent("sked_post")).toHaveLength(2);
+describe("Plan a test", () => {
+  it("is one button in the place of the form, with no form in the pane until it is pressed", async () => {
+    const wrapper = pane();
+    expect(plan(wrapper).text()).toBe("Plan a test");
+    expect(document.querySelector("form.sked-compose")).toBeNull();
+    await plan(wrapper).trigger("click");
+    expect(dialog()?.getAttribute("role")).toBe("dialog");
+    expect(dialog()?.getAttribute("aria-modal")).toBe("true");
+    expect(dialog()?.querySelector("h2")?.textContent).toBe("Plan a test");
+    expect(dialog()?.querySelector("form.sked-compose")).not.toBeNull();
+    expect(dialog()?.querySelector("legend")).toBeNull();
+  });
+
+  it("closes with its cross, with Cancel, with Escape and with a press beside it, and gives the focus back to the button", async () => {
+    const wrapper = pane();
+    const close = async (how: () => void | Promise<unknown>) => {
+      await plan(wrapper).trigger("click");
+      await flushPromises();
+      expect(dialog()?.contains(document.activeElement)).toBe(true);
+      await how();
+      await flushPromises();
+      expect(dialog()).toBeNull();
+      expect(document.activeElement).toBe(plan(wrapper).element);
+    };
+    await close(() => dialog()?.querySelector<HTMLButtonElement>("header .xbtn")?.click());
+    await close(() =>
+      [...(dialog()?.querySelectorAll("button") ?? [])].find((b) => b.textContent?.trim() === "Cancel")?.click(),
+    );
+    await close(() => {
+      dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await close(() => {
+      const backdrop = document.querySelector(".skeddialog-backdrop");
+      backdrop?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+  });
+
+  it("closes when the daemon has the post, and stays open with what it shows when the post is refused", async () => {
+    const wrapper = pane();
+    await plan(wrapper).trigger("click");
+    await setField("sked-note", "Mercury");
+    await post();
+    const [command] = sent("sked_post") as { from: string; to: string; dial: string }[];
+    await tell(daemon, { lastError: toastOf("sked_post: the board said no", "other") });
+    expect(dialog()).not.toBeNull();
+    expect(field<HTMLInputElement>("sked-note")?.value).toBe("Mercury");
+    expect(dialog()?.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(false);
+    await post();
+    await tell(daemon, {
+      skeds: skedsState([sked("y", { ours: true, from: command?.from, to: command?.to, dial: command?.dial })]),
+    });
+    expect(dialog()).toBeNull();
+    await plan(wrapper).trigger("click");
+    expect(field<HTMLInputElement>("sked-note")?.value).toBe("");
+  });
+
+  it("keeps what was chosen and typed when it is closed without posting and opened again", async () => {
+    const wrapper = pane();
+    await plan(wrapper).trigger("click");
+    await setField("sked-from", "18:30");
+    await setField("sked-frequency", "28.1800 MHz USB");
+    await setField("sked-note", "FT8 first");
+    dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    await tell(daemon, { skeds: skedsState() });
+    await plan(wrapper).trigger("click");
+    expect([field("sked-from")?.value, field("sked-frequency")?.value, field("sked-note")?.value]).toEqual([
+      "18:30",
+      "28.1800 MHz USB",
+      "FT8 first",
+    ]);
+  });
+
+  it("asks the daemon to look at the project's dials again when it opens, at most once a minute, and when the socket opens if it was not open", async () => {
+    const wrapper = pane();
+    expect(sent("frequencies")).toEqual([]);
+    await plan(wrapper).trigger("click");
+    expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
+    dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    await plan(wrapper).trigger("click");
+    expect(sent("frequencies")).toHaveLength(1);
+    dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    document.body.replaceChildren();
+    const later = pane();
+    daemon.connection.value = "connecting";
+    await plan(later).trigger("click");
+    expect(sent("frequencies")).toHaveLength(1);
+    daemon.connection.value = "open";
+    await flushPromises();
+    expect(sent("frequencies")).toHaveLength(2);
   });
 });

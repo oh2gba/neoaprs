@@ -22,9 +22,11 @@ const post = (wrapper: ReturnType<typeof form>) => wrapper.find("button[type='su
 const select = (wrapper: ReturnType<typeof form>, id: string) => wrapper.find<HTMLSelectElement>(`#${id}`);
 
 describe("SkedCompose", () => {
-  it("is a group box with the day, the time with its label saying UTC, the frequency and the note, and a button that says where it posts", () => {
+  it("is a dialog titled Plan a test with the day, the time with its label saying UTC, the frequency and the note, a button that says where it posts and Cancel", () => {
     const wrapper = form();
-    expect(wrapper.find("legend").text()).toBe("Plan a test");
+    expect(wrapper.find("[role='dialog'] h2").text()).toBe("Plan a test");
+    expect(wrapper.find("legend").exists()).toBe(false);
+    expect(wrapper.findAll("footer button").map((b) => b.text())).toEqual(["Post on neo.oh2gba.eu", "Cancel"]);
     expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Day", "Time (UTC)", "Frequency", "Dial", "Note"]);
     expect(post(wrapper).text()).toBe("Post on neo.oh2gba.eu");
     expect(wrapper.find("#sked-from").attributes("aria-label")).toBe("From");
@@ -313,63 +315,25 @@ describe("SkedCompose", () => {
   });
 });
 
-/**
- * The page's observer of what comes into view, made to say so when the test does; the observer of
- * before is put back by `restore`.
- */
-function observing() {
-  const original = globalThis.IntersectionObserver;
-  const observer: { callback?: (entries: { isIntersecting: boolean }[]) => void; target?: Element } = {};
-  globalThis.IntersectionObserver = class {
-    constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
-      observer.callback = callback;
-    }
-    observe(target: Element) {
-      observer.target = target;
-    }
-    disconnect() {}
-  } as unknown as typeof IntersectionObserver;
-  return { observer, restore: () => void (globalThis.IntersectionObserver = original) };
-}
-
 describe("SkedCompose's dials", () => {
-  it("asks the daemon to look at the project's list of dials again when the Frequency row comes on show, as a Mercury radio's box does", () => {
-    const { observer, restore } = observing();
-    try {
-      form();
-      expect(sent("frequencies")).toEqual([]);
-      expect(observer.target?.querySelector("#sked-frequency")).not.toBeNull();
-      observer.callback?.([{ isIntersecting: true }]);
-      expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
-      daemon.connection.value = "connecting";
-      form();
-      observer.callback?.([{ isIntersecting: true }]);
-      // no toast that the socket is not open: it is asked when the socket opens
-      expect(sent("frequencies")).toHaveLength(1);
-    } finally {
-      restore();
-    }
+  it("asks the daemon to look at the project's list of dials again when it opens, as a Mercury radio's box does", () => {
+    form();
+    expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
   });
 
-  it("asks for the dials when the socket opens if the Frequency row came on show before it was open (a reload with the tab in front), and once", async () => {
-    const { observer, restore } = observing();
-    try {
-      daemon.connection.value = "connecting";
-      form();
-      observer.callback?.([{ isIntersecting: true }]);
-      await flushPromises();
-      expect(sent("frequencies")).toEqual([]);
-      daemon.connection.value = "open";
-      await flushPromises();
-      expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
-      daemon.connection.value = "connecting";
-      await flushPromises();
-      daemon.connection.value = "open";
-      await flushPromises();
-      expect(sent("frequencies")).toHaveLength(1); // (asked already: the row did not come on show again)
-    } finally {
-      restore();
-    }
+  it("asks for the dials when the socket opens if it opened before the socket was open (a reload with the tab in front), and once", async () => {
+    daemon.connection.value = "connecting";
+    form();
+    await flushPromises();
+    expect(sent("frequencies")).toEqual([]);
+    daemon.connection.value = "open";
+    await flushPromises();
+    expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
+    daemon.connection.value = "connecting";
+    await flushPromises();
+    daemon.connection.value = "open";
+    await flushPromises();
+    expect(sent("frequencies")).toHaveLength(1); // (asked already: it was not opened again)
   });
 });
 

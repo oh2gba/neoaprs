@@ -242,6 +242,13 @@
 .sked-actions .btn {
   white-space: nowrap;
 }
+/* the one button of the HF tests tab that opens Plan a test, at the right under the board */
+.sked-planbar {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  padding: 6px 10px 0;
+}
 /* the chat of the HF tests tab (ChatBox): a list of its own height, so that a line that comes
    moves nothing outside it; long words wrap */
 .boardwrap > fieldset.chat {

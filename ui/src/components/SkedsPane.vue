@@ -2,21 +2,22 @@
 // The Skeds tab: the board of when stations will be on the air (the project's board, read by the
 // daemon: topic `skeds`), nearest first, and under it the past tests, newest first, in a section of
 // the Bulletins tab's kind. Skeds with the same times and dial are one row (lib/skeds.ts, SkedItem).
-// A row with a sked of ours has Delete (two presses); other rows have Join, which posts a sked with
-// the same times and dial. That column keeps its width and Join is off, not gone, while a post is not
-// possible. A past test has the trash there (two presses), which takes it off this installation's
+// A row with a sked of ours has Delete (two presses); other rows have Join, which opens Plan a test
+// filled with the same day, times and dial. That column keeps its width and Join is off, not gone,
+// while a post is not possible. A past test has the trash there (two presses), which takes it off this installation's
 // list only (`sked_past_delete`). The past tests are the last thing of the scrolling pane, so
 // nothing moves when they come or change. An unreachable board shows the skeds and past tests last
-// read; a closed board shows them without the form. The form is fixed at the bottom (SkedCompose),
-// and under it the chat (ChatBox).
-import { computed } from "vue";
+// read; a closed board shows them without Plan a test. At the bottom is the button Plan a test, which
+// opens the form as a dialog (SkedCompose; its values are kept here, useSkedForm), and under it the
+// chat (ChatBox).
+import { computed, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import ChatBox from "@/components/ChatBox.vue";
 import SkedCompose from "@/components/SkedCompose.vue";
 import SkedItem from "@/components/SkedItem.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { useCommandInFlight } from "@/composables/useInFlight";
+import { useSkedForm } from "@/composables/useSkedForm";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { groups, hasCall, mayPostAs, pastGroups, whenText, type SkedGroup } from "@/lib/skeds";
@@ -38,9 +39,18 @@ const removePast = (g: SkedGroup): void => void send({ cmd: "sked_past_delete", 
 /** The daemon takes off what it tells as past: a board row this device's clock already ended waits for it. */
 const toldPast = computed(() => new Set((skeds.value?.past ?? []).map((row) => row.id)));
 const deletable = (g: SkedGroup): boolean => g.rows.every((row) => toldPast.value.has(row.id));
-const joining = useCommandInFlight("sked_post", () => skeds.value?.rows);
-const join = (g: SkedGroup): boolean =>
-  joining.run(() => send({ cmd: "sked_post", from: g.from, to: g.to, dial: g.dial, note: "" }));
+const form = useSkedForm();
+const planning = ref(false);
+/** What opened the dialog, which gets the focus back: the button, or the row's Join. */
+const opener = ref<HTMLElement | null>(null);
+function plan(event: Event): void {
+  opener.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  planning.value = true;
+}
+function join(g: SkedGroup, event: Event): void {
+  form.fill(g);
+  plan(event);
+}
 </script>
 
 <template>
@@ -65,12 +75,12 @@ const join = (g: SkedGroup): boolean =>
             v-else-if="state !== 'closed' && !hasCall(g, call)"
             type="button"
             class="btn small"
-            :disabled="!canPost || joining.busy.value"
+            :disabled="!canPost"
             :title="t('skeds.join_title')"
             :aria-label="
               t('skeds.join_label', { calls: g.rows.map((r) => r.call).join(', '), when: whenText(g.from, g.to) })
             "
-            @click="join(g)"
+            @click="join(g, $event)"
           >
             {{ t("skeds.join") }}
           </button>
@@ -92,7 +102,12 @@ const join = (g: SkedGroup): boolean =>
         </ul>
       </fieldset>
     </div>
-    <SkedCompose v-if="state !== 'closed'" />
+    <div v-if="state !== 'closed'" class="sked-planbar">
+      <button type="button" class="btn primary sked-plan" @click="plan">{{ t("skeds.post_label") }}</button>
+    </div>
+    <Teleport v-if="planning && state !== 'closed'" to="body">
+      <SkedCompose :form="form" :opener="opener" @close="planning = false" />
+    </Teleport>
     <ChatBox />
   </div>
 </template>

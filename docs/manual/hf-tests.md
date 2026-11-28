@@ -2,7 +2,7 @@
 
 The HF tests tab is for stations trying APRS on HF: you say when you will be on the air and on which frequency, so that another station can test with you. On HF there are few stations, and two of them have to agree on a time and a frequency before they can hear each other at all.
 
-The tab comes after Bulletins, and is always there, with or without a Mercury radio ([radio.md](radio.md#the-mercury-modem)): you may want to see when others are on before your radio is set up, or announce a test of your own. It shows the tests planned by other stations and by you, and has a group box at its bottom, **Plan a test**. Reading and posting need no radio: the board is on the web.
+The tab comes after Bulletins, and is always there, with or without a Mercury radio ([radio.md](radio.md#the-mercury-modem)): you may want to see when others are on before your radio is set up, or announce a test of your own. It shows the tests planned by other stations and by you, and has a button at its bottom, **Plan a test**. Reading and posting need no radio: the board is on the web.
 
 The tests are kept on a public board on the project's page, neo.oh2gba.eu. Nothing here goes over the air. The (i) at the top of the tab says so.
 
@@ -21,7 +21,7 @@ NeoAPRS reads the board a minute after it starts and every six hours while it ru
 
 ## Planning a test
 
-The box has a row for each field:
+**Plan a test** opens a window with a row for each field:
 
 - the **day**, one of the next 30 UTC days, written in the language of the page;
 - the **time**, from and to, in half hours. The label says UTC. A "to" that is not after the "from" is the next day, so a test is never longer than 24 hours;
@@ -30,11 +30,11 @@ The box has a row for each field:
 
 The button reads **Post on neo.oh2gba.eu**. It is on when there is a call, the board can be reached and the form is right. A test that has ended already marks its "to" and cannot be posted. RX only does not matter: nothing here is sent by radio.
 
-The box opens on today, from the next half hour for an hour, on the first dial the project suggests. The note is cleared when the board has your test; a post that was refused stays for you to correct.
+The window first opens on today, from the next half hour for an hour, on the first dial the project suggests. When the board has your test, the window closes and the note is cleared; a post that was refused stays open for you to correct. **Cancel**, the cross or Esc close it without posting, and it opens again with what you had chosen.
 
 ## Joining a test
 
-A row of another station has **Join**. It posts a test of yours with the same times and the same dial at once, so that the other station sees that someone will come. **Join** is off while posting is not possible.
+A row of another station has **Join**. It opens **Plan a test** with the same day, times and dial, so that the other station sees that someone will come once you post it. **Join** is off while posting is not possible.
 
 ## Deleting a test
 

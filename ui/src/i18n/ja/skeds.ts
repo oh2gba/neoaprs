@@ -22,6 +22,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.past_delete_label": "過去のテストを削除、{when}",
 
   "skeds.post_label": "テストの予定",
+  "skeds.cancel": "キャンセル",
   "skeds.day": "日",
   "skeds.time": "時刻 (UTC)",
   "skeds.from": "開始",

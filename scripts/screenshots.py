@@ -1094,7 +1094,7 @@ def scope_page(radio: int, kept_sec: float = SCOPE_KEPT_SEC) -> str:
 
 
 async def shot_hf_tests(s: Shots, _: str) -> None:
-    """The HF tests tab with the two made-up tests (Join beside each, the form to plan one at the
+    """The HF tests tab with the two made-up tests (Join beside each, the button to plan one at the
     bottom), and over the map the Monitor card with the 40 m waterfall of the last two
     minutes."""
     page = await s.page(

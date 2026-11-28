@@ -1,6 +1,6 @@
 import "@/test/mockmap";
 import { describe, expect, it } from "vitest";
-import { flushPromises, type VueWrapper } from "@vue/test-utils";
+import { DOMWrapper, flushPromises, type VueWrapper } from "@vue/test-utils";
 import type { FakeSocket } from "@/test/fakesocket";
 import { NOW, fmRow, hfRow, radiosValue, sked, skedsState } from "@/test/fixtures";
 import { open as openPage, tabButton, useAppHarness } from "@/test/app";
@@ -31,6 +31,11 @@ const sayBoard = async (socket: FakeSocket, rows = board) => {
   await flushPromises();
 };
 const badge = (wrapper: VueWrapper) => tabButton(wrapper, "HF tests")?.find(".badge");
+/** Plan a test, opened by its button: the dialog is put at the end of the page. */
+async function planned(wrapper: VueWrapper) {
+  await wrapper.find("#pane-skeds button.sked-plan").trigger("click");
+  return new DOMWrapper(document.querySelector<HTMLElement>(".skeddialog"));
+}
 
 describe("App: the Skeds tab", () => {
   for (const [station, radios] of Object.entries(STATIONS)) {
@@ -40,8 +45,9 @@ describe("App: the Skeds tab", () => {
       await tabButton(wrapper, "HF tests")?.trigger("click");
       expect(cmds(socket, "skeds_wanted")).toEqual([{ cmd: "skeds_wanted" }]);
       expect(wrapper.findAll("#pane-skeds .sked")).toHaveLength(2);
-      await wrapper.find("#sked-note").setValue("Before the radio is set up");
-      await wrapper.find("#pane-skeds .sked-compose").trigger("submit");
+      const dialog = await planned(wrapper);
+      await dialog.find("#sked-note").setValue("Before the radio is set up");
+      await dialog.find(".sked-compose").trigger("submit");
       expect(cmds(socket, "sked_post")).toHaveLength(1);
     });
   }
@@ -80,8 +86,9 @@ describe("App: the Skeds tab", () => {
     const { wrapper, socket } = await open();
     await sayBoard(socket, []);
     await tabButton(wrapper, "HF tests")?.trigger("click");
-    await wrapper.find("#sked-note").setValue("Mercury");
-    await wrapper.find("#pane-skeds .sked-compose").trigger("submit");
+    const dialog = await planned(wrapper);
+    await dialog.find("#sked-note").setValue("Mercury");
+    await dialog.find(".sked-compose").trigger("submit");
     expect(cmds(socket, "sked_post")).toEqual([
       {
         cmd: "sked_post",
@@ -91,7 +98,7 @@ describe("App: the Skeds tab", () => {
         note: "Mercury",
       },
     ]);
-    expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("Mercury");
+    expect(dialog.find<HTMLInputElement>("#sked-note").element.value).toBe("Mercury");
     await sayBoard(socket, [
       sked("m", {
         call: "OH2GBA",
@@ -102,7 +109,12 @@ describe("App: the Skeds tab", () => {
         note: "Mercury",
       }),
     ]);
-    expect(wrapper.find<HTMLInputElement>("#sked-note").element.value).toBe("");
+    expect(document.querySelector(".skeddialog")).toBeNull();
+    expect((await planned(wrapper)).find<HTMLInputElement>("#sked-note").element.value).toBe("");
+    document
+      .querySelector<HTMLElement>(".skeddialog")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
     const mine = wrapper.find("#pane-skeds .sked.mine");
     expect(mine.find(".sked-call").text()).toContain("OH2GBA");
     expect(mine.find(".sked-when .muted").text()).toBe("now");
@@ -111,27 +123,29 @@ describe("App: the Skeds tab", () => {
     expect(cmds(socket, "sked_delete")).toEqual([{ cmd: "sked_delete", id: "m" }]);
   });
 
-  it("joins the sked of another station with one command", async () => {
+  it("joins the sked of another station from Plan a test filled with its times and dial", async () => {
     const { wrapper, socket } = await open();
     await sayBoard(socket);
     await tabButton(wrapper, "HF tests")?.trigger("click");
     await wrapper.find("#pane-skeds .sked-actions .btn").trigger("click");
+    expect(cmds(socket, "sked_post")).toEqual([]);
+    await new DOMWrapper(document.querySelector<HTMLElement>(".skeddialog .sked-compose")).trigger("submit");
     expect(cmds(socket, "sked_post")).toEqual([
       { cmd: "sked_post", from: at(2), to: at(4), dial: "7.0541 MHz USB", note: "" },
     ]);
   });
 
-  it("shows the board without the form for a closed board, and says nothing for one that cannot be reached", async () => {
+  it("shows the board without Plan a test for a closed board, and says nothing for one that cannot be reached", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "HF tests")?.trigger("click");
     socket.say({ type: "state", topic: "skeds", rev: 0, value: skedsState(board, { state: "closed" }) });
     await flushPromises();
-    expect(wrapper.find("#pane-skeds form.sked-compose").exists()).toBe(false);
+    expect(wrapper.find("#pane-skeds button.sked-plan").exists()).toBe(false);
     expect(wrapper.findAll("#pane-skeds .sked")).toHaveLength(2);
     socket.say({ type: "state", topic: "skeds", rev: 1, value: skedsState(board, { state: "offline" }) });
     await flushPromises();
-    expect(wrapper.find("#pane-skeds form.sked-compose").exists()).toBe(true);
-    expect(wrapper.find("#pane-skeds button[type='submit']").attributes("disabled")).toBeDefined();
+    const dialog = await planned(wrapper);
+    expect(dialog.find("button[type='submit']").attributes("disabled")).toBeDefined();
     expect(wrapper.find("#pane-skeds").text()).not.toMatch(/offline|reach|unavailable/i);
   });
 });

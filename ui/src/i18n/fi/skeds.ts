@@ -22,6 +22,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.past_delete_label": "Poista mennyt testi, {when}",
 
   "skeds.post_label": "Suunnittele testi",
+  "skeds.cancel": "Peruuta",
   "skeds.day": "Päivä",
   "skeds.time": "Aika (UTC)",
   "skeds.from": "Alkaa",
