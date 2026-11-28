@@ -53,6 +53,9 @@ WAIT_FOR_RUN_TRIES = 40
 RUN_LIMIT_MIN = 240.0
 FAILED_LINES_SHOWN = 30
 COMMAND = "scripts/release"
+# The workflow of the container image, started on the tag once the release is published: a release
+# published with the job's token would not start it by its own event.
+CONTAINER_WORKFLOW = "container.yml"
 # The id of the signing key's secret in Bitwarden Secrets Manager.
 SIGNING_KEY_ID_VARIABLE = "NEOAPRS_SIGNING_SECRET_ID"
 BWS_SEC = 60
@@ -811,6 +814,21 @@ class Release:
                 raise Refusal(f"the download link of {asset['name']} does not answer: {asset['url']} ({problem})")
         return f"done: {release['url']}, {len(names)} files, {SIGNATURE} holds with the program's public key, every link answers"
 
+    def step_image(self) -> str:
+        start = f"gh workflow run {CONTAINER_WORKFLOW} --ref {self.tag} -f tag={self.tag}"
+        if self.dry_run:
+            return f"would start the run of the container image on the tag: {start}"
+        runs = json.loads(
+            self.gh(
+                "run", "list", "--workflow", CONTAINER_WORKFLOW, "--branch", self.tag, "--json", "databaseId,url"
+            ).stdout
+            or "[]"
+        )  # fmt: skip
+        if runs:
+            return f"skipped: the run of the container image of {self.tag} is started already: {runs[0]['url']}"
+        self.gh("workflow", "run", CONTAINER_WORKFLOW, "--ref", self.tag, "-f", f"tag={self.tag}")
+        return f"started: {CONTAINER_WORKFLOW} pushes the image {self.version} once its checks pass (gh run list --workflow {CONTAINER_WORKFLOW}); a failed one leaves the release as it is"
+
     def step_deploy(self) -> str:
         if not self.deploy:
             return "not asked (--deploy): the version page names the new release by itself; to upload version.php to both of its places run server/deploy.sh (it needs the Bitwarden session)"
@@ -880,6 +898,7 @@ def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
             f"the release is published, not a draft, has its 15 files, {SIGNATURE} holds, every download link answers",
             r.step_verify,
         ),
+        ("image", f"start the run of the container image on {r.tag} ({CONTAINER_WORKFLOW})", r.step_image),
         ("deploy", "deploy the version page (server/deploy.sh), with --deploy", r.step_deploy),
     ]
 

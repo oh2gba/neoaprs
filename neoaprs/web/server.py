@@ -6,9 +6,11 @@ with the access key (access.py). The switch is followed without a restart.
 
 import asyncio
 import logging
+import os
 import re
 import socket
 import ssl
+import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
@@ -52,6 +54,8 @@ HEADER_TIMEOUT_SEC = 60.0  # no request line yet, or idle between two requests
 BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
 HOSTS_FILE = Path("/etc/hosts")
+# In a container: names the page answers to besides web/allowed_hosts, comma or space separated.
+ENV_ALLOWED_HOSTS = "NEOAPRS_ALLOWED_HOSTS"
 
 
 def name_loopbacks(hosts: Path = HOSTS_FILE) -> list[str]:
@@ -140,8 +144,17 @@ class WebServer:
         """Return the 127.0.0.1 URL for a loopback request by another name, else None."""
         return this_computer_target(request, self.controller.config.web_network, self.bound_port())
 
+    @property
+    def in_container(self) -> bool:
+        return self.controller.install.kind == "container"
+
+    def _allowed(self) -> list[str]:
+        """The names of web/allowed_hosts, and in a container those of NEOAPRS_ALLOWED_HOSTS."""
+        given = os.environ.get(ENV_ALLOWED_HOSTS, "") if self.in_container else ""
+        return f"{self.controller.config.web_allowed_hosts} {given}".replace(",", " ").split()
+
     def _allowed_names(self) -> list[str]:
-        return [host_name(n) for n in self.controller.config.web_allowed_hosts.replace(",", " ").split()]
+        return [host_name(n) for n in self._allowed()]
 
     def note_foreign_host(self, shown: str) -> None:
         if shown not in self._foreign_seen and len(self._foreign_seen) < 20:
@@ -179,7 +192,7 @@ class WebServer:
 
     async def start(self) -> bool:
         c = self.config
-        self._own_names = self._names(c.web_allowed_hosts.replace(",", " ").split())
+        self._own_names = self._names(self._allowed())
         await self._ensure_key()
         self._by_name = name_loopbacks()
         self.address = "" if self.controller.config.web_network else LOOPBACK
@@ -313,14 +326,21 @@ class WebServer:
     async def _ensure_key(self) -> None:
         """Make an access key when the network is on and there is none."""
         c = self.controller.config
-        if (
-            c.web_network
-            and not c.web_key
-            and not await self.controller.change_config(
-                lambda base: replace(base, web_key=new_key()) if base.web_network and not base.web_key else base
-            )
+        if not c.web_network or c.web_key:
+            return
+        if not await self.controller.change_config(
+            lambda base: replace(base, web_key=new_key()) if base.web_network and not base.web_key else base
         ):
             log.error("the access key could not be stored; devices on the network cannot log in")
+        elif self.in_container and sys.stderr is not None:
+            # the container's log is the only place the operator sees before the page; not the log
+            # file, which Send logs hands on
+            print(
+                f"neoaprs: the access key of the page is {self.controller.config.web_key}"
+                " (again with: neoaprs db get web/key)",
+                file=sys.stderr,
+                flush=True,
+            )
 
     async def renew_key(self) -> bool:
         """Make a new access key, ending every session.

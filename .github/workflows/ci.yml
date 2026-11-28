@@ -263,3 +263,29 @@ jobs:
           name: mercury-sim-folders
           path: mercury-sim-folders.tar.gz
           if-no-files-found: ignore
+
+  # The container image (packaging/container/Dockerfile) built from a .deb of this tree, without the
+  # modems (the release's image is proven with them by container.yml before it is pushed), and
+  # checked by scripts/check-container: it starts, the page asks for the key, a KISS frame is heard,
+  # a second container keeps the data. Nothing is logged in to or pushed.
+  container:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: "0.13.10"
+          python-version: "3.13"
+          enable-cache: true
+      - name: A .deb of this tree without the modems
+        run: |
+          uv build --wheel
+          scripts/build-deb --arch amd64 --wheel dist/neoaprs-*.whl --no-mercury --no-direwolf --out context
+      - name: Build the image and prove it
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          docker build --build-arg VERSION="$version" -f packaging/container/Dockerfile -t neoaprs-check context
+          python3 scripts/check-container neoaprs-check "$version" --no-modems

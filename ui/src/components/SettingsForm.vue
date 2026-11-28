@@ -92,6 +92,7 @@ const {
   keys,
   local,
   connection,
+  install,
 } = useDaemonContext();
 // New key asks twice: stations holding the old key must be sent the new one.
 const newMessageKey = useSure<string>();
@@ -151,6 +152,7 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       (key !== ALERT_KEY || local.value) &&
+      !(key === "web/network" && install.value?.kind === "container") &&
       shownFor(key, network.value) &&
       shownByRadios(key, radios.all.value) &&
       shownByValues(key, draft),

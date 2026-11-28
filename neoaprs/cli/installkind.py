@@ -14,6 +14,7 @@ from neoaprs import VERSION
 from neoaprs.versions import InstallInfo, InstallKind, deb_architecture, install_kind, mac_architecture
 
 from . import servicecmd
+from .servicecmd import container_environment
 
 UV_RECEIPT = "uv-receipt.toml"
 ENV_KIND = "NEOAPRS_INSTALL_KIND"
@@ -72,6 +73,7 @@ def detect(
         is_checkout(tree),
         uv_tool_environment(prefix, environ),
         app_bundle_environment(prefix),
+        container_environment(environ),
     )
     found = machine if machine is not None else platform.machine()
     arch = deb_architecture(found) if kind == "deb" else mac_architecture(found) if kind == "macos-app" else ""
@@ -116,4 +118,5 @@ def detect_here(data: Path, environ: Mapping[str, str] = os.environ) -> InstallI
         sys.prefix,
         servicecmd.source_tree(),
         service_set(data),
+        environ,
     )

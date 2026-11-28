@@ -8,8 +8,9 @@ Every file is on the [releases page](https://github.com/oh2gba/neoaprs/releases/
 | Linux with a desktop | `NeoAPRS-<version>-x86_64.AppImage` ([AppImage](#linux-appimage)) |
 | Mac with Apple silicon | `NeoAPRS-<version>-arm64.dmg` ([macOS](#macos)) |
 | Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` or `_amd64.deb` ([.deb](#raspberry-pi-debian-ubuntu-deb)) |
+| a Linux server or NAS with Docker | the image `ghcr.io/oh2gba/neoaprs` ([Docker](#docker-linux)) |
 
-These four are the supported ways: each carries its own Python and the Mercury modem, and all but the Mac's also carry Direwolf for a packet radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
+These are the supported ways: each carries its own Python and the Mercury modem, and all but the Mac's also carry Direwolf for a packet radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
 
 After installing, [start.md](start.md) takes you through the first start. The data you make (settings, messages, packets, the map) is kept in the data folder, which no installer, update or removal touches.
 
@@ -81,6 +82,104 @@ neoaprs doctor                                      # what is wrong with this co
 - **Upgrading.** `sudo apt install ./neoaprs_<new>.deb` replaces the files and restarts the NeoAPRS service of each logged-in user who has one running. Where that cannot be done it says that a running NeoAPRS keeps the old version until you run `systemctl --user restart neoaprs`.
 - **Removing.** `sudo apt remove neoaprs` takes the program, the link and the documents away and leaves your data and the unit in your home, which can no longer start. Run `neoaprs service remove` before removing the package, or afterwards `systemctl --user disable --now neoaprs && rm ~/.config/systemd/user/neoaprs.service`.
 
+## Docker (Linux)
+
+For a Linux server, a Raspberry Pi 4 or 5 with 64-bit Raspberry Pi OS, or a NAS that runs Docker or Podman, the image `ghcr.io/oh2gba/neoaprs` holds the same program as the .deb, for amd64 and arm64. It has no desktop window and no Bluetooth radio. It is not for Docker Desktop on Windows or a Mac, which passes no USB device or sound card to it: use the installer there.
+
+Everything NeoAPRS keeps is in the volume `neoaprs-data`, mounted at `/data`: keep the volume and you keep your settings, messages and stations, whatever happens to the container. `TZ` sets the time zone of its log.
+
+### A network radio only
+
+A KISS TNC on the network, a LoRa iGate on Wi-Fi, or a Direwolf on the same machine:
+
+```bash
+docker run -d --name neoaprs --init --restart unless-stopped \
+  -p 7303:7303 -v neoaprs-data:/data -e TZ=Europe/Helsinki \
+  --add-host host.docker.internal:host-gateway \
+  ghcr.io/oh2gba/neoaprs:latest
+```
+
+Open `http://<the machine's address>:7303` from any device of your network. A Direwolf of the machine itself is the radio type *KISS TNC over network* at the address `host.docker.internal`, port 8001; it must listen on more than 127.0.0.1.
+
+### The access key
+
+In a container the page is always open to the network and asks each device for the access key once. The key is in the container's log at the first start, and can be read at any time:
+
+```bash
+docker logs neoaprs 2>&1 | grep 'access key'
+docker exec neoaprs neoaprs db get web/key
+```
+
+The page answers to the machine's address. To open it by a name, such as `mynas.local`, give the names: `-e NEOAPRS_ALLOWED_HOSTS=mynas.local` (several separated by commas).
+
+### A USB TNC
+
+Plug the TNC in before the container starts, and give it to the container with its group number:
+
+```bash
+docker run -d --name neoaprs --init --restart unless-stopped \
+  -p 7303:7303 -v neoaprs-data:/data -e TZ=Europe/Helsinki \
+  --device /dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A12345-if00-port0:/dev/ttyUSB0 \
+  --group-add "$(stat -L -c %g /dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A12345-if00-port0)" \
+  ghcr.io/oh2gba/neoaprs:latest
+```
+
+`ls /dev/serial/by-id/` shows the name of yours. In NeoAPRS its port is `/dev/ttyUSB0`. After you unplug it and plug it in again, `docker restart neoaprs`.
+
+### A sound card radio
+
+A Digirig, an AIOC or a radio with its own sound card, keyed by RTS on its serial port:
+
+```bash
+docker run -d --name neoaprs --init --restart unless-stopped \
+  -p 7303:7303 -v neoaprs-data:/data -e TZ=Europe/Helsinki \
+  --device /dev/snd --group-add "$(getent group audio | cut -d: -f3)" \
+  --device /dev/ttyUSB0 --group-add "$(stat -L -c %g /dev/ttyUSB0)" \
+  ghcr.io/oh2gba/neoaprs:latest
+```
+
+A radio keyed by VOX needs no serial port. The sound card is the container's alone while it runs: the machine's own sound system must not hold it. A CM108 key (an AIOC, a dongle) also needs its `/dev/hidraw` device and the udev rule of [radio.md](radio.md).
+
+### A compose file
+
+The same as the sound card radio above, in `compose.yaml`; leave out `devices` and `group_add` for a network radio:
+
+```yaml
+services:
+  neoaprs:
+    image: ghcr.io/oh2gba/neoaprs:latest   # or :<version> to stay on one release
+    container_name: neoaprs
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports: ["7303:7303"]
+    volumes: ["neoaprs-data:/data"]
+    environment:
+      TZ: Europe/Helsinki
+      # NEOAPRS_ALLOWED_HOSTS: mynas.local
+    devices: ["/dev/snd", "/dev/ttyUSB0"]
+    group_add: ["29", "20"]                 # the machine's audio and dialout group numbers
+    extra_hosts: ["host.docker.internal:host-gateway"]
+volumes:
+  neoaprs-data:
+```
+
+`getent group audio dialout` shows the group numbers of your machine.
+
+### Updating the image
+
+A container is not updated in place: a new image takes its place, and the volume keeps everything. The update window says the same.
+
+```bash
+docker compose pull && docker compose up -d        # with a compose file, in its folder
+docker pull ghcr.io/oh2gba/neoaprs:latest          # with docker run: then remove the container
+docker rm -f neoaprs                                # and start it again with the same line
+```
+
+### Podman
+
+The same lines work with `podman`. Rootless, `--group-add keep-groups` gives the container your own groups, and a NeoAPRS of the machine is at `host.containers.internal`. On a host with SELinux, devices also need `--security-opt label=disable`.
+
 ## Start at login
 
 `neoaprs service install` sets NeoAPRS up to start when you log in and keeps it running, the way each system does it. It runs the same Python and the data folder given with `--data` (else the default).
@@ -130,6 +229,7 @@ The window shows the steps for this copy, each file as a button and each command
 | macOS app | download `NeoAPRS-<version>-arm64.dmg`, quit NeoAPRS, open the file and drag NeoAPRS to Applications in the place of the old one, then start it from Applications again. If a launchd agent runs the daemon, restart it (the window shows the command) |
 | .deb (Raspberry Pi, Debian, Ubuntu) | download the package for your computer (`neoaprs_<version>_arm64.deb` on a Raspberry Pi, `_amd64.deb` on a PC; the window picks the right one) and run `sudo apt install ./neoaprs_<version>_arm64.deb` in the folder you downloaded it to. It replaces `/opt/neoaprs` and restarts a running service; if the service still runs the old version, `systemctl --user restart neoaprs` |
 | the install line or the wheel of an older release | releases before 0.16 offered an install line and a wheel; a copy installed that way is sent to the release page: install the AppImage or the .deb (or the Windows installer), which find the data folder as it is, and remove the old copy (`uv tool uninstall neoaprs`, or `pip uninstall neoaprs`) |
+| Docker image | a new image in the place of the old one: `docker compose pull && docker compose up -d`, or `docker pull` and the same run line again ([Docker](#updating-the-image)); there is no Update now |
 | a clone of the repository | `git pull`, `uv sync`, then `systemctl --user restart neoaprs` for a service, else quit and start it again |
 
 **Open pages follow by themselves.** NeoAPRS serves the page it started with, so a page and the NeoAPRS it talks to always go together, and a page left open when NeoAPRS is updated or restarted loads the new one by itself, once, in a browser tab and in the desktop app's window alike. It does so for the next update too. If a page still does not go with NeoAPRS after that (an old copy that the browser kept), it says "This page and NeoAPRS do not match" with a **Reload** button: reload it, and if the message stays, restart NeoAPRS.

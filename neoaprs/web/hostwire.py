@@ -25,7 +25,7 @@ class InstallInfo(_Model):
     """How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py)."""
 
     kind: InstallKind = Field(
-        description="`windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository)"
+        description="`windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel), `source` (a clone of the repository) or `container` (the project's container image, which holds the Debian package and is replaced by a new image, never updated in place)"
     )
     appimage: str = Field(description="the AppImage file this runs from; empty for the other kinds")
     service: bool = Field(

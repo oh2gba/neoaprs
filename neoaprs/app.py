@@ -313,27 +313,28 @@ class Services:
             search_lock=self.radios.search_lock,
         )
         self.install = install
+        where = platform_name(
+            sys.platform, platform.machine(), install.kind == "appimage", container=install.kind == "container"
+        )
         self.updatecheck = UpdateCheck(
             lambda: self.config,
             VERSION,
-            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            where,
             fetch_update,
             memory=self.store,
             developer=install.kind == "source",
         )
-        self.frequencies = Frequencies(
-            VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store
-        )
+        self.frequencies = Frequencies(VERSION, where, memory=self.store)
         self.skeds = Skeds(
             VERSION,
-            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            where,
             lambda: self.config,
             lambda: self.suggested_frequencies,
             memory=self.store,
         )
         self.chat = ChatRoom(
             VERSION,
-            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            where,
             lambda: self.config,
             self.skeds.token,
             memory=self.store,
@@ -342,14 +343,14 @@ class Services:
             lambda: self.config,
             lambda: self.stationbook.me_position,
             VERSION,
-            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            where,
             clock=clock,
         )
         self.satellites = Satellites(
             data_dir,
             lambda: self.stationbook.me_position,
             VERSION,
-            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            where,
             clock=clock,
         )
         self.selfupdate = SelfUpdate(

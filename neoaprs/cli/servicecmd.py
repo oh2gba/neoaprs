@@ -10,6 +10,7 @@ import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Mapping
 from types import ModuleType
 
 from neoaprs.paths import default_data_dir
@@ -19,6 +20,7 @@ from .logfile import LOG_NAME
 
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 REPO = "https://github.com/oh2gba/neoaprs"
+ENV_CONTAINER = "NEOAPRS_CONTAINER"
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,11 @@ class Plan:
     gui_exe: str | None = None
     pythonw: str | None = None
     appimage: str | None = None
+
+
+def container_environment(environ: Mapping[str, str] = os.environ) -> bool:
+    """Return whether this runs in the project's container image, which sets NEOAPRS_CONTAINER=1."""
+    return environ.get(ENV_CONTAINER) == "1"
 
 
 def source_tree() -> Path | None:
@@ -126,6 +133,12 @@ def backend_for(system: str) -> ModuleType:
 
 def main(argv: list[str], platform: str | None = None) -> int:
     args = parser().parse_args(argv)
+    if container_environment() and args.action != "logs":
+        print(
+            "neoaprs service: not in a container; the container itself is the service (docker run --restart unless-stopped)",
+            file=sys.stderr,
+        )
+        return 1
     plan = make_plan(args)
     backend = backend_for(platform or sys.platform)
     if args.action == "logs":

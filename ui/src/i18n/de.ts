@@ -2429,6 +2429,11 @@ export const de: Catalogue = {
   "help.update.deb.download_here": "Das Paket für deinen Rechner von der Release-Seite herunterladen",
   "help.update.deb.install": "Im Ordner installieren, in den du es geladen hast (es fragt nach deinem Passwort)",
   "help.update.deb.service": "Der Dienst startet von selbst neu. Zeigt er noch die alte Version:",
+  "help.update.container.new_image":
+    "Ein Container wird durch ein neues Image aktualisiert: Deine Einstellungen und Nachrichten bleiben in seinem Datenvolume",
+  "help.update.container.compose": "Mit einer Compose-Datei gestartet: in ihrem Ordner",
+  "help.update.container.run":
+    "Mit docker run gestartet: das Image holen, dann den Container entfernen und dieselbe Zeile erneut ausführen",
   "help.update.macos.download": "Die neue App herunterladen",
   "help.update.macos.replace":
     "NeoAPRS beenden, den Download öffnen und NeoAPRS anstelle der alten App in den Ordner Programme ziehen",

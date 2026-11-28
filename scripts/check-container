@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Prove a built container image of NeoAPRS (packaging/container/Dockerfile) on this machine's Docker.
+
+  scripts/check-container IMAGE VERSION [--no-modems]
+
+It runs as an ordinary user, is the version, says the install kind `container`; Mercury and
+Direwolf answer inside it with nothing missing (--no-modems: an image of a test .deb built
+without them); the page answers and asks a device for the access key, which the container's log
+says once; a KISS TNC over TCP stand-in passes a frame; `neoaprs service` refuses; it stops in
+time; a second container on the same volume keeps the data and the key. No device, no host network
+or sound, no registry: everything it makes is removed at the end."""
+
+import argparse
+import json
+import secrets
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parent.parent
+KISS_PORT = 47301  # outside the ports of the modems, which NEOAPRS_NO_DEVICES shuts
+WAIT_SEC = 120.0
+STOP_SEC = 30
+KEY_LINE = "the access key of the page is"
+CALL = "N0CALL-7"
+
+
+class Failure(Exception):
+    """What was not as it should be."""
+
+
+def say(text: str) -> None:
+    print(f"check-container: {text}", flush=True)
+
+
+def docker(*args: str, check: bool = True, timeout: float = 300) -> subprocess.CompletedProcess[str]:
+    done = subprocess.run(["docker", *args], capture_output=True, text=True, timeout=timeout, check=False)
+    if check and done.returncode != 0:
+        raise Failure(f"docker {' '.join(args[:3])} ... ended with {done.returncode}: {done.stderr.strip()[-600:]}")
+    return done
+
+
+class Run:
+    """The names this check makes, so that each is removed whatever happens."""
+
+    def __init__(self, image: str) -> None:
+        self.image = image
+        tag = secrets.token_hex(4)
+        self.volume = f"neoaprs-check-{tag}"
+        self.names: list[str] = []
+        self.tag = tag
+
+    def once(self, *args: str, entrypoint: str = "", volume: bool = False) -> subprocess.CompletedProcess[str]:
+        """A command in a container of its own that is removed when it ends, with no network."""
+        return docker(
+            "run", "--rm", "--network", "none", "-e", "NEOAPRS_UPDATE_CHECK=0",
+            *(["-v", f"{self.volume}:/data"] if volume else []),
+            *(["--entrypoint", entrypoint] if entrypoint else []),
+            self.image, *args,
+        )  # fmt: skip
+
+    def start(self, suffix: str) -> str:
+        name = f"neoaprs-check-{self.tag}-{suffix}"
+        self.names.append(name)
+        docker(
+            "run", "-d", "--init", "--name", name,
+            "-p", "127.0.0.1::7303",
+            "-v", f"{self.volume}:/data",
+            "-e", "NEOAPRS_UPDATE_CHECK=0",
+            "-e", "NEOAPRS_NO_DEVICES=1",
+            "-e", "NEOAPRS_ALLOWED_HOSTS=mynas.local",
+            self.image, "run", "--port", f"socket://127.0.0.1:{KISS_PORT}",
+        )  # fmt: skip
+        return name
+
+    def clean(self) -> None:
+        for name in self.names:
+            docker("rm", "-f", name, check=False)
+        docker("volume", "rm", "-f", self.volume, check=False)
+
+
+def until(what: str, test: Any, seconds: float = WAIT_SEC) -> Any:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        found = test()
+        if found:
+            return found
+        time.sleep(0.25)
+    raise Failure(f"{what}: not within {seconds:g} s")
+
+
+def ask(url: str, host: str = "", data: bytes | None = None) -> tuple[int, dict[str, str], bytes]:
+    request = urllib.request.Request(url, data=data, headers={"Host": host} if host else {})  # noqa: S310  (a port of the loopback that this check's container publishes)
+    try:
+        with urllib.request.urlopen(request, timeout=10) as answer:  # noqa: S310  (the request above)
+            return answer.status, dict(answer.headers), answer.read()
+    except urllib.error.HTTPError as e:
+        return e.code, dict(e.headers), b""
+    except OSError:
+        return 0, {}, b""
+
+
+def page_of(name: str) -> str:
+    port = docker("port", name, "7303/tcp").stdout.split(":")[-1].strip()
+    return f"http://127.0.0.1:{port}"
+
+
+def check_the_image(run: Run, version: str, modems: bool) -> None:
+    said = run.once("-c", "id -u; neoaprs --version; echo $NEOAPRS_DATA_DIR", entrypoint="sh").stdout.split("\n")
+    if said[0] == "0" or said[1] != f"NeoAPRS {version}" or said[2] != "/data":
+        raise Failure(f"the user, the version or the data folder is not as it should be: {said[:3]}")
+    kind = run.once(
+        "-I", "-c", "from pathlib import Path; from neoaprs.cli.installkind import detect_here; print(detect_here(Path('/data')).kind)",
+        entrypoint="/opt/neoaprs/bin/python3",
+    ).stdout.strip()  # fmt: skip
+    if kind != "container":
+        raise Failure(f"the install kind is {kind!r}, not container")
+    say(f"NeoAPRS {version} runs as uid {said[0]} on /data, install kind container")
+    if not modems:
+        say("the modems are not checked (--no-modems)")
+        return
+    script = r"""
+set -eu
+for program in /opt/neoaprs/tools/mercury/mercury /opt/neoaprs/tools/direwolf/direwolf; do
+  if ldd "$program" | grep 'not found'; then echo "$program misses a library"; exit 1; fi
+done
+export ALSA_CONFIG_PATH=/opt/neoaprs/tools/mercury/share/alsa/alsa.conf
+/opt/neoaprs/tools/mercury/mercury -V 2>&1 | grep -F "$MERCURY_VERSION"
+status=0; /opt/neoaprs/tools/mercury/mercury -z > /tmp/z.txt 2>&1 || status=$?
+if [ "$status" -ge 126 ] || grep -q 'error while loading' /tmp/z.txt; then cat /tmp/z.txt; echo "mercury -z did not run ($status)"; exit 1; fi
+ALSA_CONFIG_PATH=/opt/neoaprs/tools/direwolf/share/alsa/alsa.conf /opt/neoaprs/bin/python3 -I /checks/smoke_direwolf.py /opt/neoaprs/tools/direwolf/direwolf
+"""
+    mercury_version = next(
+        line.split('"')[1]
+        for line in (ROOT / "neoaprs" / "mercury.py").read_text(encoding="utf-8").splitlines()
+        if line.startswith("VERSION = ")
+    )
+    done = docker(
+        "run", "--rm", "--network", "none", "-e", f"MERCURY_VERSION={mercury_version}",
+        "-v", f"{ROOT / 'packaging' / 'windows'}:/checks:ro", "--entrypoint", "sh", run.image, "-c", script,
+        check=False,
+    )  # fmt: skip
+    if done.returncode != 0:
+        raise Failure(f"a modem does not run in the image: {(done.stdout + done.stderr).strip()[-800:]}")
+    say(f"Mercury {mercury_version} and Direwolf answer inside the image, no library missing")
+
+
+def check_the_page(run: Run, name: str) -> tuple[str, str]:
+    base = page_of(name)
+    status, headers, body = until("the page answers", lambda: (got := ask(base + "/"))[0] == 200 and got)
+    if b'<div id="app"' not in body:
+        raise Failure("GET / answered without the page")
+    if ask(base + "/access")[0] != 401:
+        raise Failure("a device that has not logged in is not asked for the key")
+    key = docker("exec", name, "neoaprs", "db", "get", "web/key").stdout.strip()
+    logs = docker("logs", name).stderr + docker("logs", name).stdout
+    if logs.count(KEY_LINE) != 1 or key not in logs:
+        raise Failure(f"the container's log does not say the key once: {logs[-800:]}")
+    status, headers, _ = ask(base + "/access", data=json.dumps({"key": key}).encode())
+    if not 200 <= status < 300 or "Set-Cookie" not in headers:
+        raise Failure(f"the key is not taken (status {status})")
+    if ask(base + "/", host="mynas.local")[0] != 200 or ask(base + "/", host="evil.example")[0] != 403:
+        raise Failure("NEOAPRS_ALLOWED_HOSTS is not followed")
+    health = json.loads(docker("inspect", "--format", "{{json .Config.Healthcheck.Test}}", name).stdout)
+    if health[0] != "CMD" or docker("exec", name, *health[1:], check=False).returncode != 0:
+        raise Failure(f"the health check {health} fails on a running daemon")
+    say(
+        "the page answers, asks for the key the log says once, takes it, answers to NEOAPRS_ALLOWED_HOSTS; the health check holds"
+    )
+    return base, key
+
+
+def check_a_frame(name: str) -> None:
+    docker("exec", "-d", name, "neoaprs", "replay", "--port", str(KISS_PORT), "--loop", "--interval", "0.5")
+
+    def heard() -> bool:
+        said = docker("exec", name, "neoaprs", "db", "packets", "-n", "1", check=False).stdout
+        return ">" in said and "-> " in said
+
+    until("a packet from the KISS TNC over TCP", heard)
+    say("a frame of the KISS TNC over TCP stand-in is heard")
+
+
+def stop(name: str) -> None:
+    started = time.monotonic()
+    docker("stop", "-t", str(STOP_SEC), name, timeout=STOP_SEC + 30)
+    took = time.monotonic() - started
+    code = docker("inspect", "--format", "{{.State.ExitCode}}", name).stdout.strip()
+    if code != "0" or took >= STOP_SEC:
+        raise Failure(f"docker stop took {took:.1f} s and the exit code is {code}")
+    say(f"it stops in {took:.1f} s with exit code 0")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("image", help="the image to check, as docker names it")
+    parser.add_argument("version", help="the version of NeoAPRS it holds")
+    parser.add_argument("--no-modems", action="store_true", help="the image's .deb holds neither Mercury nor Direwolf")
+    args = parser.parse_args(argv)
+    run = Run(args.image)
+    try:
+        check_the_image(run, args.version, not args.no_modems)
+        run.once("db", "radios", "add", "kiss", volume=True)
+        run.once("db", "set", "station/call", CALL, volume=True)
+        first = run.start("first")
+        _, key = check_the_page(run, first)
+        check_a_frame(first)
+        refused = docker("exec", first, "neoaprs", "service", "install", check=False)
+        if refused.returncode != 1 or "container" not in refused.stderr:
+            raise Failure(f"neoaprs service install is not refused: {refused.stdout}{refused.stderr}")
+        say("neoaprs service install is refused")
+        stop(first)
+        second = run.start("second")
+        until("the second container's page", lambda: ask(page_of(second) + "/")[0] == 200)
+        kept = [docker("exec", second, "neoaprs", "db", "get", k).stdout.strip() for k in ("station/call", "web/key")]
+        logs = docker("logs", second).stderr
+        if kept != [CALL, key] or KEY_LINE in logs:
+            raise Failure(f"the second container on the same volume has {kept}, or said the key again")
+        say("a second container on the same volume keeps the call and the key, and does not say the key again")
+        stop(second)
+    except (Failure, subprocess.TimeoutExpired) as e:
+        say(f"FAILED: {e}")
+        for name in run.names:
+            say(f"the log of {name}:\n{docker('logs', name, check=False).stderr[-3000:]}")
+        return 1
+    finally:
+        run.clean()
+    say("all checks passed")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

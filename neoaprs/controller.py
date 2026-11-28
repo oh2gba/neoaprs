@@ -156,7 +156,7 @@ class Controller(Services):
             log.warning(
                 "the radios could not be read (the log above says why): no radio runs, and no radio is added nor a station's radio stored until the next start"
             )
-        self.config = Config.from_data(rows, radios=radios or ())
+        self.config = self._fixed(Config.from_data(rows, radios=radios or ()))
         defaults = DEFAULTS.to_data()
         self._implied = {
             key
@@ -319,9 +319,13 @@ class Controller(Services):
         async with self.config_lock:
             return await self._save(change(self.config))
 
+    def _fixed(self, config: Config) -> Config:
+        """In a container the page is reached only through the network, so its switch stays on."""
+        return replace(config, web_network=True) if self.install.kind == "container" else config
+
     async def _save(self, config: Config) -> bool:
         """Store the changed rows in one transaction, then put the settings in force."""
-        config, kept = self.kept_change(self.config, config)
+        config, kept = self.kept_change(self.config, self._fixed(config))
         stored, data = set(self.config.changed(config)) | self._implied, config.to_data()
         rows = (
             {key: text for key, text in data.items() if key in stored and key in STATION_KEYS}

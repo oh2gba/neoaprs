@@ -17,6 +17,7 @@ NeoAPRS is in beta. We are looking for more users and testers: try it and [tell 
 - macOS (Apple silicon, macOS 14 or newer): [NeoAPRS-arm64.dmg](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg): drag NeoAPRS to Applications; the first time, right-click it and choose Open (the app is not signed by Apple)
 - Linux: [NeoAPRS-x86_64.AppImage](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage): make it executable and run it
 - Raspberry Pi: [neoaprs_arm64.deb](https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb); Debian and Ubuntu on a PC: [neoaprs_amd64.deb](https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_amd64.deb): `sudo apt install ./neoaprs_arm64.deb`, then `neoaprs service install --linger`
+- A Linux server, Raspberry Pi or NAS with Docker: `docker run -d --name neoaprs --init --restart unless-stopped -p 7303:7303 -v neoaprs-data:/data ghcr.io/oh2gba/neoaprs:latest`, then the access key with `docker logs neoaprs` ([USB and sound card radios](docs/manual/install.md#docker-linux))
 
 Each carries its own Python and the Mercury modem, and on Windows and Linux Direwolf for a packet radio on a sound card: nothing else to install.
 

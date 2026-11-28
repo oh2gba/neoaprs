@@ -51,8 +51,17 @@ def test_the_kind_follows_what_the_process_can_see_in_this_order(
     assert kind in INSTALL_KINDS
 
 
-def test_there_are_seven_kinds() -> None:
-    assert INSTALL_KINDS == ("windows-installer", "appimage", "macos-app", "deb", "uv-tool", "pip", "source")
+def test_there_are_eight_kinds() -> None:
+    assert INSTALL_KINDS == (
+        "windows-installer",
+        "appimage",
+        "macos-app",
+        "deb",
+        "uv-tool",
+        "pip",
+        "source",
+        "container",
+    )
 
 
 def test_the_macos_app_is_the_python_laid_out_as_resources_of_a_bundle_with_its_info_plist(tmp_path: Path) -> None:

@@ -42,6 +42,7 @@ from tests.support.fakeradio import FakeRadio
 from tests.support.ptyline import close_pty, feed as feed_pty, heard as heard_pty, make_pty
 from tests.support.radioconfig import TWO_RADIOS, with_radio
 from tests.support.wsclient import WsClient, connect
+from neoaprs.versions import PLAIN_INSTALL, InstallInfo
 from neoaprs.web.server import WebServer
 
 _live: list["Env"] = []
@@ -258,6 +259,7 @@ class Env:
         hf: FakeMercury | None = None,
         auto_map: bool = False,
         first_radio: bool = True,
+        install: InstallInfo = PLAIN_INSTALL,
         **tnc_options: Any,
     ) -> None:
         self.dir = tmp_path
@@ -322,6 +324,7 @@ class Env:
             auto_map=auto_map,
             hf_port=self.hf_link,
             lines={FM_ID: self.tnc, HF_ID: self.hf},
+            install=install,
         )
         # A modem's choice of a keying line never reads the operator's serial ports in a test
         self.ctl.radios.wire = _quieted(self.ctl.radios.wire)

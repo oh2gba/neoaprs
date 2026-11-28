@@ -161,6 +161,11 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.download_here": "Baixar o pacote para o seu computador na página da versão",
   "help.update.deb.install": "Instalar a partir da pasta onde você o baixou (pede a sua senha)",
   "help.update.deb.service": "O serviço reinicia sozinho. Se ainda mostrar a versão antiga:",
+  "help.update.container.new_image":
+    "Um contêiner é atualizado por uma nova imagem: seus ajustes e mensagens ficam no volume de dados dele",
+  "help.update.container.compose": "Iniciado com um arquivo compose: na pasta dele",
+  "help.update.container.run":
+    "Iniciado com docker run: baixe a imagem, depois remova o contêiner e rode a mesma linha de novo",
   "help.update.macos.download": "Baixar o novo app",
   "help.update.macos.replace":
     "Fechar o NeoAPRS, abrir o download e arrastar o NeoAPRS para Aplicativos no lugar do antigo",

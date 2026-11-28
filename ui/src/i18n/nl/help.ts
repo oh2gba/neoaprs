@@ -168,6 +168,11 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.install":
     "Installeer het vanuit de map waarin je het hebt gedownload (er wordt om je wachtwoord gevraagd)",
   "help.update.deb.service": "De service start vanzelf opnieuw. Toont hij nog de oude versie:",
+  "help.update.container.new_image":
+    "Een container wordt bijgewerkt met een nieuwe image: je instellingen en berichten blijven in het datavolume",
+  "help.update.container.compose": "Gestart met een compose-bestand: in de map ervan",
+  "help.update.container.run":
+    "Gestart met docker run: haal de image op, verwijder dan de container en voer dezelfde regel opnieuw uit",
   "help.update.macos.download": "Download de nieuwe app",
   "help.update.macos.replace":
     "Sluit NeoAPRS af, open de download en sleep NeoAPRS naar Apps, in de plaats van de oude",

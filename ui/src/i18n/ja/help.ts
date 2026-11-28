@@ -160,6 +160,10 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.download_here": "リリースページからお使いのコンピューター用のパッケージをダウンロード",
   "help.update.deb.install": "ダウンロードしたフォルダからインストールする(パスワードを聞かれます)",
   "help.update.deb.service": "サービスは自動で再起動します。まだ古いバージョンが表示される場合:",
+  "help.update.container.new_image":
+    "コンテナは新しいイメージで更新します。設定とメッセージはデータボリュームに残ります",
+  "help.update.container.compose": "compose ファイルで起動した場合: そのフォルダーで",
+  "help.update.container.run": "docker run で起動した場合: イメージを取得し、コンテナを削除して同じ行をもう一度実行",
   "help.update.macos.download": "新しいアプリをダウンロード",
   "help.update.macos.replace":
     "NeoAPRSを終了し、ダウンロードを開いて、NeoAPRSを古いものの代わりにアプリケーションへドラッグ",

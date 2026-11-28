@@ -118,6 +118,10 @@ if args[:2] == ["release", "upload"]:
     if name not in s["release"]["assets"]:
         s["release"]["assets"] = sorted(s["release"]["assets"] + [name])
     save(); sys.exit(0)
+if args[:2] == ["workflow", "run"]:
+    s["runs"].append({{"workflow": args[2], "databaseId": 100 + len(s["runs"]), "status": "queued", "conclusion": "", "attempt": 1, "headSha": "",
+                      "headBranch": flag("--ref"), "inputs": [a for a in args if a.startswith("tag=")], "url": "https://github.invalid/runs/" + str(100 + len(s["runs"]))}})
+    save(); sys.exit(0)
 if args[:2] == ["release", "edit"] and "--draft=false" in args:
     s["release"]["draft"] = False; save(); sys.exit(0)
 if args[:2] == ["release", "view"]:
@@ -236,6 +240,7 @@ class Rig:
             "ci.yml": {"plan": ["success"]},
             "realmodems.yml": {"plan": ["success"]},
             "release.yml": {"plan": ["success"]},
+            "container.yml": {"plan": []},
             "release": {"made": False, "draft": True, "assets": ASSETS, "files": {**CONTENTS, "SHA256SUMS": SUMS}},
         }
         self.save_state()
@@ -373,6 +378,8 @@ class Rig:
             elif line.startswith("gh run watch"):
                 run = next(r for r in self.load_state()["runs"] if str(r["databaseId"]) == line.split()[3])
                 out.append(f"watch {run['workflow']}")
+            elif line.startswith("gh workflow run"):
+                out.append("dispatch " + line.split()[3])
             elif line.startswith("gh run rerun"):
                 out.append("rerun")
             elif line.startswith("gh release view"):
@@ -444,6 +451,8 @@ FULL_RUN = [
     "watch release.yml",
     *SIGN,
     *VERIFY,
+    "list container.yml",
+    "dispatch container.yml",
 ]
 
 
@@ -471,7 +480,7 @@ def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one
     assert done.returncode == 0, done.stdout + done.stderr
     assert rig.kinds() == FULL_RUN
     assert_released(rig)
-    steps = re.findall(r"^\[(\d+)/15\] (\w+):", done.stdout, flags=re.M)
+    steps = re.findall(r"^\[(\d+)/16\] (\w+):", done.stdout, flags=re.M)
     assert [name for _, name in steps] == [
         "checks",
         "switches",
@@ -487,6 +496,7 @@ def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one
         "release",
         "sign",
         "verify",
+        "image",
         "deploy",
     ]
     assert (
@@ -566,10 +576,23 @@ def test_a_dry_run_says_what_a_finished_release_has_done_already(rig: Rig) -> No
     assert done.returncode == 0, done.stdout
     assert (
         "skipped: VERSION is written already" in done.stdout
-        and "skipped" in done.stdout.split("[8/15]")[1]
+        and "skipped" in done.stdout.split("[8/16]")[1]
         and "is on origin/master" in done.stdout
         and f"{TAG} is on" in done.stdout
     )
+
+
+def test_the_published_release_starts_the_run_of_its_container_image_on_its_own_tag_once(rig: Rig) -> None:
+    done = rig.release()
+    assert done.returncode == 0, done.stdout + done.stderr
+    started = [r for r in rig.load_state()["runs"] if r["workflow"] == "container.yml"]
+    assert [(r["headBranch"], r["inputs"]) for r in started] == [(TAG, [f"tag={TAG}"])]
+    assert rig.calls().index(f"gh workflow run container.yml --ref {TAG} -f tag={TAG}") > rig.calls().index(
+        f"gh release edit {TAG} --draft=false"
+    ), "after the release is published"
+    again = rig.release()
+    assert again.returncode == 0 and rig.kinds().count("dispatch container.yml") == 1, "a run again starts none"
+    assert "would start" in rig.release("--dry-run").stdout
 
 
 def test_deploy_runs_the_deploy_script_at_the_end_only_when_asked(rig: Rig) -> None:
@@ -685,7 +708,7 @@ def test_a_dry_run_names_what_a_real_run_would_refuse_and_goes_on_with_the_steps
     assert (
         done.returncode == 1
         and "WOULD REFUSE: not on master (on feature)" in done.stdout
-        and "[15/15] deploy" in done.stdout
+        and "[16/16] deploy" in done.stdout
         and "the dry run found" in done.stdout
     )
 
@@ -974,6 +997,8 @@ def test_a_fix_after_a_failed_ci_run_makes_head_the_release_and_the_tag_goes_on_
         "watch release.yml",
         *SIGN,
         *VERIFY,
+        "list container.yml",
+        "dispatch container.yml",
     ], "no second check, no second commit, no push of master"
     assert set(commit_args(rig)) == {head}, "CI is looked for by the full sha of HEAD"
     assert (
@@ -1291,6 +1316,6 @@ def test_a_dry_run_asks_for_the_switches_and_names_the_one_that_is_off(rig: Rig)
         done.returncode == 1
         and "WOULD REFUSE: a switch of the repository on GitHub is not on: code scanning (default setup) is off"
         in done.stdout
-        and "[15/15] deploy" in done.stdout
+        and "[16/16] deploy" in done.stdout
     )
     assert rig.changed() == before and len(api_calls(rig)) == 5 and all(c.startswith("gh api ") for c in rig.calls())

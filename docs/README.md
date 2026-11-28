@@ -7,7 +7,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `README.md` | the front page: what NeoAPRS is, how to download, run and try it |
 | `docs/MANUAL.md` | a pointer to docs/manual, for links to the manual's old place |
 | `docs/manual/README.md` | the manual for the person who runs NeoAPRS: what it is, the contents, a few words |
-| `docs/manual/install.md` | installing on Windows, macOS, Linux and the Raspberry Pi, starting at login, updating, the update check |
+| `docs/manual/install.md` | installing on Windows, macOS, Linux and the Raspberry Pi, the Docker image, starting at login, updating, the update check |
 | `docs/manual/start.md` | the first start, the setup guide, the data folder, how settings apply, trying it without a radio, stopping |
 | `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, [the Layers box](manual/page.md#layers) (tracks, the ALOHA circle, the locator grid, satellites, aircraft and ships), the station cards, the header, phone, tablet and desktop, the base map |
 | `docs/manual/desktop.md` | the desktop app: the window, the tray, start at sign-in |
