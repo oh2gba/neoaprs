@@ -444,6 +444,12 @@ a stall, so that a burst during a busy moment is none; the modem is started agai
 restart of a program that ended, never while it keys the radio, at most every 10 minutes. A stall
 right after three restarts in an hour is not cured by restarting, so the program is ended with a
 reason the page shows: a deaf modem would also send over others, its busy detector hearing nothing.
+A run whose engine never came up fills the buffer as well: one that could not set up its keying
+waits for ever on its audio threads (the buffer is full 384 s after the start), and one whose
+control port never answered runs no demodulator. Neither is a stall; the first is ended at once and
+started again at the back-off of a start, without end, since a restart of the stall cannot help it.
+The counts of stalls and restarts cover every start in one run of the daemon, so that the support
+file tells the truth after an off and on.
 
 The hold is the carrier sense this plane lacks. While Mercury keys the radio (`PTT ON` until
 `PTT OFF`) no frame is handed to it, so frames go one at a time and the services' pace counts from a
@@ -460,6 +466,18 @@ Dummy radio the program keys nothing and plays through the system's player; the 
 to it.
 On Windows Mercury writes a log file of its own beside its program unless `-L` names one, and an
 install for all users cannot write there, so it is given the radio's folder; Mercury rotates the file.
+
+## neoaprs/mercuryruns.py
+
+The daemon talks only to the Mercury it started. A program on Mercury's own pair, most likely a
+Mercury the operator runs, holds the radio's keying port too, so a second one beside it would only
+fight it; it is not started, and the radio waits with one reason until the pair is free or the
+operator gives the radio the type for his own Mercury. Before each connect of the control line, and
+before the KISS line opens, every listener on the two ports must be the child or one of its
+children (a launcher on Windows runs the program as its child); the operator's own Mercury, reached
+at the address he gave, is not asked. The frame path asks `frame_hold`, which holds every frame while
+the modem does not run, and the KISS line follows the modem's state, so a radio whose modem is down
+neither sends nor looks connected.
 
 ## neoaprs/mercuryscope.py
 
@@ -1460,6 +1478,16 @@ daemon's end and its start.
 `neoaprs.migrating`: written every few seconds while the database is migrated and deleted at the end. Waiters (`neoaprs open`,
 the desktop app) wait while it is fresh; one left by a kill goes stale by itself. The migration also holds the lock
 `neoaprs.migrate.lock` (released by the system whenever its process ends), so a second NeoAPRS waits to migrate the same file.
+
+## neoaprs/tcplisten.py
+
+Windows has no /proc, and a bind on 127.0.0.1 beside a listener on every address can succeed there,
+so the port probe alone cannot see another program's Mercury. iphlpapi's `GetExtendedTcpTable` with
+`TCP_TABLE_OWNER_PID_LISTENER` lists every listener with its process; the table's port is in
+network order in the low two bytes of its DWORD. On Linux the kernel's table gives the socket inode,
+and only the sockets of the process asked about (and its children) are given an owner, which keeps
+the look at /proc to one process. macOS has no table to read and every question there is answered
+with none.
 
 ## neoaprs/tnc.py
 
