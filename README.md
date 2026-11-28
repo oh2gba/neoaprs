@@ -1,12 +1,12 @@
 # NeoAPRS
 
-See who is on the air around you, chat with other hams and know your message arrived. Use every radio you have at once: packet on VHF and HF, Mercury and LoRa. No internet needed, and it is free.
+See who is on the air around you, send messages and know they arrived. NeoAPRS uses every radio you have at the same time: Packet on VHF and HF, Mercury on HF, and LoRa. It needs no internet, and it is free.
 
-NeoAPRS is an APRS client for Windows, macOS, Linux and the Raspberry Pi. It runs as a desktop app, or as a service next to the radio that you open from a laptop, a tablet or a phone.
+It is an APRS client for Windows, macOS, Linux and the Raspberry Pi. It runs as a desktop app, or as a service next to the radio that you open from a laptop, a tablet or a phone.
 
-NeoAPRS is in beta. We are looking for more users and testers: try it and [tell us what you find](mailto:neo@oh2gba.eu).
+NeoAPRS is in beta, and we are looking for more users and testers. Try it and [tell us what you find](mailto:neo@oh2gba.eu).
 
-**Project page: [neo.oh2gba.eu](https://neo.oh2gba.eu)**, with screenshots and downloads.
+**Project page: [neo.oh2gba.eu](https://neo.oh2gba.eu)**, with screenshots, downloads and [what the three signals sound like](https://neo.oh2gba.eu/signals.html).
 
 | ![The map](docs/screenshots/map.png) | ![Messages](docs/screenshots/messages.png) |
 |---|---|
@@ -32,7 +32,9 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - **Objects and items** of your own on the map
 - **Layers** on the map: the ISS and the APRS satellites with their next pass, aircraft, ships, tracks, the locator grid, and day and night
 - **Weather** stations with 24 hour and 7 day graphs
-- **APRS over HF** with the Mercury modem built in: the waterfall of the channel, Tune and Test, and **HF tests**, a board where you say when you will be on the air
+- **APRS over HF** with the Mercury modem built in: the waterfall of the channel, Tune and Test
+- **HF tests**: a board where you say when you will be on the air, and a chat with the others who use it
+- **PSK Reporter**: the stations your Mercury radio hears can be reported to [pskreporter.info](https://pskreporter.info)
 - **A fill-in digipeater**, digipeating between two of your radios, and an **iGate** with two ticks, Send what I hear and Show Internet stations, all optional
 - **A page for a phone, a tablet and a desktop**, in nine languages, with metric or non-metric units
 
@@ -42,11 +44,11 @@ Packet on VHF and UHF: any radio with a sound-card interface (Digirig, AIOC, Sig
 
 Packet on HF: an SSB radio with a sound-card interface and the 300 baud modem of the Direwolf that comes with NeoAPRS, or a TNC ticked On HF.
 
-Mercury: an SSB radio with a USB sound card or an interface (a Digirig, a SignaLink, the radio's own USB audio) and the [Mercury](https://github.com/Rhizomatica/mercury) modem that comes with NeoAPRS. The suggested frequencies are on the [project page](https://neo.oh2gba.eu/#hf). Read more: [the article](https://neo.oh2gba.eu/aprs-below-the-noise.html), [the one-page summary](https://neo.oh2gba.eu/aprs-over-hf-one-page.html), [the technical note](https://neo.oh2gba.eu/aprs-over-hf-mercury.html) and [the first test on the air](https://neo.oh2gba.eu/first-test.html).
+Mercury: an SSB radio with a USB sound card or an interface (a Digirig, a SignaLink, the radio's own USB audio) and the [Mercury](https://github.com/Rhizomatica/mercury) modem that comes with NeoAPRS, or a Mercury you run yourself. The suggested frequencies are on the [project page](https://neo.oh2gba.eu/#hf). Read more: [the article](https://neo.oh2gba.eu/aprs-below-the-noise.html), [the one-page summary](https://neo.oh2gba.eu/aprs-over-hf-one-page.html), [the technical note](https://neo.oh2gba.eu/aprs-over-hf-mercury.html) and [the first test on the air](https://neo.oh2gba.eu/first-test.html).
 
 LoRa: ESP32 boards with the CA2RXU iGate or Tracker, DL9SAU's tracker or esp32_loraprs, on the network, USB or Bluetooth.
 
-A GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the setup of each.
+A GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the setup of each, and there are notes for the Yaesu [FTX-1](https://neo.oh2gba.eu/yaesu-ftx-1.html) and [FTDX101](https://neo.oh2gba.eu/yaesu-ftdx101.html).
 
 ## Getting help
 
