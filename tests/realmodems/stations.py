@@ -299,6 +299,18 @@ def crossed(page: StationPage, after: int, sender: str, kind: str) -> list[dict[
     return [p for p in page.packets(after, direction="in", sender=sender, kind=kind) if f"{PAIR_CALL}*" in p["path"]]
 
 
+async def heard_over_the_pair(world: World, sender: str, hearer: str) -> None:
+    """`hearer` hears a beacon of `sender` by way of the pair's call: a station on an HF radio has no path of
+    its own and answers by the way it heard (prefbook.path_for)."""
+    page, far = world[sender], world[hearer]
+    await page.set_config({"radio/1/path": PAIR_CALL})
+    after = far.last_packet()
+    await page.send({"cmd": "beacon_now"})
+    await far.until(
+        f"{hearer} hearing {sender} over the pair", lambda: bool(crossed(far, after, sender, "position")), CROSS_SEC
+    )
+
+
 async def exchange(world: World, sender: str, addressee: str, text: str) -> None:
     """`sender` sends `text` to `addressee` by way of the pair's call; it arrives and its ack comes back."""
     page, far = world[sender], world[addressee]

@@ -23,6 +23,7 @@ from tests.realmodems.stations import (
     World,
     crossed,
     exchange,
+    heard_over_the_pair,
     programs,
     read_machine,
     refusal,
@@ -60,8 +61,7 @@ async def test_a_message_from_a_reaches_b_over_mercury_and_bs_ack_comes_back(wor
 
 
 async def test_a_message_from_b_reaches_a_over_the_gateway_and_as_ack_comes_back(world: World) -> None:
-    # B's own path to A by the pair's call: B has not heard A yet when this test runs first
-    await world[B.call].set_path(A.call, PAIR_CALL)
+    await heard_over_the_pair(world, A.call, B.call)  # (B answers by the way it heard A, whatever ran before)
     await exchange(world, B.call, A.call, "realmodems B to A")
 
 
