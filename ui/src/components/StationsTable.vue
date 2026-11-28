@@ -242,8 +242,9 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" />
             </td>
             <td class="mono strong call">
-              <span class="callname">{{ row.call }}</span
-              ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
+              <span class="callname">{{ row.call }}</span><AlertBell
+                :alert="prefs.alerts.value.get(row.call)"
+              /><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
               <TagMark

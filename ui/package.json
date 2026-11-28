@@ -19,31 +19,31 @@
     "protocol": "uv run --frozen python ../scripts/gen-protocol.py"
   },
   "dependencies": {
-    "maplibre-gl": "6.14.0",
+    "maplibre-gl": "6.20.0",
     "pmtiles": "4.5.0",
     "uqr": "0.1.3",
-    "vue": "3.5.44"
+    "vue": "3.5.46"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
-    "@types/node": "22.20.5",
-    "@vitejs/plugin-vue": "6.0.10",
-    "@vitest/coverage-v8": "5.0.5",
-    "@vue/test-utils": "2.4.6",
+    "@types/node": "22.20.7",
+    "@vitejs/plugin-vue": "6.0.11",
+    "@vitest/coverage-v8": "5.1.2",
+    "@vue/test-utils": "2.6.0",
     "eslint": "9.39.5",
     "eslint-config-prettier": "9.1.2",
-    "eslint-plugin-vue": "10.11.1",
-    "globals": "17.13.0",
+    "eslint-plugin-vue": "10.12.1",
+    "globals": "17.14.0",
     "happy-dom": "21.0.4",
-    "jscpd": "5.4.2",
-    "knip": "6.42.1",
-    "prettier": "3.9.10",
-    "typescript": "5.6.3",
-    "typescript-eslint": "8.73.0",
-    "vite": "6.4.5",
-    "vitest": "5.0.5",
-    "vue-eslint-parser": "10.4.1",
-    "vue-tsc": "2.1.10"
+    "jscpd": "5.4.3",
+    "knip": "6.49.0",
+    "prettier": "3.10.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.74.0",
+    "vite": "6.4.6",
+    "vitest": "5.1.2",
+    "vue-eslint-parser": "10.4.2",
+    "vue-tsc": "2.2.12"
   },
   "overrides": {
     "minimatch@>=7.0.0 <11.0.1": "11.0.9"
