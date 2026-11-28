@@ -36,8 +36,15 @@ tbody tr:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
-.input.invalid {
+.input.invalid,
+.input[aria-invalid="true"] {
   border-color: var(--bad);
+}
+/* a wrong field keeps its mark while typed in: the focus ring takes the wrong border's colour */
+.input.invalid:focus-visible,
+.field.invalid .input:focus-visible,
+.input[aria-invalid="true"]:focus-visible {
+  outline-color: var(--bad);
 }
 /* The one text button: --control-h high like the inputs and selects beside it, filled (.primary,
    .danger) or not. Only .small is lower (--control-h-small), and only where the button sits in
