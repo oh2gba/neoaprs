@@ -3,12 +3,14 @@ own, below every system's ephemeral range and the tests' modems, and no real mod
 port is taken only when it and the ports after it that the page and its secure side try are free."""
 
 import socket
+import sys
+from pathlib import Path
 
 import pytest
 
 from neoaprs import nodevices
 from neoaprs.web.listen import PORT_TRIES
-from tests.support import webports
+from tests.support import modemports, webports
 
 
 def block(worker: int) -> set[int]:
@@ -63,3 +65,17 @@ def test_a_port_another_run_listens_on_is_not_handed_out(monkeypatch: pytest.Mon
     finally:
         for s in held:
             s.close()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="locks of the lanes: POSIX")
+def test_two_runs_of_the_suite_on_one_machine_take_two_lanes_of_ports_for_the_same_worker(tmp_path: Path) -> None:
+    """The stop/start flake of round 20: another run's worker of the same number had the same ports."""
+    first, held = modemports.claim_lane(3, tmp_path)
+    second, other = modemports.claim_lane(3, tmp_path)
+    assert (first, second) == (3, 4) and held is not None and other is not None
+    held.close()
+    third, again = modemports.claim_lane(3, tmp_path)
+    assert third == 3, "a lane is free again once its run is gone"
+    for lock in (other, again):
+        assert lock is not None
+        lock.close()
