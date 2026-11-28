@@ -12,7 +12,14 @@ from neoaprs.rigkeyer import RIG_SILENT
 from tests.support import fakedirewolf
 from tests.support.env import until, until_started
 from tests.support.fakerig import FakeFlrig, FakeRigctld
-from tests.test_direwolf_modem import CARD, _ports_of_this_test as _ports_of_this_test, kiss_send, modem, running
+from tests.test_direwolf_modem import (
+    CARD,
+    _ports_of_this_test as _ports_of_this_test,
+    _winmm_numbers_of_the_made_up_cards as _winmm_numbers_of_the_made_up_cards,
+    kiss_send,
+    modem,
+    running,
+)
 
 FAKES = pytest.mark.parametrize("fake_kind", [FakeFlrig, FakeRigctld], ids=["flrig", "rigctld"])
 
