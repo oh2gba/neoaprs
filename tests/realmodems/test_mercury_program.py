@@ -90,8 +90,9 @@ async def test_a_frame_keys_the_sender_and_the_receiver_says_busy_and_its_snr_an
     await b.until("the frame", lambda: PAYLOAD in b.frames, FRAME_SEC)
     await b.until("SN", lambda: bool(b.seen("snr", after=b_after)), FRAME_SEC)
     # BUSY OFF is not waited for: on the cable's digital silence Mercury's floor does not settle,
-    # and the daemon ends a long BUSY itself (BUSY_HOLD_MAX_SEC)
-    await b.until("BUSY ON", lambda: bool(b.seen("busy", True, b_after)), FRAME_SEC)
+    # and the daemon ends a long BUSY itself (BUSY_HOLD_MAX_SEC); so the receiver may have said BUSY ON
+    # already as it started, and the state it says last is what is held
+    await b.until("BUSY ON", lambda: bool(b.seen("busy")) and b.seen("busy")[-1].on, FRAME_SEC)
     assert all(e.value is not None for e in b.seen("snr", after=b_after))
 
 

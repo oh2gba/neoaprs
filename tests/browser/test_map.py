@@ -145,15 +145,18 @@ def test_two_satellite_cards_stay_inside_the_map_and_hold_together(browser: Any,
       return m.queryRenderedFeatures({ layers: ['satellites'] }).map(f => { const p = m.project(f.geometry.coordinates);
         return { id: f.properties.id, x: p.x + c.x, y: p.y + c.y }; })
         .filter(p => p.x > c.left + 40 && p.x < c.right - 40 && p.y > c.top + 40 && p.y < c.bottom - 40); }"""
+    # Where the satellites are depends on the hour: each is brought into the map's middle before its click
+    drawn = """() => Object.fromEntries(window.__neoMaps[0].queryRenderedFeatures({ layers: ['satellites'] })
+      .map(f => [f.properties.id, f.geometry.coordinates]))"""
     with drive.opened(browser, demo.url, faults, width=1280, stored=stored) as page:
-        page.wait_for_function(f"() => new Set(({marks})().map(m => m.id)).size >= 2")
-        opened: list[int] = []
-        for _ in range(2):
-            # (a satellite whose card is not open yet)
-            one = next(m for m in page.evaluate(marks) if m["id"] not in opened)
-            opened.append(one["id"])
-            page.evaluate(CLICK, ["satellites", "id", one["id"]])
-            page.wait_for_function("id => document.querySelector(`.satcard[data-satellite='${id}']`)", arg=one["id"])
+        page.wait_for_function(f"() => Object.keys(({drawn})()).length >= 2")
+        places = page.evaluate(drawn)
+        for key in sorted(places)[:2]:
+            one = int(key)
+            page.evaluate("at => window.__neoMaps[0].jumpTo({ center: at })", places[key])
+            page.wait_for_function(f"id => ({marks})().some(m => m.id === id)", arg=one)
+            page.evaluate(CLICK, ["satellites", "id", one])
+            page.wait_for_function("id => document.querySelector(`.satcard[data-satellite='${id}']`)", arg=one)
             drive.settle(page)
         outside = page.evaluate(
             """() => { const map = document.querySelector('.mapwrap').getBoundingClientRect();
