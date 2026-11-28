@@ -139,7 +139,7 @@ async def until_served(e: Env, name: str) -> None:
     async def served() -> bool:
         return name in await names_served(e)
 
-    await until_async(served, 5.0)
+    await until_async(served)
 
 
 def names_of(cert: x509.Certificate) -> set[str]:
@@ -253,7 +253,7 @@ async def test_a_request_line_with_an_absolute_address_is_not_sent_anywhere(tmp_
     writer.write(
         f"GET http://evil.example/x?y=1 HTTP/1.1\r\nHost: {LAN}:{e.port}\r\nConnection: close\r\n\r\n".encode()
     )
-    head = (await asyncio.wait_for(reader.read(), 5)).decode("latin-1")
+    head = (await asyncio.wait_for(reader.read(), 30)).decode("latin-1")
     writer.close()
     assert " 404 " in head.splitlines()[0]
     assert not any(line.lower().startswith("location:") for line in head.splitlines())

@@ -276,7 +276,7 @@ def test_holders_looks_through_a_link_to_the_device(ptys: Ptys, tmp_path: Path) 
 _SAME_NUMBER = (
     "import os, sys, time\nkept = [os.openpty()]\n"
     "while os.ttyname(kept[-1][1]) != sys.argv[1] and len(kept) < 300:\n    kept.append(os.openpty())\n"
-    "print(os.ttyname(kept[-1][1]), flush=True)\ntime.sleep(60)\n"
+    "print(os.ttyname(kept[-1][1]), flush=True)\ntime.sleep(600)\n"
 )
 
 
@@ -452,4 +452,4 @@ async def test_probe_never_touches_a_path_in_skip_whether_it_is_named_by_the_dev
 
 async def test_probe_with_every_path_skipped_finds_nothing_at_once(ptys: Ptys) -> None:
     _, path = ptys()
-    assert await asyncio.wait_for(probe([path], 9600, None, lambda data: True, skip=[path]), 1.0) is None
+    assert await asyncio.wait_for(probe([path], 9600, None, lambda data: True, skip=[path]), 30) is None

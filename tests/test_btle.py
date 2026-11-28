@@ -33,6 +33,7 @@ from tests.support.fakeble import (
     FakeBle,
     FakeBleakError,
 )
+from tests.support.patience import poll
 
 URL = f"ble://{ADDRESS}"
 
@@ -290,9 +291,7 @@ def test_what_the_device_notifies_is_read_in_the_order_it_came(monkeypatch: pyte
     try:
         ble.feed(b"abc")
         ble.feed(b"def")
-        deadline = time.monotonic() + 5
-        while ser.in_waiting < 6 and time.monotonic() < deadline:
-            time.sleep(0.01)
+        poll(lambda: ser.in_waiting >= 6, "the six bytes")
         assert ser.in_waiting == 6
         assert ser.read(4) == b"abcd" and ser.in_waiting == 2 and ser.read(10) == b"ef", (
             "(read ends with the time, not with the size)"
@@ -584,7 +583,7 @@ def test_a_write_that_is_cancelled_is_an_error_and_the_next_write_works(monkeypa
         thread.start()
         wait_for(lambda: ser._writing is not None)
         ser.cancel_write()
-        thread.join(5)
+        thread.join(30)
         assert len(failed) == 1 and "the write was cancelled" in str(failed[0])
         ble.hold_writes = False
         assert ser.write(b"y") == 1 and ble.writes[-1][0] == b"y"

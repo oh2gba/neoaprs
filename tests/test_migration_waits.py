@@ -25,6 +25,7 @@ from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, open_database
 from neoaprs.stopfile import MIGRATE_LOCK_NAME, MIGRATING_FRESH_SEC, MIGRATING_NAME, MigratingNote, migrating
 from neoaprs.store import DB_NAME
 from tests.support.migrated import opened
+from tests.support.patience import poll
 
 URL = "http://127.0.0.1:7303/"
 WAITS = "is being brought up to date by another NeoAPRS"
@@ -118,10 +119,7 @@ def test_the_note_is_written_again_while_it_is_held_and_one_a_kill_left_goes_sta
     old = time.time() - MIGRATING_FRESH_SEC - 5
     os.utime(note.path, (old, old))
     assert not migrating(tmp_path)
-    deadline = time.monotonic() + 10
-    while not migrating(tmp_path) and time.monotonic() < deadline:
-        time.sleep(0.01)
-    assert migrating(tmp_path), "the thread of the note writes it again"
+    poll(lambda: migrating(tmp_path), "the thread of the note writes it again")
     note.stop()
     note.stop()
     assert not note.path.exists()

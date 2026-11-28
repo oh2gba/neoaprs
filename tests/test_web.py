@@ -886,7 +886,7 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(
     reader, writer = await asyncio.open_connection("127.0.0.1", e.port)
     try:
         writer.write(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
-        answer = await asyncio.wait_for(reader.read(100), 5)
+        answer = await asyncio.wait_for(reader.read(100), 30)
     # Windows may tell a connection the server closed as a reset
     except ConnectionResetError:
         answer = b""
@@ -1258,7 +1258,7 @@ async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_t
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
     await page.until(lambda: any("OH2RCH-2,WIDE2-1" in r["tnc2"] for r in page.topics["packets"].values()))
     await page.send({"cmd": "set_station_path", "call": "OH2XYZ", "path": "DIRECT"})
-    await page.until(lambda: page.topics["station_prefs"].get("OH2XYZ") == pref(""), timeout=5)
+    await page.until(lambda: page.topics["station_prefs"].get("OH2XYZ") == pref(""), timeout=30)
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: "OH2RDG" not in page.topics["station_prefs"])
     assert page.topics["station_prefs"] == {"OH2XYZ": pref("")} and [op["op"] for op in page.ops("station_prefs")] == [

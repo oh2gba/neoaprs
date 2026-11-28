@@ -99,7 +99,7 @@ class FakeRelease:
         target.write_bytes(self.body[:half])
         progress(half, len(self.body))
         if self.gate is not None:
-            self.gate.wait(5)
+            self.gate.wait(30)
         if cancelled.is_set():
             raise Cancelled()
         target.write_bytes(self.body)

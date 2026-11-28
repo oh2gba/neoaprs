@@ -36,7 +36,7 @@ async def start(replay: Replay) -> tuple["asyncio.Task[None]", int]:
     port: asyncio.Future[int] = asyncio.get_running_loop().create_future()
     replay.ready = port.set_result
     task = asyncio.create_task(replay.run())
-    return task, await asyncio.wait_for(port, 5)
+    return task, await asyncio.wait_for(port, 30)
 
 
 async def stop(task: "asyncio.Task[None]") -> None:
@@ -85,7 +85,7 @@ async def test_nothing_is_sent_until_a_client_is_there_and_the_frames_go_on_for_
         await idle_for(0.2)
         assert replay.sent == 0
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
-        first = await asyncio.wait_for(reader.readexactly(len(FRAMES[0])), 5)
+        first = await asyncio.wait_for(reader.readexactly(len(FRAMES[0])), 30)
         assert first == FRAMES[0]
         writer.close()
         await writer.wait_closed()
@@ -96,7 +96,7 @@ async def test_nothing_is_sent_until_a_client_is_there_and_the_frames_go_on_for_
         await idle_for(0.3)
         assert replay.sent == sent, "with nobody connected it waits where it was"
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
-        again = await asyncio.wait_for(reader.readexactly(len(FRAMES[sent])), 5)
+        again = await asyncio.wait_for(reader.readexactly(len(FRAMES[sent])), 30)
         assert again == FRAMES[sent], "and goes on from there when somebody connects"
         writer.close()
         await writer.wait_closed()
@@ -113,7 +113,7 @@ async def test_with_loop_the_file_starts_again_and_what_the_daemon_writes_is_sho
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         data = b""
         while len(kiss.KissDecoder().feed(data)) < 9:
-            data += await asyncio.wait_for(reader.read(4096), 5)
+            data += await asyncio.wait_for(reader.read(4096), 30)
         writer.write(b"\rKISS ON\r")
         await writer.drain()
         shown = ""

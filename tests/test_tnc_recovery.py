@@ -56,7 +56,7 @@ async def test_a_silent_radio_that_is_switched_on_is_connected_again_without_a_c
     r, _ = await silent_rig(rig)
     assert r.tnc.state is Source.State.SILENT and r.tnc.usable is False
     r.radio.feed(kiss_of(ui_frame()))  # the radio is switched on and sends a packet
-    await until(lambda: r.tnc.state is Source.State.CONNECTED and r.tnc.usable, 3.0)
+    await until(lambda: r.tnc.state is Source.State.CONNECTED and r.tnc.usable)
     assert len(r.packets) == 1 and r.tnc.silent_since is None and r.tnc.stats.opens == 1, (
         "the same open line: nothing was restarted"
     )
@@ -68,9 +68,9 @@ async def test_a_silent_radio_whose_adapter_was_plugged_in_again_is_connected_ag
     r.radio.drop()  # the cable is pulled while the radio is silent
     await until(lambda: r.tnc.state is Source.State.WAITING)
     # The radio listens still: the adapter is back
-    await until(lambda: r.tnc.state in (Source.State.CONNECTED, Source.State.SILENT) and r.tnc.stats.opens == 2, 5.0)
+    await until(lambda: r.tnc.state in (Source.State.CONNECTED, Source.State.SILENT) and r.tnc.stats.opens == 2)
     r.radio.feed(kiss_of(ui_frame()))
-    await until(lambda: r.tnc.state is Source.State.CONNECTED and len(r.packets) == 1, 3.0)
+    await until(lambda: r.tnc.state is Source.State.CONNECTED and len(r.packets) == 1)
 
 
 # ---- a port that goes away and comes back
@@ -314,7 +314,7 @@ class Identifying:
     def identity_of(self, path: str) -> AdapterId | None:
         self.asked.append(path)
         self.started.set()
-        self.go.wait(5.0)
+        self.go.wait(30)
         return None
 
 

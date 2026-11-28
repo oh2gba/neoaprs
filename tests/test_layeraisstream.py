@@ -87,7 +87,7 @@ async def test_a_wrong_key_shows_the_refused_state_and_is_not_tried_again_soon(
     e, tab, server = await started(tmp_path, monkeypatch, key=WRONG_KEY)
     await tab.send({"cmd": "layer_look", "layer": "ships", "on": True})
     await tab.until(lambda: tab.topics["map"]["layers"][1]["problem"] == "key_refused", 15.0)
-    await tab.until(lambda: any(m["type"] == "layer_things" and m["away"] for m in tab.messages), 5.0)
+    await tab.until(lambda: any(m["type"] == "layer_things" and m["away"] for m in tab.messages))
     await tab.quiet(1.5)
     assert server.connections == layeraisstream.SILENT_CLOSES, "closed at once without a word, then not again soon"
     assert WRONG_KEY not in caplog.text

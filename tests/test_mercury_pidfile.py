@@ -206,7 +206,7 @@ def _sleeper(tmp_path: Path, *args: str, term_sec: float = 0.0) -> "subprocess.P
     """A process that runs for a minute with these arguments after its own code, and takes
     `term_sec` to end when it is asked to."""
     ready = tmp_path / f"ready-{len(list(tmp_path.iterdir()))}"
-    code = f"import signal, sys, time\ndef term(*_):\n    time.sleep({term_sec})\n    sys.exit(0)\nsignal.signal(signal.SIGTERM, term)\nopen({str(ready)!r}, 'w').write('up')\ntime.sleep(60)\n"
+    code = f"import signal, sys, time\ndef term(*_):\n    time.sleep({term_sec})\n    sys.exit(0)\nsignal.signal(signal.SIGTERM, term)\nopen({str(ready)!r}, 'w').write('up')\ntime.sleep(600)\n"
     process = subprocess.Popen([sys.executable, "-c", code, *args])
     deadline = time.monotonic() + 30
     while not ready.exists() and time.monotonic() < deadline:
@@ -289,11 +289,11 @@ async def test_a_stop_that_ends_after_the_next_run_wrote_the_file_leaves_that_ru
     has written its own id in the file meanwhile, and the stop must not remove it."""
     pid_file = tmp_path / PID_FILE
     program = Program(lambda exit_code, lines: None)
-    program.start([sys.executable, "-c", "import time; time.sleep(60)"], tmp_path, pid_file)
+    program.start([sys.executable, "-c", "import time; time.sleep(600)"], tmp_path, pid_file)
     pid_file.write_text("424242", encoding="ascii")  # (the next run's)
     await asyncio.to_thread(program.stop)
     assert pid_file.read_text(encoding="ascii") == "424242"
-    program.start([sys.executable, "-c", "import time; time.sleep(60)"], tmp_path, pid_file)
+    program.start([sys.executable, "-c", "import time; time.sleep(600)"], tmp_path, pid_file)
     await asyncio.to_thread(program.stop)
     assert not pid_file.exists(), "its own file goes with it"
 
@@ -319,7 +319,7 @@ async def test_a_program_that_does_not_end_at_the_first_request_is_asked_a_secon
         "        sys.exit(0)\n"
         "signal.signal(signal.SIGTERM, term)\n"
         "open(ready, 'w').write('up')\n"
-        "time.sleep(60)\n"
+        "time.sleep(600)\n"
     )
     program = Program(lambda exit_code, lines: None)
     program.start([sys.executable, "-c", code], tmp_path, tmp_path / PID_FILE)

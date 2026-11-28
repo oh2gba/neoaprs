@@ -151,7 +151,7 @@ async def test_a_gpsd_that_falls_silent_without_hanging_up_is_taken_for_gone_and
     # (the socket is open, nothing comes: a peer that vanished)
     await until(lambda: feed.state is Source.State.WAITING and "sent nothing for 0.2 s" in feed.problem)
     # (connected to again, and asked again to watch)
-    await until(lambda: sum(line.startswith("?WATCH=") for line in gpsd.received) >= 2, 3.0)
+    await until(lambda: sum(line.startswith("?WATCH=") for line in gpsd.received) >= 2)
 
 
 async def test_the_connection_to_gpsd_asks_the_system_to_find_a_dead_peer() -> None:
@@ -172,7 +172,7 @@ async def test_a_gpsd_that_is_not_there_is_a_problem_and_tried_again_until_it_is
     await until(lambda: feed.state is Source.State.WAITING and why in feed.problem.lower())
     # the gpsd is started at last, on the port the feed has been trying
     gpsd = await FakeGpsd().start_on(port)
-    await until(lambda: feed.state is Source.State.CONNECTED, 3.0)
+    await until(lambda: feed.state is Source.State.CONNECTED)
     assert feed.problem == ""
     await until(lambda: gpsd.watching)
     gpsd.send(tpv(60.43, 24.145))
@@ -288,7 +288,7 @@ async def test_a_serial_port_that_hangs_up_is_opened_again() -> None:
     await until(lambda: port.connections == 1 and feed.state is Source.State.CONNECTED)
     port.hang_up()
     await until(lambda: feed.state is Source.State.WAITING or port.connections == 2)
-    await until(lambda: port.connections == 2 and feed.state is Source.State.CONNECTED, 3.0)
+    await until(lambda: port.connections == 2 and feed.state is Source.State.CONNECTED)
     port.send_raw(rmc(60.43, 24.145, 1.0, 10.0).encode())
     await until(lambda: fixes)
 

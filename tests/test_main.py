@@ -533,7 +533,7 @@ async def test_a_signal_sets_the_stop_event_through_the_loop(signals_restored: N
     stop = _stop_on_signals(asyncio.get_running_loop())
     assert not stop.is_set()
     signal.raise_signal(sig)
-    await asyncio.wait_for(stop.wait(), 5)
+    await asyncio.wait_for(stop.wait(), 30)
 
 
 async def test_a_signal_from_another_thread_of_the_process_is_handled_on_the_loop(signals_restored: None) -> None:
@@ -541,7 +541,7 @@ async def test_a_signal_from_another_thread_of_the_process_is_handled_on_the_loo
     handler = signal.getsignal(signal.SIGTERM)
     assert callable(handler)
     await asyncio.get_running_loop().run_in_executor(None, handler, signal.SIGTERM, None)
-    await asyncio.wait_for(stop.wait(), 5)
+    await asyncio.wait_for(stop.wait(), 30)
 
 
 async def test_a_system_without_sighup_but_with_sigbreak_gets_the_ones_it_has(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -559,7 +559,7 @@ async def test_the_poll_that_wakes_a_windows_loop_ends_with_the_stop(monkeypatch
     await idle_for(0.05)
     assert not poll.done()
     stop.set()
-    await asyncio.wait_for(poll, 5)
+    await asyncio.wait_for(poll, 30)
 
 
 def test_a_program_without_a_console_logs_to_the_file_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

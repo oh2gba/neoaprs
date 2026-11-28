@@ -21,6 +21,7 @@ from tests.support.ptyline import Ptys, feed, heard, posix_only
 from tests.test_silent import QUICK
 from tests.test_tnc import Rigs, kiss_of, stops_rigs, tiny_backoff, ui_frame
 from tests.test_tnc_pty import make_links
+from tests.support.logs import warnings_in
 
 FORMS = ("tnc2-oneline.txt", "tnc2-headerln.txt", "tnc2-7e1.bin", "kantronics.txt", "aea.txt", "yaesu.txt")
 
@@ -107,9 +108,9 @@ async def test_a_line_whose_information_is_longer_than_ax25_carries_is_rejected_
         )
         == 1
     )
-    assert not any("internal error" in line for line in r.tnc.lines) and not [
-        rec for rec in caplog.records if rec.levelno >= logging.WARNING
-    ], "ordinary bad input, said at no level of a fault"
+    assert not any("internal error" in line for line in r.tnc.lines) and not warnings_in(caplog), (
+        "ordinary bad input, said at no level of a fault"
+    )
 
 
 @stops_rigs

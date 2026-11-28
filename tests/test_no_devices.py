@@ -824,7 +824,9 @@ def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_
     folder = tmp_path / "radios" / "5"
     folder.mkdir(parents=True)
     # Popen returns once the program runs: its command line is read as written
-    station = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "-C", str(folder / "mercury.ini")])
+    station = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(600)", "-C", str(folder / "mercury.ini")]
+    )
     try:
         (folder / "mercury.pid").write_text(str(station.pid), encoding="ascii")
         end_left_behind(tmp_path)

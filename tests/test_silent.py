@@ -104,7 +104,7 @@ async def test_command_mode_text_while_silent_enters_kiss_and_connects_but_nothi
     assert r.tnc.usable is False and r.tnc.send_frame(ui_frame()) is False, "the TNC is restarting"
     assert news(caplog) == [f"{label}: the radio answers again after 17 min; entering KISS"]
     assert any(line.endswith("NeoAPRS: the radio answers again after 17 min; entering KISS") for line in r.tnc.lines)
-    await until(lambda: r.tnc.usable, 1.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.send_frame(ui_frame()) is True
     assert await hear_until(r.radio, kiss_of(ui_frame()), 1.0)
     assert await r.radio.said(1, 0.05) == b"", "KISS ON went out once"
@@ -120,7 +120,7 @@ async def test_the_allowance_to_enter_kiss_is_given_back_on_the_return_from_sile
     r.tnc.went_silent()
     r.radio.feed(b"\r\ncmd:")  # the radio was switched off and on
     assert await hear_until(r.radio, ENTER_KISS, 1.0), "it is once for every answer, not once for every open"
-    await until(lambda: r.tnc.usable, 1.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.problem == ""
 
 
@@ -208,7 +208,7 @@ async def test_probes_repeat_the_check_and_a_prompt_after_the_return_enters_kiss
     assert (r.tnc.stats.watchdog_probes, r.tnc.last_watchdog_action) == (1, "probe")
     r.radio.feed(b"\r\ncmd:")
     assert await hear_until(r.radio, ENTER_KISS, 1.0)
-    await until(lambda: r.tnc.state is Source.State.CONNECTED, 1.0)
+    await until(lambda: r.tnc.state is Source.State.CONNECTED)
     assert await r.radio.said(1, 0.3) == b"", "the probe did not enter KISS a second time"
     assert [m for m in news(caplog)] == ["tnc: the radio answers again after 0 min; entering KISS"]
 
@@ -223,9 +223,9 @@ async def test_a_probe_whose_return_is_not_answered_enters_kiss_and_an_answer_to
     assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE + ENTER_KISS, 3.0)
     assert r.tnc.state is Source.State.SILENT
     r.radio.feed(ANSWER)
-    await until(lambda: r.tnc.state is Source.State.CONNECTED, 1.0)
+    await until(lambda: r.tnc.state is Source.State.CONNECTED)
     assert await r.radio.said(1, 0.3) == b"", "no second entry"
-    await until(lambda: r.tnc.usable, 1.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.stats.watchdog_probes == 1 and r.tnc.watchdog.probes == 0
 
 
@@ -246,7 +246,6 @@ async def test_a_hundred_unanswered_probes_make_one_warning_and_no_info_and_ever
                 and stats.port_reopens == stats.watchdog_probes // 5
                 and stats.opens == 1 + stats.port_reopens
             ),
-            5.0,
         )
         told = [
             rec
@@ -269,16 +268,16 @@ async def test_the_fifth_probe_closes_and_opens_the_port_and_the_radio_stays_sil
     r.tnc.state_changed.connect(states.append)
     feeder = asyncio.create_task(drain(r.radio))
     try:
-        await until(lambda: r.tnc.stats.watchdog_probes == 4, 5.0)
+        await until(lambda: r.tnc.stats.watchdog_probes == 4)
         assert (r.tnc.stats.port_reopens, r.tnc.stats.opens) == (0, 1)
-        await until(lambda: r.tnc.stats.port_reopens == 1, 5.0)
-        await until(lambda: r.tnc.stats.opens == 2, 5.0)
+        await until(lambda: r.tnc.stats.port_reopens == 1)
+        await until(lambda: r.tnc.stats.opens == 2)
         assert r.tnc.stats.watchdog_probes == 5 and r.tnc.last_watchdog_action == "reopen"
         assert r.tnc.state is Source.State.SILENT and r.tnc.silent_since is not None
         assert states == [], "the state is not told to go through connecting and back"
-        await until(lambda: r.tnc.stats.watchdog_probes == 6, 5.0)  # the probing goes on after the reopen
+        await until(lambda: r.tnc.stats.watchdog_probes == 6)  # the probing goes on after the reopen
         r.radio.feed(b"\r\ncmd:")  # and a byte on the new line ends the silence
-        await until(lambda: r.tnc.state is Source.State.CONNECTED, 2.0)
+        await until(lambda: r.tnc.state is Source.State.CONNECTED)
     finally:
         feeder.cancel()
         await asyncio.gather(feeder, return_exceptions=True)
@@ -291,7 +290,7 @@ async def test_a_line_that_is_lost_while_silent_is_waiting_and_comes_back_connec
     await tnc.start()
     try:
         await until(lambda: tnc.state is Source.State.SILENT)
-        await until(lambda: tnc.stats.watchdog_probes >= 2, 3.0)
+        await until(lambda: tnc.stats.watchdog_probes >= 2)
         await radio.connected()
         radio.refuse()
         radio.drop()
@@ -420,7 +419,7 @@ async def test_a_fresh_tnc2_line_is_checked_at_once_and_nothing_else_is_written_
     r.radio.feed(b"\r\ncmd:")
     assert await hear_until(r.radio, ENTER_KISS, 1.0) == ENTER_KISS
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.usable is False, "settling"
-    await until(lambda: r.tnc.usable, 1.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.send_frame(ui_frame()) is True
     wire = kiss_of(ui_frame())
     assert await hear_until(r.radio, wire, 1.0) == wire, "a KISS frame, after the settle, and nothing else"
@@ -438,7 +437,7 @@ async def test_a_fresh_line_whose_radio_does_not_answer_is_silent_within_the_ans
     r.tnc.radio_name = name
     caplog.clear()
     begun = asyncio.get_running_loop().time()
-    await until(lambda: r.tnc.state is Source.State.SILENT, 2.0)
+    await until(lambda: r.tnc.state is Source.State.SILENT)
     assert asyncio.get_running_loop().time() - begun < 0.5
     assert await hear_until(r.radio, CHECK + ENTER_KISS, 1.0) == CHECK + ENTER_KISS
     assert await r.radio.said(1, 0.2) == b"", "the check and nothing else"
@@ -492,7 +491,7 @@ async def test_a_line_that_is_opened_again_after_it_dropped_is_checked_again(rig
     await hear_until(r.radio, CHECK)
     r.radio.feed(b"\r\ncmd:")
     await hear_until(r.radio, ENTER_KISS)
-    await until(lambda: r.tnc.usable, 1.0)
+    await until(lambda: r.tnc.usable)
     r.radio.drop()
     await until(lambda: r.tnc.state is Source.State.WAITING)
     await until(lambda: r.tnc.state is Source.State.CONNECTED)
@@ -509,7 +508,7 @@ async def test_switching_the_checks_off_while_a_fresh_line_waits_makes_it_usable
     await hear_until(r.radio, CHECK)
     assert r.tnc.usable is False
     r.tnc.set_check(0.0)
-    await until(lambda: r.tnc.usable, 1.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc._watchdog_task is None and r.tnc._looking is False
 
 
@@ -550,7 +549,7 @@ async def test_a_beacon_due_at_the_open_is_not_sent_nor_remembered_when_the_radi
 ) -> None:
     e = tnc2_daemon(tmp_path, reply_sec=0.05, answer_sec=0.1)
     await e.start()
-    await until(lambda: e.tnc.state is Source.State.SILENT, 2.0)
+    await until(lambda: e.tnc.state is Source.State.SILENT)
     await idle_for(0.3)
     assert e.beacon.last_sent is None and e.beacon.next_due is not None and e.beacon.next_due <= e.now()
     assert await e.heard(len(CHECK + ENTER_KISS), 0.5) == CHECK + ENTER_KISS, "the check, and no frame"

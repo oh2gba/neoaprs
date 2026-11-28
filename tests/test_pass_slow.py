@@ -16,6 +16,7 @@ from neoaprs.services.passlimits import BURST_MAX, SLOW_HANDOVER_SEC, SLOW_PASS_
 from neoaprs.source import Source
 from tests.test_digipeater import frame
 from tests.test_pass_rows import msg, pair_rig
+from tests.support.logs import warnings_in
 
 KEYED = Reason("the radio is transmitting", "radio.transmitting")
 
@@ -175,7 +176,7 @@ def test_receive_only_ticked_during_the_wait_drops_the_frame_with_one_warning(ca
     rig.digi.passer.tick()
     rig.digi.passer.tick()
     assert rig.hf.sent == [] and rig.hf.stats.passed == {}
-    assert len([r for r in caplog.records if r.levelno >= logging.WARNING]) == 1, "the interlock's one line"
+    assert len(warnings_in(caplog)) == 1, "the interlock's one line"
 
 
 def test_fm_as_the_target_keeps_four_in_ten_seconds_shared_with_the_fill_in() -> None:

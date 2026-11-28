@@ -178,12 +178,12 @@ def test_a_work_thread_whose_loop_is_gone_ends_without_a_word() -> None:
     task = loop.create_task(in_thread(lambda: (inside.set(), release.wait(10))[1], "update-download-orphan"))
     # The task has started its thread
     loop.run_until_complete(asyncio.sleep(0))
-    assert inside.wait(5)
+    assert inside.wait(30)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         loop.run_until_complete(task)
     loop.close()
     release.set()
     [thread] = [t for t in threading.enumerate() if t.name == "update-download-orphan"]
-    thread.join(5)
+    thread.join(30)
     assert not thread.is_alive()

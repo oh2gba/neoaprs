@@ -541,6 +541,7 @@ async def test_where_the_ports_are_not_searched_a_named_port_that_fails_is_tried
     try:
         await tnc.start()
         problems: set[str] = set()
+        await until(lambda: problems.add(tnc.problem) or f"{radio.url}: {REFUSED}" in problems)
         for _ in range(8):
             await asyncio.sleep(0.03)
             problems.add(tnc.problem)
@@ -794,7 +795,7 @@ async def test_a_cmd_prompt_in_answer_keeps_the_radio_connected_and_the_clock_re
     answered = asyncio.get_running_loop().time()
     assert await hear_until(r.radio, ENTER_KISS)
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.usable is False, "settling"
-    await until(lambda: r.tnc.usable, 2.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.silent_since is None
     await until(lambda: r.tnc.stats.keepalive_checks == 2, 30.0)
     assert asyncio.get_running_loop().time() - answered >= 0.25, "the next check is a period after the answer"
@@ -808,7 +809,7 @@ async def test_a_kiss_frame_in_answer_to_the_check_means_the_tnc_is_in_kiss_and_
     # The TNC did not leave KISS for the exit frame: a packet comes
     r.radio.feed(kiss_of(ui_frame("OH2CCC")))
     await until(lambda: len(r.packets) == 2)
-    await until(lambda: r.tnc._looking is False, 2.0)
+    await until(lambda: r.tnc._looking is False)
     assert await r.radio.said(1, 0.2) == b"", "no KISS ON into a TNC that is in KISS"
     assert r.tnc.usable and r.tnc.state is Source.State.CONNECTED and r.tnc.describe().endswith("KISS, 2 packets")
 
@@ -820,7 +821,7 @@ async def test_a_check_that_nothing_answers_makes_the_radio_silent_with_one_warn
     r = await rig(clock=FixedClock(), **QUICK)
     caplog.set_level(logging.INFO)
     caplog.clear()
-    await until(lambda: r.tnc.state is Source.State.SILENT, 3.0)
+    await until(lambda: r.tnc.state is Source.State.SILENT)
     assert news(caplog) == [
         "tnc: the radio is silent: nothing heard since 12:00 UTC, no answer to a check; probing every 30 s"
     ]

@@ -281,7 +281,19 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
     )
     env = {**os.environ, "PYTHONPATH": str(ROOT), "REAL_HOME": os.environ.get("HOME", "")}
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-rA", "--color=no", "-q", str(work)],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "no:cacheprovider",
+            "-p",
+            "no:randomly",
+            "-rA",
+            "--color=no",
+            "-q",
+            str(work),
+        ],
         cwd=work,
         env=env,
         capture_output=True,

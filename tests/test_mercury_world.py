@@ -84,7 +84,7 @@ async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the
     await w.start()
     record = await a.ctl.messaging.send("OH2B", "first try")
     assert b.beacon_2.send_now(), "B keys while A's frame is on the air"
-    await w.until(lambda: w.air.collisions == 2 and not w.air.transmitting, 3.0)  # (both frames are lost)
+    await w.until(lambda: w.air.collisions == 2 and not w.air.transmitting)  # (both frames are lost)
     assert (
         w.air.delivered == []
         and a.ctl.messaging.get(record.id).state == "sending"
@@ -111,13 +111,13 @@ async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel
     assert a.beacon_2.problem == "the channel is busy"
     record = await a.ctl.messaging.send("OH2B", "waits for the channel")
     assert record.attempts == 0 and record.state == "sending", "the attempt waits, none is used up"
-    await w.until(lambda: a.ctl.messaging.get(record.id).attempts == 1, 3.0)  # type: ignore[union-attr]
+    await w.until(lambda: a.ctl.messaging.get(record.id).attempts == 1)  # type: ignore[union-attr]
     assert not a.mercury.busy, "it went when the channel was clear"
     # The modem says PTT ON on its control port a moment after the frame was handed to it
     await w.until(lambda: a.mercury.keyed)
     assert not a.hf.usable and a.hf.why_unusable() == "the radio is transmitting"
     assert not a.beacon_2.send_now() and a.beacon_2.problem == "the radio is transmitting"
-    await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)  # type: ignore[union-attr]
+    await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked")  # type: ignore[union-attr]
     assert w.air.collisions == 0 and len(w.air.delivered) == 3
     assert a.hf.describe().startswith("Mercury DATAC3, listening")
 
@@ -137,9 +137,9 @@ async def test_a_station_that_gates_puts_what_it_hears_over_mercury_on_aprs_is_a
             **{"igate/enabled": "true", "igate/server": server.address, "igate/gate": "true"},
         )
         await w.start()
-        await until(lambda: gate.ctl.igate.state in ("connected", "listening"), 5.0)
+        await until(lambda: gate.ctl.igate.state in ("connected", "listening"))
         assert w["OH2A"].beacon_2.send_now()
-        await until(lambda: any(line.startswith("OH2A>") for line in server.packets), 5.0)
+        await until(lambda: any(line.startswith("OH2A>") for line in server.packets))
         [line] = [line for line in server.packets if line.startswith("OH2A>")]
         assert ",qAO,OH2C-10:" in line, "gated as heard on the radio, by this gate"
         assert len(w.air.delivered) == 1, "nothing from the internet went to the radio"
@@ -163,7 +163,7 @@ async def test_over_the_air_every_frame_is_direct_and_whole_whatever_the_path_se
     )
     await w.start()
     record = await a.ctl.messaging.send("OH2B", "x" * 67)
-    await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)  # type: ignore[union-attr]
+    await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked")  # type: ignore[union-attr]
     message = ax25.decode(w.air.delivered[0][2])
     assert message.path == () and len(ax25.encode(message)) == 98, (
         "the longest message, 67 characters with its number, is 98 bytes direct: under the frame with room to spare"
@@ -202,7 +202,7 @@ async def test_the_beacon_of_the_hf_radio_goes_out_at_the_one_interval_with_the_
     await idle_for(0.3)
     assert w.air.delivered == [], "the 30 s have passed but the pause has not"
     w.pass_time(120)
-    await w.until(lambda: len(w.air.delivered) == 1, 5.0)
+    await w.until(lambda: len(w.air.delivered) == 1)
     first = sent_by(w, "OH2A")[0]
     assert first.path == () and first.info.startswith(b"=6010.20N/02456.40E-"), "the home position, direct"
     slot = a.beacon_2._started + timedelta(seconds=30)  # type: ignore[operator]
@@ -211,7 +211,7 @@ async def test_the_beacon_of_the_hf_radio_goes_out_at_the_one_interval_with_the_
     await idle_for(0.3)
     assert len(w.air.delivered) == 1, "the interval has passed but the pause has not"
     w.pass_time(30)
-    await w.until(lambda: len(w.air.delivered) == 2, 5.0)
+    await w.until(lambda: len(w.air.delivered) == 2)
 
 
 async def test_a_changed_beacon_interval_is_planned_by_the_hf_radios_beacon_at_once_and_not_at_the_next_start(
@@ -245,7 +245,7 @@ async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_m
     # A's radio keyed by hand: it hears nothing of B's ack
     a.hf_radio.keyed = True
     # B's ack went into the void
-    await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)
+    await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting)
     a.hf_radio.keyed = False
     await idle_for(0.2)
     assert (
@@ -316,7 +316,7 @@ async def test_a_daemon_started_again_with_a_message_on_its_way_goes_on_from_its
     a.hf_radio.keyed = True
     # B's ack goes out while A is down
     await a.stop()
-    await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)
+    await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting)
     a.hf_radio.keyed = False
     again = Env(a.dir, radio=False, hf=a.hf_radio, settings=a.settings, clock=a.now)
     w.stations["OH2A"] = again

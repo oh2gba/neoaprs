@@ -13,6 +13,7 @@ from pathlib import Path
 
 from neoaprs import kiss
 from tests.support.env import Env, remember_stop, until
+from tests.support.patience import PATIENCE_SEC
 from tests.support.fakemercury import Air
 from tests.support.fakeradio import FakeRadio
 
@@ -129,5 +130,5 @@ class World:
     def __getitem__(self, call: str) -> Env:
         return self.stations[call]
 
-    async def until(self, condition: Callable[[], object], timeout_sec: float = 5.0) -> None:
+    async def until(self, condition: Callable[[], object], timeout_sec: float = PATIENCE_SEC) -> None:
         await until(condition, timeout_sec)

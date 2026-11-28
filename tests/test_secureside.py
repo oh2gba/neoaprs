@@ -20,9 +20,20 @@ from neoaprs.web.secureside import RECHECK_SEC, RETRY_SEC, SecureSide, SecureSta
 from neoaprs.web.tls import Certificates, TlsError
 from tests.support.clock import FixedClock
 from tests.support.env import remember_stop
+from tests.support.webports import next_web_port
 
 LAN = "192.168.1.20"
-PLAIN_PORT = 7303
+PLAIN_PORT = 0  # the plain page's port, a free one of the worker's own block for each test (below)
+
+
+@pytest.fixture(autouse=True)
+def plain_port() -> None:
+    """The secure side takes the ports after the plain page's: those of a block of this worker's own
+    (tests/support/webports.py), never those of a page this machine may be running."""
+    global PLAIN_PORT
+    PLAIN_PORT = next_web_port()
+    if not PLAIN_PORT:
+        pytest.skip("every slot of this worker's block of ports is taken")
 
 
 def factory(context: ssl.SSLContext) -> LimitedHTTPServer:

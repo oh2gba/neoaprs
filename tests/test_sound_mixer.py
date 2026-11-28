@@ -294,17 +294,17 @@ def test_a_look_for_the_library_while_the_mixers_thread_is_loading_it_waits_for_
 
     def load() -> object:
         entered.set()
-        go.wait(5)
+        go.wait(30)
         return object()
 
     alsa, said = Alsa(load), list[bool]()
     first = threading.Thread(target=alsa.present)
     first.start()
-    assert entered.wait(5)
+    assert entered.wait(30)
     second = threading.Thread(target=lambda: said.append(alsa.present()))
     second.start()
     second.join(0.2)
     go.set()
-    first.join(5)
-    second.join(5)
+    first.join(30)
+    second.join(30)
     assert said == [True]

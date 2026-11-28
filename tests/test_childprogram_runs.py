@@ -164,7 +164,7 @@ async def test_the_last_lines_of_a_run_that_crashed_are_kept_after_the_relaunch(
     await until_started(lambda: ended)
     at, lines = program.crash()
     assert at is not None and lines == ["starting", "fatal: the sound card went"]
-    program.start([childprogram.sys.executable, "-u", "-c", "import time; print('again'); time.sleep(60)"], tmp_path)
+    program.start([childprogram.sys.executable, "-u", "-c", "import time; print('again'); time.sleep(600)"], tmp_path)
     try:
         await until_started(lambda: program.last_lines == deque(["again"]))
         assert program.crash() == (at, lines), "the run before, which the relaunch replaced"
@@ -175,7 +175,7 @@ async def test_the_last_lines_of_a_run_that_crashed_are_kept_after_the_relaunch(
 
 async def test_a_run_that_was_stopped_is_no_crash(tmp_path: Path) -> None:
     program = Heard([])
-    program.start([childprogram.sys.executable, "-u", "-c", "import time; print('up'); time.sleep(60)"], tmp_path)
+    program.start([childprogram.sys.executable, "-u", "-c", "import time; print('up'); time.sleep(600)"], tmp_path)
     await until_started(lambda: program.lines_read == 1)
     await asyncio.to_thread(program.stop)
     assert program.crash() == (None, [])

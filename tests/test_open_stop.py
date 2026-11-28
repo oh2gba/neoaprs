@@ -92,8 +92,8 @@ async def test_the_watch_ends_the_run_when_the_file_appears_and_deletes_it(tmp_p
     await idle_for(0.05)
     assert not stop.is_set()
     stopfile.request(tmp_path)
-    await asyncio.wait_for(stop.wait(), 5)
-    await asyncio.wait_for(watching, 5)
+    await asyncio.wait_for(stop.wait(), 30)
+    await asyncio.wait_for(watching, 30)
     assert not stopfile.requested(tmp_path)
 
 
@@ -157,7 +157,7 @@ def test_open_reports_a_daemon_that_ends_before_its_page_is_up(
 
 
 def test_open_gives_up_when_no_page_comes_in_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(opencmd, "daemon_argv", lambda data: [sys.executable, "-c", "import time; time.sleep(30)"])
+    monkeypatch.setattr(opencmd, "daemon_argv", lambda data: [sys.executable, "-c", "import time; time.sleep(600)"])
     shown: list[str] = []
     monkeypatch.setattr(opencmd, "tell_the_user", lambda text: shown.append(text))
     spawned: list["subprocess.Popen[bytes]"] = []

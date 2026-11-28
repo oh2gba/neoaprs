@@ -350,10 +350,10 @@ async def test_a_port_a_save_gives_a_radio_while_find_my_radio_tries_it_is_let_g
     finding = asyncio.create_task(rig.finder.find(rig.tried.append))
     try:
         key = serialprobe.port_key(given.url)
-        await until(lambda: key in serialprobe.LISTENING and serialprobe.LISTENING[key].is_open, 3.0)
+        await until(lambda: key in serialprobe.LISTENING and serialprobe.LISTENING[key].is_open)
         tncsearch.let_go(given.url)
         # At once, not when the try of the port ends
-        await until(lambda: given.closed == 1, 1.0)
+        await until(lambda: given.closed == 1)
         assert await finding == Found(other.url, None, "kiss")
         assert f"passing over {given.url}: {given.url}: a radio is set to it" in caplog.text
     finally:

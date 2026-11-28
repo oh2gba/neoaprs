@@ -33,6 +33,7 @@ from neoaprs.wiring import _store_last_port
 from tests.support.clock import FixedClock
 from tests.support.migrated31 import radio_tables
 from tests.support.storedb import sql, store_at
+from tests.support.logs import warnings_in
 
 T0 = utc(2026, 11, 14, 8, 0)
 AT = stamp(T0)
@@ -351,7 +352,7 @@ async def test_a_row_of_a_removed_radios_own_state_written_after_the_removal_is_
     )
     rows = await store.settings()
     assert not [key for key in rows if key.startswith("radio/2/")] and "station/comment" not in rows
-    assert not [r for r in caplog.records if r.levelno >= logging.WARNING], "told in the log, as no error"
+    assert not warnings_in(caplog), "told in the log, as no error"
     assert await store.put_setting("radio/1/last_port", "/dev/ttyUSB1") and await store.put_settings(
         {"radio/7/beacon_last_sent_at": AT}
     ), "a live radio's, and one of a radio that has no row (radios not stored yet), as before"

@@ -280,7 +280,7 @@ async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_
     await page.send({"cmd": "set_config", "values": {"email/radio": str(id)}})
     await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(id))
     await page.send({"cmd": "status"})
-    await page.until(lambda: page.of("status")[-1]["email_radio"] == id, timeout=8)
+    await page.until(lambda: page.of("status")[-1]["email_radio"] == id, timeout=30)
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
     await page.until(lambda: not page.topics["radios"][str(id)]["enabled"])
     assert e.ctl.config.email_choice == id and e.ctl.config.unheard_radio == FM_ID, (
@@ -361,9 +361,9 @@ async def test_every_page_is_told_the_new_radio_of_a_call_no_radio_heard_at_once
     await other.until(lambda: len(other.of("status")) > 0)
     await page.send({"cmd": "radio_change", "radio": FM_ID, "position": 9})
     # The timer tells the status every 10 s
-    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == id, timeout=3)
+    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == id, timeout=30)
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
-    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == FM_ID, timeout=3)
+    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == FM_ID, timeout=30)
     await e.stop()
 
 
@@ -388,7 +388,7 @@ async def test_a_station_is_given_a_radio_and_a_path_on_it_and_its_row_says_both
     await page.send({"cmd": "clear_station_path", "call": "OH2XYZ", "radio": id})
     await page.until(lambda: page.topics["stations"]["OH2XYZ"]["paths"] == {})
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
-    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["radio_choice"] is None, timeout=8)
+    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["radio_choice"] is None, timeout=30)
     assert page.topics["stations"]["OH2XYZ"]["radio_now"] == FM_ID, "a radio that is off is no choice"
     await page.send({"cmd": "station_radio", "call": "OH2XYZ", "radio": None})
     await page.until(lambda: e.ctl.radios.choice("OH2XYZ") is None)
@@ -409,7 +409,7 @@ async def test_a_stations_row_says_the_reply_path_on_a_radio_without_paths_witho
     )
     assert e.ctl.prefbook.path_for("OH2XYZ", None, id) == ("OH2GBA-12", "WIDE2-1", "RFONLY"), "the frame carries it"
     e.ctl.stationbook.take(replace(heard(">here", "OH2XYZ", at=e.ctl.clock()), radio_id=id))
-    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=3)
+    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=30)
     await e.stop()
 
 
@@ -430,7 +430,7 @@ async def test_a_pair_switched_on_makes_its_call_ours_and_the_stations_row_loses
     )
     await page.send({"cmd": "set_config", "values": {f"pair/{low}/{id}/enabled": "true"}})
     # Nothing was heard: only the own calls changed
-    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=3)
+    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=30)
     await e.stop()
 
 
@@ -625,7 +625,7 @@ async def test_a_message_on_its_way_says_the_radio_it_takes_next_as_the_choice_a
         await page.send(command)
         # The clock of the test stands: no attempt is made meanwhile, the row is told by the change
         # itself
-        await page.until(lambda now=now: told() == (now, now), timeout=3)
+        await page.until(lambda now=now: told() == (now, now), timeout=30)
     assert page.topics["messages"][key]["state"] == "sending"
     await e.stop()
 
@@ -789,7 +789,7 @@ async def test_an_object_on_a_radio_that_is_removed_is_told_without_it(tmp_path:
     await page.send({**base, "name": "ALONE", "radios": [id]})
     await page.until(lambda: {"BOTH", "ALONE"} <= set(page.topics["own_objects"]))
     await page.send({"cmd": "radio_remove", "radio": id})
-    await page.until(lambda: page.topics["own_objects"]["BOTH"]["radios"] == [FM_ID], timeout=3)
+    await page.until(lambda: page.topics["own_objects"]["BOTH"]["radios"] == [FM_ID], timeout=30)
     assert page.topics["own_objects"]["ALONE"]["radios"] == [id], (
         "an object on no other radio keeps it, as its row does (ticked nowhere: it waits)"
     )

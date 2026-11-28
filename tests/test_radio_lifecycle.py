@@ -262,7 +262,7 @@ async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_sto
 
     hf.driver.stop = slow_stop  # type: ignore[method-assign]
     assert await e.ctl.remove_radio(HF_ID)
-    await asyncio.wait_for(stopping.wait(), 5)
+    await asyncio.wait_for(stopping.wait(), 30)
     await e.stop()
     assert stops == [0, 1] and not hf.beacon.running and hf.state is Source.State.STOPPED, (
         "stopped for good by the daemon's stop, its beacon with it"
@@ -292,11 +292,11 @@ async def test_a_radio_wanted_again_while_its_line_is_being_stopped_keeps_its_be
     hf.driver.stop = held_stop  # type: ignore[method-assign]
     assert e.ctl.radios.claims.hold(Claim("gps", "/dev/ttyACM9", HF_ID)) is None
     assert await e.ctl.remove_radio(HF_ID)
-    await asyncio.wait_for(stopping.wait(), 5)
+    await asyncio.wait_for(stopping.wait(), 30)
     # Radio 2 wanted again while its line is still being stopped
     e.ctl.radios.sync(before)
     go.set()
-    await asyncio.wait_for(stopped.wait(), 5)
+    await asyncio.wait_for(stopped.wait(), 30)
     await idle_for(0.1)
     assert e.ctl.radios.get(HF_ID) is hf and hf.beacon.running, "the radio taken back keeps its beacon"
     assert e.ctl.radios.claims.holder_of("gps", "/dev/ttyACM9") == HF_ID, (

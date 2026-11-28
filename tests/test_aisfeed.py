@@ -57,7 +57,7 @@ async def test_the_connection_is_read_to_its_end_and_each_batch_is_handed_on() -
     await receiver.until_connected()
     receiver.send("one", "two")
     receiver.drop()
-    await asyncio.wait_for(reading, 5.0)
+    await asyncio.wait_for(reading, 30)
     writer.close()
     assert got == ["one", "two"]
 

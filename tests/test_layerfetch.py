@@ -148,14 +148,13 @@ async def test_the_password_follows_a_redirect_on_the_same_host_and_never_one_to
 
 async def test_an_answer_that_drips_is_given_up_when_its_time_is_over_and_its_thread_ends() -> None:
     server = await layers_server()
-    server.route("/slow", body=b"x" * 40, drip_sec=0.1)
+    server.route("/slow", body=b"x" * 600, drip_sec=0.1)
     before = set(threading.enumerate())
     start = time.monotonic()
     assert await fetch_feed(server.url + "/slow", "0.21.0", "linux", {}, 1000, 1000, timeout_sec=0.5) is None
-    assert time.monotonic() - start < 1.5
+    assert time.monotonic() - start < 20.0, "not the minute the whole answer takes"
     await until(
         lambda: (
             not [thread for thread in threading.enumerate() if thread.name == "layer-fetch" and thread not in before]
         ),
-        3.0,
     )

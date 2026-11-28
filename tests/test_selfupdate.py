@@ -181,7 +181,7 @@ async def test_a_cancel_ends_the_download_and_leaves_nothing(tmp_path: Path) -> 
         job.begin("0.7.0")  # (the piece in flight ends first)
     assert busy.value.code == "update.busy"
     gate.set()
-    await until(lambda: not (tmp_path / f"{NAME}.part").exists())
+    await until(lambda: not (tmp_path / f"{NAME}.part").exists() and states == ["downloading", "idle"])
     await asyncio.sleep(0.05)
     assert installer.installed == [] and job.status().state == "idle" and states == ["downloading", "idle"]
     with pytest.raises(UpdateNowError) as none:
@@ -200,7 +200,7 @@ class SlowSignature(FakeRelease):
     def fetch_sums(self, url: str, allowed: Allowed) -> bytes:
         if url.endswith(".sig"):
             self.entered.set()
-            self.gate.wait(5)
+            self.gate.wait(30)
         return super().fetch_sums(url, allowed)
 
 

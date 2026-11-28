@@ -14,13 +14,14 @@ import pytest
 from neoaprs import kiss
 from neoaprs.channelbusy import OccupancyBusy
 from neoaprs.mercury import modem_gain
-from neoaprs.mercuryhelper import find, foreign_listeners
+from neoaprs.mercuryhelper import find, foreign_listeners, free_ports
 from neoaprs.mercuryscope import ROW_BINS, ROW_OFFSET_DB, ROW_STEP_DB, RowMeter, bands_db, parse_spectrum, parse_status
 from neoaprs.mercuryui import MercuryUi
 from neoaprs.source import Backoff
 from tests.support.env import until
 from tests.support.hfchannel import Channel
 from tests.support.realmercury import fifo, start_mercury, stop
+from tests.support.modemports import free_port
 
 # This test's own ports: the KISS port, the control port 200 above, the UI port 300 above
 FIRST_PORT = 19400
@@ -42,9 +43,9 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
         pytest.skip(
             "the Mercury that scripts/build-mercury --install builds (with the UI interface on the loopback) and named pipes are needed"
         )
-    ports = (FIRST_PORT, FIRST_PORT + 200)
+    ports = free_ports(FIRST_PORT, 10)
     # Below the ports of the test workers, which begin at 20000: tests/test_mercury_modem.py
-    ui_port = FIRST_PORT + 300
+    ui_port = free_port(FIRST_PORT + 300)
     channel = Channel(snr_db=10.0, seed=3)
     rx, tx = fifo(tmp_path, "rx"), fifo(tmp_path, "tx")
     channel.add("A", rx, tx)
@@ -148,8 +149,8 @@ async def test_the_automatic_busy_control_sees_a_frame_of_another_real_mercury_a
         pytest.skip(
             "the Mercury that scripts/build-mercury --install builds (with the UI interface on the loopback) and named pipes are needed"
         )
-    sender, receiver = (FIRST_PORT + 20, FIRST_PORT + 220), (FIRST_PORT + 40, FIRST_PORT + 240)
-    ui_port = receiver[0] + 300  # (below the ports of the test workers: see the test above)
+    sender, receiver = free_ports(FIRST_PORT + 20, 10), free_ports(FIRST_PORT + 40, 10)
+    ui_port = free_port(receiver[0] + 300)  # (below the ports of the test workers: see the test above)
     channel = Channel(snr_db=20.0, seed=5)
     pipes = {name: (fifo(tmp_path, f"{name}-rx"), fifo(tmp_path, f"{name}-tx")) for name in ("A", "B")}
     for name, (rx, tx) in pipes.items():
@@ -189,7 +190,7 @@ async def test_the_automatic_busy_control_sees_a_frame_of_another_real_mercury_a
         assert not any(busy for _, busy in states), "noise alone is not a signal"
         writer.write(kiss.encode(b"OH2A>APNEO1:=6010.20N/02456.40E-a frame for the control"))
         sent_at = time.monotonic()
-        await until(lambda: any(busy for when, busy in states if when > sent_at), timeout_sec=6.0)
+        await until(lambda: any(busy for when, busy in states if when > sent_at), timeout_sec=30)
         went_on = next(when for when, busy in states if busy and when > sent_at)
         await until(lambda: not states[-1][1], timeout_sec=15.0)
         went_off = next(when for when, busy in states if not busy and when > went_on)

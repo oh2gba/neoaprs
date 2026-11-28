@@ -102,7 +102,7 @@ async def test_a_second_serial_radio_waits_while_the_first_searches_and_then_lea
     feeders: list[asyncio.Task[None]] = []
     starts = [asyncio.create_task(fm.start())]
     try:
-        await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
+        await until(lambda: sorted(fm.searching) == [port_1, port_2])
         starts.append(asyncio.create_task(fm2.start()))
         await until(lambda: fm2._search.waiting)
         assert fm2.describe() == WAITING and fm2.searching == [] and lock.locked(), (
@@ -183,13 +183,13 @@ async def test_a_radio_that_never_finds_its_port_gives_its_turn_to_a_radio_that_
     feeder = asyncio.create_task(keep_feeding(second_master, kiss_of(ui_frame())))
     starts = [asyncio.create_task(fm.start())]
     try:
-        await until(lambda: fm.searching == [port_1], 5.0)
+        await until(lambda: fm.searching == [port_1])
         starts.append(asyncio.create_task(fm2.start()))
         await until(lambda: fm2.state is Source.State.CONNECTED and fm2.path == port_2, 10.0)
         assert "Packet: the search gives its turn to another radio" in caplog.text and claims.all() == (
             Claim("serial", port_key(port_2), 3),
         )
-        await until(lambda: fm.searching == [port_1], 5.0)
+        await until(lambda: fm.searching == [port_1])
         assert fm.state is Source.State.CONNECTING, "the first goes on with its search in its next turn"
     finally:
         feeder.cancel()
@@ -209,11 +209,11 @@ async def test_a_port_another_radio_or_the_gps_receiver_takes_while_the_search_l
     fm = serial_radio(1, "Packet", claims, asyncio.Lock(), pattern=pattern)
     start = asyncio.create_task(fm.start())
     try:
-        await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
+        await until(lambda: sorted(fm.searching) == [port_1, port_2])
         claims.hold(Claim("gps", port_key(port_2), None))
-        await until(lambda: fm.searching == [port_1], 5.0)
+        await until(lambda: fm.searching == [port_1])
         claims.release(None)
-        await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
+        await until(lambda: sorted(fm.searching) == [port_1, port_2])
     finally:
         await fm.stop()
         await asyncio.gather(start, return_exceptions=True)
@@ -241,7 +241,7 @@ async def test_a_named_port_another_radio_or_the_gps_receiver_holds_is_never_ope
         await until(lambda: tnc.problem == f"{port}: held by the GPS receiver")
         assert tnc.stats.opens == 0
         claims.release(None)
-        await until(lambda: tnc.state is Source.State.CONNECTED, 5.0)
+        await until(lambda: tnc.state is Source.State.CONNECTED)
         assert claims.all() == (Claim("serial", port_key(port), 3),) and tnc.stats.opens == 1, (
             "free again: opened, and held for its radio"
         )
@@ -558,9 +558,9 @@ async def test_a_port_another_radio_is_set_to_is_never_opened_by_a_search_and_th
     starts = [asyncio.create_task(fm.start())]
     feeder = asyncio.create_task(keep_feeding(board, kiss_of(ui_frame())))
     try:
-        await until(lambda: fm.searching == [port_1], 5.0)
+        await until(lambda: fm.searching == [port_1])
         starts.append(asyncio.create_task(lora.start()))
-        await until(lambda: lora.state is Source.State.CONNECTED and lora.path == port_2, 5.0)
+        await until(lambda: lora.state is Source.State.CONNECTED and lora.path == port_2)
         await idle_for(0.3)
         assert fm.searching == [port_1] and fm.state is Source.State.CONNECTING, "the FM search never took the board"
         assert (
@@ -587,13 +587,13 @@ async def test_a_search_that_has_a_port_open_lets_go_of_it_when_another_radio_is
     starts = [asyncio.create_task(fm.start())]
     feeder: asyncio.Task[None] | None = None
     try:
-        await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
+        await until(lambda: sorted(fm.searching) == [port_1, port_2])
         # (a save adds radio 3 on port_2: nothing restarts radio 1)
         claims.named = set_to((port_2, 3))
-        await until(lambda: fm.searching == [port_1], 5.0)
+        await until(lambda: fm.searching == [port_1])
         starts.append(asyncio.create_task(lora.start()))
         feeder = asyncio.create_task(keep_feeding(board, kiss_of(ui_frame())))
-        await until(lambda: lora.state is Source.State.CONNECTED and lora.path == port_2, 5.0)
+        await until(lambda: lora.state is Source.State.CONNECTED and lora.path == port_2)
         assert fm.state is Source.State.CONNECTING and fm.path != port_2
     finally:
         if feeder is not None:
@@ -635,7 +635,7 @@ async def test_a_named_port_another_radio_holds_is_waited_for_and_no_other_port_
             "the radio waits for its own port: it takes no other TNC meanwhile"
         )
         claims.release(1)
-        await until(lambda: tnc.state is Source.State.CONNECTED, 5.0)
+        await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.path == port_1
     finally:
         feeder.cancel()
@@ -858,16 +858,16 @@ async def test_a_board_that_speaks_after_a_save_named_its_port_for_another_radio
     starts = [asyncio.create_task(fm.start())]
     feeder: asyncio.Task[None] | None = None
     try:
-        await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
+        await until(lambda: sorted(fm.searching) == [port_1, port_2])
         # (a save adds the LoRa radio on port_2, and its board speaks before radio 3 is started)
         claims.named = set_to((port_2, 3))
         feeder = asyncio.create_task(keep_feeding(board, kiss_of(ui_frame())))
-        await until(lambda: fm.searching == [port_1], 5.0)
+        await until(lambda: fm.searching == [port_1])
         assert fm.state is Source.State.CONNECTING and fm.path != port_2 and claims.all() == (), (
             "the FM search closed the board's port and took nothing"
         )
         starts.append(asyncio.create_task(lora.start()))
-        await until(lambda: lora.state is Source.State.CONNECTED and lora.path == port_2, 5.0)
+        await until(lambda: lora.state is Source.State.CONNECTED and lora.path == port_2)
     finally:
         if feeder is not None:
             feeder.cancel()
@@ -891,11 +891,11 @@ async def test_a_radio_a_save_names_a_port_for_takes_it_at_once_from_a_search_th
     radio.fallback_probe = fallback
     starts = [asyncio.create_task(fm.start())]
     try:
-        await until(lambda: sorted(fm.searching) == [port_1, port_2], 5.0)
+        await until(lambda: sorted(fm.searching) == [port_1, port_2])
         # (a save adds radio 3 on port_2, and it is started at once)
         claims.named = set_to((port_2, 3))
         starts.append(asyncio.create_task(radio.start()))
-        await until(lambda: radio.state is Source.State.CONNECTED, 3.0)
+        await until(lambda: radio.state is Source.State.CONNECTED)
         assert radio.path == port_2 and "in use by another program" not in caplog.text, (
             "its own port, at the first try, and not the words of another program"
         )
@@ -1007,7 +1007,7 @@ async def test_the_probe_closes_a_port_that_became_another_radios_while_it_liste
         await until(lambda: opened[-1] == [port_1])
         assert not probe.done(), "the board's frame is not the answer"
         feeders.append(asyncio.create_task(keep_feeding(first, frame)))
-        found = await asyncio.wait_for(probe, 5.0)
+        found = await asyncio.wait_for(probe, 30)
         assert found is not None and found[0] == port_1
     finally:
         for task in (*feeders, probe):

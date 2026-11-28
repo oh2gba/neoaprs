@@ -68,7 +68,7 @@ class FakeUi:
         self._clients.clear()
         if self._server is not None:
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(self._server.wait_closed(), 2.0)
+                await asyncio.wait_for(self._server.wait_closed(), 30)
 
     def drop(self) -> None:
         """Closes every connection: the client's link is lost and opened again."""

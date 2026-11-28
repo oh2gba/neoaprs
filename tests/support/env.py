@@ -34,6 +34,7 @@ from neoaprs.station import Station
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
 from tests.support.webports import next_web_port
+from tests.support.patience import PATIENCE_SEC
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes
 from tests.support.fakemercury import FakeMercury
@@ -178,7 +179,7 @@ async def stop_all() -> None:
             await db.close()
 
 
-async def until(condition: Callable[[], object], timeout_sec: float = 5.0) -> None:
+async def until(condition: Callable[[], object], timeout_sec: float = PATIENCE_SEC) -> None:
     deadline = asyncio.get_running_loop().time() + timeout_sec
     while not condition():
         assert asyncio.get_running_loop().time() < deadline, "the condition did not come true"
@@ -196,7 +197,7 @@ async def until_started(condition: Callable[[], object], timeout_sec: float = ST
     await until(condition, timeout_sec)
 
 
-async def until_async(condition: Callable[[], Awaitable[object]], timeout_sec: float = 5.0) -> None:
+async def until_async(condition: Callable[[], Awaitable[object]], timeout_sec: float = PATIENCE_SEC) -> None:
     """`until` for a condition that has to be awaited (a row of the database)."""
     deadline = asyncio.get_running_loop().time() + timeout_sec
     while not await condition():

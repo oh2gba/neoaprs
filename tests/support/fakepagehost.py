@@ -76,7 +76,7 @@ class FakePageHost:
     async def stop(self) -> None:
         if self._server is not None:
             self._server.stop()
-            await asyncio.wait_for(self._server.close_all_connections(), 5)
+            await asyncio.wait_for(self._server.close_all_connections(), 30)
 
 
 async def page_host() -> FakePageHost:

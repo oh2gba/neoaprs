@@ -27,6 +27,7 @@ from neoaprs.radiospec import RadioSpec
 from neoaprs.source import Source
 from neoaprs.childprogram import environment
 from neoaprs.direwolf import LEVEL_NOW_MS, level_now_of
+from tests.support.modemports import free_port
 
 FOLDER = tools_dir() / "direwolf"
 PROGRAM = FOLDER / "direwolf"
@@ -77,7 +78,7 @@ def _start(folder: Path, conf: Path, *extra: str) -> subprocess.Popen[bytes]:
 
 @its_tools
 def test_closing_its_input_ends_it_cleanly_and_it_listens_on_this_computer_only(tmp_path: Path) -> None:
-    udp, port = 17311, 17411
+    udp, port = free_port(17311, udp=True), free_port(17411)
     child = _start(tmp_path, _conf(tmp_path, f"udp:{udp} null", port), "-Q")
     try:
         deadline = time.monotonic() + 30
@@ -115,7 +116,7 @@ async def test_it_decodes_the_frames_of_its_own_gen_packets_and_hands_each_to_it
     ).stdout
     expected = int(next(line.split()[0] for line in counted.splitlines() if "packets decoded" in line))
     assert expected > 0
-    port = 17421
+    port = free_port(17421)
     child = _start(tmp_path, _conf(tmp_path, "stdin null", port))
     try:
         assert child.stdout is not None and child.stdin is not None
@@ -155,7 +156,7 @@ def _levels_heard(folder: Path, gain: int, audio: bytes) -> tuple[list[int], str
         [
             str(PROGRAM),
             "-c",
-            str(_conf(folder, "stdin null", 17431)),
+            str(_conf(folder, "stdin null", free_port(17431))),
             "-t",
             "0",
             "-q",

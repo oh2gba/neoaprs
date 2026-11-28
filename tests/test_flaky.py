@@ -580,6 +580,8 @@ def collected(folder: Path, *options: str) -> list[str]:
             "tests.support.shuffle",
             "-p",
             "no:cacheprovider",
+            "-p",
+            "no:randomly",
             "--rootdir",
             str(folder),
             "--collect-only",

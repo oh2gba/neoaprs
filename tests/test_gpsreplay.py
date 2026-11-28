@@ -156,12 +156,12 @@ async def test_a_client_is_greeted_and_is_sent_the_drive_only_after_it_asks_to_w
     server = await serve()
     reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
     try:
-        assert json.loads(await asyncio.wait_for(reader.readline(), 5))["class"] == "VERSION"
+        assert json.loads(await asyncio.wait_for(reader.readline(), 30))["class"] == "VERSION"
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(reader.readline(), 0.1)
         writer.write(b'?WATCH={"enable":true,"json":true};\n')
         await writer.drain()
-        classes = [json.loads(await asyncio.wait_for(reader.readline(), 5))["class"] for _ in range(8)]
+        classes = [json.loads(await asyncio.wait_for(reader.readline(), 30))["class"] for _ in range(8)]
         assert classes[:2] == ["DEVICES", "WATCH"] and "TPV" in classes and classes.count("SKY") <= 1
     finally:
         writer.close()

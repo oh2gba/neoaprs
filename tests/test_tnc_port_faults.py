@@ -23,6 +23,7 @@ from neoaprs.tncprofile import KISS
 from neoaprs.web.radioview import radio_row
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, until
+from tests.support.logs import warnings_in
 
 INCOMING = PortInfo(
     "COM8",
@@ -148,7 +149,7 @@ async def test_a_line_lost_once_is_one_warning_and_it_names_the_radio(
         with caplog.at_level(logging.INFO, "neoaprs"):
             tnc.send_frame(frame())
             await until(lambda: tnc.write_stuck is not None and tnc.state is Source.State.CONNECTED)
-        told = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        told = [r.getMessage() for r in warnings_in(caplog)]
         assert not any(r.name == "neoaprs.serialport" and r.levelno >= logging.INFO for r in caplog.records)
         assert told == [
             "LoRa 2 (radio 9): COM8: a write timed out: the device did not take the data within 2 s; trying again in 0.05 s"

@@ -82,7 +82,7 @@ def test_the_watch_goes_on_after_a_look_that_failed() -> None:
     daemon.running = running  # type: ignore[method-assign]
     watch = DaemonWatch(Session(Path("somewhere"), PAGE, owned=True), gone.set, daemon, every=0.02)
     watch.start()
-    assert gone.wait(5)
+    assert gone.wait(30)
 
 
 @not_root

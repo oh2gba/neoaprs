@@ -366,7 +366,7 @@ async def test_a_failure_in_a_callback_of_the_loop_is_logged_with_its_traceback(
             loop.call_soon(done.set)
 
     loop.call_soon(boom)
-    await asyncio.wait_for(done.wait(), 5)
+    await asyncio.wait_for(done.wait(), 30)
     await asyncio.sleep(0)
     (record,) = [r for r in caplog.records if r.name == "neoaprs.test"]
     assert record.getMessage().startswith("event loop: Exception in callback") and "boom" in record.getMessage()

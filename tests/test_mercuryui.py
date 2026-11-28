@@ -38,17 +38,17 @@ async def test_the_client_reads_text_and_binary_messages_and_sends_commands_that
     await ui.start()
     try:
         client = await WebSocketClient.connect("127.0.0.1", ui.port, "/websocket")
-        is_text, data = await asyncio.wait_for(client.recv(), 3)  # type: ignore[misc]
+        is_text, data = await asyncio.wait_for(client.recv(), 30)  # type: ignore[misc]
         assert is_text and b'"type": "status"' in data, "the server tells its status when a client connects"
         await client.send_text('{"command": "set_tx_gain", "value": "3"}')
-        assert await asyncio.wait_for(client.recv(), 3) == (True, b'{"status":"ok"}')
+        assert await asyncio.wait_for(client.recv(), 30) == (True, b'{"status":"ok"}')
         await client.send_text('{"command": "nonsense"}')
-        assert await asyncio.wait_for(client.recv(), 3) == (True, b'{"status":"error","code":-1}')
+        assert await asyncio.wait_for(client.recv(), 30) == (True, b'{"status":"error","code":-1}')
         await client.send_text("{")
-        assert await asyncio.wait_for(client.recv(), 3) == (True, b'{"error":"malformed command JSON"}')
+        assert await asyncio.wait_for(client.recv(), 30) == (True, b'{"error":"malformed command JSON"}')
         await client.send_text('{"command": "set_waterfall", "value": "on"}')
-        assert await asyncio.wait_for(client.recv(), 3) == (True, b'{"status":"ok"}')
-        got = await asyncio.wait_for(client.recv(), 3)
+        assert await asyncio.wait_for(client.recv(), 30) == (True, b'{"status":"ok"}')
+        got = await asyncio.wait_for(client.recv(), 30)
         assert got is not None and not got[0] and parse_spectrum(got[1]) is not None, (
             "then the spectrum, as binary frames"
         )
@@ -141,11 +141,11 @@ async def test_fragments_are_joined_a_ping_is_answered_a_close_ends_it_and_a_mes
     server = Upgrading(first + ping + last + long + short + close)
     await server.start()
     client = await WebSocketClient.connect("127.0.0.1", server.port)
-    assert await asyncio.wait_for(client.recv(), 3) == (True, b"abcdef"), (
+    assert await asyncio.wait_for(client.recv(), 30) == (True, b"abcdef"), (
         "the ping between the fragments is answered and the fragments are one message"
     )
-    assert await asyncio.wait_for(client.recv(), 3) == (False, b"ok"), "the long message is skipped"
-    assert await asyncio.wait_for(client.recv(), 3) is None and client.closed
+    assert await asyncio.wait_for(client.recv(), 30) == (False, b"ok"), "the long message is skipped"
+    assert await asyncio.wait_for(client.recv(), 30) is None and client.closed
     await until(lambda: len(server.received) >= 2)
     assert server.received[:2] == bytes([0x8A, 0x82]), "the pong is a masked frame, as a client's are"
     client.close()
@@ -316,7 +316,7 @@ async def test_the_fake_ui_ends_at_once_with_a_connection_that_has_asked_for_not
     try:
         # The server has taken the connection and waits for its first line
         await asyncio.sleep(0.05)
-        await asyncio.wait_for(ui.aclose(), 1.0)
-        assert await asyncio.wait_for(reader.read(), 1.0) == b"", "the connection is closed from the server's side"
+        await asyncio.wait_for(ui.aclose(), 30)
+        assert await asyncio.wait_for(reader.read(), 30) == b"", "the connection is closed from the server's side"
     finally:
         writer.close()

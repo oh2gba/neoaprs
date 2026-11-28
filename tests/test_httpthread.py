@@ -31,8 +31,8 @@ def test_the_listening_socket_has_a_limit_the_connections_have_none_and_a_shutdo
     finally:
         ended = threading.Thread(target=server.shutdown, daemon=True)
         ended.start()
-        ended.join(5)
+        ended.join(30)
         server.server_close()
     assert not ended.is_alive(), "the shutdown ends"
-    thread.join(5)
+    thread.join(30)
     assert not thread.is_alive()

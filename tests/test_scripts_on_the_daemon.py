@@ -24,7 +24,7 @@ async def closed(connection: Any) -> None:
     """A client socket closed and read to its end, so that its reading loop is over before the test
     ends."""
     connection.close()
-    while await asyncio.wait_for(connection.read_message(), 5) is not None:
+    while await asyncio.wait_for(connection.read_message(), 30) is not None:
         pass
 
 

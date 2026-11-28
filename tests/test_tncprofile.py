@@ -230,7 +230,7 @@ async def test_the_d710_sequence_is_written_in_order_with_its_pauses_and_nothing
     for (_, gap), (_, pause) in zip(steps[1:], KENWOOD_D710.enter):
         assert gap >= pause * 0.2 * 0.8, "each step waits for the pause of the one before"
     assert r.tnc.usable is False and r.tnc.send_frame(ui_frame()) is False, "the settle time is after the last step"
-    await until(lambda: r.tnc.usable, 2.0)
+    await until(lambda: r.tnc.usable)
     assert r.tnc.send_frame(ui_frame()) and (await r.radio.said(5))[:1] == b"\xc0"
 
 

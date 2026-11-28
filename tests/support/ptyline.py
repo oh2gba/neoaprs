@@ -117,7 +117,7 @@ def ptys() -> Iterator[Callable[[], tuple[int, str]]]:
 
 
 _HOLD = (
-    "import os, sys, time\nos.open(sys.argv[1], os.O_RDWR | os.O_NOCTTY)\nprint('ready', flush=True)\ntime.sleep(60)\n"
+    "import os, sys, time\nos.open(sys.argv[1], os.O_RDWR | os.O_NOCTTY)\nprint('ready', flush=True)\ntime.sleep(600)\n"
 )
 
 

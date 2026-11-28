@@ -568,7 +568,7 @@ def test_sim_radios_starts_its_daemon_apart_from_the_terminal(tmp_path: Path) ->
     assert spec is not None
     sim = importlib.util.module_from_spec(spec)
     loader.exec_module(sim)
-    child = sim.start_daemon([sys.executable, "-c", "import time; time.sleep(60)"], tmp_path / "data")
+    child = sim.start_daemon([sys.executable, "-c", "import time; time.sleep(600)"], tmp_path / "data")
     try:
         assert os.getsid(child.pid) == child.pid != os.getsid(0), (
             "the daemon leads a session of its own, apart from the terminal's"

@@ -6,6 +6,7 @@ that restarts on its pair is not handed that pair's ports by another test.
 
 import itertools
 import os
+import socket
 
 import pytest
 
@@ -36,3 +37,16 @@ def own_ports(monkeypatch: pytest.MonkeyPatch) -> int:
         mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries)
     )
     return base
+
+
+def free_port(first: int, tries: int = 50, udp: bool = False) -> int:
+    """The first port from `first` up that nothing holds now (TCP, or UDP), for a real program that a
+    test starts on a port of its own; raise OSError if none of `tries` is."""
+    for port in range(first, first + tries):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM if udp else socket.SOCK_STREAM) as probe:
+            try:
+                probe.bind(("127.0.0.1", port))
+            except OSError:
+                continue
+            return port
+    raise OSError(f"no free port from {first} to {first + tries}")

@@ -773,7 +773,7 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
     stubborn = [
         sys.executable,
         "-c",
-        "import signal, sys, time\nif '-z' in sys.argv: sys.exit(0)\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('up', flush=True)\ntime.sleep(60)",
+        "import signal, sys, time\nif '-z' in sys.argv: sys.exit(0)\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('up', flush=True)\ntime.sleep(600)",
     ]
     m = Mercury(
         tmp_path, finder=lambda: stubborn, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path)

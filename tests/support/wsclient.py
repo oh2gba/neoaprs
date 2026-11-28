@@ -9,6 +9,8 @@ from typing import Any
 
 from tornado.websocket import WebSocketClientConnection, websocket_connect
 
+from tests.support.patience import PATIENCE_SEC
+
 
 class WsClient:
     def __init__(self, ws: WebSocketClientConnection) -> None:
@@ -120,7 +122,7 @@ class WsClient:
     def _label(message: dict[str, Any]) -> str:
         return f"{message['type']}:{message['topic']}" if "topic" in message else str(message["type"])
 
-    async def until(self, condition: Callable[[], object], timeout: float = 5.0) -> None:
+    async def until(self, condition: Callable[[], object], timeout: float = PATIENCE_SEC) -> None:
         """Waits until the condition holds (it is looked at when a message arrives). A condition
         that looks at a topic or a row that has not come yet (KeyError) does not hold yet."""
 

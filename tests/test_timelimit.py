@@ -27,6 +27,8 @@ def run_pytest(folder: Path, limit: str) -> "subprocess.CompletedProcess[str]":
             "tests.support.timelimit",
             "-p",
             "no:cacheprovider",
+            "-p",
+            "no:randomly",
             "--rootdir",
             str(folder),
             str(folder),

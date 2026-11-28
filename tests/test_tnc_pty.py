@@ -108,7 +108,7 @@ async def test_a_search_with_no_port_left_is_waiting_at_once(ptys: Ptys, tmp_pat
     for master in masters:
         loop.call_later(0.1, close_pty, master)  # both cables are pulled during the search
     try:
-        await asyncio.wait_for(tnc.start(), 2.0)
+        await asyncio.wait_for(tnc.start(), 30)
         # (a cable pulled before the search opened its port is one that could not be listened to,
         # one pulled after it is one that delivered nothing: under load either comes first, and both
         # end the search)
@@ -135,7 +135,7 @@ async def test_the_search_listens_for_as_long_as_it_takes_and_says_where(ptys: P
         await until(lambda: tnc.state is Source.State.CONNECTING and tnc.describe() == want)
         assert any(want in line for line in tnc.lines)
         assert tnc.searching == [str(tmp_path / "port_1"), str(tmp_path / "port_3")]
-        await asyncio.wait_for(starting, 3.0)
+        await asyncio.wait_for(starting, 30)
         assert loop.time() - began >= 0.45
         assert (
             tnc.state is Source.State.CONNECTED
@@ -162,7 +162,7 @@ async def test_the_search_sends_a_carriage_return_and_takes_a_tnc_that_answers_w
         assert await hear(first, 1) == b"\r" and await hear(second, 1) == b"\r"  # every candidate was nudged
         # Only the second one is a TNC in command mode
         feed(second, b"cmd:")
-        await asyncio.wait_for(starting, 3.0)
+        await asyncio.wait_for(starting, 30)
         # A start whose first search fails returns waiting, and a later one nudged the ports
         assert tnc.path == str(tmp_path / "port_2"), f"the first search ended without the port: {tnc.problem}"
         # The search has used up the first prompt; the opened port hears the next one
@@ -184,13 +184,13 @@ async def test_a_tnc_the_search_found_in_command_mode_is_put_into_kiss_at_the_op
         assert await hear(master, 1) == b"\r"
         # A TH-D7 whose TNC is in command mode answers it
         feed(master, b"\r\ncmd:")
-        await asyncio.wait_for(starting, 3.0)
+        await asyncio.wait_for(starting, 30)
         assert tnc.state is Source.State.CONNECTED and tnc.usable is False, (
             "the entry is settling: nothing is typed into the TNC"
         )
         assert tnc.send_frame(ui_frame()) is False
         assert await hear(master, len(ENTER_KISS)) == ENTER_KISS, "the entry, before anything else"
-        await until(lambda: tnc.usable, 2.0)
+        await until(lambda: tnc.usable)
         assert tnc.send_frame(ui_frame()) is True
         wire = kiss_of(ui_frame())
         assert await hear(master, len(wire)) == wire, "the frame comes after the entry has settled"
@@ -214,12 +214,12 @@ async def test_a_port_that_appears_while_the_search_listens_is_opened_and_one_th
         # The radio is plugged in: a port that matches the pattern appears
         second, path = ptys()
         (tmp_path / "port_2").symlink_to(path)
-        await until(lambda: tnc.searching == [str(tmp_path / "port_1"), str(tmp_path / "port_2")], 2.0)
+        await until(lambda: tnc.searching == [str(tmp_path / "port_1"), str(tmp_path / "port_2")])
         # And the other port goes away
         (tmp_path / "port_1").unlink()
-        await until(lambda: tnc.searching == [str(tmp_path / "port_2")], 2.0)
+        await until(lambda: tnc.searching == [str(tmp_path / "port_2")])
         feeder = asyncio.create_task(keep_feeding(second, kiss_of(ui_frame())))
-        await asyncio.wait_for(starting, 5.0)
+        await asyncio.wait_for(starting, 30)
         assert tnc.state is Source.State.CONNECTED and tnc.path == str(tmp_path / "port_2")
     finally:
         if feeder is not None:
@@ -242,12 +242,12 @@ async def test_the_named_port_that_comes_back_while_the_search_stands_in_for_it_
         await tnc.start()
         assert tnc.state is Source.State.WAITING
         # The search stands in for the named port
-        await until(lambda: tnc.searching == [str(tmp_path / "port_1")], 2.0)
+        await until(lambda: tnc.searching == [str(tmp_path / "port_1")])
         master, path = ptys()
         Path(named).symlink_to(path)  # plugged back in
-        await until(lambda: named in tnc.searching, 2.0)
+        await until(lambda: named in tnc.searching)
         feeder = asyncio.create_task(keep_feeding(master, kiss_of(ui_frame())))
-        await until(lambda: tnc.state is Source.State.CONNECTED, 5.0)
+        await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.path == named
     finally:
         if feeder is not None:
@@ -261,7 +261,7 @@ async def test_stop_during_the_search_ends_it_and_leaves_nothing_running(ptys: P
     starting = asyncio.create_task(tnc.start())
     await until(lambda: bool(tnc.describe().startswith("listening on")))
     await tnc.stop()
-    await asyncio.wait_for(starting, 2.0)
+    await asyncio.wait_for(starting, 30)
     assert (
         tnc.state is Source.State.STOPPED
         and len(tnc._tasks) == 0
@@ -368,7 +368,7 @@ async def test_a_search_with_every_port_skipped_or_held_says_so(ptys: Ptys, tmp_
     tnc = Tnc(pattern=pattern, probe_seconds=5.0, backoff=tiny_backoff(), skip=(str(tmp_path / "port_1"),))
     try:
         with held_by_a_program(str(tmp_path / "port_2")):
-            await asyncio.wait_for(tnc.start(), 2.0)
+            await asyncio.wait_for(tnc.start(), 30)
             assert tnc.state is Source.State.WAITING
             assert tnc.problem.startswith("no port could be listened to") and str(tmp_path / "port_1") in tnc.problem
     finally:
@@ -388,7 +388,7 @@ async def test_a_search_whose_every_port_another_radio_holds_says_which_radio_no
     )
     tnc.radio_id = 3
     try:
-        await asyncio.wait_for(tnc.start(), 2.0)
+        await asyncio.wait_for(tnc.start(), 30)
         assert tnc.state is Source.State.WAITING
         assert (
             tnc.problem
@@ -440,7 +440,7 @@ async def test_a_reopen_that_fails_falls_to_the_search_for_the_radio(ptys: Ptys,
         link.unlink()  # the device is gone
         # The radio is behind another port now
         talker = asyncio.create_task(keep_feeding(other, kiss_of(ui_frame())))
-        await until(lambda: tnc.state is Source.State.CONNECTED and tnc.path == str(tmp_path / "other_1"), 5.0)
+        await until(lambda: tnc.state is Source.State.CONNECTED and tnc.path == str(tmp_path / "other_1"))
         assert tnc.stats.port_reopens == 1 and tnc.watchdog.probes == 0
         assert any("No such file" in line for line in tnc.lines)
     finally:

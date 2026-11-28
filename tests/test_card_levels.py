@@ -446,6 +446,8 @@ async def test_the_playback_value_is_put_on_the_card_only_while_the_modems_gain_
         await running(driver.modem)
         assert mixer.writes[0] == (CARD, *written) and driver.card.levels == levels
         driver.card.want(*cardlevels.wanted(spec(tx_gain_db=gain, tx_card="90", rx_card="20")))
+        if gain == "0":
+            await until(lambda: mixer.writes[-1][1] == 90)
         await asyncio.sleep(0.2)
         assert (mixer.writes[-1][1] == 90) is (gain == "0"), (
             "a change of the value is set at once only where it is the transmit level"

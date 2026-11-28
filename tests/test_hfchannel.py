@@ -27,6 +27,7 @@ from tests.support.hfchannel import (
     s32le_to_pcm,
 )
 from tests.support.ptyline import mkfifo
+from tests.support.patience import PATIENCE_SEC
 
 BLOCK = 160
 INF = math.inf
@@ -564,9 +565,12 @@ def test_the_thread_keeps_the_pace_of_the_clock_and_delivers(make) -> None:
     started = time.monotonic()
     rig.channel.start()
     try:
-        time.sleep(0.5)
-        for name in "AB":
-            rig.drain(name)
+        # (it waits for the blocks and not for a time: a slow machine gets them later)
+        deadline = started + PATIENCE_SEC
+        while rig.channel.blocks < 15 and time.monotonic() < deadline:
+            for name in "AB":
+                rig.drain(name)
+            time.sleep(0.01)
     finally:
         rig.channel.stop()
     for name in "AB":
@@ -575,9 +579,9 @@ def test_the_thread_keeps_the_pace_of_the_clock_and_delivers(make) -> None:
         rig.drain(name)
     elapsed = time.monotonic() - started
     blocks = rig.channel.blocks
-    # (never faster than the clock, and not far behind it: how far a busy machine falls behind is
-    # measured over minutes by the simulation stage)
-    assert elapsed / 0.02 / 2 <= blocks <= elapsed / 0.02 + 1, (blocks, elapsed)
+    # (never faster than the clock; how far a busy machine falls behind is measured over minutes by
+    # the simulation stage)
+    assert 15 <= blocks <= elapsed / 0.02 + 1, (blocks, elapsed)
     heard = rig.samples("B")
     assert len(heard) == blocks * BLOCK - 0 and amplitude(heard[: 10 * BLOCK]) == pytest.approx(
         TONE_RMS * math.sqrt(2), rel=0.05

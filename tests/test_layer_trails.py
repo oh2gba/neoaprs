@@ -81,7 +81,7 @@ async def test_a_page_that_comes_back_within_the_grace_starts_with_the_trail_and
     assert all(m["trails"] == [] for m in tab.of("layer_things")[1:]), "the trails come with the first table only"
     await tab.send({"cmd": "layer_look", "layer": "aircraft", "on": False})
     asked = len(receiver.paths())
-    await until(lambda: len(receiver.paths()) > asked + 1, 5.0)  # asked on through the grace
+    await until(lambda: len(receiver.paths()) > asked + 1)  # asked on through the grace
     back = await e.ws()
     await back.send({"cmd": "layer_look", "layer": "aircraft", "on": True})
     table = await back.expect("layer_things")

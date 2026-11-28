@@ -171,7 +171,7 @@ class FakeAisStream(LoopbackServer):
     async def stop(self) -> None:
         self.drop()
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(super().stop(), 5.0)
+            await asyncio.wait_for(super().stop(), 30)
 
 
 async def aisstream() -> FakeAisStream:

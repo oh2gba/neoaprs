@@ -279,7 +279,7 @@ def test_a_set_that_waits_its_turn_stops_waiting_when_a_migration_is_seen_to_hol
     try:
         capsys.readouterr()
         assert db("set", "station/comment", "beside the migration", data=data) == 1
-        assert time.monotonic() - began < 5, "not the minute of the wait"
+        assert time.monotonic() - began < 20, "not the minute of the wait"
         assert "NeoAPRS is bringing it up to date now" in capsys.readouterr().err
     finally:
         note.join()

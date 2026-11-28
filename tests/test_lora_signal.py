@@ -18,6 +18,7 @@ from neoaprs.tncprofile import LORA_CONSOLE, LORA_SERIAL, LORA_TCP
 from tests.support.env import until
 from tests.support.fakelora import Board, ListServer, decapsulate, encode_kiss, q_element
 from tests.test_lora_line import Lines, line_on, stops
+from tests.support.logs import warnings_in
 
 HEARD = b"OH2ABC-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>tracker"
 
@@ -546,9 +547,7 @@ async def test_the_first_failure_of_the_list_ends_the_asking_for_the_open_with_o
             caplog.text.count("the board's list of heard packets did not answer") == 1
             and "packets come without their signal" in caplog.text
         )
-        assert not any(r.levelno >= logging.WARNING for r in caplog.records), (
-            "the operator can do nothing about it on the page: a line of the log"
-        )
+        assert not warnings_in(caplog), "the operator can do nothing about it on the page: a line of the log"
     finally:
         await server.stop()
 
@@ -586,9 +585,9 @@ async def test_a_board_whose_list_refuses_holds_its_first_frame_no_longer_than_t
     board = Board("igate")
     line, _ = await line_on(lines, board, LORA_TCP)
     board.air(HEARD)
-    await until(lambda: len(line.packets) == 1, 1.5)
+    await until(lambda: len(line.packets) == 1)
     board.air(HEARD)
-    await until(lambda: len(line.packets) == 2, 1.0)
+    await until(lambda: len(line.packets) == 2)
     assert [(p.snr, p.rssi) for p in line.packets] == [(None, None), (None, None)]
 
 
